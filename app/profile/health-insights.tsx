@@ -4,12 +4,12 @@ import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   View,
   type ViewStyle,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { AIInsightsDashboard } from "@/app/components/AIInsightsDashboard";
 import HealthInsightsCard from "@/app/components/HealthInsightsCard";
 import { Heading } from "@/components/design-system/Typography";
@@ -23,6 +23,7 @@ export default function HealthInsightsScreen() {
   const { theme } = useTheme();
   const isRTL = i18n.language === "ar";
   const [refreshing, setRefreshing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const styles = createThemedStyles((tokens) => ({
     container: {
@@ -55,8 +56,8 @@ export default function HealthInsightsScreen() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    // Refresh will be handled by the components themselves
-    setTimeout(() => setRefreshing(false), 1000);
+    setRefreshKey((value) => value + 1);
+    setTimeout(() => setRefreshing(false), 600);
   }, []);
 
   if (!user) {
@@ -91,9 +92,11 @@ export default function HealthInsightsScreen() {
         showsVerticalScrollIndicator={false}
         style={styles.content as ViewStyle}
       >
-        <HealthInsightsCard />
+        <HealthInsightsCard key={`health-insights-card-${refreshKey}`} />
         <AIInsightsDashboard
           compact={false}
+          embedded={true}
+          key={`health-insights-dashboard-${refreshKey}`}
           onInsightPress={() => {
             // Navigate to analytics tab for detailed view
             router.push("/(tabs)/analytics");

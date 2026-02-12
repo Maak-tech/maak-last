@@ -55,7 +55,7 @@ export default function HealthInsightsCard({
   const [familyInsights, setFamilyInsights] = useState<FamilyMemberInsights[]>(
     []
   );
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   const styles = useMemo(() => getStyles(theme, isRTL), [theme, isRTL]);
 
@@ -160,6 +160,8 @@ export default function HealthInsightsCard({
 
   const getInsightIcon = (type: PatternInsight["type"]) => {
     switch (type) {
+      case "ml":
+        return "sparkles-outline";
       case "temporal":
         return "time-outline";
       case "correlation":
@@ -328,7 +330,23 @@ export default function HealthInsightsCard({
   }
 
   if (!weeklySummary) {
-    return null;
+    return (
+      <Card contentStyle={undefined} pressable={false} style={styles.card}>
+        <View style={styles.centerContainer}>
+          <Ionicons
+            color={theme.colors.text.secondary}
+            name="information-circle-outline"
+            size={20}
+          />
+          <Caption numberOfLines={2} style={styles.loadingText}>
+            {t(
+              "noInsightsAvailable",
+              "No insights available yet. Add more health data to generate insights."
+            )}
+          </Caption>
+        </View>
+      </Card>
+    );
   }
 
   return (

@@ -4,6 +4,19 @@ set -euo pipefail
 # EAS Build hook to restore google-services.json from environment variable.
 # This script runs automatically before dependencies are installed.
 
+REQUIRED_PATCH_FILE="patches/expo-font+14.0.11.patch"
+
+if [ ! -f "$REQUIRED_PATCH_FILE" ]; then
+  echo "Error: Required runtime patch missing: $REQUIRED_PATCH_FILE"
+  echo "This patch prevents known iOS release crashes in expo-font."
+  exit 1
+fi
+
+if [ ! -s "$REQUIRED_PATCH_FILE" ]; then
+  echo "Error: Required runtime patch is empty: $REQUIRED_PATCH_FILE"
+  exit 1
+fi
+
 if [ -z "${GOOGLE_SERVICES_JSON:-}" ]; then
   echo "Warning: GOOGLE_SERVICES_JSON environment variable is not set."
   echo "Please set it using: eas env:create --scope project --name GOOGLE_SERVICES_JSON --type file --value \"\$(cat google-services.json)\""

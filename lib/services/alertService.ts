@@ -128,6 +128,16 @@ const mapAlertTypeToIcon = (type: EmergencyAlert["type"]): string => {
   return "heart-pulse";
 };
 
+const FAMILY_ALERTS_CACHE_TTL_MS = 30_000;
+const familyAlertsCache = new Map<
+  string,
+  { cachedAt: number; alerts: EmergencyAlert[] }
+>();
+const familyAlertsInFlight = new Map<string, Promise<EmergencyAlert[]>>();
+
+const buildFamilyAlertsCacheKey = (userIds: string[], limitCount: number) =>
+  `${[...userIds].sort().join(",")}::${limitCount}`;
+
 export const alertService = {
   /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Handles direct Firestore write plus Cloud Function fallback with full telemetry/error context. */
   async createAlert(alertData: Omit<EmergencyAlert, "id">): Promise<string> {
@@ -166,7 +176,7 @@ export const alertService = {
           domain: "alerts",
           source: "alertService",
           message: `Alert created: ${alertData.type}`,
-          severity: mapAlertSeverityToObservability(alertData.severity),
+          severity: "info",
           status: "success",
           metadata: {
             alertId: docRef.id,
@@ -265,7 +275,7 @@ export const alertService = {
                 domain: "alerts",
                 source: "alertService",
                 message: `Alert created via Cloud Function: ${alertData.type}`,
-                severity: mapAlertSeverityToObservability(alertData.severity),
+                severity: "info",
                 status: "success",
                 metadata: {
                   alertId,
@@ -388,29 +398,80 @@ export const alertService = {
 
   async getFamilyAlerts(
     userIds: string[],
-    limitCount = 50
+    limitCount = 50,
+    forceRefresh = false
   ): Promise<EmergencyAlert[]> {
-    const q = query(
-      collection(db, "alerts"),
-      where("userId", "in", userIds),
-      where("resolved", "==", false),
-      orderBy("timestamp", "desc"),
-      limit(limitCount)
-    );
-
-    const querySnapshot = await getDocs(q);
-    const alerts: EmergencyAlert[] = [];
-
-    for (const itemDoc of querySnapshot.docs) {
-      const data = itemDoc.data();
-      alerts.push({
-        id: itemDoc.id,
-        ...data,
-        timestamp: data.timestamp.toDate(),
-      } as EmergencyAlert);
+    if (userIds.length === 0) {
+      return [];
     }
 
-    return alerts;
+    const cacheKey = buildFamilyAlertsCacheKey(userIds, limitCount);
+    const cached = familyAlertsCache.get(cacheKey);
+    if (
+      !forceRefresh &&
+      cached &&
+      Date.now() - cached.cachedAt < FAMILY_ALERTS_CACHE_TTL_MS
+    ) {
+      return cached.alerts;
+    }
+
+    const inFlight = familyAlertsInFlight.get(cacheKey);
+    if (!forceRefresh && inFlight) {
+      return inFlight;
+    }
+
+    const loadPromise = (async () => {
+      const batchSize = 10;
+      const batches: string[][] = [];
+      for (let i = 0; i < userIds.length; i += batchSize) {
+        batches.push(userIds.slice(i, i + batchSize));
+      }
+
+      const querySnapshots = await Promise.all(
+        batches.map((batch) =>
+          getDocs(
+            query(
+              collection(db, "alerts"),
+              where("userId", "in", batch),
+              where("resolved", "==", false),
+              orderBy("timestamp", "desc"),
+              limit(limitCount)
+            )
+          )
+        )
+      );
+
+      const alerts: EmergencyAlert[] = [];
+      for (const querySnapshot of querySnapshots) {
+        for (const itemDoc of querySnapshot.docs) {
+          const data = itemDoc.data();
+          alerts.push({
+            id: itemDoc.id,
+            ...data,
+            timestamp: data.timestamp.toDate(),
+          } as EmergencyAlert);
+        }
+      }
+
+      alerts.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      const finalAlerts = alerts.slice(0, limitCount);
+
+      familyAlertsCache.set(cacheKey, {
+        cachedAt: Date.now(),
+        alerts: finalAlerts,
+      });
+
+      return finalAlerts;
+    })()
+      .catch((error) => {
+        throw error;
+      })
+      .finally(() => {
+        familyAlertsInFlight.delete(cacheKey);
+      });
+
+    familyAlertsInFlight.set(cacheKey, loadPromise);
+    return await loadPromise;
   },
 
   /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Multi-path resolution workflow (Cloud Function, fallback writes, escalation, and timeline) with detailed observability. */
@@ -424,6 +485,9 @@ export const alertService = {
       }
 
       const alertData = alertDoc.data();
+      let cloudFunctionFallbackError:
+        | { code?: string; message: string }
+        | undefined;
 
       // Try Cloud Function first for more reliable resolution (bypasses Firestore rules)
       // This ensures consistent behavior regardless of Firestore rule deployment status
@@ -569,6 +633,10 @@ export const alertService = {
           // Extract error details using helper function
           const { code: errorCode, message: errorMessage } =
             extractFirebaseFunctionsError(cloudFunctionError);
+          cloudFunctionFallbackError = {
+            code: errorCode,
+            message: errorMessage,
+          };
 
           // If Cloud Function doesn't exist or failed, fall back to direct Firestore update
           if (
@@ -602,9 +670,10 @@ export const alertService = {
               eventType: "alert_service",
               domain: "alerts",
               source: "alertService",
-              message: "Cloud Function permission denied for alert resolution",
-              severity: "error",
-              status: "failure",
+              message:
+                "Cloud Function permission denied for alert resolution; trying direct Firestore fallback",
+              severity: "warn",
+              status: "pending",
               error: {
                 message: errorMessage,
                 code: errorCode,
@@ -633,14 +702,15 @@ export const alertService = {
             });
             // Fall through to direct Firestore update
           } else {
-            // Cloud Function returned an error - log and try fallback
+            // Cloud Function returned an error - try fallback before marking failure
             observabilityEmitter.emit({
               eventType: "alert_service",
               domain: "alerts",
               source: "alertService",
-              message: "Cloud Function failed for alert resolution",
-              severity: "error",
-              status: "failure",
+              message:
+                "Cloud Function failed for alert resolution; trying direct Firestore fallback",
+              severity: "warn",
+              status: "pending",
               error: {
                 message: errorMessage,
                 code: errorCode,
@@ -722,27 +792,89 @@ export const alertService = {
       }
 
       // If we get here, direct Firestore update succeeded
-
-      await healthTimelineService.addEvent({
-        userId: alertData.userId,
-        eventType: "alert_resolved",
-        title: `Alert resolved: ${alertData.type}`,
-        description: "Alert was resolved",
-        timestamp: new Date(),
-        severity: "info",
-        icon: "check-circle",
+      observabilityEmitter.emit({
+        eventType: "alert_service",
+        domain: "alerts",
+        source: "alertService",
+        message:
+          "Alert resolved via direct Firestore fallback after Cloud Function error",
+        severity: cloudFunctionFallbackError ? "warn" : "info",
+        status: "success",
+        error: cloudFunctionFallbackError
+          ? {
+              message: cloudFunctionFallbackError.message,
+              code: cloudFunctionFallbackError.code,
+            }
+          : undefined,
         metadata: {
           alertId,
-          alertType: alertData.type,
-          resolvedBy: resolverId,
+          resolverId,
+          method: cloudFunctionFallbackError
+            ? "direct_firestore_fallback"
+            : "direct_firestore",
         },
-        relatedEntityId: alertId,
-        relatedEntityType: "alert",
-        actorId: resolverId,
-        actorType: "user",
       });
 
-      await escalationService.resolveEscalation(alertId, resolverId);
+      try {
+        await healthTimelineService.addEvent({
+          userId: alertData.userId,
+          eventType: "alert_resolved",
+          title: `Alert resolved: ${alertData.type}`,
+          description: "Alert was resolved",
+          timestamp: new Date(),
+          severity: "info",
+          icon: "check-circle",
+          metadata: {
+            alertId,
+            alertType: alertData.type,
+            resolvedBy: resolverId,
+          },
+          relatedEntityId: alertId,
+          relatedEntityType: "alert",
+          actorId: resolverId,
+          actorType: "user",
+        });
+      } catch (timelineError: unknown) {
+        observabilityEmitter.emit({
+          eventType: "alert_service",
+          domain: "alerts",
+          source: "alertService",
+          message:
+            "Failed to add health timeline event after direct alert resolution",
+          severity: "warn",
+          status: "success",
+          error: {
+            message:
+              timelineError instanceof Error
+                ? timelineError.message
+                : "Unknown error",
+          },
+          metadata: { alertId, resolverId },
+        });
+      }
+
+      try {
+        await escalationService.resolveEscalation(alertId, resolverId);
+      } catch (escalationError: unknown) {
+        const { code: escalationCode, message: escalationMessage } =
+          extractFirebaseFunctionsError(escalationError);
+        observabilityEmitter.emit({
+          eventType: "alert_service",
+          domain: "alerts",
+          source: "alertService",
+          message:
+            escalationCode === "permission-denied"
+              ? "Escalation resolution skipped after direct alert resolution due to permissions"
+              : "Failed to resolve escalation after direct alert resolution",
+          severity: escalationCode === "permission-denied" ? "warn" : "error",
+          status: "success",
+          error: {
+            message: escalationMessage,
+            code: escalationCode,
+          },
+          metadata: { alertId, resolverId },
+        });
+      }
 
       observabilityEmitter.emit({
         eventType: "alert_service",

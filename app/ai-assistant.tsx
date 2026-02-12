@@ -379,79 +379,113 @@ export default function AIAssistant() {
     setInputText("");
     setIsStreaming(true);
 
-    // Save user message
-    await saveMessageToSession(userMessage);
+    let streamFinalized = false;
+    let didTimeout = false;
 
-    const assistantMessage: AIMessage = {
-      id: (Date.now() + 1).toString(),
-      role: "assistant",
-      content: "",
-      timestamp: new Date(),
+    const finalizeStream = () => {
+      if (streamFinalized) {
+        return;
+      }
+      streamFinalized = true;
+      setIsStreaming(false);
     };
 
-    setMessages((prev) => [...prev, assistantMessage]);
-
-    let fullResponse = "";
-
-    await openaiService.createChatCompletionStream(
-      messages.concat(userMessage),
-      (chunk) => {
-        fullResponse += chunk;
-        // Batch state updates using functional update to avoid stale closures
-        setMessages((prev) => {
-          const lastIndex = prev.length - 1;
-          if (lastIndex >= 0 && prev[lastIndex].id === assistantMessage.id) {
-            // Update existing message
-            const newMessages = [...prev];
-            newMessages[lastIndex] = {
-              ...prev[lastIndex],
-              content: fullResponse,
-            };
-            return newMessages;
-          }
-          return prev;
-        });
-        // Throttle scroll updates for better performance
-        scrollToBottom();
-      },
-      async () => {
-        setIsStreaming(false);
-        // Save assistant message
-        await saveMessageToSession({
-          ...assistantMessage,
-          content: fullResponse,
-        });
-
-        // Speak the response if voice is enabled and auto-speak is on
-        if (voiceOutputEnabled && autoSpeak) {
-          await handleVoiceOutput(fullResponse);
-        }
-      },
-      (error) => {
-        setIsStreaming(false);
-        // Silently handle error
-
-        // More user-friendly error messages
-        if (error.message.includes("quota exceeded")) {
-          Alert.alert(
-            t("quotaExceeded", "Quota Exceeded"),
-            t(
-              "openAIQuotaExceededMessage",
-              "Your OpenAI account has exceeded its usage quota.\n\nOptions:\n1. Add billing to your OpenAI account\n2. Switch to GPT-3.5 Turbo (cheaper)\n3. Wait for your quota to reset\n\nVisit platform.openai.com to manage billing."
-            )
-          );
-        } else {
-          Alert.alert(
-            t("error", "Error"),
-            error.message ||
-              t(
-                "failedToGetResponse",
-                "Failed to get response. Please try again."
-              )
-          );
-        }
+    const streamTimeout = setTimeout(() => {
+      if (streamFinalized) {
+        return;
       }
-    );
+      didTimeout = true;
+      finalizeStream();
+      Alert.alert(
+        t("error", "Error"),
+        t(
+          "assistantTimeoutMessage",
+          "Response took too long. Please try sending your message again."
+        )
+      );
+    }, 30_000);
+
+    try {
+      // Save user message
+      await saveMessageToSession(userMessage);
+
+      const assistantMessage: AIMessage = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: "",
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+
+      let fullResponse = "";
+
+      await openaiService.createChatCompletionStream(
+        messages.concat(userMessage),
+        (chunk) => {
+          fullResponse += chunk;
+          // Batch state updates using functional update to avoid stale closures
+          setMessages((prev) => {
+            const lastIndex = prev.length - 1;
+            if (lastIndex >= 0 && prev[lastIndex].id === assistantMessage.id) {
+              // Update existing message
+              const newMessages = [...prev];
+              newMessages[lastIndex] = {
+                ...prev[lastIndex],
+                content: fullResponse,
+              };
+              return newMessages;
+            }
+            return prev;
+          });
+          // Throttle scroll updates for better performance
+          scrollToBottom();
+        },
+        async () => {
+          finalizeStream();
+          // Save assistant message
+          await saveMessageToSession({
+            ...assistantMessage,
+            content: fullResponse,
+          });
+
+          // Speak the response if voice is enabled and auto-speak is on
+          if (voiceOutputEnabled && autoSpeak) {
+            await handleVoiceOutput(fullResponse);
+          }
+        },
+        (error) => {
+          finalizeStream();
+
+          if (didTimeout) {
+            return;
+          }
+
+          // More user-friendly error messages
+          if (error.message.includes("quota exceeded")) {
+            Alert.alert(
+              t("quotaExceeded", "Quota Exceeded"),
+              t(
+                "openAIQuotaExceededMessage",
+                "Your OpenAI account has exceeded its usage quota.\n\nOptions:\n1. Add billing to your OpenAI account\n2. Switch to GPT-3.5 Turbo (cheaper)\n3. Wait for your quota to reset\n\nVisit platform.openai.com to manage billing."
+              )
+            );
+          } else {
+            Alert.alert(
+              t("error", "Error"),
+              error.message ||
+                t(
+                  "failedToGetResponse",
+                  "Failed to get response. Please try again."
+                )
+            );
+          }
+        }
+      );
+    } finally {
+      clearTimeout(streamTimeout);
+      finalizeStream();
+    }
   };
 
   const handleSaveSettings = async () => {

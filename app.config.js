@@ -11,6 +11,36 @@ const isConfigIntrospection =
   process.env.EXPO_CONFIG_TYPE === "introspect" ||
   (process.argv.includes("--type") && process.argv.includes("introspect"));
 
+const normalizeSecret = (value) => {
+  if (typeof value !== "string") {
+    return "";
+  }
+  let normalized = value.trim();
+  if (!normalized) {
+    return "";
+  }
+  if (
+    (normalized.startsWith('"') && normalized.endsWith('"')) ||
+    (normalized.startsWith("'") && normalized.endsWith("'"))
+  ) {
+    normalized = normalized.slice(1, -1).trim();
+  }
+  if (normalized.toLowerCase().startsWith("bearer ")) {
+    normalized = normalized.slice(7).trim();
+  }
+  return normalized;
+};
+
+const readFirstSecret = (...keys) => {
+  for (const key of keys) {
+    const normalized = normalizeSecret(process.env[key]);
+    if (normalized) {
+      return normalized;
+    }
+  }
+  return "";
+};
+
 // Helper to validate plist file
 function isValidPlist(filePath) {
   try {
@@ -276,11 +306,18 @@ export default {
       dexcomRedirectUri:
         process.env.DEXCOM_REDIRECT_URI ||
         "https://maak-5caad.web.app/dexcom-callback",
-      // OpenAI API keys are stored in Expo Secrets
-      // Zeina uses ZEINA_API_KEY if set, otherwise falls back to OPENAI_API_KEY
-      openaiApiKey: process.env.OPENAI_API_KEY || "",
-      zeinaApiKey:
-        process.env.ZEINA_API_KEY || process.env.OPENAI_API_KEY || "", // Prefer ZEINA_API_KEY if set
+      // OpenAI API keys are stored in EAS environment variables.
+      // We support both classic names and EXPO_PUBLIC_* names for compatibility.
+      openaiApiKey: readFirstSecret(
+        "OPENAI_API_KEY",
+        "EXPO_PUBLIC_OPENAI_API_KEY"
+      ),
+      zeinaApiKey: readFirstSecret(
+        "ZEINA_API_KEY",
+        "EXPO_PUBLIC_ZEINA_API_KEY",
+        "OPENAI_API_KEY",
+        "EXPO_PUBLIC_OPENAI_API_KEY"
+      ),
       // RevenueCat API Keys - REQUIRED for production
       // PUBLIC_REVENUECAT_API_KEY: Public SDK API key (starts with appl_ for iOS or goog_ for Android)
       //   - Used by the React Native SDK for client-side subscription management

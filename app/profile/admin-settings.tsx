@@ -1,4 +1,6 @@
-import { useNavigation, useRouter } from "expo-router";
+import {
+  useNavigation,
+  useRouter } from "expo-router";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -9,20 +11,23 @@ import {
   Trash2,
   Users,
   X,
-} from "lucide-react-native";
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+  } from "lucide-react-native";
+import { useCallback,
+  useEffect,
+  useLayoutEffect,
+  useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
   Modal,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Avatar from "@/components/Avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";

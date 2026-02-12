@@ -49,23 +49,42 @@ class OpenAIService {
   private readonly baseURL = "https://api.openai.com/v1";
   private model = "gpt-3.5-turbo"; // Default to cheaper model
 
+  private normalizeKey(key: unknown): string | null {
+    if (typeof key !== "string") {
+      return null;
+    }
+    let trimmed = key.trim();
+    if (!trimmed) {
+      return null;
+    }
+    if (
+      (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+      (trimmed.startsWith("'") && trimmed.endsWith("'"))
+    ) {
+      trimmed = trimmed.slice(1, -1).trim();
+    }
+    if (trimmed.toLowerCase().startsWith("bearer ")) {
+      trimmed = trimmed.slice(7).trim();
+    }
+    return trimmed || null;
+  }
+
   initialize(_usePremiumKey = false): void {
     try {
       // Get API keys from app config (server-side, not user-provided)
       // Both regular and premium users use the same OpenAI API key
       const config = Constants.expoConfig?.extra;
+      const configOpenAIKey = this.normalizeKey(config?.openaiApiKey);
+      const configZeinaKey = this.normalizeKey(config?.zeinaApiKey);
+      const envOpenAIKey = this.normalizeKey(
+        process.env.EXPO_PUBLIC_OPENAI_API_KEY
+      );
+      const envZeinaKey = this.normalizeKey(
+        process.env.EXPO_PUBLIC_ZEINA_API_KEY
+      );
 
-      // Treat empty strings as null - normalize API keys
-      const normalizeKey = (key: unknown): string | null => {
-        if (!key || typeof key !== "string") {
-          return null;
-        }
-        const trimmed = key.trim();
-        return trimmed === "" ? null : trimmed;
-      };
-
-      const openaiKey = normalizeKey(config?.openaiApiKey);
-      const zeinaKey = normalizeKey(config?.zeinaApiKey);
+      const openaiKey = configOpenAIKey || envOpenAIKey;
+      const zeinaKey = configZeinaKey || envZeinaKey || envOpenAIKey;
 
       this.apiKey = openaiKey;
       // Fallback to openaiApiKey if zeinaApiKey not set or empty
@@ -97,7 +116,7 @@ class OpenAIService {
         (typeof this.zeinaApiKey === "string" && this.zeinaApiKey.trim() === "")
       ) {
         throw new Error(
-          "Zeina API key not configured. Provide OPENAI_API_KEY or ZEINA_API_KEY at build time and rebuild the app."
+          "Zeina API key not configured. Set ZEINA_API_KEY or OPENAI_API_KEY in EAS environment (or EXPO_PUBLIC_ZEINA_API_KEY / EXPO_PUBLIC_OPENAI_API_KEY) and rebuild."
         );
       }
       return Promise.resolve(this.zeinaApiKey);
@@ -107,7 +126,7 @@ class OpenAIService {
       (typeof this.apiKey === "string" && this.apiKey.trim() === "")
     ) {
       throw new Error(
-        "OpenAI API key not configured. Provide OPENAI_API_KEY at build time and rebuild the app."
+        "OpenAI API key not configured. Set OPENAI_API_KEY in EAS environment (or EXPO_PUBLIC_OPENAI_API_KEY) and rebuild."
       );
     }
     return Promise.resolve(this.apiKey);
@@ -193,7 +212,7 @@ class OpenAIService {
       }
       if (response.status === 401) {
         const error = markExpectedApiError(
-          "Invalid or expired OpenAI API key. The API key must be configured at build time via OPENAI_API_KEY or ZEINA_API_KEY environment variable. Please check your .env file and rebuild the app."
+          "Invalid or expired OpenAI API key. Verify OPENAI_API_KEY / ZEINA_API_KEY values in your EAS environment, then rebuild the app."
         );
         throw error;
       }
@@ -232,14 +251,14 @@ class OpenAIService {
       // If API key is not configured, create a special error that won't be logged as an error
       const error = markExpectedApiError(
         (apiKeyError instanceof Error ? apiKeyError.message : undefined) ||
-          "OpenAI API key not configured. Provide OPENAI_API_KEY at build time and rebuild the app."
+          "OpenAI API key not configured. Set OPENAI_API_KEY in EAS environment and rebuild the app."
       );
       throw error;
     }
 
     if (!activeApiKey || activeApiKey.trim() === "") {
       const error = markExpectedApiError(
-        "OpenAI API key not configured. Provide OPENAI_API_KEY at build time and rebuild the app."
+        "OpenAI API key not configured. Set OPENAI_API_KEY in EAS environment and rebuild the app."
       );
       throw error;
     }

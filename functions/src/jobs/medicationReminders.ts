@@ -2,8 +2,9 @@
  * Scheduled Medication Reminders Job
  * Checks for medication reminders every hour and sends notifications to users
  */
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Scheduler intentionally combines matching, dispatching, and persistence in one operational function. */
 
-import { FieldValue, getFirestore } from "firebase-admin/firestore";
+import { getFirestore } from "firebase-admin/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "../observability/logger";
 
@@ -11,6 +12,8 @@ type MedicationReminder = {
   id: string;
   time: string;
   taken?: boolean;
+  notified?: boolean;
+  notifiedAt?: unknown;
 };
 
 type ReminderPayload = {
@@ -19,6 +22,7 @@ type ReminderPayload = {
   dosage: string;
   userId: string;
   reminderId: string;
+  reminderIndex: number;
 };
 
 /**
@@ -43,6 +47,22 @@ function isTimeWithinRange(
   return diff <= rangeMinutes;
 }
 
+const toDate = (value: unknown): Date | null => {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  if (typeof value === "object" && value !== null && "toDate" in value) {
+    const maybeTimestamp = value as { toDate: () => Date };
+    const parsed = maybeTimestamp.toDate();
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  if (typeof value === "string" || typeof value === "number") {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  return null;
+};
+
 /**
  * Scheduled function to check and send medication reminders
  * Runs every hour
@@ -66,19 +86,26 @@ export const scheduledMedicationReminders = onSchedule(
         .get();
 
       const remindersToSend: ReminderPayload[] = [];
+      const remindersByMedicationId = new Map<string, MedicationReminder[]>();
 
       for (const doc of medicationsSnapshot.docs) {
         const medication = doc.data();
         const reminders = Array.isArray(medication.reminders)
           ? (medication.reminders as MedicationReminder[])
           : [];
+        remindersByMedicationId.set(doc.id, [...reminders]);
 
         // Check if any reminder matches current time (within 5 minutes)
-        for (const reminder of reminders) {
+        for (const [reminderIndex, reminder] of reminders.entries()) {
           const reminderTime = reminder.time;
+          const notifiedAtDate = toDate(reminder.notifiedAt);
+          const wasNotifiedToday =
+            notifiedAtDate?.toDateString() === now.toDateString();
+
           if (
             isTimeWithinRange(currentTime, reminderTime, 5) &&
-            !reminder.taken
+            !reminder.taken &&
+            !wasNotifiedToday
           ) {
             remindersToSend.push({
               medicationId: doc.id,
@@ -86,6 +113,7 @@ export const scheduledMedicationReminders = onSchedule(
               dosage: medication.dosage,
               userId: medication.userId,
               reminderId: reminder.id,
+              reminderIndex,
             });
           }
         }
@@ -107,15 +135,27 @@ export const scheduledMedicationReminders = onSchedule(
             auth: { uid: "system" },
           });
 
-          // Mark reminder as notified
-          await db
-            .collection("medications")
-            .doc(reminder.medicationId)
-            .update({
-              [`reminders.${reminder.reminderId}.notified`]: true,
-              [`reminders.${reminder.reminderId}.notifiedAt`]:
-                FieldValue.serverTimestamp(),
-            });
+          // Mark reminder as notified in the array payload and write back.
+          const medicationReminders =
+            remindersByMedicationId.get(reminder.medicationId) ?? [];
+
+          if (reminder.reminderIndex >= 0) {
+            const currentReminder = medicationReminders[reminder.reminderIndex];
+            if (currentReminder) {
+              medicationReminders[reminder.reminderIndex] = {
+                ...currentReminder,
+                notified: true,
+                notifiedAt: now,
+              };
+
+              await db
+                .collection("medications")
+                .doc(reminder.medicationId)
+                .update({
+                  reminders: medicationReminders,
+                });
+            }
+          }
         } catch (error) {
           logger.error("Error sending reminder", error as Error, {
             fn: "sendScheduledMedicationReminders",

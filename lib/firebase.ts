@@ -10,13 +10,18 @@ import {
   initializeAuth,
   setPersistence,
 } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import {
+  type Firestore,
+  getFirestore,
+  initializeFirestore,
+  setLogLevel,
+} from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
 import { getStorage } from "firebase/storage";
 import { Platform } from "react-native";
 
 type RNFirebaseAppModule = {
-  app: () => unknown;
+  default?: unknown;
 };
 
 const hasErrorCode = (error: unknown, code: string): boolean =>
@@ -37,17 +42,6 @@ if (Platform.OS !== "web") {
       default?: RNFirebaseAppModule;
     };
     rnFirebaseApp = rnFirebase.default ?? null;
-
-    // Ensure React Native Firebase app is initialized
-    // React Native Firebase should auto-initialize from native config files
-    // but we'll verify it's ready
-    try {
-      // Try to get the default app - this will initialize it if needed
-      rnFirebaseApp?.app();
-    } catch {
-      // App might already be initialized or initialization might fail
-      // This is okay - React Native Firebase should auto-initialize from native config
-    }
   } catch (_error) {
     // React Native Firebase not available (e.g., in Expo Go or web)
     // This is expected and will be handled gracefully
@@ -181,20 +175,6 @@ let app: ReturnType<typeof initializeApp> | undefined;
 try {
   const existingApps = getApps();
   if (existingApps.length === 0) {
-    // On native platforms, React Native Firebase might have already initialized the app
-    // Check if we can get it via React Native Firebase first
-    if (Platform.OS !== "web" && rnFirebaseApp) {
-      try {
-        // Try to get the app from React Native Firebase
-        const _rnApp = rnFirebaseApp.app();
-        // React Native Firebase uses a different app instance
-        // We still need to initialize the web SDK app for compatibility
-        // But we'll check if RN Firebase initialized first
-      } catch (_rnError) {
-        // React Native Firebase app not available, proceed with web SDK initialization
-      }
-    }
-
     // No apps exist, initialize a new one with web SDK
     app = initializeApp({
       apiKey: apiKey || "",
@@ -301,9 +281,30 @@ try {
 
 export { auth };
 const initializedApp = safeApp;
-export const db = getFirestore(initializedApp);
+
+const createFirestoreInstance = (): Firestore => {
+  if (Platform.OS === "web") {
+    return getFirestore(initializedApp);
+  }
+
+  try {
+    // React Native runtime is more stable with long-polling transport.
+    return initializeFirestore(initializedApp, {
+      experimentalForceLongPolling: true,
+      ignoreUndefinedProperties: true,
+    });
+  } catch {
+    // Firestore may already be initialized (hot reload / module reuse).
+    return getFirestore(initializedApp);
+  }
+};
+
+export const db = createFirestoreInstance();
 export const storage = getStorage(initializedApp);
 export const functions = getFunctions(initializedApp, "us-central1");
+
+// Reduce Firestore transport warning noise (WebChannel reconnects are expected on mobile networks).
+setLogLevel("error");
 
 // Initialize Analytics only for web platform (not supported in React Native)
 let analytics: Analytics | undefined;

@@ -6,6 +6,7 @@
 
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useLocalSearchParams } from "expo-router";
 import {
   Info,
@@ -31,7 +32,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import healthContextService from "../../lib/services/healthContextService";
 import openaiService, {
   AI_MODELS,
@@ -67,6 +71,8 @@ export default function ZeinaScreen() {
   const [voiceOutputEnabled, setVoiceOutputEnabled] = useState(false);
   const [voiceLanguage, setVoiceLanguage] = useState("en-US");
   const [showHowTo, setShowHowTo] = useState(false);
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
 
   useEffect(
     () => () => {
@@ -304,6 +310,31 @@ export default function ZeinaScreen() {
     if (!textToSend.trim() || isStreaming) {
       return;
     }
+    try {
+      await openaiService.getApiKey(true);
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : t(
+              "zeinaConfigurationError",
+              "Zeina is not configured correctly. Please verify OPENAI_API_KEY / ZEINA_API_KEY for this build."
+            );
+      Alert.alert(t("error", "Error"), message);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          role: "assistant",
+          content: t(
+            "zeinaConfigurationHelp",
+            "I’m not fully configured on this build yet. Please check OpenAI key configuration and try again."
+          ),
+          timestamp: new Date(),
+        },
+      ]);
+      return;
+    }
 
     const userMessage: AIMessage = {
       id: Date.now().toString(),
@@ -330,61 +361,125 @@ export default function ZeinaScreen() {
     setMessages((prev) => [...prev, assistantMessage]);
 
     let fullResponse = "";
-
-    await openaiService.createChatCompletionStream(
-      messages.concat(userMessage),
-      (chunk) => {
-        fullResponse += chunk;
-        // Batch state updates using functional update to avoid stale closures
-        setMessages((prev) => {
-          const lastIndex = prev.length - 1;
-          if (lastIndex >= 0 && prev[lastIndex].id === assistantMessage.id) {
-            // Update existing message
-            const newMessages = [...prev];
-            newMessages[lastIndex] = {
-              ...prev[lastIndex],
-              content: fullResponse,
-            };
-            return newMessages;
-          }
-          return prev;
-        });
-        // Throttle scroll updates for better performance
-        scrollToBottom();
-      },
-      async () => {
-        setIsStreaming(false);
-
-        // Speak the response if voice is enabled and auto-speak is on
-        if (voiceOutputEnabled && autoSpeak) {
-          await handleVoiceOutput(fullResponse);
+    let streamFinalized = false;
+    let didTimeout = false;
+    const setAssistantFallbackMessage = (content: string) => {
+      setMessages((prev) => {
+        const lastIndex = prev.length - 1;
+        if (lastIndex >= 0 && prev[lastIndex].id === assistantMessage.id) {
+          const newMessages = [...prev];
+          newMessages[lastIndex] = {
+            ...prev[lastIndex],
+            content,
+          };
+          return newMessages;
         }
-      },
-      (error) => {
-        setIsStreaming(false);
-        // Silently handle error
+        return prev;
+      });
+    };
 
-        // More user-friendly error messages
-        if (error.message.includes("quota exceeded")) {
-          Alert.alert(
-            t("quotaExceeded", "Quota Exceeded"),
-            t(
-              "openAIQuotaExceededMessage",
-              "Your OpenAI account has exceeded its usage quota.\n\nOptions:\n1. Add billing to your OpenAI account\n2. Switch to GPT-3.5 Turbo (cheaper)\n3. Wait for your quota to reset\n\nVisit platform.openai.com to manage billing."
-            )
-          );
-        } else {
-          Alert.alert(
-            t("error", "Error"),
-            error.message ||
-              t(
-                "failedToGetResponse",
-                "Failed to get response. Please try again."
-              )
-          );
-        }
+    const finalizeStream = () => {
+      if (streamFinalized) {
+        return;
       }
-    );
+      streamFinalized = true;
+      setIsStreaming(false);
+    };
+
+    const streamTimeout = setTimeout(() => {
+      if (streamFinalized) {
+        return;
+      }
+      didTimeout = true;
+      finalizeStream();
+      if (!fullResponse.trim()) {
+        setAssistantFallbackMessage(
+          t(
+            "zeinaTimeoutFallback",
+            "I'm taking too long to respond right now. Please try again in a moment."
+          )
+        );
+      }
+      Alert.alert(
+        t("error", "Error"),
+        t(
+          "zeinaTimeoutMessage",
+          "Response took too long. Please try sending your message again."
+        )
+      );
+    }, 30_000);
+
+    try {
+      await openaiService.createChatCompletionStream(
+        messages.concat(userMessage),
+        (chunk) => {
+          fullResponse += chunk;
+          // Batch state updates using functional update to avoid stale closures
+          setMessages((prev) => {
+            const lastIndex = prev.length - 1;
+            if (lastIndex >= 0 && prev[lastIndex].id === assistantMessage.id) {
+              // Update existing message
+              const newMessages = [...prev];
+              newMessages[lastIndex] = {
+                ...prev[lastIndex],
+                content: fullResponse,
+              };
+              return newMessages;
+            }
+            return prev;
+          });
+          // Throttle scroll updates for better performance
+          scrollToBottom();
+        },
+        async () => {
+          finalizeStream();
+
+          // Speak the response if voice is enabled and auto-speak is on
+          if (voiceOutputEnabled && autoSpeak) {
+            await handleVoiceOutput(fullResponse);
+          }
+        },
+        (error) => {
+          finalizeStream();
+
+          if (didTimeout) {
+            return;
+          }
+
+          if (!fullResponse.trim()) {
+            setAssistantFallbackMessage(
+              t(
+                "zeinaErrorFallback",
+                "I couldn't complete your request right now. Please try again."
+              )
+            );
+          }
+
+          // More user-friendly error messages
+          if (error.message.includes("quota exceeded")) {
+            Alert.alert(
+              t("quotaExceeded", "Quota Exceeded"),
+              t(
+                "openAIQuotaExceededMessage",
+                "Your OpenAI account has exceeded its usage quota.\n\nOptions:\n1. Add billing to your OpenAI account\n2. Switch to GPT-3.5 Turbo (cheaper)\n3. Wait for your quota to reset\n\nVisit platform.openai.com to manage billing."
+              )
+            );
+          } else {
+            Alert.alert(
+              t("error", "Error"),
+              error.message ||
+                t(
+                  "failedToGetResponse",
+                  "Failed to get response. Please try again."
+                )
+            );
+          }
+        }
+      );
+    } finally {
+      clearTimeout(streamTimeout);
+      finalizeStream();
+    }
   };
 
   const handleSaveSettings = async () => {
@@ -430,11 +525,7 @@ export default function ZeinaScreen() {
   };
 
   return (
-    <SafeAreaView
-      edges={["top"]}
-      pointerEvents="box-none"
-      style={styles.container}
-    >
+    <SafeAreaView edges={["top"]} style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{t("zeina", "Zeina")}</Text>
         <View style={styles.headerActions}>
@@ -466,6 +557,8 @@ export default function ZeinaScreen() {
       >
         <ScrollView
           contentContainerStyle={styles.messagesContent}
+          keyboardDismissMode="interactive"
+          keyboardShouldPersistTaps="handled"
           ref={scrollViewRef}
           showsVerticalScrollIndicator={false}
           style={styles.messagesContainer}
@@ -494,7 +587,15 @@ export default function ZeinaScreen() {
           )}
         </ScrollView>
 
-        <View style={styles.inputContainer}>
+        <View
+          style={[
+            styles.inputContainer,
+            {
+              paddingBottom: Math.max(insets.bottom, 12),
+              marginBottom: tabBarHeight,
+            },
+          ]}
+        >
           {Boolean(voiceEnabled) && (
             <TouchableOpacity
               onPress={toggleVoiceOutput}

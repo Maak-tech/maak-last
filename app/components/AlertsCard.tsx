@@ -1,6 +1,6 @@
 /* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: legacy alert-card UI handlers retained in this pass. */
 import { AlertTriangle, CheckCircle, Clock } from "lucide-react-native";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -18,85 +18,124 @@ import type { EmergencyAlert, User } from "@/types";
 import { safeFormatDate } from "@/utils/dateFormat";
 
 type AlertsCardProps = {
+  familyMembers?: User[];
   refreshTrigger?: number;
 };
 
-export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
+export default function AlertsCard({
+  familyMembers: providedFamilyMembers,
+  refreshTrigger,
+}: AlertsCardProps) {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const [alerts, setAlerts] = useState<EmergencyAlert[]>([]);
   const [loading, setLoading] = useState(false);
   const [familyMembers, setFamilyMembers] = useState<User[]>([]);
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
+  const alertsLoadInFlightRef = useRef(false);
+  const mountedRef = useRef(true);
 
   const isRTL = i18n.language === "ar";
+  useEffect(
+    () => () => {
+      mountedRef.current = false;
+    },
+    []
+  );
 
-  const loadAlerts = useCallback(async () => {
-    if (!user?.familyId) {
-      return;
-    }
+  const loadAlerts = useCallback(
+    async (forceRefresh = false) => {
+      if (!user?.familyId) {
+        return;
+      }
+      if (!forceRefresh && alertsLoadInFlightRef.current) {
+        return;
+      }
 
-    const startTime = Date.now();
+      const startTime = Date.now();
 
-    try {
-      setLoading(true);
+      try {
+        alertsLoadInFlightRef.current = true;
+        setLoading(true);
 
-      logger.debug(
-        "Loading family emergency alerts",
-        {
-          userId: user.id,
-          familyId: user.familyId,
-          refreshTrigger,
-        },
-        "AlertsCard"
-      );
-
-      const members = await userService.getFamilyMembers(user.familyId);
-      setFamilyMembers(members);
-
-      const userIds = members.map((member) => member.id);
-      const familyAlerts = await alertService.getFamilyAlerts(userIds, 10);
-      setAlerts(familyAlerts);
-
-      const durationMs = Date.now() - startTime;
-      logger.info(
-        "Family emergency alerts loaded",
-        {
-          userId: user.id,
-          familyId: user.familyId,
-          memberCount: members.length,
-          alertCount: familyAlerts.length,
-          durationMs,
-        },
-        "AlertsCard"
-      );
-    } catch (error) {
-      const durationMs = Date.now() - startTime;
-
-      // Check if it's an index error
-      const isIndexError =
-        error &&
-        typeof error === "object" &&
-        "code" in error &&
-        error.code === "failed-precondition";
-
-      if (isIndexError) {
-        logger.warn(
-          "Firestore index not ready for alerts query",
+        logger.debug(
+          "Loading family emergency alerts",
           {
             userId: user.id,
             familyId: user.familyId,
+            refreshTrigger,
+          },
+          "AlertsCard"
+        );
+
+        const members =
+          providedFamilyMembers && providedFamilyMembers.length > 0
+            ? providedFamilyMembers
+            : await userService.getFamilyMembers(user.familyId);
+        if (!mountedRef.current) {
+          return;
+        }
+        setFamilyMembers(members);
+
+        const userIds = Array.from(
+          new Set([user.id, ...members.map((member) => member.id)])
+        );
+        const alertsTimeoutPromise = new Promise<EmergencyAlert[]>(
+          (resolve) => {
+            setTimeout(() => resolve([]), 12_000);
+          }
+        );
+        const familyAlerts = await Promise.race([
+          alertService.getFamilyAlerts(userIds, 10, forceRefresh),
+          alertsTimeoutPromise,
+        ]);
+        if (!mountedRef.current) {
+          return;
+        }
+        setAlerts(familyAlerts);
+
+        const durationMs = Date.now() - startTime;
+        logger.info(
+          "Family emergency alerts loaded",
+          {
+            userId: user.id,
+            familyId: user.familyId,
+            memberCount: members.length,
+            alertCount: familyAlerts.length,
             durationMs,
           },
           "AlertsCard"
         );
-      } else {
-        logger.error("Failed to load family alerts", error, "AlertsCard");
+      } catch (error) {
+        const durationMs = Date.now() - startTime;
+
+        // Check if it's an index error
+        const isIndexError =
+          error &&
+          typeof error === "object" &&
+          "code" in error &&
+          error.code === "failed-precondition";
+
+        if (isIndexError) {
+          logger.warn(
+            "Firestore index not ready for alerts query",
+            {
+              userId: user.id,
+              familyId: user.familyId,
+              durationMs,
+            },
+            "AlertsCard"
+          );
+        } else {
+          logger.error("Failed to load family alerts", error, "AlertsCard");
+        }
+      } finally {
+        alertsLoadInFlightRef.current = false;
+        setLoading(false);
       }
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.familyId, user?.id, refreshTrigger]);
+    },
+    [user?.familyId, user?.id, refreshTrigger, providedFamilyMembers]
+  );
 
   useEffect(() => {
     loadAlerts();
@@ -143,7 +182,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
         [{ text: isRTL ? "موافق" : "OK" }]
       );
 
-      await loadAlerts();
+      await loadAlerts(true);
     } catch (error) {
       logger.error("Failed to record alert response", error, "AlertsCard");
 
@@ -179,7 +218,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
       );
 
       await alertService.resolveAlert(alertId, user.id);
-      await loadAlerts();
+      await loadAlerts(true);
 
       const durationMs = Date.now() - startTime;
       logger.info(

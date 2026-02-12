@@ -358,41 +358,15 @@ class OfflineService {
     }
 
     try {
-      // Import services dynamically to avoid circular dependencies
-      const services: Record<string, unknown> = {};
+      const supportedCollections = new Set([
+        "symptoms",
+        "medications",
+        "moods",
+        "allergies",
+        "labResults",
+      ]);
 
-      switch (operation.collection) {
-        case "symptoms": {
-          const { symptomService } = await import("./symptomService");
-          services.symptom = symptomService;
-          break;
-        }
-        case "medications": {
-          const { medicationService } = await import("./medicationService");
-          services.medication = medicationService;
-          break;
-        }
-        case "moods": {
-          const { moodService } = await import("./moodService");
-          services.mood = moodService;
-          break;
-        }
-        case "allergies": {
-          const { allergyService } = await import("./allergyService");
-          services.allergy = allergyService;
-          break;
-        }
-        case "labResults": {
-          const { labResultService } = await import("./labResultService");
-          services.labResult = labResultService;
-          break;
-        }
-        default:
-          return false;
-      }
-
-      const service = Object.values(services)[0];
-      if (!service) {
+      if (!supportedCollections.has(operation.collection)) {
         return false;
       }
 

@@ -218,102 +218,48 @@ export const healthDataService = {
       if (Platform.OS === "ios") {
         const connection = await getProviderConnection("apple_health");
         if (connection?.connected) {
-          // Validate that HealthKit permissions are still actually granted
-          // Only validate occasionally to avoid performance issues
-          // Check connection age - only validate if connection is older than 1 hour
-          const connectionAge = connection.connectedAt
-            ? Date.now() - new Date(connection.connectedAt).getTime()
-            : Number.POSITIVE_INFINITY;
-
-          // Only validate if connection is older than 1 hour (to avoid frequent checks)
-          if (connectionAge > 60 * 60 * 1000) {
-            try {
-              const availability = await appleHealthService.checkAvailability();
-              if (!availability.available) {
-                // HealthKit not available, disconnect
-                await disconnectProvider("apple_health");
-                await this.savePermissionStatus(false);
-                return false;
-              }
-
-              // Try a simple query to validate permissions are still granted
-              // Use a common type that's likely to be authorized
-              const { queryQuantitySamples } = await import(
-                "@kingstinct/react-native-healthkit"
-              );
-              const now = new Date();
-              const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
-              // Try querying step count (most common metric)
-              // Even if no data exists, the query should succeed if permissions are granted
-              await queryQuantitySamples("HKQuantityTypeIdentifierStepCount", {
-                filter: {
-                  date: {
-                    startDate: yesterday,
-                    endDate: now,
-                  },
-                },
-                limit: 1,
-                ascending: false,
-              });
-
-              // Query succeeded, permissions are still valid
-              return true;
-            } catch (error: unknown) {
-              // Check if this is specifically an authorization error
-              // HealthKit error code 5 = authorization denied or not determined
-              const errorDetails =
-                typeof error === "object" && error !== null
-                  ? (error as {
-                      code?: unknown;
-                      domain?: unknown;
-                      message?: unknown;
-                    })
-                  : undefined;
-              const errorCode = errorDetails?.code;
-              const errorDomain = errorDetails?.domain;
-              const errorMessage = String(errorDetails?.message ?? error)
-                .toLowerCase()
-                .trim();
-
-              const isAuthError =
-                errorCode === 5 ||
-                (errorDomain === "com.apple.healthkit" && errorCode === 5) ||
-                errorMessage.includes("authorization denied") ||
-                errorMessage.includes(
-                  "authorization status is not determined"
-                ) ||
-                (errorMessage.includes("com.apple.healthkit") &&
-                  errorMessage.includes("code=5")) ||
-                (errorMessage.includes("com.apple.healthkit") &&
-                  errorMessage.includes("code 5"));
-
-              if (isAuthError) {
-                // Permissions were revoked, disconnect
-                await disconnectProvider("apple_health");
-                await this.savePermissionStatus(false);
-                return false;
-              }
-
-              // Other error (no data, network issue, etc.) - permissions might still be valid
-              // Don't disconnect on non-auth errors - return true to keep connection active
-              return true;
-            }
+          const availability = await appleHealthService.checkAvailability();
+          if (!availability.available) {
+            await disconnectProvider("apple_health");
+            await this.savePermissionStatus(false);
+            return false;
           }
 
-          // Connection is recent, trust stored status
           return true;
         }
       } else if (Platform.OS === "android") {
         const connection = await getProviderConnection("health_connect");
         if (connection?.connected) {
+          try {
+            const { healthConnectService } = await import(
+              "./healthConnectService"
+            );
+            const availability = await healthConnectService.checkAvailability();
+            if (!availability.available) {
+              await disconnectProvider("health_connect");
+              await this.savePermissionStatus(false);
+              return false;
+            }
+          } catch {
+            // Keep stored connection if availability check fails unexpectedly.
+          }
           return true;
         }
       }
 
-      // Fallback to AsyncStorage check for backward compatibility
+      // Backward compatibility fallback: only trust the legacy flag in dev.
       const status = await AsyncStorage.getItem(PERMISSIONS_STORAGE_KEY);
-      return status === "true";
+      if (status !== "true") {
+        return false;
+      }
+
+      if (isDevEnvironment()) {
+        return true;
+      }
+
+      // In production builds, require a real provider connection to avoid stale states.
+      await this.savePermissionStatus(false);
+      return false;
     } catch {
       return false;
     }

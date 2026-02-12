@@ -45,6 +45,26 @@ import type { Allergy, MedicalHistory, Mood, Symptom } from "@/types";
 import { safeFormatDate, safeFormatTime } from "@/utils/dateFormat";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
+const TRACK_DATA_STALE_MS = 45_000;
+const TRACK_QUERY_TIMEOUT_MS = 7_000;
+
+const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> =>
+  new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error("track_query_timeout"));
+    }, timeoutMs);
+
+    promise
+      .then((value) => {
+        clearTimeout(timeoutId);
+        resolve(value);
+      })
+      .catch((error) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
+
 export default function TrackScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
@@ -65,6 +85,8 @@ export default function TrackScreen() {
   const [showHowTo, setShowHowTo] = useState(false);
   const bloodPressureCardRef = useRef<View>(null);
   const hasLoadedOnceRef = useRef(false);
+  const trackingLoadInFlightRef = useRef(false);
+  const lastTrackingLoadAtRef = useRef<number | null>(null);
   const [stats, setStats] = useState({
     totalSymptoms: 0,
     totalMedications: 0,
@@ -342,51 +364,102 @@ export default function TrackScreen() {
 
   // Memoize loadTrackingData to prevent recreation
   const loadTrackingData = useCallback(
-    async (isRefresh = false) => {
+    async (isRefresh = false, force = false) => {
       if (!user) {
         setLoading(false);
         setRefreshing(false);
         return;
       }
 
+      const now = Date.now();
+      const isDataFresh =
+        !force &&
+        !isRefresh &&
+        lastTrackingLoadAtRef.current !== null &&
+        now - lastTrackingLoadAtRef.current < TRACK_DATA_STALE_MS;
+
+      if (isDataFresh) {
+        return;
+      }
+
+      if (trackingLoadInFlightRef.current) {
+        if (isRefresh) {
+          setRefreshing(false);
+        }
+        return;
+      }
+
       try {
+        trackingLoadInFlightRef.current = true;
         if (isRefresh) {
           setRefreshing(true);
-        } else {
+        } else if (!hasLoadedOnceRef.current) {
           setLoading(true);
         }
 
-        // Load all data in parallel for better performance
+        // Keep screen responsive: do not block everything on one slow query.
         const [
-          medications,
-          symptoms,
-          medicalHistory,
-          moods,
-          moodStats,
-          allergies,
-        ] = await Promise.all([
-          medicationService.getTodaysMedications(user.id),
-          symptomService.getUserSymptoms(user.id, 3),
-          medicalHistoryService.getUserMedicalHistory(user.id, 3), // Limit to 3 most recent
-          moodService.getUserMoods(user.id, 3),
-          moodService.getMoodStats(user.id, 7),
-          allergyService.getUserAllergies(user.id, 3),
+          medicationsResult,
+          symptomsResult,
+          medicalHistoryResult,
+          moodsResult,
+          allergiesResult,
+        ] = await Promise.allSettled([
+          withTimeout(
+            medicationService.getTodaysMedications(user.id),
+            TRACK_QUERY_TIMEOUT_MS
+          ),
+          withTimeout(
+            symptomService.getUserSymptoms(user.id, 10),
+            TRACK_QUERY_TIMEOUT_MS
+          ),
+          withTimeout(
+            medicalHistoryService.getUserMedicalHistory(user.id, 3),
+            TRACK_QUERY_TIMEOUT_MS
+          ),
+          withTimeout(
+            moodService.getUserMoods(user.id, 21),
+            TRACK_QUERY_TIMEOUT_MS
+          ),
+          withTimeout(
+            allergyService.getUserAllergies(user.id, 3),
+            TRACK_QUERY_TIMEOUT_MS
+          ),
         ]);
 
-        setRecentSymptoms(symptoms);
-        setRecentMedicalHistory(medicalHistory); // Already limited to 3
-        setRecentMoods(moods);
-        setRecentAllergies(allergies);
+        const medications =
+          medicationsResult.status === "fulfilled" ? medicationsResult.value : [];
+        const symptoms =
+          symptomsResult.status === "fulfilled" ? symptomsResult.value : null;
+        const medicalHistory =
+          medicalHistoryResult.status === "fulfilled"
+            ? medicalHistoryResult.value
+            : null;
+        const moods = moodsResult.status === "fulfilled" ? moodsResult.value : null;
+        const allergies =
+          allergiesResult.status === "fulfilled" ? allergiesResult.value : null;
+
+        if (symptoms) {
+          setRecentSymptoms(symptoms.slice(0, 3));
+        }
+        if (medicalHistory) {
+          setRecentMedicalHistory(medicalHistory);
+        }
+        if (moods) {
+          setRecentMoods(moods.slice(0, 3));
+        }
+        if (allergies) {
+          setRecentAllergies(allergies);
+        }
 
         // Calculate stats (optimized single pass)
-        const totalSymptoms = symptoms.length;
         const totalMedications = medications.length;
 
-        // Optimize date calculation for symptomsThisWeek
         const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-        const symptomsThisWeek = symptoms.filter(
-          (s) => new Date(s.timestamp).getTime() > sevenDaysAgo
-        ).length;
+        const symptomsThisWeek = symptoms
+          ? symptoms.filter((s) => new Date(s.timestamp).getTime() > sevenDaysAgo)
+              .length
+          : null;
 
         // Single pass for medication reminders calculation
         let totalReminders = 0;
@@ -401,23 +474,42 @@ export default function TrackScreen() {
           totalReminders > 0 ? (takenReminders / totalReminders) * 100 : 100;
         const upcomingMedications = totalReminders - takenReminders;
 
-        const totalConditions = medicalHistory.filter(
-          (h) => !h.isFamily
-        ).length;
+        const totalConditions = medicalHistory
+          ? medicalHistory.filter((h) => !h.isFamily).length
+          : null;
+        const recentMoodsInRange = moods
+          ? moods.filter((m) => m.timestamp.getTime() >= sevenDaysAgo)
+          : null;
+        const moodsThisWeek = recentMoodsInRange ? recentMoodsInRange.length : null;
+        const avgMoodIntensity =
+          recentMoodsInRange && recentMoodsInRange.length > 0
+            ? recentMoodsInRange.reduce((sum, m) => sum + m.intensity, 0) /
+              recentMoodsInRange.length
+            : null;
 
-        setStats({
-          totalSymptoms,
+        setStats((previous) => ({
+          totalSymptoms: symptoms ? symptoms.length : previous.totalSymptoms,
           totalMedications,
-          symptomsThisWeek,
+          symptomsThisWeek:
+            symptomsThisWeek !== null
+              ? symptomsThisWeek
+              : previous.symptomsThisWeek,
           medicationCompliance: Math.round(compliance),
           upcomingMedications,
-          totalConditions,
-          moodsThisWeek: moodStats?.totalMoods || 0,
-          avgMoodIntensity: moodStats?.avgIntensity || 0,
-        });
+          totalConditions:
+            totalConditions !== null ? totalConditions : previous.totalConditions,
+          moodsThisWeek:
+            moodsThisWeek !== null ? moodsThisWeek : previous.moodsThisWeek,
+          avgMoodIntensity:
+            avgMoodIntensity !== null
+              ? Math.round(avgMoodIntensity * 10) / 10
+              : previous.avgMoodIntensity,
+        }));
+        lastTrackingLoadAtRef.current = Date.now();
       } catch (_error) {
         // Silently handle error
       } finally {
+        trackingLoadInFlightRef.current = false;
         hasLoadedOnceRef.current = true;
         setLoading(false);
         setRefreshing(false);
@@ -430,7 +522,7 @@ export default function TrackScreen() {
     let cancelled = false;
     const task = InteractionManager.runAfterInteractions(() => {
       if (!cancelled) {
-        loadTrackingData();
+        loadTrackingData(false, true);
       }
     });
 
@@ -442,14 +534,19 @@ export default function TrackScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (loading || refreshing) {
+      if (!user?.id || trackingLoadInFlightRef.current) {
+        return;
+      }
+
+      const lastLoadedAt = lastTrackingLoadAtRef.current;
+      if (lastLoadedAt && Date.now() - lastLoadedAt < TRACK_DATA_STALE_MS) {
         return;
       }
 
       let cancelled = false;
       const task = InteractionManager.runAfterInteractions(() => {
         if (!cancelled) {
-          loadTrackingData();
+          loadTrackingData(false, false);
         }
       });
 
@@ -457,7 +554,7 @@ export default function TrackScreen() {
         cancelled = true;
         task.cancel?.();
       };
-    }, [loadTrackingData, loading, refreshing])
+    }, [loadTrackingData, user?.id])
   );
 
   const formatTime = (
@@ -616,7 +713,7 @@ export default function TrackScreen() {
         contentContainerStyle={styles.contentInner as ViewStyle}
         refreshControl={
           <RefreshControl
-            onRefresh={() => loadTrackingData(true)}
+            onRefresh={() => loadTrackingData(true, true)}
             refreshing={refreshing}
             tintColor={theme.colors.primary.main}
           />
@@ -1497,7 +1594,7 @@ export default function TrackScreen() {
       <BloodPressureEntry
         onClose={() => setShowBloodPressureEntry(false)}
         onSave={() => {
-          loadTrackingData();
+          loadTrackingData(true, true);
         }}
         visible={showBloodPressureEntry}
       />

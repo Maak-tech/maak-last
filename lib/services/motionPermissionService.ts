@@ -30,6 +30,45 @@ const getErrorMessage = (error: unknown): string => {
   return "Failed to check motion sensor availability";
 };
 
+const verifyMotionAccess = async (): Promise<boolean> => {
+  const { DeviceMotion } = await import("expo-sensors");
+
+  DeviceMotion.setUpdateInterval(250);
+
+  return new Promise<boolean>((resolve) => {
+    let settled = false;
+    const complete = (granted: boolean) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      resolve(granted);
+    };
+
+    const timeoutId = setTimeout(() => {
+      if (subscription) {
+        try {
+          subscription.remove();
+        } catch {
+          // Ignore cleanup errors.
+        }
+      }
+      complete(false);
+    }, 1500);
+
+    const subscription = DeviceMotion.addListener(() => {
+      // Receiving any DeviceMotion callback means motion access is active.
+      clearTimeout(timeoutId);
+      try {
+        subscription.remove();
+      } catch {
+        // Ignore cleanup errors.
+      }
+      complete(true);
+    });
+  });
+};
+
 /**
  * Check if motion sensors are available
  */
@@ -75,9 +114,21 @@ export const checkMotionAvailability =
       // We can't directly check permission status, so we'll try to access it
       // On Android, activity recognition permissions are needed
 
+      let granted = hasStoredPermission;
+      if (!hasStoredPermission) {
+        try {
+          granted = await verifyMotionAccess();
+          if (granted) {
+            await AsyncStorage.setItem(MOTION_PERMISSION_STORAGE_KEY, "true");
+          }
+        } catch {
+          granted = false;
+        }
+      }
+
       const result = {
         available: true,
-        granted: hasStoredPermission, // We'll update this when permission is actually granted
+        granted,
       };
 
       return result;
@@ -124,10 +175,14 @@ export const requestMotionPermission = async (): Promise<boolean> => {
     // Remove listener immediately
     subscription.remove();
 
-    // Store that we've attempted to request permission
-    await AsyncStorage.setItem(MOTION_PERMISSION_STORAGE_KEY, "true");
+    // Verify permission by confirming motion events are actually delivered.
+    const granted = await verifyMotionAccess();
+    await AsyncStorage.setItem(
+      MOTION_PERMISSION_STORAGE_KEY,
+      granted ? "true" : "false"
+    );
 
-    return true;
+    return granted;
   } catch (_error: unknown) {
     return false;
   }

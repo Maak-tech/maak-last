@@ -6,12 +6,16 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import { AppState, Platform } from "react-native";
-import { fitbitService } from "../services/fitbitService";
+import {
+  getProviderConnection,
+  getProviderStorageKey,
+  saveProviderConnection,
+} from "./providerConnections";
+export { getProviderConnection, saveProviderConnection } from "./providerConnections";
 // Import services
 // Lazy import to prevent early native module loading
 // import { appleHealthService } from "../services/appleHealthService";
 import { healthConnectService } from "../services/healthConnectService";
-import { saveSyncVitalsToFirestore } from "../services/vitalSyncService";
 import type { HealthProvider } from "./healthMetricsCatalog";
 import type {
   DeviceInfo,
@@ -19,7 +23,6 @@ import type {
   ProviderConnection,
   SyncResult,
 } from "./healthTypes";
-import { HEALTH_STORAGE_KEYS } from "./healthTypes";
 
 const BACKEND_HEALTH_SYNC_URL = "/health/sync"; // Unified endpoint
 const getErrorMessage = (error: unknown): string =>
@@ -40,115 +43,25 @@ const getDeviceInfo = (): DeviceInfo => ({
 });
 
 /**
- * Get provider connection status
- */
-export const getProviderConnection = async (
-  provider: HealthProvider
-): Promise<ProviderConnection | null> => {
-  try {
-    let storageKey: string;
-    switch (provider) {
-      case "apple_health":
-        storageKey = HEALTH_STORAGE_KEYS.APPLE_HEALTH_CONNECTION;
-        break;
-      case "health_connect":
-        storageKey = HEALTH_STORAGE_KEYS.HEALTH_CONNECT_CONNECTION;
-        break;
-      case "fitbit":
-        storageKey = HEALTH_STORAGE_KEYS.FITBIT_CONNECTION;
-        break;
-      case "samsung_health":
-        storageKey = HEALTH_STORAGE_KEYS.SAMSUNG_HEALTH_TOKENS;
-        break;
-      case "garmin":
-        storageKey = HEALTH_STORAGE_KEYS.GARMIN_TOKENS;
-        break;
-      case "withings":
-        storageKey = HEALTH_STORAGE_KEYS.WITHINGS_TOKENS;
-        break;
-      case "oura":
-        storageKey = HEALTH_STORAGE_KEYS.OURA_TOKENS;
-        break;
-      case "dexcom":
-        storageKey = HEALTH_STORAGE_KEYS.DEXCOM_TOKENS;
-        break;
-      case "freestyle_libre":
-        storageKey = HEALTH_STORAGE_KEYS.FREESTYLE_LIBRE_TOKENS;
-        break;
-      default:
-        return null;
-    }
-
-    const data = await AsyncStorage.getItem(storageKey);
-    return data ? JSON.parse(data) : null;
-  } catch {
-    return null;
-  }
-};
-
-/**
- * Save provider connection status
- */
-export const saveProviderConnection = async (
-  connection: ProviderConnection
-): Promise<void> => {
-  let storageKey: string;
-  switch (connection.provider) {
-    case "apple_health":
-      storageKey = HEALTH_STORAGE_KEYS.APPLE_HEALTH_CONNECTION;
-      break;
-    case "health_connect":
-      storageKey = HEALTH_STORAGE_KEYS.HEALTH_CONNECT_CONNECTION;
-      break;
-    case "fitbit":
-      storageKey = HEALTH_STORAGE_KEYS.FITBIT_CONNECTION;
-      break;
-    case "samsung_health":
-      storageKey = HEALTH_STORAGE_KEYS.SAMSUNG_HEALTH_TOKENS;
-      break;
-    case "garmin":
-      storageKey = HEALTH_STORAGE_KEYS.GARMIN_TOKENS;
-      break;
-    case "withings":
-      storageKey = HEALTH_STORAGE_KEYS.WITHINGS_TOKENS;
-      break;
-    case "oura":
-      storageKey = HEALTH_STORAGE_KEYS.OURA_TOKENS;
-      break;
-    case "dexcom":
-      storageKey = HEALTH_STORAGE_KEYS.DEXCOM_TOKENS;
-      break;
-    case "freestyle_libre":
-      storageKey = HEALTH_STORAGE_KEYS.FREESTYLE_LIBRE_TOKENS;
-      break;
-    default:
-      throw new Error(`Unknown provider: ${connection.provider}`);
-  }
-
-  await AsyncStorage.setItem(storageKey, JSON.stringify(connection));
-};
-
-/**
  * Disconnect provider
  */
 export const disconnectProvider = async (
   provider: HealthProvider
 ): Promise<void> => {
   // Clear connection data and call service disconnect methods
-  let storageKey: string;
+  const storageKey = getProviderStorageKey(provider);
   switch (provider) {
     case "apple_health":
-      storageKey = HEALTH_STORAGE_KEYS.APPLE_HEALTH_CONNECTION;
       break;
     case "health_connect":
-      storageKey = HEALTH_STORAGE_KEYS.HEALTH_CONNECT_CONNECTION;
       break;
     case "fitbit":
-      storageKey = HEALTH_STORAGE_KEYS.FITBIT_CONNECTION;
-      await fitbitService.disconnect();
+      {
+        const { fitbitService } = await import("../services/fitbitService");
+        await fitbitService.disconnect();
+      }
       break;
     case "samsung_health":
-      storageKey = HEALTH_STORAGE_KEYS.SAMSUNG_HEALTH_TOKENS;
       try {
         const { samsungHealthService } = await import(
           "../services/samsungHealthService"
@@ -159,7 +72,6 @@ export const disconnectProvider = async (
       }
       break;
     case "garmin":
-      storageKey = HEALTH_STORAGE_KEYS.GARMIN_TOKENS;
       try {
         const { garminService } = await import("../services/garminService");
         await garminService.disconnect();
@@ -168,7 +80,6 @@ export const disconnectProvider = async (
       }
       break;
     case "withings":
-      storageKey = HEALTH_STORAGE_KEYS.WITHINGS_TOKENS;
       try {
         const { withingsService } = await import("../services/withingsService");
         await withingsService.disconnect();
@@ -177,7 +88,6 @@ export const disconnectProvider = async (
       }
       break;
     case "oura":
-      storageKey = HEALTH_STORAGE_KEYS.OURA_TOKENS;
       try {
         const { ouraService } = await import("../services/ouraService");
         await ouraService.disconnect();
@@ -186,7 +96,6 @@ export const disconnectProvider = async (
       }
       break;
     case "dexcom":
-      storageKey = HEALTH_STORAGE_KEYS.DEXCOM_TOKENS;
       try {
         const { dexcomService } = await import("../services/dexcomService");
         await dexcomService.disconnect();
@@ -195,7 +104,6 @@ export const disconnectProvider = async (
       }
       break;
     case "freestyle_libre":
-      storageKey = HEALTH_STORAGE_KEYS.FREESTYLE_LIBRE_TOKENS;
       try {
         const { freestyleLibreService } = await import(
           "../services/freestyleLibreService"
@@ -205,8 +113,6 @@ export const disconnectProvider = async (
         // Best effort disconnect for optional provider.
       }
       break;
-    default:
-      throw new Error(`Unknown provider: ${provider}`);
   }
 
   await AsyncStorage.removeItem(storageKey);
@@ -278,11 +184,14 @@ export const syncHealthData = async (
         );
         break;
       case "fitbit":
-        metrics = await fitbitService.fetchMetrics(
-          connection.selectedMetrics,
-          startDate,
-          endDate
-        );
+        {
+          const { fitbitService } = await import("../services/fitbitService");
+          metrics = await fitbitService.fetchMetrics(
+            connection.selectedMetrics,
+            startDate,
+            endDate
+          );
+        }
         break;
       case "samsung_health": {
         const { samsungHealthService } = await import(
@@ -379,6 +288,9 @@ export const syncHealthData = async (
 
     // Save vitals to Firestore for benchmark checking and admin alerts
     try {
+      const { saveSyncVitalsToFirestore } = await import(
+        "../services/vitalSyncService"
+      );
       await saveSyncVitalsToFirestore({
         provider,
         metrics,

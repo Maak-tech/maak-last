@@ -1,6 +1,8 @@
 /* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Large profile screen with multiple modal flows. */
 /* biome-ignore-all lint/style/noNestedTernary: Localization branches are intentionally explicit in this screen. */
-import { useNavigation, useRouter } from "expo-router";
+import {
+  useNavigation,
+  useRouter } from "expo-router";
 import {
   ArrowLeft,
   Calendar,
@@ -12,19 +14,18 @@ import {
   Shield,
   User,
   X,
-} from "lucide-react-native";
+  } from "lucide-react-native";
 import {
   type ComponentType,
   useEffect,
   useLayoutEffect,
   useState,
-} from "react";
+  } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
   Modal,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -32,6 +33,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Avatar from "@/components/Avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { userService } from "@/lib/services/userService";

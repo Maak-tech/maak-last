@@ -12,6 +12,7 @@ import {
   Gauge,
   Heart,
   History,
+  Info,
   Moon,
   Pill,
   Route,
@@ -24,19 +25,19 @@ import {
   XCircle,
   Zap,
 } from "lucide-react-native";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Avatar from "@/components/Avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/firebase";
@@ -44,6 +45,11 @@ import { alertService } from "@/lib/services/alertService";
 import { allergyService } from "@/lib/services/allergyService";
 import healthContextService from "@/lib/services/healthContextService";
 import type { VitalSigns } from "@/lib/services/healthDataService";
+import {
+  healthInsightsService,
+  type PatternInsight,
+  type WeeklySummary,
+} from "@/lib/services/healthInsightsService";
 import { medicalHistoryService } from "@/lib/services/medicalHistoryService";
 import { medicationService } from "@/lib/services/medicationService";
 import { symptomService } from "@/lib/services/symptomService";
@@ -132,6 +138,26 @@ const getAllergySeverityLabel = (
   return isRTL ? "خفيف" : "Mild";
 };
 
+const INSIGHTS_CACHE_TTL_MS = 5 * 60 * 1000;
+const INSIGHTS_TIMEOUT_MS = 12000;
+
+const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> =>
+  new Promise<T>((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error("Insights request timed out"));
+    }, timeoutMs);
+
+    promise
+      .then((result) => {
+        clearTimeout(timeoutId);
+        resolve(result);
+      })
+      .catch((error) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
+
 /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Large screen to be split into sections in a separate refactor. */
 export default function FamilyMemberHealthView() {
   const { memberId } = useLocalSearchParams<{ memberId: string }>();
@@ -150,6 +176,21 @@ export default function FamilyMemberHealthView() {
   const [allergies, setAllergies] = useState<Allergy[]>([]);
   const [vitals, setVitals] = useState<VitalSigns | null>(null);
   const [alerts, setAlerts] = useState<EmergencyAlert[]>([]);
+  const [insightsSummary, setInsightsSummary] = useState<WeeklySummary | null>(
+    null
+  );
+  const [insights, setInsights] = useState<PatternInsight[]>([]);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const insightsCacheRef = useRef<
+    Record<
+      string,
+      {
+        cachedAt: number;
+        summary: WeeklySummary;
+        insights: PatternInsight[];
+      }
+    >
+  >({});
 
   const loadMemberHealthData = useCallback(
     // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Data loading flow will be extracted into dedicated hooks.
@@ -182,22 +223,47 @@ export default function FamilyMemberHealthView() {
           }
         }
 
-        // Load all health data in parallel
+        // Load core health data only (insights are loaded separately to avoid blocking render)
         const [
-          memberSymptoms,
-          memberMedicalHistory,
-          memberMedications,
-          memberAllergies,
-          memberAlerts,
-          healthContext,
-        ] = await Promise.all([
-          symptomService.getUserSymptoms(memberId),
+          memberSymptomsResult,
+          memberMedicalHistoryResult,
+          memberMedicationsResult,
+          memberAllergiesResult,
+          memberAlertsResult,
+          healthContextResult,
+        ] = await Promise.allSettled([
+          symptomService.getUserSymptoms(memberId, 30),
           medicalHistoryService.getUserMedicalHistory(memberId),
           medicationService.getUserMedications(memberId),
           allergyService.getUserAllergies(memberId),
           alertService.getActiveAlerts(memberId),
-          healthContextService.getUserHealthContext(memberId).catch(() => null),
+          healthContextService.getUserHealthContext(memberId),
         ]);
+
+        const memberSymptoms =
+          memberSymptomsResult.status === "fulfilled"
+            ? memberSymptomsResult.value
+            : [];
+        const memberMedicalHistory =
+          memberMedicalHistoryResult.status === "fulfilled"
+            ? memberMedicalHistoryResult.value
+            : [];
+        const memberMedications =
+          memberMedicationsResult.status === "fulfilled"
+            ? memberMedicationsResult.value
+            : [];
+        const memberAllergies =
+          memberAllergiesResult.status === "fulfilled"
+            ? memberAllergiesResult.value
+            : [];
+        const memberAlerts =
+          memberAlertsResult.status === "fulfilled"
+            ? memberAlertsResult.value
+            : [];
+        const healthContext =
+          healthContextResult.status === "fulfilled"
+            ? healthContextResult.value
+            : null;
 
         setSymptoms(memberSymptoms);
         setMedicalHistory(memberMedicalHistory);
@@ -252,9 +318,57 @@ export default function FamilyMemberHealthView() {
     [memberId]
   );
 
+  const loadMemberInsights = useCallback(
+    async (forceRefresh = false) => {
+      if (!memberId) {
+        return;
+      }
+
+      const localeKey = isRTL ? "ar" : "en";
+      const cacheKey = `${memberId}:${localeKey}`;
+      const cached = insightsCacheRef.current[cacheKey];
+      const isFreshCache =
+        !!cached && Date.now() - cached.cachedAt < INSIGHTS_CACHE_TTL_MS;
+
+      if (!forceRefresh && isFreshCache) {
+        setInsightsSummary(cached.summary);
+        setInsights(cached.insights);
+        return;
+      }
+
+      try {
+        setInsightsLoading(true);
+        const summary = await withTimeout(
+          healthInsightsService.getWeeklySummary(memberId, undefined, isRTL),
+          INSIGHTS_TIMEOUT_MS
+        );
+        const topInsights = Array.isArray(summary.insights)
+          ? summary.insights.slice(0, 4)
+          : [];
+
+        setInsightsSummary(summary);
+        setInsights(topInsights);
+        insightsCacheRef.current[cacheKey] = {
+          cachedAt: Date.now(),
+          summary,
+          insights: topInsights,
+        };
+      } catch {
+        if (!cached) {
+          setInsightsSummary(null);
+          setInsights([]);
+        }
+      } finally {
+        setInsightsLoading(false);
+      }
+    },
+    [memberId, isRTL]
+  );
+
   useEffect(() => {
     loadMemberHealthData();
-  }, [loadMemberHealthData]);
+    loadMemberInsights();
+  }, [loadMemberHealthData, loadMemberInsights]);
 
   const formatDate = (date: Date | string) =>
     safeFormatDate(date, isRTL ? "ar-u-ca-gregory" : "en-US", {
@@ -287,6 +401,32 @@ export default function FamilyMemberHealthView() {
       return isRTL ? "متوسط" : "Moderate";
     }
     return isRTL ? "خفيف" : "Mild";
+  };
+
+  const getInsightColor = (confidence: number) => {
+    if (confidence >= 85) {
+      return "#DC2626";
+    }
+    if (confidence >= 70) {
+      return "#F59E0B";
+    }
+    return "#2563EB";
+  };
+
+  const getInsightIcon = (type: PatternInsight["type"]) => {
+    if (type === "ml") {
+      return <Gauge color="#7C3AED" size={16} />;
+    }
+    if (type === "trend") {
+      return <Activity color="#2563EB" size={16} />;
+    }
+    if (type === "correlation") {
+      return <Route color="#0EA5E9" size={16} />;
+    }
+    if (type === "temporal") {
+      return <Calendar color="#14B8A6" size={16} />;
+    }
+    return <Info color="#64748B" size={16} />;
   };
 
   const changeMemberRole = async (
@@ -467,6 +607,10 @@ export default function FamilyMemberHealthView() {
         new Date(s.timestamp).getTime() > Date.now() - 30 * 24 * 60 * 60 * 1000
     )
     .slice(0, 10);
+  const predictiveInsight = insights.find(
+    (insight) =>
+      insight.type === "ml" && typeof insight.data?.riskScore === "number"
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -486,7 +630,10 @@ export default function FamilyMemberHealthView() {
       <ScrollView
         refreshControl={
           <RefreshControl
-            onRefresh={() => loadMemberHealthData(true)}
+            onRefresh={() => {
+              loadMemberHealthData(true);
+              loadMemberInsights(true);
+            }}
             refreshing={refreshing}
             tintColor="#2563EB"
           />
@@ -821,6 +968,109 @@ export default function FamilyMemberHealthView() {
             ) : null}
           </View>
         ) : null}
+
+        {/* Health Insights Section */}
+        <View style={styles.section}>
+          <View
+            style={[
+              styles.sectionHeader,
+              isRTL && { flexDirection: "row-reverse" },
+            ]}
+          >
+            <Info color="#7C3AED" size={20} />
+            <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+              {isRTL ? "الرؤى الصحية" : "Health Insights"}
+            </Text>
+            <Text style={[styles.sectionCount, isRTL && styles.rtlText]}>
+              ({insights.length})
+            </Text>
+          </View>
+
+          {insightsSummary ? (
+            <View style={styles.insightSummaryCard}>
+              <View style={styles.insightSummaryItem}>
+                <Text style={styles.insightSummaryValue}>
+                  {insightsSummary.medications.compliance}%
+                </Text>
+                <Text style={[styles.insightSummaryLabel, isRTL && styles.rtlText]}>
+                  {isRTL ? "الالتزام" : "Adherence"}
+                </Text>
+              </View>
+              <View style={styles.insightSummaryItem}>
+                <Text style={styles.insightSummaryValue}>
+                  {insightsSummary.symptoms.total}
+                </Text>
+                <Text style={[styles.insightSummaryLabel, isRTL && styles.rtlText]}>
+                  {isRTL ? "الأعراض" : "Symptoms"}
+                </Text>
+              </View>
+              <View style={styles.insightSummaryItem}>
+                <Text style={styles.insightSummaryValue}>
+                  {predictiveInsight?.data?.riskScore ?? "--"}
+                </Text>
+                <Text style={[styles.insightSummaryLabel, isRTL && styles.rtlText]}>
+                  {isRTL ? "مخاطر" : "Risk"}
+                </Text>
+              </View>
+            </View>
+          ) : null}
+
+          {insightsLoading && insights.length === 0 ? (
+            <View style={styles.insightsLoadingContainer}>
+              <ActivityIndicator color="#7C3AED" size="small" />
+              <Text style={[styles.insightsLoadingText, isRTL && styles.rtlText]}>
+                {isRTL ? "جارٍ تحليل الرؤى الصحية..." : "Analyzing health insights..."}
+              </Text>
+            </View>
+          ) : insights.length > 0 ? (
+            <View style={styles.insightsList}>
+              {insights.map((insight, index) => (
+                <View key={`${insight.type}-${index}`} style={styles.insightItem}>
+                  <View style={styles.insightHeader}>
+                    <View style={styles.insightTitleRow}>
+                      {getInsightIcon(insight.type)}
+                      <Text style={[styles.insightTitle, isRTL && styles.rtlText]}>
+                        {insight.title}
+                      </Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.insightConfidenceBadge,
+                        { borderColor: getInsightColor(insight.confidence) },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.insightConfidenceText,
+                          { color: getInsightColor(insight.confidence) },
+                        ]}
+                      >
+                        {insight.confidence}%
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.insightDescription, isRTL && styles.rtlText]}>
+                    {insight.description}
+                  </Text>
+                  {insight.recommendation ? (
+                    <Text style={[styles.insightRecommendation, isRTL && styles.rtlText]}>
+                      {isRTL ? "التوصية: " : "Recommendation: "}
+                      {insight.recommendation}
+                    </Text>
+                  ) : null}
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
+                {isRTL
+                  ? "لا توجد رؤى كافية بعد. استمر في تسجيل المؤشرات والأعراض."
+                  : "Not enough insights yet. Keep logging vitals and symptoms."}
+              </Text>
+            </View>
+          )}
+        </View>
 
         {/* Symptoms Section */}
         <View style={styles.section}>
@@ -1360,6 +1610,109 @@ const styles = StyleSheet.create({
     fontFamily: "Geist-Regular",
     color: "#94A3B8",
     textAlign: "center",
+  },
+  insightSummaryCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  insightSummaryItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  insightSummaryValue: {
+    fontSize: 20,
+    fontFamily: "Geist-Bold",
+    color: "#1E293B",
+  },
+  insightSummaryLabel: {
+    fontSize: 12,
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
+    marginTop: 4,
+  },
+  insightsList: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  insightItem: {
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  insightHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  insightTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+  },
+  insightTitle: {
+    fontSize: 14,
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
+    flex: 1,
+  },
+  insightConfidenceBadge: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    alignSelf: "flex-start",
+  },
+  insightConfidenceText: {
+    fontSize: 11,
+    fontFamily: "Geist-SemiBold",
+  },
+  insightDescription: {
+    fontSize: 13,
+    fontFamily: "Geist-Regular",
+    color: "#475569",
+    marginTop: 8,
+    lineHeight: 18,
+  },
+  insightRecommendation: {
+    fontSize: 12,
+    fontFamily: "Geist-Medium",
+    color: "#334155",
+    marginTop: 8,
+  },
+  insightsLoadingContainer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  insightsLoadingText: {
+    fontSize: 13,
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
   },
   symptomsList: {
     backgroundColor: "#FFFFFF",

@@ -13,7 +13,14 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { logger } from "@/lib/utils/logger";
-import type { VitalReading } from "./rulesEngine";
+
+type VitalReading = {
+  type: string;
+  value: number;
+  unit: string;
+  timestamp: Date;
+  userId: string;
+};
 
 const getLocalizedText = (key: string, isArabic: boolean): string => {
   const texts: Record<string, { en: string; ar: string }> = {

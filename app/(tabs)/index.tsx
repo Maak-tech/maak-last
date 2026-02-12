@@ -95,6 +95,7 @@ export default function DashboardScreen() {
   const tourRequestedRef = useRef(false);
   const tourParamHandledRef = useRef(false);
   const tourTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const medicationReminderSyncKeyRef = useRef<string | null>(null);
   const params = useLocalSearchParams<{ tour?: string }>();
 
   const isRTL = i18n.language === "ar";
@@ -692,30 +693,40 @@ export default function DashboardScreen() {
       // This ensures reminders are scheduled even if they weren't scheduled when medication was added
       if (notificationsEnabled && scheduleRecurringMedicationReminder) {
         try {
-          // Get all user medications (not just today's) to schedule all reminders
-          const allMedications = await medicationService.getUserMedications(
-            user.id
-          );
+          const todayKey = `${user.id}:${new Date().toDateString()}`;
+          const shouldSyncReminders =
+            medicationReminderSyncKeyRef.current !== todayKey;
 
-          // Schedule reminders for each medication and reminder time
-          for (const medication of allMedications) {
-            if (!(medication.isActive && Array.isArray(medication.reminders))) {
-              continue;
-            }
+          if (shouldSyncReminders) {
+            // Get all user medications (not just today's) to schedule all reminders
+            const allMedications = await medicationService.getUserMedications(
+              user.id
+            );
 
-            // Schedule each reminder time
-            for (const reminder of medication.reminders) {
-              if (reminder.time?.trim()) {
-                // Schedule reminder (this function handles deduplication)
-                await scheduleRecurringMedicationReminder(
-                  medication.name,
-                  medication.dosage,
-                  reminder.time
-                ).catch(() => {
-                  // Silently handle scheduling errors - don't block dashboard load
-                });
+            // Schedule reminders for each medication and reminder time
+            for (const medication of allMedications) {
+              if (
+                !(medication.isActive && Array.isArray(medication.reminders))
+              ) {
+                continue;
+              }
+
+              // Schedule each reminder time
+              for (const reminder of medication.reminders) {
+                if (reminder.time?.trim()) {
+                  // Schedule reminder (this function handles deduplication)
+                  await scheduleRecurringMedicationReminder(
+                    medication.name,
+                    medication.dosage,
+                    reminder.time
+                  ).catch(() => {
+                    // Silently handle scheduling errors - don't block dashboard load
+                  });
+                }
               }
             }
+
+            medicationReminderSyncKeyRef.current = todayKey;
           }
         } catch (_error) {
           // Silently handle reminder scheduling errors - don't block dashboard load
@@ -1033,6 +1044,23 @@ export default function DashboardScreen() {
     theme.colors.severity[severity as keyof typeof theme.colors.severity] ||
     theme.colors.neutral[500];
 
+  const isSameLocalDay = (left: Date, right: Date) =>
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate();
+
+  const isReminderTakenToday = (
+    reminder: Medication["reminders"][number],
+    todayDate: Date
+  ) => {
+    if (!reminder.taken) {
+      return false;
+    }
+
+    const takenDate = coerceToDate(reminder.takenAt);
+    return !!takenDate && isSameLocalDay(takenDate, todayDate);
+  };
+
   // Find the next upcoming reminder for a medication that hasn't been taken
   const getNextUpcomingReminder = (medication: Medication) => {
     if (
@@ -1043,16 +1071,11 @@ export default function DashboardScreen() {
     }
 
     const now = new Date();
-    const today = now.toDateString();
 
     // Find reminders that haven't been taken today
-    const untakenReminders = medication.reminders.filter((reminder) => {
-      if (reminder.taken && reminder.takenAt) {
-        const takenDate = coerceToDate(reminder.takenAt);
-        return !takenDate || takenDate.toDateString() !== today;
-      }
-      return !reminder.taken;
-    });
+    const untakenReminders = medication.reminders.filter(
+      (reminder) => !isReminderTakenToday(reminder, now)
+    );
 
     if (untakenReminders.length === 0) {
       return null;
@@ -1450,24 +1473,15 @@ export default function DashboardScreen() {
 
             {todaysMedications.length > 0 ? (
               todaysMedications.slice(0, 3).map((medication) => {
+                const todayDate = new Date();
                 const nextReminder = getNextUpcomingReminder(medication);
                 const hasUntakenReminders = nextReminder !== null;
                 const allTaken =
                   Array.isArray(medication.reminders) &&
                   medication.reminders.length > 0 &&
-                  medication.reminders.every((r) => {
-                    if (!r.taken) {
-                      return false;
-                    }
-                    if (r.takenAt) {
-                      const takenDate = coerceToDate(r.takenAt);
-                      return !!(
-                        takenDate &&
-                        takenDate.toDateString() === new Date().toDateString()
-                      );
-                    }
-                    return r.taken;
-                  });
+                  medication.reminders.every((r) =>
+                    isReminderTakenToday(r, todayDate)
+                  );
 
                 return (
                   <View
@@ -1530,7 +1544,7 @@ export default function DashboardScreen() {
                               backgroundColor:
                                 markingMedication === medication.id
                                   ? theme.colors.neutral[400]
-                                  : theme.colors.accent.success,
+                                  : theme.colors.primary.main,
                               opacity:
                                 markingMedication === medication.id ? 0.6 : 1,
                             },
@@ -1542,10 +1556,10 @@ export default function DashboardScreen() {
                               size={16}
                             />
                           ) : (
-                            <Check
+                            <Pill
                               color={theme.colors.neutral.white}
-                              size={16}
-                              strokeWidth={3}
+                              size={14}
+                              strokeWidth={2.5}
                             />
                           )}
                         </TouchableOpacity>

@@ -12,7 +12,7 @@ import {
   getDexcomScopesForMetrics,
   getMetricByKey,
 } from "../health/healthMetricsCatalog";
-import { saveProviderConnection } from "../health/healthSync";
+import { saveProviderConnection } from "../health/providerConnections";
 import {
   type DexcomTokens,
   HEALTH_STORAGE_KEYS,

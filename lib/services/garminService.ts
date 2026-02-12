@@ -13,7 +13,7 @@ import {
   getAvailableMetricsForProvider,
   getMetricByKey,
 } from "../health/healthMetricsCatalog";
-import { saveProviderConnection } from "../health/healthSync";
+import { saveProviderConnection } from "../health/providerConnections";
 import {
   type GarminTokens,
   HEALTH_STORAGE_KEYS,

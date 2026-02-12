@@ -15,7 +15,7 @@ import {
   getMetricByKey,
   getOuraScopesForMetrics,
 } from "../health/healthMetricsCatalog";
-import { saveProviderConnection } from "../health/healthSync";
+import { saveProviderConnection } from "../health/providerConnections";
 import {
   HEALTH_STORAGE_KEYS,
   type MetricSample,

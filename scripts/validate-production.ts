@@ -7,6 +7,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { execSync } from "node:child_process";
 
 type ValidationResult = {
   name: string;
@@ -36,6 +37,20 @@ function fileHasContent(filePath: string): boolean {
   try {
     const content = readFileSync(join(process.cwd(), filePath), "utf-8");
     return content.trim().length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function fileIsTrackedInGit(filePath: string): boolean {
+  try {
+    const output = execSync(`git ls-files -- "${filePath}"`, {
+      cwd: process.cwd(),
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+      .toString()
+      .trim();
+    return output.length > 0;
   } catch {
     return false;
   }
@@ -284,6 +299,50 @@ function checkEASConfig() {
   }
 }
 
+function checkPatchFiles() {
+  console.log("\nChecking Runtime Patch Files...\n");
+
+  const requiredPatchFiles = ["patches/expo-font+14.0.11.patch"];
+
+  for (const patchFile of requiredPatchFiles) {
+    if (!fileExists(patchFile)) {
+      addResult(
+        `Patch: ${patchFile}`,
+        "fail",
+        "Required patch file not found",
+        `Add ${patchFile} and ensure it is committed before production builds`
+      );
+      continue;
+    }
+
+    if (!fileHasContent(patchFile)) {
+      addResult(
+        `Patch: ${patchFile}`,
+        "fail",
+        "Patch file exists but is empty",
+        "Regenerate the patch with patch-package and commit the file"
+      );
+      continue;
+    }
+
+    if (!fileIsTrackedInGit(patchFile)) {
+      addResult(
+        `Patch: ${patchFile}`,
+        "fail",
+        "Patch file is not tracked by git",
+        "Run `git add patches/expo-font+14.0.11.patch` and commit before production builds"
+      );
+      continue;
+    }
+
+    addResult(
+      `Patch: ${patchFile}`,
+      "pass",
+      "Required patch file present and tracked"
+    );
+  }
+}
+
 // Check app.config.js
 function checkAppConfig() {
   console.log("\n📱 Checking App Configuration...\n");
@@ -502,6 +561,7 @@ function main() {
   checkEnvVars();
   checkFirebaseFiles();
   checkEASConfig();
+  checkPatchFiles();
   checkAppConfig();
   checkFirestoreRules();
   checkPackageJson();

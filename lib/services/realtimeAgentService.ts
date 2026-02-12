@@ -873,6 +873,26 @@ class RealtimeAgentService {
     );
   }
 
+  private normalizeApiKeyInput(key: unknown): string | null {
+    if (typeof key !== "string") {
+      return null;
+    }
+    let trimmed = key.trim();
+    if (!trimmed) {
+      return null;
+    }
+    if (
+      (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+      (trimmed.startsWith("'") && trimmed.endsWith("'"))
+    ) {
+      trimmed = trimmed.slice(1, -1).trim();
+    }
+    if (trimmed.toLowerCase().startsWith("bearer ")) {
+      trimmed = trimmed.slice(7).trim();
+    }
+    return trimmed || null;
+  }
+
   /**
    * Mask API key for logging (show first 7 and last 4 characters)
    */
@@ -887,18 +907,20 @@ class RealtimeAgentService {
     try {
       // Prefer app-config keys (shared key for premium users).
       const config = Constants.expoConfig?.extra;
-      const configKey = config?.zeinaApiKey || config?.openaiApiKey || null;
+      const configKey = this.normalizeApiKeyInput(
+        config?.zeinaApiKey || config?.openaiApiKey || null
+      );
+      const publicZeinaKey = this.normalizeApiKeyInput(
+        process.env.EXPO_PUBLIC_ZEINA_API_KEY
+      );
+      const publicOpenAIKey = this.normalizeApiKeyInput(
+        process.env.EXPO_PUBLIC_OPENAI_API_KEY
+      );
+      const activeKey = configKey || publicZeinaKey || publicOpenAIKey;
 
-      if (
-        configKey &&
-        typeof configKey === "string" &&
-        configKey.trim() !== ""
-      ) {
-        const trimmed = configKey.trim();
-        if (this.validateApiKeyFormat(trimmed)) {
-          this.apiKey = trimmed;
-          return;
-        }
+      if (activeKey && this.validateApiKeyFormat(activeKey)) {
+        this.apiKey = activeKey;
+        return;
       }
 
       // If app config key missing/invalid
@@ -946,18 +968,25 @@ class RealtimeAgentService {
       this.loadApiKey();
       if (!this.apiKey) {
         const config = Constants.expoConfig?.extra;
-        const hasZeinaKey = !!config?.zeinaApiKey;
-        const hasOpenAIKey = !!config?.openaiApiKey;
+        const hasZeinaKey = !!this.normalizeApiKeyInput(config?.zeinaApiKey);
+        const hasOpenAIKey = !!this.normalizeApiKeyInput(config?.openaiApiKey);
+        const hasPublicZeinaKey = !!this.normalizeApiKeyInput(
+          process.env.EXPO_PUBLIC_ZEINA_API_KEY
+        );
+        const hasPublicOpenAIKey = !!this.normalizeApiKeyInput(
+          process.env.EXPO_PUBLIC_OPENAI_API_KEY
+        );
         const errorMessage =
           "Zeina API key not configured.\n\n" +
           "Diagnostics:\n" +
-          `  • ZEINA_API_KEY in .env: ${hasZeinaKey ? "present but empty/invalid" : "not set"}\n` +
-          `  • OPENAI_API_KEY in .env: ${hasOpenAIKey ? "present but empty/invalid" : "not set"}\n\n` +
+          `  - expo.extra.zeinaApiKey: ${hasZeinaKey ? "present but invalid" : "missing"}\n` +
+          `  - expo.extra.openaiApiKey: ${hasOpenAIKey ? "present but invalid" : "missing"}\n` +
+          `  - EXPO_PUBLIC_ZEINA_API_KEY: ${hasPublicZeinaKey ? "present but invalid" : "missing"}\n` +
+          `  - EXPO_PUBLIC_OPENAI_API_KEY: ${hasPublicOpenAIKey ? "present but invalid" : "missing"}\n\n` +
           "To fix this:\n" +
-          "1. Add OPENAI_API_KEY or ZEINA_API_KEY to your .env file:\n" +
-          "   OPENAI_API_KEY=sk-proj-your-actual-key-here\n" +
-          "   (or ZEINA_API_KEY=sk-proj-your-actual-key-here)\n\n" +
-          "2. Rebuild the app (required for .env changes):\n" +
+          "1. Set OPENAI_API_KEY or ZEINA_API_KEY in EAS environment for this build profile\n" +
+          "   (EXPO_PUBLIC_OPENAI_API_KEY / EXPO_PUBLIC_ZEINA_API_KEY are also supported)\n\n" +
+          "2. Rebuild the app (required after env changes):\n" +
           "   - Stop the dev server\n" +
           "   - Run: npm run ios (or npm run android)\n" +
           "   - Or rebuild with EAS: eas build --profile development\n\n" +
@@ -977,9 +1006,9 @@ class RealtimeAgentService {
         `Invalid API key format: ${this.maskApiKey(apiKey)}\n\n` +
         "OpenAI API keys should start with 'sk-' or 'sk-proj-'.\n\n" +
         "Please check:\n" +
-        "1. Your .env file has the correct key format\n" +
+        "1. Your EAS environment variable has the correct key format\n" +
         "2. The key doesn't have extra quotes or spaces\n" +
-        "3. You've rebuilt the app after changing .env";
+        "3. You've rebuilt the app after changing env variables";
       throw new Error(errorMessage);
     }
 

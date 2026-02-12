@@ -13,7 +13,7 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react-native";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -145,10 +145,37 @@ const styles = StyleSheet.create({
   py4: {
     paddingVertical: 16,
   },
+  summaryCardsRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
   summaryCard: {
     flex: 1,
     marginHorizontal: 4,
-    padding: 16,
+    minHeight: 116,
+  },
+  summaryCardContent: {
+    flex: 1,
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+  },
+  summaryCardTop: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  summaryCardTitle: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 12,
+    lineHeight: 16,
+    color: "#6B7280",
+  },
+  summaryCardValue: {
+    marginTop: 8,
+    fontSize: 22,
+    fontWeight: "700",
+    lineHeight: 26,
   },
   categoryTab: {
     paddingHorizontal: 16,
@@ -180,6 +207,7 @@ const styles = StyleSheet.create({
 type AIInsightsDashboardProps = {
   onInsightPress?: (insight: unknown) => void;
   compact?: boolean;
+  embedded?: boolean;
 };
 
 type CorrelationResult =
@@ -229,6 +257,7 @@ const CACHE_EXPIRATION_MS = 5 * 60 * 1000; // 5 minutes
 function AIInsightsDashboard({
   onInsightPress,
   compact = false,
+  embedded = false,
 }: AIInsightsDashboardProps) {
   const { user } = useAuth();
   const { t, i18n } = useTranslation();
@@ -240,6 +269,7 @@ function AIInsightsDashboard({
   const [_refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("overview");
+  const lastFallbackRetryAtRef = useRef<number>(0);
 
   useEffect(() => {
     if (!insights || insights.insightsSummary) {
@@ -281,7 +311,20 @@ function AIInsightsDashboard({
           return null;
         }
 
-        const { data, timestamp } = JSON.parse(cached);
+        const { data, timestamp } = JSON.parse(cached) as {
+          data?: AIInsightsDashboardData;
+          timestamp?: number;
+        };
+        if (!data || typeof timestamp !== "number") {
+          await AsyncStorage.removeItem(cacheKey);
+          return null;
+        }
+
+        // Never reuse timeout fallback payloads from cache.
+        if (data.id?.startsWith("fallback-")) {
+          await AsyncStorage.removeItem(cacheKey);
+          return null;
+        }
         const now = Date.now();
 
         // Check if cache is still valid
@@ -411,8 +454,27 @@ function AIInsightsDashboard({
           timeoutPromise,
         ]);
 
-        setInsights(dashboard);
-        await saveCachedInsights(user.id, dashboard);
+        const isFallbackDashboard = dashboard.id.startsWith("fallback-");
+
+        // Keep previous real data if timeout fallback arrives.
+        setInsights((previous) => {
+          if (!isFallbackDashboard) {
+            return dashboard;
+          }
+          return previous ?? dashboard;
+        });
+
+        if (!isFallbackDashboard) {
+          await saveCachedInsights(user.id, dashboard);
+        } else if (Date.now() - lastFallbackRetryAtRef.current > 12_000) {
+          lastFallbackRetryAtRef.current = Date.now();
+          // Retry in background without blocking UI.
+          setTimeout(() => {
+            loadInsights(true).catch(() => {
+              // Silently ignore retry errors
+            });
+          }, 1500);
+        }
 
         // Load AI narrative asynchronously after dashboard is shown
         // This way users see results faster even if narrative is slow
@@ -512,142 +574,144 @@ function AIInsightsDashboard({
     );
   }
 
+  const dashboardContent = (
+    <View style={styles.p4}>
+      {/* Header */}
+      <View style={styles.mb4}>
+        <Text style={[styles.title, styles.mb2]}>
+          {t("healthInsights", "Health Insights")}
+        </Text>
+        <Text style={[styles.subtitle, styles.textMuted]}>
+          {t(
+            "healthInsightsSubtitle",
+            "Personalized analysis of your health patterns and recommendations"
+          )}
+        </Text>
+      </View>
+
+      {/* Summary Cards */}
+      <View style={[styles.summaryCardsRow, styles.mb4]}>
+        <SummaryCard
+          color="#3B82F6"
+          icon="Brain"
+          title={t("totalInsights", "Total Insights")}
+          value={insights?.insightsSummary?.totalInsights?.toString() || "0"}
+        />
+        <SummaryCard
+          color="#EF4444"
+          icon="AlertTriangle"
+          title={t("highPriority", "High Priority")}
+          value={
+            insights?.insightsSummary?.highPriorityItems?.toString() || "0"
+          }
+        />
+        <SummaryCard
+          color={getRiskColor(insights?.riskAssessment?.riskLevel || "low")}
+          icon="Shield"
+          title={t("riskLevel", "Risk Level")}
+          value={insights?.riskAssessment?.riskLevel || "low"}
+        />
+      </View>
+
+      {/* Category Tabs */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.mb4}
+      >
+        {[
+          {
+            key: "overview",
+            label: t("insightsOverview", "Overview"),
+            icon: "Home",
+          },
+          {
+            key: "correlations",
+            label: t("insightsCorrelations", "Correlations"),
+            icon: "TrendingUp",
+          },
+          {
+            key: "patterns",
+            label: t("insightsPatterns", "Patterns"),
+            icon: "Activity",
+          },
+          {
+            key: "risk",
+            label: t("insightsRiskAssessment", "Risk Assessment"),
+            icon: "Shield",
+          },
+          {
+            key: "medications",
+            label: t("medications", "Medications"),
+            icon: "Pill",
+          },
+          {
+            key: "suggestions",
+            label: t("recommendations", "Recommendations"),
+            icon: "Lightbulb",
+          },
+        ].map((category) => (
+          <TouchableOpacity
+            key={category.key}
+            onPress={() => setSelectedCategory(category.key)}
+            style={[
+              styles.categoryTab,
+              selectedCategory === category.key && styles.categoryTabActive,
+            ]}
+          >
+            {getIcon(
+              category.icon,
+              16,
+              selectedCategory === category.key ? "#FFFFFF" : "#6B7280"
+            )}
+            <Text
+              style={[
+                styles.categoryTabText,
+                selectedCategory === category.key &&
+                  styles.categoryTabTextActive,
+              ]}
+            >
+              {category.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* Content based on selected category */}
+      <CategoryContent
+        category={selectedCategory}
+        insights={insights}
+        onInsightPress={onInsightPress}
+      />
+
+      {/* AI Narrative */}
+      {insights.aiNarrative ? (
+        <Card contentStyle={undefined} onPress={undefined} style={styles.mb4}>
+          <View style={styles.row}>
+            {getIcon("Brain", 20, "#3B82F6")}
+            <Text style={[styles.cardTitle, styles.ml2]}>
+              {t("healthSummary", "Health Summary")}
+            </Text>
+          </View>
+          <Text style={[styles.text, styles.mt2, styles.lineHeight]}>
+            {insights.aiNarrative}
+          </Text>
+        </Card>
+      ) : null}
+
+      {/* Action Plan */}
+      <ActionPlanSection insights={insights} />
+    </View>
+  );
+
+  if (embedded) {
+    return <View>{dashboardContent}</View>;
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} style={styles.container}>
-        <View style={styles.p4}>
-          {/* Header */}
-          <View style={styles.mb4}>
-            <Text style={[styles.title, styles.mb2]}>
-              {t("healthInsights", "Health Insights")}
-            </Text>
-            <Text style={[styles.subtitle, styles.textMuted]}>
-              {t(
-                "healthInsightsSubtitle",
-                "Personalized analysis of your health patterns and recommendations"
-              )}
-            </Text>
-          </View>
-
-          {/* Summary Cards */}
-          <View style={[styles.row, styles.mb4]}>
-            <SummaryCard
-              color="#3B82F6"
-              icon="Brain"
-              title={t("totalInsights", "Total Insights")}
-              value={
-                insights?.insightsSummary?.totalInsights?.toString() || "0"
-              }
-            />
-            <SummaryCard
-              color="#EF4444"
-              icon="AlertTriangle"
-              title={t("highPriority", "High Priority")}
-              value={
-                insights?.insightsSummary?.highPriorityItems?.toString() || "0"
-              }
-            />
-            <SummaryCard
-              color={getRiskColor(insights?.riskAssessment?.riskLevel || "low")}
-              icon="Shield"
-              title={t("riskLevel", "Risk Level")}
-              value={insights?.riskAssessment?.riskLevel || "low"}
-            />
-          </View>
-
-          {/* Category Tabs */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.mb4}
-          >
-            {[
-              {
-                key: "overview",
-                label: t("insightsOverview", "Overview"),
-                icon: "Home",
-              },
-              {
-                key: "correlations",
-                label: t("insightsCorrelations", "Correlations"),
-                icon: "TrendingUp",
-              },
-              {
-                key: "patterns",
-                label: t("insightsPatterns", "Patterns"),
-                icon: "Activity",
-              },
-              {
-                key: "risk",
-                label: t("insightsRiskAssessment", "Risk Assessment"),
-                icon: "Shield",
-              },
-              {
-                key: "medications",
-                label: t("medications", "Medications"),
-                icon: "Pill",
-              },
-              {
-                key: "suggestions",
-                label: t("recommendations", "Recommendations"),
-                icon: "Lightbulb",
-              },
-            ].map((category) => (
-              <TouchableOpacity
-                key={category.key}
-                onPress={() => setSelectedCategory(category.key)}
-                style={[
-                  styles.categoryTab,
-                  selectedCategory === category.key && styles.categoryTabActive,
-                ]}
-              >
-                {getIcon(
-                  category.icon,
-                  16,
-                  selectedCategory === category.key ? "#FFFFFF" : "#6B7280"
-                )}
-                <Text
-                  style={[
-                    styles.categoryTabText,
-                    selectedCategory === category.key &&
-                      styles.categoryTabTextActive,
-                  ]}
-                >
-                  {category.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          {/* Content based on selected category */}
-          <CategoryContent
-            category={selectedCategory}
-            insights={insights}
-            onInsightPress={onInsightPress}
-          />
-
-          {/* AI Narrative */}
-          {insights.aiNarrative ? (
-            <Card
-              contentStyle={undefined}
-              onPress={undefined}
-              style={styles.mb4}
-            >
-              <View style={styles.row}>
-                {getIcon("Brain", 20, "#3B82F6")}
-                <Text style={[styles.cardTitle, styles.ml2]}>
-                  {t("healthSummary", "Health Summary")}
-                </Text>
-              </View>
-              <Text style={[styles.text, styles.mt2, styles.lineHeight]}>
-                {insights.aiNarrative}
-              </Text>
-            </Card>
-          ) : null}
-
-          {/* Action Plan */}
-          <ActionPlanSection insights={insights} />
-        </View>
+        {dashboardContent}
       </ScrollView>
     </SafeAreaView>
   );
@@ -667,20 +731,27 @@ function SummaryCard({
 }) {
   return (
     <Card
-      contentStyle={undefined}
+      contentStyle={styles.summaryCardContent}
       onPress={undefined}
       style={[
         styles.summaryCard,
         { borderLeftColor: color, borderLeftWidth: 4 },
       ]}
     >
-      <View style={styles.row}>
+      <View style={styles.summaryCardTop}>
         {getIcon(icon, 24, color)}
-        <View style={styles.ml3}>
-          <Text style={[styles.textSm, styles.textMuted]}>{title}</Text>
-          <Text style={[styles.title, { color }]}>{value}</Text>
-        </View>
+        <Text numberOfLines={2} style={styles.summaryCardTitle}>
+          {title}
+        </Text>
       </View>
+      <Text
+        adjustsFontSizeToFit
+        minimumFontScale={0.8}
+        numberOfLines={1}
+        style={[styles.summaryCardValue, { color }]}
+      >
+        {value}
+      </Text>
     </Card>
   );
 }
@@ -744,6 +815,7 @@ function OverviewContent({
   insights: AIInsightsDashboardData;
   onInsightPress?: (insight: unknown) => void;
 }) {
+  const { t } = useTranslation();
   const topInsights: unknown[] = [
     ...(insights.medicationAlerts || []).slice(0, 2),
     ...(insights.symptomAnalysis?.diagnosisSuggestions || []).slice(0, 2),
@@ -760,6 +832,14 @@ function OverviewContent({
           onPress={() => onInsightPress?.(insight)}
         />
       ))}
+      {topInsights.length === 0 ? (
+        <EmptyState
+          message={t(
+            "insightsNoDataYet",
+            "No insights available yet. Add more health data to generate insights."
+          )}
+        />
+      ) : null}
     </View>
   );
 }
@@ -1143,9 +1223,9 @@ function CompactInsightsView({
   let prioritizedInsights = "Your health data looks good";
   if (isRTL && insightsSummary.highPriorityItems > 0) {
     prioritizedInsights =
-      "Ù‡Ù†Ø§Ùƒ Ø¹Ù†Ø§ØµØ± Ø°Ø§Øª Ø£ÙˆÙ„ÙˆÙŠØ© Ø¹Ø§Ù„ÙŠØ© ØªØ­ØªØ§Ø¬ Ø¥Ù„Ù‰ Ø§Ù„Ø§Ù‡ØªÙ…Ø§Ù…";
+      "هناك عناصر ذات أولوية عالية تحتاج إلى الاهتمام";
   } else if (isRTL) {
-    prioritizedInsights = "Ø¨ÙŠØ§Ù†Ø§ØªÙƒ Ø§Ù„ØµØ­ÙŠØ© ØªØ¨Ø¯Ùˆ Ø¬ÙŠØ¯Ø©";
+    prioritizedInsights = "بياناتك الصحية تبدو جيدة";
   } else if (insightsSummary.highPriorityItems > 0) {
     prioritizedInsights = "High priority items need attention";
   }
@@ -1160,7 +1240,7 @@ function CompactInsightsView({
         {getIcon("Brain", 24, "#3B82F6")}
         <View style={styles.ml3}>
           <Text style={styles.cardTitle}>
-            {isRTL ? "Ø§Ù„ØªØ­Ù„ÙŠÙ„Ø§Øª Ø§Ù„ØµØ­ÙŠØ© " : "Health Insights"}
+            {isRTL ? "التحليلات الصحية" : "Health Insights"}
           </Text>
           <Text style={[styles.text, styles.textMuted]}>
             {prioritizedInsights}
@@ -1171,7 +1251,7 @@ function CompactInsightsView({
             </Badge>
             <Text style={[styles.textSm, styles.textMuted, styles.ml2]}>
               {insightsSummary.totalInsights}{" "}
-              {isRTL ? "Ø§Ù„ØªØ­Ù„ÙŠÙ„ Ø§Ù„ØµØ­ÙŠ " : "insights"}
+              {isRTL ? "تحليل صحي" : "insights"}
             </Text>
           </View>
         </View>
@@ -1223,7 +1303,7 @@ function CorrelationCard({
     <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
       <View style={styles.row}>
         <Text style={styles.cardTitle}>
-          {correlation.data.factor1} â†” {correlation.data.factor2}
+          {correlation.data.factor1} ↔ {correlation.data.factor2}
         </Text>
         <Badge
           style={{}}
@@ -1232,7 +1312,7 @@ function CorrelationCard({
       <Text style={[styles.text, styles.mt1]}>{correlation.description}</Text>
       {correlation.recommendation ? (
         <Text style={[styles.textSm, styles.textMuted, styles.mt1]}>
-          ðŸ’¡ {correlation.recommendation}
+          💡 {correlation.recommendation}
         </Text>
       ) : null}
     </Card>
@@ -1258,7 +1338,7 @@ function DiagnosisCard({
       </Text>
       {diagnosis.recommendations && diagnosis.recommendations.length > 0 ? (
         <Text style={[styles.textSm, styles.mt2]}>
-          ðŸ’¡ {diagnosis.recommendations[0]}
+          💡 {diagnosis.recommendations[0]}
         </Text>
       ) : null}
     </Card>
@@ -1324,7 +1404,7 @@ function MedicationAlertCard({
       <Text style={[styles.text, styles.mt1]}>{alert.message}</Text>
       {alert.recommendations && alert.recommendations.length > 0 ? (
         <Text style={[styles.textSm, styles.textMuted, styles.mt1]}>
-          ðŸ’¡ {alert.recommendations[0]}
+          💡 {alert.recommendations[0]}
         </Text>
       ) : null}
     </Card>
@@ -1370,7 +1450,7 @@ function RecommendationCard({
 }) {
   return (
     <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
-      <Text style={[styles.text, styles.textCenter]}>â€¢ {recommendation}</Text>
+      <Text style={[styles.text, styles.textCenter]}>• {recommendation}</Text>
     </Card>
   );
 }

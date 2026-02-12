@@ -212,18 +212,21 @@ export async function getFamilyHealthEvents(
       batches.push(userIds.slice(i, i + batchSize));
     }
 
+    const batchResults = await Promise.all(
+      batches.map(async (batch) => {
+        const eventsQuery = query(
+          collection(db, "healthEvents"),
+          where("userId", "in", batch),
+          orderBy("createdAt", "desc"),
+          limit(limitCount)
+        );
+        return getDocs(eventsQuery);
+      })
+    );
+
     const allEvents: HealthEvent[] = [];
 
-    for (const batch of batches) {
-      const eventsQuery = query(
-        collection(db, "healthEvents"),
-        where("userId", "in", batch),
-        orderBy("createdAt", "desc"),
-        limit(limitCount)
-      );
-
-      const querySnapshot = await getDocs(eventsQuery);
-
+    for (const querySnapshot of batchResults) {
       for (const doc of querySnapshot.docs) {
         const data = doc.data();
         allEvents.push({

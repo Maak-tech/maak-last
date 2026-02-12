@@ -1,6 +1,8 @@
 import { Platform } from "react-native";
 import ExpoRevenuecatDirectoryModule from "./ExpoRevenuecatDirectoryModule";
 
+let hasLoggedMissingModuleWarning = false;
+
 /**
  * Ensures the RevenueCat cache directory exists (iOS only)
  * This prevents the NSCocoaErrorDomain Code=4 error that occurs
@@ -16,11 +18,14 @@ export function ensureRevenueCatDirectory(): Promise<boolean> {
 
   // Check if native module is available
   if (!ExpoRevenuecatDirectoryModule?.ensureDirectory) {
-    console.warn(
-      "[ExpoRevenuecatDirectory] Native module not available. " +
-        "This may cause RevenueCat cache errors. " +
-        "Make sure the module is properly linked."
-    );
+    if (!hasLoggedMissingModuleWarning) {
+      hasLoggedMissingModuleWarning = true;
+      console.warn(
+        "[ExpoRevenuecatDirectory] Native module not available. " +
+          "This may cause RevenueCat cache errors. " +
+          "Make sure the module is properly linked."
+      );
+    }
     return Promise.resolve(false);
   }
 

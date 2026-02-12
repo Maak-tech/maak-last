@@ -335,6 +335,7 @@ export const useFallDetection = (
 ) => {
   const [isActive, setIsActive] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [startToken, setStartToken] = useState(0);
 
   // Use refs to avoid stale closures in the sensor callback
   const phaseRef = useRef<FallPhase>("normal");
@@ -1176,10 +1177,11 @@ export const useFallDetection = (
         }
       }
     };
-  }, [isActive, isInitialized, handleFallDetected]);
+  }, [isActive, isInitialized, handleFallDetected, startToken]);
 
   const startFallDetection = useCallback(() => {
     if (Platform.OS !== "web") {
+      setStartToken((current) => current + 1);
       setIsActive(true);
     }
   }, []);
@@ -1212,6 +1214,7 @@ export const useFallDetection = (
   return useMemo(
     () => ({
       isActive: isActive && isInitialized,
+      isInitialized,
       startFallDetection,
       stopFallDetection,
     }),

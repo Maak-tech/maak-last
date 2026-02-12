@@ -117,6 +117,9 @@ type ProfileSection = {
   items: ProfileSectionItem[];
 };
 
+const HEALTH_SUMMARY_STALE_MS = 45_000;
+const HEALTH_SUMMARY_MIN_FETCH_INTERVAL_MS = 12_000;
+
 export default function ProfileScreen() {
   const { t, i18n } = useTranslation();
   const { user, logout, updateUser } = useAuth();
@@ -130,6 +133,11 @@ export default function ProfileScreen() {
   const loadHealthDataTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
+  const loadHealthDataFnRef = useRef<(isRefresh?: boolean) => Promise<void>>(
+    async () => {}
+  );
+  const loadUserSettingsFnRef = useRef<() => Promise<void>>(async () => {});
+  const lastHealthSummaryLoadAtRef = useRef(0);
   const [_notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [languagePickerVisible, setLanguagePickerVisible] = useState(false);
   const [avatarCreatorVisible, setAvatarCreatorVisible] = useState(false);
@@ -205,17 +213,29 @@ export default function ProfileScreen() {
   // Refresh data when tab is focused - debounced to prevent multiple loads
   useFocusEffect(
     useCallback(() => {
+      if (!user?.id) {
+        return;
+      }
+
       // Load settings immediately (fast)
-      loadUserSettings();
+      loadUserSettingsFnRef.current().catch(() => {
+        // Silently handle settings load error
+      });
+
       // Debounce health data loading to prevent multiple simultaneous loads
       if (loadHealthDataTimeoutRef.current) {
         clearTimeout(loadHealthDataTimeoutRef.current);
       }
-      if (!(loading || refreshing || loadHealthDataRef.current)) {
+
+      const isStale =
+        Date.now() - lastHealthSummaryLoadAtRef.current >
+        HEALTH_SUMMARY_STALE_MS;
+
+      if (isStale && !loadHealthDataRef.current) {
         loadHealthDataTimeoutRef.current = setTimeout(() => {
           // Defer heavy operations until interactions are complete
           InteractionManager.runAfterInteractions(() => {
-            loadHealthData().catch(() => {
+            loadHealthDataFnRef.current(false).catch(() => {
               // Silently handle errors - UI will show loading state
             });
           });
@@ -226,12 +246,7 @@ export default function ProfileScreen() {
           clearTimeout(loadHealthDataTimeoutRef.current);
         }
       };
-    }, [
-      loading,
-      refreshing,
-      loadHealthData, // Load settings immediately (fast)
-      loadUserSettings,
-    ])
+    }, [user?.id])
   );
 
   // Check for calendar open parameter
@@ -267,7 +282,7 @@ export default function ProfileScreen() {
       }
       loadHealthDataTimeoutRef.current = setTimeout(() => {
         if (!loadHealthDataRef.current) {
-          loadHealthData().catch(() => {
+          loadHealthDataFnRef.current(false).catch(() => {
             // Silently handle errors
           });
         }
@@ -286,13 +301,10 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     // Load settings immediately
-    loadUserSettings();
-    // Defer health data loading until interactions are complete
-    InteractionManager.runAfterInteractions(() => {
-      loadHealthData().catch(() => {
-        // Silently handle errors
-      });
+    loadUserSettingsFnRef.current().catch(() => {
+      // Silently handle settings load error
     });
+
     checkSyncStatus();
 
     // Subscribe to sync status changes
@@ -311,8 +323,7 @@ export default function ProfileScreen() {
     };
   }, [
     checkSyncStatus,
-    loadHealthData, // Load settings immediately
-    loadUserSettings,
+    user?.id,
   ]);
 
   const handleSync = async () => {
@@ -384,6 +395,16 @@ export default function ProfileScreen() {
       return;
     }
 
+    const now = Date.now();
+    if (
+      !isRefresh &&
+      now - lastHealthSummaryLoadAtRef.current <
+        HEALTH_SUMMARY_MIN_FETCH_INTERVAL_MS
+    ) {
+      return;
+    }
+
+    lastHealthSummaryLoadAtRef.current = now;
     loadHealthDataRef.current = true;
     try {
       if (isRefresh) {
@@ -417,7 +438,7 @@ export default function ProfileScreen() {
 
       // Fetch symptoms and medications with limits to improve performance
       const dataPromise = Promise.allSettled([
-        symptomService.getUserSymptoms(user.id, 200), // Limit to 200 most recent symptoms
+        symptomService.getUserSymptoms(user.id, 120), // Lower payload for faster summary load
         medicationService.getUserMedications(user.id), // Medications are usually fewer
       ]);
 
@@ -490,6 +511,11 @@ export default function ProfileScreen() {
       loadHealthDataRef.current = false;
     }
   }
+
+  useEffect(() => {
+    loadHealthDataFnRef.current = loadHealthData;
+    loadUserSettingsFnRef.current = loadUserSettings;
+  }, [loadHealthData, loadUserSettings]);
 
   const _handleNotificationToggle = async (value: boolean) => {
     setNotificationsEnabled(value);

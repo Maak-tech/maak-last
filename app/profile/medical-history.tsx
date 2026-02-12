@@ -1,6 +1,8 @@
 /* biome-ignore-all lint/style/noNestedTernary: Legacy screen with dense conditional UI branches. */
 /* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Refactor will be done in a dedicated pass. */
-import { useNavigation, useRouter } from "expo-router";
+import {
+  useNavigation,
+  useRouter } from "expo-router";
 import {
   ArrowLeft,
   FileText,
@@ -9,14 +11,16 @@ import {
   Save,
   Trash2,
   X,
-} from "lucide-react-native";
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+  } from "lucide-react-native";
+import { useCallback,
+  useEffect,
+  useLayoutEffect,
+  useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
   Modal,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Switch,
@@ -25,6 +29,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/contexts/AuthContext";
 import { medicalHistoryService } from "@/lib/services/medicalHistoryService";
 import { userService } from "@/lib/services/userService";

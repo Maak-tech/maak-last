@@ -13,7 +13,7 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
-import { AppState, Platform } from "react-native";
+import { AppState, LogBox, Platform } from "react-native";
 
 // Initialize React Native Firebase early (must be imported before any Firebase operations)
 // This ensures the default Firebase app is initialized from native config files
@@ -51,6 +51,37 @@ initializeErrorHandlers();
 SplashScreen.preventAutoHideAsync().catch(() => {
   // Avoid crashing on platforms where this isn't supported
 });
+
+const RN_CORE_DEPRECATION_WARNINGS = [
+  "ProgressBarAndroid has been extracted from react-native core",
+  "SafeAreaView has been deprecated and will be removed in a future release",
+  "Clipboard has been extracted from react-native core",
+  "PushNotificationIOS has been extracted from react-native core",
+];
+
+LogBox.ignoreLogs(RN_CORE_DEPRECATION_WARNINGS);
+
+const globalWithWarnFilter = globalThis as typeof globalThis & {
+  __maakWarnFilterInstalled?: boolean;
+};
+
+if (!globalWithWarnFilter.__maakWarnFilterInstalled) {
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => {
+    const shouldSuppress = args.some(
+      (arg) =>
+        typeof arg === "string" &&
+        RN_CORE_DEPRECATION_WARNINGS.some((warning) => arg.includes(warning))
+    );
+
+    if (shouldSuppress) {
+      return;
+    }
+
+    originalWarn(...args);
+  };
+  globalWithWarnFilter.__maakWarnFilterInstalled = true;
+}
 
 export default function RootLayout() {
   const [isAppActive, setIsAppActive] = useState(
@@ -200,10 +231,6 @@ export default function RootLayout() {
                   />
                   <Stack.Screen
                     name="profile"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="family"
                     options={{ headerShown: false }}
                   />
                   <Stack.Screen

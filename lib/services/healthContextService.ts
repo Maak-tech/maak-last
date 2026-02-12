@@ -20,6 +20,25 @@ import {
 
 type MedicationReminder = string | { time?: string };
 
+type HealthInsightsMetrics = {
+  weekStart: Date;
+  weekEnd: Date;
+  symptomCount: number;
+  symptomAverageSeverity: number;
+  symptomTrend: "increasing" | "decreasing" | "stable";
+  medicationCompliance: number;
+  missedDoses: number;
+  moodAverageIntensity: number;
+  moodTrend: "improving" | "declining" | "stable";
+  topInsights: Array<{
+    type: PatternInsight["type"];
+    title: string;
+    description: string;
+    confidence: number;
+    recommendation?: string;
+  }>;
+};
+
 export type HealthContext = {
   profile: {
     name: string;
@@ -83,6 +102,7 @@ export type HealthContext = {
     summary: WeeklySummary;
     insights: PatternInsight[];
   }>;
+  insightsMetrics: HealthInsightsMetrics | null;
   recentAlerts: Array<{
     type: string;
     timestamp: Date;
@@ -122,6 +142,7 @@ type HealthSummaryResult =
       recentSymptomsCount: number;
       conditionsCount: number;
       latestVitals: HealthContext["vitalSigns"];
+      insightsMetrics: HealthContext["insightsMetrics"];
       alertsCount: number;
       overallStatus: string;
     }
@@ -227,6 +248,7 @@ class HealthContextService {
     // Prepare date for symptoms query
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    const isArabic = options?.language?.startsWith("ar") ?? false;
 
     // Parallelize independent queries for better performance
     const results = await Promise.allSettled([
@@ -278,6 +300,7 @@ class HealthContextService {
           limit(500)
         )
       ),
+      healthInsightsService.getWeeklySummary(uid, undefined, isArabic),
     ]);
 
     const [
@@ -287,6 +310,7 @@ class HealthContextService {
       alertsSnapshot,
       familySnapshot,
       vitalsSnapshot,
+      insightsMetricsSummary,
     ] = results;
 
     // Process medications
@@ -377,8 +401,6 @@ class HealthContextService {
           )
         : [];
 
-    const isArabic = options?.language?.startsWith("ar") ?? false;
-
     // Process family members (optimize N+1 query problem)
     const familyMembers: HealthContext["familyMembers"] = [];
     if (familyDocs.length > 0) {
@@ -429,6 +451,30 @@ class HealthContextService {
           recentSymptoms: memberSymptoms,
         });
       }
+    }
+
+    // Process user-level health insights metrics
+    let insightsMetrics: HealthContext["insightsMetrics"] = null;
+    if (insightsMetricsSummary.status === "fulfilled") {
+      const weeklySummary = insightsMetricsSummary.value;
+      insightsMetrics = {
+        weekStart: weeklySummary.weekStart,
+        weekEnd: weeklySummary.weekEnd,
+        symptomCount: weeklySummary.symptoms.total,
+        symptomAverageSeverity: weeklySummary.symptoms.averageSeverity,
+        symptomTrend: weeklySummary.symptoms.trend,
+        medicationCompliance: weeklySummary.medications.compliance,
+        missedDoses: weeklySummary.medications.missedDoses,
+        moodAverageIntensity: weeklySummary.moods.averageIntensity,
+        moodTrend: weeklySummary.moods.trend,
+        topInsights: weeklySummary.insights.slice(0, 5).map((insight) => ({
+          type: insight.type,
+          title: insight.title,
+          description: insight.description,
+          confidence: insight.confidence,
+          recommendation: insight.recommendation,
+        })),
+      };
     }
 
     // Process family insights for admin users only
@@ -725,6 +771,7 @@ class HealthContextService {
       symptoms,
       familyMembers,
       familyInsights,
+      insightsMetrics,
       recentAlerts,
       vitalSigns: latestVitals,
     };
@@ -737,6 +784,25 @@ class HealthContextService {
     const inactiveMedications = context.medications.filter((m) => !m.isActive);
 
     const isArabic = language.startsWith("ar");
+    const topUserInsightSignals = context.insightsMetrics
+      ? context.insightsMetrics.topInsights.length > 0
+        ? context.insightsMetrics.topInsights
+            .map(
+              (insight) =>
+                `    - [${Math.round(insight.confidence)}% | ${insight.type}] ${insight.title}: ${insight.description}${insight.recommendation ? ` (Recommendation: ${insight.recommendation})` : ""}`
+            )
+            .join("\n")
+        : "    - No high-confidence insight signals yet."
+      : "";
+    const personalInsightsSection = context.insightsMetrics
+      ? `• Week range: ${safeFormatDate(context.insightsMetrics.weekStart)} - ${safeFormatDate(context.insightsMetrics.weekEnd)}
+• Symptoms this week: ${context.insightsMetrics.symptomCount}
+• Avg symptom severity: ${context.insightsMetrics.symptomAverageSeverity}/10 (${context.insightsMetrics.symptomTrend})
+• Medication adherence: ${Math.round(context.insightsMetrics.medicationCompliance)}% (missed doses: ${context.insightsMetrics.missedDoses})
+• Mood intensity: ${context.insightsMetrics.moodAverageIntensity} (${context.insightsMetrics.moodTrend})
+• Top insight signals:
+${topUserInsightSignals}`
+      : "• No personal health insight metrics available yet.";
 
     const prompt = `${
       isArabic
@@ -840,6 +906,9 @@ ${
     : `• ${isArabic ? "لا توجد أعراض حديثة مسجلة" : "No recent symptoms reported"}`
 }
 
+${isArabic ? "WEEKLY HEALTH INSIGHTS METRICS:" : "WEEKLY HEALTH INSIGHTS METRICS:"}
+${personalInsightsSection}
+
 ${isArabic ? "أفراد العائلة:" : "FAMILY MEMBERS:"}
 ${
   context.familyMembers.length > 0
@@ -942,6 +1011,7 @@ ${
 8. Be empathetic and supportive while being informative
 9. Provide practical, actionable advice when appropriate
 10. If you notice concerning patterns in symptoms or vital signs, gently suggest medical consultation
+11. Use weekly health insight metrics (symptom trend, adherence, mood trend, and top signals) when relevant
 
 Remember: You are an AI assistant providing information and support, not a replacement for professional medical advice. Always encourage users to seek professional medical help for serious concerns.`
 }`;
@@ -976,6 +1046,7 @@ Remember: You are an AI assistant providing information and support, not a repla
         recentSymptomsCount: context.symptoms.length,
         conditionsCount: context.medicalHistory.conditions.length,
         latestVitals: context.vitalSigns,
+        insightsMetrics: context.insightsMetrics,
         alertsCount: context.recentAlerts.length,
         overallStatus: this.calculateOverallStatus(context),
       };

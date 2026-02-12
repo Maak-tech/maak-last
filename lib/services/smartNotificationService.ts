@@ -20,6 +20,8 @@ export type UserStats = {
   daysSinceLastSymptom: number;
   daysSinceLastMedicationLog: number;
   recentCompliance: number;
+  hasMedicationSchedule: boolean;
+  expectedMedicationDoses: number;
   achievements: Achievement[];
   userProfile?: UserProfile;
   lastVitalChecks?: VitalCheckHistory;
@@ -100,7 +102,16 @@ type UserNotificationSettings = {
   enabled?: boolean;
   wellnessCheckins?: boolean;
   medicationReminders?: boolean;
+  quietHoursEnabled?: boolean;
+  quietHoursStart?: string;
+  quietHoursEnd?: string;
+  preferredTimes?: string[];
   [key: string]: unknown;
+};
+
+type UserNotificationPreferences = {
+  quietHours?: { start: string; end: string };
+  preferredTimes?: string[];
 };
 
 type FamilyMemberHealth = {
@@ -200,6 +211,12 @@ class SmartNotificationService {
       return `weekly_summary:${String(data.dedupeKey)}`;
     }
 
+    // Activity prompts like missed symptoms should only be scheduled once per day.
+    if (dataType === "missed_symptoms") {
+      const dayKey = notification.scheduledTime.toDateString();
+      return `${dataType}:${userId}:${dayKey}`;
+    }
+
     const windowId = this.getDedupeWindowId(notification.scheduledTime);
     return `${dataType}:${userId}:${windowId}`;
   }
@@ -240,6 +257,13 @@ class SmartNotificationService {
       // Special handling for weekly_summary: use dedupe key without time window
       if (dataType === "weekly_summary" && data.dedupeKey) {
         return `weekly_summary:${data.dedupeKey}`;
+      }
+
+      if (dataType === "missed_symptoms") {
+        const triggerDate =
+          this.extractTriggerDateFromScheduledRequest(request) ?? new Date();
+        const dayKey = triggerDate.toDateString();
+        return `${dataType}:${userId}:${dayKey}`;
       }
 
       const triggerDate =
@@ -675,6 +699,7 @@ class SmartNotificationService {
         ? await this.getUserNotificationSettings(inferredUserId)
         : null;
       const settings = this.normalizeNotificationSettings(rawSettings);
+      const userPreferences = this.getUserNotificationPreferences(settings);
 
       if (settings?.enabled === false) {
         return { scheduled: 0, failed: 0, suppressed: notifications.length };
@@ -691,8 +716,10 @@ class SmartNotificationService {
       );
 
       // Step 1: Optimize and prioritize notifications
-      const optimizedNotifications =
-        await this.optimizeNotificationSchedule(preferenceFiltered);
+      const optimizedNotifications = await this.optimizeNotificationSchedule(
+        preferenceFiltered,
+        userPreferences
+      );
 
       // Step 2: Suppress overlapping/duplicate notifications
       const filteredNotifications = this.suppressDuplicateNotifications(
@@ -763,6 +790,9 @@ class SmartNotificationService {
           .map((n) => n.data?.dedupeKey)
           .filter(Boolean)
       );
+      const hasMissedSymptomsInBatch = newNotifications.some(
+        (n) => n.data?.type === "missed_symptoms"
+      );
 
       const identifiersToCancel: string[] = [];
 
@@ -830,6 +860,17 @@ class SmartNotificationService {
         // Special handling for weekly_summary: cancel existing ones with same dedupe key
         const scheduledData = asRecord(scheduledContent?.data) ?? {};
         if (
+          hasMissedSymptomsInBatch &&
+          scheduledData.type === "missed_symptoms"
+        ) {
+          const scheduledUserId = scheduledData.userId;
+          if (!scheduledUserId || newUserIds.has(scheduledUserId)) {
+            identifiersToCancel.push(identifier);
+            continue;
+          }
+        }
+
+        if (
           scheduledData.type === "weekly_summary" &&
           scheduledData.dedupeKey &&
           weeklySummaryDedupeKeys.has(scheduledData.dedupeKey)
@@ -888,7 +929,8 @@ class SmartNotificationService {
    * Optimize notification scheduling with intelligent timing
    */
   private optimizeNotificationSchedule(
-    notifications: SmartNotification[]
+    notifications: SmartNotification[],
+    userPreferences?: UserNotificationPreferences
   ): SmartNotification[] {
     const optimized: SmartNotification[] = [];
     const now = new Date();
@@ -921,11 +963,14 @@ class SmartNotificationService {
     });
 
     // Optimize normal priority timing
-    const normalOptimized = this.optimizeNormalPriorityTiming(normal);
+    const normalOptimized = this.optimizeNormalPriorityTiming(
+      normal,
+      userPreferences
+    );
     optimized.push(...normalOptimized);
 
     // Schedule low priority during optimal times
-    const lowOptimized = this.optimizeLowPriorityTiming(low);
+    const lowOptimized = this.optimizeLowPriorityTiming(low, userPreferences);
     optimized.push(...lowOptimized);
 
     return optimized;
@@ -935,16 +980,16 @@ class SmartNotificationService {
    * Optimize timing for normal priority notifications
    */
   private optimizeNormalPriorityTiming(
-    notifications: SmartNotification[]
+    notifications: SmartNotification[],
+    userPreferences?: UserNotificationPreferences
   ): SmartNotification[] {
     const optimized: SmartNotification[] = [];
-    const userPreferences = this.getUserNotificationPreferences();
 
     notifications.forEach((notification, index) => {
       let scheduledTime = notification.scheduledTime;
 
       // Adjust timing based on user preferences
-      if (userPreferences.quietHours) {
+      if (userPreferences?.quietHours) {
         scheduledTime = this.adjustForQuietHours(
           scheduledTime,
           userPreferences.quietHours
@@ -974,16 +1019,24 @@ class SmartNotificationService {
    * Optimize timing for low priority notifications
    */
   private optimizeLowPriorityTiming(
-    notifications: SmartNotification[]
+    notifications: SmartNotification[],
+    userPreferences?: UserNotificationPreferences
   ): SmartNotification[] {
     const optimized: SmartNotification[] = [];
 
     notifications.forEach((notification) => {
+      if (this.isTimeLockedLowPriority(notification)) {
+        optimized.push(notification);
+        return;
+      }
+
       // Schedule low priority notifications during optimal times:
       // - Morning (9-11 AM)
       // - Afternoon (2-4 PM)
       // - Evening (7-9 PM)
-      const optimalTimes = this.getOptimalNotificationTimes();
+      const optimalTimes = this.getOptimalNotificationTimes(
+        userPreferences?.preferredTimes
+      );
       const bestTime = this.findBestAvailableTime(
         notification.scheduledTime,
         optimalTimes
@@ -996,6 +1049,28 @@ class SmartNotificationService {
     });
 
     return optimized;
+  }
+
+  private isTimeLockedLowPriority(notification: SmartNotification): boolean {
+    if (notification.priority !== "low") {
+      return false;
+    }
+
+    if (notification.type === "wellness_checkin") {
+      return true;
+    }
+
+    const dataType =
+      typeof notification.data?.type === "string" ? notification.data.type : "";
+    if (dataType.includes("checkin") || dataType.includes("reflection")) {
+      return true;
+    }
+
+    const checkinType =
+      typeof notification.data?.checkinType === "string"
+        ? notification.data.checkinType
+        : "";
+    return checkinType.length > 0;
   }
 
   /**
@@ -1080,6 +1155,11 @@ class SmartNotificationService {
   private getContentBasedKey(notification: SmartNotification): string {
     const userId = notification.data?.userId || "general";
     const dataType = notification.data?.type || notification.type;
+
+    // Keep symptom prompts stable per day to avoid repeated scheduling noise.
+    if (dataType === "missed_symptoms") {
+      return `${dataType}:${userId}:${notification.scheduledTime.toDateString()}`;
+    }
 
     // For medication reminders, use medication name and reminder time
     const medicationName = notification.data?.medicationName;
@@ -1306,17 +1386,41 @@ class SmartNotificationService {
   }
 
   /**
-   * Get user notification preferences
+   * Get user notification preferences from saved settings
    */
-  private getUserNotificationPreferences(): {
-    quietHours?: { start: string; end: string };
-    preferredTimes?: string[];
-  } {
-    // This would load from user preferences
-    // For now, return default preferences
+  private getUserNotificationPreferences(
+    settings?: UserNotificationSettings | null
+  ): UserNotificationPreferences {
+    if (!settings) {
+      return {};
+    }
+
+    const quietHoursEnabled = settings.quietHoursEnabled === true;
+    const quietHoursStart =
+      typeof settings.quietHoursStart === "string"
+        ? settings.quietHoursStart
+        : undefined;
+    const quietHoursEnd =
+      typeof settings.quietHoursEnd === "string"
+        ? settings.quietHoursEnd
+        : undefined;
+
+    const quietHours =
+      quietHoursEnabled &&
+      quietHoursStart &&
+      quietHoursEnd &&
+      this.isValidTimeString(quietHoursStart) &&
+      this.isValidTimeString(quietHoursEnd)
+        ? { start: quietHoursStart, end: quietHoursEnd }
+        : undefined;
+
+    const preferredTimes = Array.isArray(settings.preferredTimes)
+      ? settings.preferredTimes.filter((time) => this.isValidTimeString(time))
+      : undefined;
+
     return {
-      quietHours: { start: "22:00", end: "08:00" }, // 10 PM to 8 AM
-      preferredTimes: ["09:00", "14:00", "19:00"], // 9 AM, 2 PM, 7 PM
+      quietHours,
+      preferredTimes,
     };
   }
 
@@ -1330,16 +1434,19 @@ class SmartNotificationService {
     const timeString = time.toTimeString().slice(0, 5); // HH:MM format
 
     if (this.isInQuietHours(timeString, quietHours)) {
-      // Move to next available time after quiet hours end
-      const nextDay = new Date(time);
-      nextDay.setDate(nextDay.getDate() + 1);
-      nextDay.setHours(
-        Number.parseInt(quietHours.end.split(":")[0], 10),
-        Number.parseInt(quietHours.end.split(":")[1], 10),
-        0,
-        0
-      );
-      return nextDay;
+      const startMinutes = this.timeToMinutes(quietHours.start);
+      const endMinutes = this.timeToMinutes(quietHours.end);
+      const crossesMidnight = startMinutes > endMinutes;
+      const [endHour, endMinute] = quietHours.end.split(":").map(Number);
+
+      const adjusted = new Date(time);
+      if (crossesMidnight) {
+        // Quiet hours span midnight, move to next day at end time
+        adjusted.setDate(adjusted.getDate() + 1);
+      }
+
+      adjusted.setHours(endHour, endMinute, 0, 0);
+      return adjusted;
     }
 
     return time;
@@ -1357,11 +1464,11 @@ class SmartNotificationService {
     const endMinutes = this.timeToMinutes(quietHours.end);
 
     if (startMinutes < endMinutes) {
-      // Same day quiet hours (e.g., 10 PM to 6 AM next day)
-      return timeMinutes >= startMinutes || timeMinutes <= endMinutes;
+      // Same-day quiet hours (e.g., 1 PM to 3 PM)
+      return timeMinutes >= startMinutes && timeMinutes <= endMinutes;
     }
     // Overnight quiet hours (e.g., 10 PM to 8 AM)
-    return timeMinutes >= startMinutes && timeMinutes <= endMinutes;
+    return timeMinutes >= startMinutes || timeMinutes <= endMinutes;
   }
 
   /**
@@ -1372,12 +1479,19 @@ class SmartNotificationService {
     return hours * 60 + minutes;
   }
 
+  private isValidTimeString(value: string): boolean {
+    return /^\d{2}:\d{2}$/.test(value);
+  }
+
   /**
    * Get optimal notification times for the day
    */
-  private getOptimalNotificationTimes(): Date[] {
+  private getOptimalNotificationTimes(preferredTimes?: string[]): Date[] {
     const today = new Date();
-    const times = ["09:00", "14:00", "19:00"]; // Optimal times
+    const times =
+      preferredTimes && preferredTimes.length > 0
+        ? preferredTimes
+        : ["09:00", "14:00", "19:00"]; // Optimal times
 
     return times.map((time) => {
       const [hours, minutes] = time.split(":").map(Number);
@@ -2925,6 +3039,7 @@ class SmartNotificationService {
 
     // Medication compliance dip
     if (
+      userStats.hasMedicationSchedule &&
       userStats.recentCompliance < 80 &&
       userStats.daysSinceLastMedicationLog >= 1
     ) {
@@ -3058,17 +3173,29 @@ class SmartNotificationService {
   private async getUserStats(userId: string): Promise<UserStats> {
     try {
       // Calculate real user statistics
-      const [symptoms, medications, moodEntries, userProfile, vitalSigns] =
-        await Promise.all([
-          this.getUserSymptoms(userId),
-          this.getUserMedications(userId),
-          this.getUserMoods(userId),
-          this.getUserProfile(userId),
-          this.getUserVitalSigns(userId),
-        ]);
+      const [
+        symptoms,
+        medications,
+        moodEntries,
+        userProfile,
+        vitalSigns,
+        medicationEvents,
+      ] = await Promise.all([
+        this.getUserSymptoms(userId),
+        this.getUserMedications(userId),
+        this.getUserMoods(userId),
+        this.getUserProfile(userId),
+        this.getUserVitalSigns(userId),
+        this.getRecentMedicationEvents(userId),
+      ]);
 
       // Calculate streaks and activity metrics
-      const stats = this.calculateUserStats(symptoms, medications, moodEntries);
+      const stats = this.calculateUserStats(
+        symptoms,
+        medications,
+        moodEntries,
+        medicationEvents
+      );
 
       // Calculate vital check history
       const lastVitalChecks = this.calculateVitalCheckHistory(vitalSigns);
@@ -3091,6 +3218,8 @@ class SmartNotificationService {
         daysSinceLastSymptom: 0, // New users have no symptoms logged yet
         daysSinceLastMedicationLog: 0, // New users have no medication logs yet
         recentCompliance: 100,
+        hasMedicationSchedule: false,
+        expectedMedicationDoses: 0,
         achievements: [],
       };
     }
@@ -3102,7 +3231,8 @@ class SmartNotificationService {
   private calculateUserStats(
     symptoms: Record<string, unknown>[],
     medications: Medication[],
-    moodEntries: Record<string, unknown>[]
+    moodEntries: Record<string, unknown>[],
+    medicationEvents: Record<string, unknown>[]
   ): Omit<UserStats, "achievements"> {
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -3143,18 +3273,36 @@ class SmartNotificationService {
       (now.getTime() - lastActivityDate.getTime()) / (24 * 60 * 60 * 1000)
     );
 
-    // Calculate medication compliance (last 7 days)
-    const recentMedications = medications.filter((med) => {
-      const startDate = new Date(med.startDate);
-      return startDate >= oneWeekAgo && startDate <= now;
-    });
+    const complianceSnapshot = this.calculateMedicationComplianceSnapshot(
+      medications,
+      medicationEvents,
+      7
+    );
+    const hasMedicationSchedule = complianceSnapshot.expectedDoses > 0;
 
-    const medicationCompliance =
-      recentMedications.length > 0
-        ? (recentMedications.filter((med) => med.isActive).length /
-            recentMedications.length) *
-          100
-        : 100;
+    const lastMedicationEvent = medicationEvents.reduce<Date | null>(
+      (latest, event) => {
+        const eventRecord = asRecord(event);
+        const eventTime = toValidDate(eventRecord?.timestamp, new Date(0));
+        if (Number.isNaN(eventTime.getTime())) {
+          return latest;
+        }
+        if (!latest || eventTime > latest) {
+          return eventTime;
+        }
+        return latest;
+      },
+      null
+    );
+
+    const daysSinceLastMedicationLog = lastMedicationEvent
+      ? Math.floor(
+          (now.getTime() - lastMedicationEvent.getTime()) /
+            (24 * 60 * 60 * 1000)
+        )
+      : hasMedicationSchedule
+        ? 7
+        : 0;
 
     // Calculate streaks (simplified - consecutive days with activity)
     const activityDates = new Set([
@@ -3199,9 +3347,117 @@ class SmartNotificationService {
                 (24 * 60 * 60 * 1000)
             )
           : 0, // New users have no symptoms logged yet
-      daysSinceLastMedicationLog: 0, // New users have no medication logs yet
-      recentCompliance: medicationCompliance,
+      daysSinceLastMedicationLog,
+      recentCompliance: complianceSnapshot.compliance,
+      hasMedicationSchedule,
+      expectedMedicationDoses: complianceSnapshot.expectedDoses,
     };
+  }
+
+  private calculateMedicationComplianceSnapshot(
+    medications: Medication[],
+    medicationEvents: Record<string, unknown>[],
+    rangeDays = 7
+  ): { compliance: number; expectedDoses: number; takenDoses: number } {
+    const activeMedications = medications.filter((med) => med.isActive);
+    if (activeMedications.length === 0) {
+      return { compliance: 100, expectedDoses: 0, takenDoses: 0 };
+    }
+
+    const now = new Date();
+    const start = new Date(now);
+    start.setDate(start.getDate() - rangeDays);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(now);
+    end.setHours(23, 59, 59, 999);
+    const millisPerDay = 24 * 60 * 60 * 1000;
+
+    let expectedDoses = 0;
+    for (const medication of activeMedications) {
+      const reminders = Array.isArray(medication.reminders)
+        ? medication.reminders
+        : [];
+      if (reminders.length === 0) {
+        continue;
+      }
+
+      const medStart = medication.startDate
+        ? new Date(medication.startDate)
+        : start;
+      const medEnd = medication.endDate ? new Date(medication.endDate) : end;
+
+      const overlapStart = medStart > start ? medStart : start;
+      const overlapEnd = medEnd < end ? medEnd : end;
+      if (overlapEnd < overlapStart) {
+        continue;
+      }
+
+      const startDay = new Date(overlapStart);
+      startDay.setHours(0, 0, 0, 0);
+      const endDay = new Date(overlapEnd);
+      endDay.setHours(0, 0, 0, 0);
+      const daysInRange =
+        Math.floor((endDay.getTime() - startDay.getTime()) / millisPerDay) + 1;
+
+      if (daysInRange <= 0) {
+        continue;
+      }
+
+      expectedDoses += daysInRange * reminders.length;
+    }
+
+    if (expectedDoses === 0) {
+      return { compliance: 100, expectedDoses: 0, takenDoses: 0 };
+    }
+
+    const medicationIds = new Set(activeMedications.map((med) => med.id));
+    const medicationNames = new Set(
+      activeMedications
+        .map((med) =>
+          typeof med.name === "string" ? med.name.toLowerCase() : null
+        )
+        .filter((name): name is string => !!name)
+    );
+
+    let takenDoses = 0;
+    for (const event of medicationEvents) {
+      const eventRecord = asRecord(event);
+      const eventType =
+        typeof eventRecord?.eventType === "string" ? eventRecord.eventType : "";
+      if (eventType !== "medication_taken") {
+        continue;
+      }
+
+      const eventTime = toValidDate(eventRecord?.timestamp, new Date(0));
+      if (eventTime < start || eventTime > end) {
+        continue;
+      }
+
+      const metadata = asRecord(eventRecord?.metadata);
+      const medicationId =
+        typeof metadata?.medicationId === "string"
+          ? metadata.medicationId
+          : undefined;
+      const medicationName =
+        typeof metadata?.medicationName === "string"
+          ? metadata.medicationName.toLowerCase()
+          : undefined;
+
+      if (medicationId && medicationIds.has(medicationId)) {
+        takenDoses += 1;
+        continue;
+      }
+      if (medicationName && medicationNames.has(medicationName)) {
+        takenDoses += 1;
+      }
+    }
+
+    const compliance = Math.min(
+      100,
+      Math.max(0, Math.round((takenDoses / expectedDoses) * 100))
+    );
+
+    return { compliance, expectedDoses, takenDoses };
   }
 
   /**
@@ -3232,7 +3488,7 @@ class SmartNotificationService {
     }
 
     // Consistency achievements
-    if (stats.recentCompliance >= 95) {
+    if (stats.hasMedicationSchedule && stats.recentCompliance >= 95) {
       achievements.push({
         id: `compliance-95-${Date.now()}`,
         title: "Medication Master",
@@ -3476,6 +3732,27 @@ class SmartNotificationService {
   /**
    * Helper methods to get user data (implement based on your existing services)
    */
+  private async getRecentMedicationEvents(
+    userId: string,
+    rangeDays = 7
+  ): Promise<Record<string, unknown>[]> {
+    try {
+      const { healthTimelineService } = await import("@/lib/observability");
+      const endDate = new Date();
+      const startDate = new Date(endDate);
+      startDate.setDate(startDate.getDate() - rangeDays);
+
+      return await healthTimelineService.getEventsForUser(userId, {
+        startDate,
+        endDate,
+        eventTypes: ["medication_taken", "medication_missed"],
+        limitCount: 300,
+      });
+    } catch {
+      return [];
+    }
+  }
+
   private async getUserSymptoms(
     userId: string
   ): Promise<Record<string, unknown>[]> {
@@ -3794,6 +4071,7 @@ class SmartNotificationService {
     const t = i18n.t.bind(i18n);
 
     if (
+      !userStats.hasMedicationSchedule ||
       !userStats.userProfile?.medications ||
       userStats.recentCompliance >= 80
     ) {

@@ -299,22 +299,16 @@ export default function HealthSummaryScreen() {
 
   const getCurrentPeriodLabel = (trendPeriod: HealthTrend["period"]) => {
     if (trendPeriod === "weekly") {
-      return isRTL
-        ? "Ã™â€¡Ã˜Â°Ã˜Â§ Ã˜Â§Ã™â€žÃ˜Â£Ã˜Â³Ã˜Â¨Ã™Ë†Ã˜Â¹"
-        : "this week";
+      return isRTL ? "هذا الأسبوع" : "this week";
     }
-    return isRTL ? "Ã™â€¡Ã˜Â°Ã˜Â§ Ã˜Â§Ã™â€žÃ˜Â´Ã™â€¡Ã˜Â±" : "this month";
+    return isRTL ? "هذا الشهر" : "this month";
   };
 
   const getPreviousPeriodLabel = (trendPeriod: HealthTrend["period"]) => {
     if (trendPeriod === "weekly") {
-      return isRTL
-        ? "Ã˜Â§Ã™â€žÃ˜Â£Ã˜Â³Ã˜Â¨Ã™Ë†Ã˜Â¹ Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â§Ã˜Â¶Ã™Å "
-        : "last week";
+      return isRTL ? "الأسبوع الماضي" : "last week";
     }
-    return isRTL
-      ? "Ã˜Â§Ã™â€žÃ˜Â´Ã™â€¡Ã˜Â± Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â§Ã˜Â¶Ã™Å "
-      : "last month";
+    return isRTL ? "الشهر الماضي" : "last month";
   };
 
   const getTrendChangeStyle = (change: number) => {
@@ -363,21 +357,21 @@ export default function HealthSummaryScreen() {
           level={4}
           style={[styles.sectionTitle, isRTL && styles.rtlText]}
         >
-          {isRTL ? "Ù†Ø¸Ø±Ø© Ø¹Ø§Ù…Ø©" : "Overview"}
+          {isRTL ? "نظرة عامة" : "Overview"}
         </Heading>
 
         <View style={styles.overviewGrid}>
           <View style={styles.metricCard}>
             <Text style={styles.metricValue}>{overview.totalSymptoms}</Text>
             <Text style={styles.metricLabel}>
-              {isRTL ? "Ø§Ù„Ø£Ø¹Ø±Ø§Ø¶ Ø§Ù„ØµØ­ÙŠØ©" : "Symptoms"}
+              {isRTL ? "الأعراض الصحية" : "Symptoms"}
             </Text>
           </View>
 
           <View style={styles.metricCard}>
             <Text style={styles.metricValue}>{overview.averageSeverity}</Text>
             <Text style={styles.metricLabel}>
-              {isRTL ? "Ù…ØªÙˆØ³Ø· Ø§Ù„Ø´Ø¯Ø©" : "Avg Severity"}
+              {isRTL ? "متوسط الشدة" : "Avg Severity"}
             </Text>
           </View>
 
@@ -386,14 +380,14 @@ export default function HealthSummaryScreen() {
               {overview.medicationAdherence}%
             </Text>
             <Text style={styles.metricLabel}>
-              {isRTL ? "Ø§Ù„Ø§Ù„ØªØ²Ø§Ù… Ø¨Ø§Ù„Ø¯ÙˆØ§Ø¡" : "Med Adherence"}
+              {isRTL ? "الالتزام بالدواء" : "Med Adherence"}
             </Text>
           </View>
 
           <View style={styles.metricCard}>
             <Text style={styles.metricValue}>{overview.healthScore}</Text>
             <Text style={styles.metricLabel}>
-              {isRTL ? "Ù†Ù‚Ø§Ø· Ø§Ù„ØµØ­Ø©" : "Health Score"}
+              {isRTL ? "نقاط الصحة" : "Health Score"}
             </Text>
           </View>
         </View>
@@ -412,7 +406,7 @@ export default function HealthSummaryScreen() {
           level={4}
           style={[styles.sectionTitle, isRTL && styles.rtlText]}
         >
-          {isRTL ? "Ø§Ù„ØªØ­Ù„ÙŠÙ„Ø§Øª" : "Insights"}
+          {isRTL ? "التحليلات" : "Insights"}
         </Heading>
 
         {summary.insights.map((insight) => (
@@ -459,9 +453,7 @@ export default function HealthSummaryScreen() {
           level={4}
           style={[styles.sectionTitle, isRTL && styles.rtlText]}
         >
-          {isRTL
-            ? "Ø§Ù„Ø£Ù†Ù…Ø§Ø· Ø§Ù„ØµØ­ÙŠØ© Ø§Ù„Ù…ÙƒØªØ´ÙØ©"
-            : "Detected Patterns"}
+          {isRTL ? "الأنماط الصحية المكتشفة" : "Detected Patterns"}
         </Heading>
 
         {summary.patterns.map((pattern) => (
@@ -494,7 +486,7 @@ export default function HealthSummaryScreen() {
                     key={`${pattern.title}-${example}`}
                     style={[styles.patternExample, isRTL && styles.rtlText]}
                   >
-                    â€¢ {example}
+                    - {example}
                   </Text>
                 ))}
               </View>
@@ -508,7 +500,8 @@ export default function HealthSummaryScreen() {
                   { marginTop: theme.spacing.sm },
                 ]}
               >
-                ðŸ’¡ {pattern.recommendation}
+                {isRTL ? "نصيحة: " : "Tip: "}
+                {pattern.recommendation}
               </Text>
             ) : null}
           </Card>
@@ -528,7 +521,7 @@ export default function HealthSummaryScreen() {
           level={4}
           style={[styles.sectionTitle, isRTL && styles.rtlText]}
         >
-          {isRTL ? "Ø§Ù„Ø§ØªØ¬Ø§Ù‡Ø§Øª Ø§Ù„ØµØ­ÙŠØ©" : "Trends"}
+          {isRTL ? "الاتجاهات الصحية" : "Trends"}
         </Heading>
 
         {summary.trends.map((trend) => (
@@ -580,7 +573,7 @@ export default function HealthSummaryScreen() {
           level={4}
           style={[styles.sectionTitle, isRTL && styles.rtlText]}
         >
-          {isRTL ? "Ø§Ù„ØªÙˆØµÙŠØ§Øª" : "Recommendations"}
+          {isRTL ? "التوصيات" : "Recommendations"}
         </Heading>
 
         {summary.recommendations.map((recommendation) => (
@@ -600,7 +593,7 @@ export default function HealthSummaryScreen() {
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>
             {isRTL
-              ? "ÙŠØ¬Ø¨ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ù„Ø¹Ø±Ø¶ Ù…Ù„Ø®Øµ Ø§Ù„ØµØ­Ø©"
+              ? "يجب تسجيل الدخول لعرض ملخص الصحة"
               : "Please log in to view health summary"}
           </Text>
         </View>
@@ -623,7 +616,7 @@ export default function HealthSummaryScreen() {
         </TouchableOpacity>
 
         <Heading level={3} style={[isRTL && styles.rtlText]}>
-          {isRTL ? "Ù…Ù„Ø®Øµ Ø§Ù„ØµØ­Ø©" : "Health Summary"}
+          {isRTL ? "ملخص الصحة" : "Health Summary"}
         </Heading>
 
         {summary ? (
@@ -648,7 +641,7 @@ export default function HealthSummaryScreen() {
                 period === "weekly" && styles.periodButtonTextActive,
               ]}
             >
-              {isRTL ? "Ø£Ø³Ø¨ÙˆØ¹ÙŠ" : "Weekly"}
+              {isRTL ? "أسبوعي" : "Weekly"}
             </Text>
           </TouchableOpacity>
 
@@ -665,7 +658,7 @@ export default function HealthSummaryScreen() {
                 period === "monthly" && styles.periodButtonTextActive,
               ]}
             >
-              {isRTL ? "Ø´Ù‡Ø±ÙŠ" : "Monthly"}
+              {isRTL ? "شهري" : "Monthly"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -676,7 +669,7 @@ export default function HealthSummaryScreen() {
           <ActivityIndicator color={theme.colors.primary.main} size="large" />
           <Text style={[styles.emptyText, { marginTop: theme.spacing.md }]}>
             {isRTL
-              ? "Ø¬Ø§Ø±ÙŠ ØªØ­Ù„ÙŠÙ„ Ø¨ÙŠØ§Ù†Ø§ØªÙƒ Ø§Ù„ØµØ­ÙŠØ©..."
+              ? "جاري تحليل بياناتك الصحية..."
               : "Analyzing your health data..."}
           </Text>
         </View>
@@ -699,7 +692,7 @@ export default function HealthSummaryScreen() {
               />
               <Text style={styles.emptyText}>
                 {isRTL
-                  ? "Ù„Ø§ ØªÙˆØ¬Ø¯ Ø¨ÙŠØ§Ù†Ø§Øª ÙƒØ§ÙÙŠØ© Ù„Ø¥Ù†Ø´Ø§Ø¡ Ù…Ù„Ø®Øµ. Ø³Ø¬Ù„ Ø§Ù„Ù…Ø²ÙŠØ¯ Ù…Ù† Ø§Ù„Ø£Ø¹Ø±Ø§Ø¶ ÙˆØ§Ù„Ø£Ø¯ÙˆÙŠØ© Ù„Ù„Ø­ØµÙˆÙ„ Ø¹Ù„Ù‰ Ø§Ù„ØªØ­Ù„ÙŠÙ„Ø§Øª Ø§Ù„ØµØ­ÙŠØ© Ø§Ù„Ù…ÙÙŠØ¯Ø©."
+                  ? "لا توجد بيانات كافية لإنشاء ملخص. سجل المزيد من الأعراض والأدوية للحصول على تحليلات صحية مفيدة."
                   : "Not enough data to generate insights. Log more symptoms and medications for personalized insights."}
               </Text>
             </View>

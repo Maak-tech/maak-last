@@ -31,7 +31,10 @@
 // No need to import reanimated setup here - it's already loaded at app startup
 
 import * as Brightness from "expo-brightness";
-import { addDoc, collection, Timestamp } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  Timestamp } from "firebase/firestore";
 import {
   CheckCircle,
   ChevronLeft,
@@ -40,8 +43,11 @@ import {
   Heart,
   Lightbulb,
   X,
-} from "lucide-react-native";
-import { useCallback, useEffect, useRef, useState } from "react";
+  } from "lucide-react-native";
+import { useCallback,
+  useEffect,
+  useRef,
+  useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -51,7 +57,6 @@ import {
   Linking,
   Modal,
   Platform,
-  SafeAreaView,
   ScrollView,
   type StyleProp,
   Text,
@@ -60,6 +65,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Camera,
   useCameraDevice,

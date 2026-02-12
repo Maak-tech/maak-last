@@ -1,20 +1,22 @@
 /* biome-ignore-all lint/style/noNestedTernary: preserving existing conditional layout flow while iterating in batches. */
-import { router } from "expo-router";
+import {
+  router } from "expo-router";
 import {
   ChevronLeft,
   ChevronRight,
   Plus,
   TestTube,
   X,
-} from "lucide-react-native";
-import { useCallback, useEffect, useState } from "react";
+  } from "lucide-react-native";
+import { useCallback,
+  useEffect,
+  useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
   Modal,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   type StyleProp,
   Text,
@@ -23,6 +25,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Button, Card } from "@/components/design-system";
 import { Badge } from "@/components/design-system/AdditionalComponents";
 import {

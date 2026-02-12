@@ -19,7 +19,7 @@ import {
   getFitbitScopesForMetrics,
   getMetricByKey,
 } from "../health/healthMetricsCatalog";
-import { saveProviderConnection } from "../health/healthSync";
+import { saveProviderConnection } from "../health/providerConnections";
 import {
   type FitbitTokens,
   HEALTH_STORAGE_KEYS,

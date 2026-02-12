@@ -65,10 +65,35 @@ class CaregiverDashboardService {
       // Get all family members
       const members = await userService.getFamilyMembers(familyId);
 
-      // Get dashboard data for each member
-      const memberData = await Promise.all(
+      // Get dashboard data for each member. Use partial results so one failing
+      // member does not blank the entire family dashboard.
+      const memberResults = await Promise.allSettled(
         members.map((member) => this.getMemberDashboardData(member, familyId))
       );
+      const memberData = memberResults.map((result, index) => {
+        if (result.status === "fulfilled") {
+          return result.value;
+        }
+
+        const member = members[index];
+        return {
+          member,
+          healthScore: 100,
+          recentAlerts: [],
+          medicationCompliance: {
+            rate: 100,
+            missedDoses: 0,
+          },
+          recentSymptoms: [],
+          fallDetectionStatus: {
+            enabled: true,
+            fallCount: 0,
+          },
+          emergencyContacts: member.preferences?.emergencyContacts || [],
+          needsAttention: false,
+          attentionReasons: [],
+        } satisfies CaregiverDashboardData;
+      });
 
       // Calculate overview statistics
       const membersNeedingAttention = memberData.filter(
@@ -79,8 +104,10 @@ class CaregiverDashboardService {
         0
       );
       const averageHealthScore =
-        memberData.reduce((sum, m) => sum + m.healthScore, 0) /
-        memberData.length;
+        memberData.length > 0
+          ? memberData.reduce((sum, m) => sum + m.healthScore, 0) /
+            memberData.length
+          : 0;
 
       return {
         totalMembers: members.length,

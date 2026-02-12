@@ -1,4 +1,6 @@
-import { useNavigation, useRouter } from "expo-router";
+import {
+  useNavigation,
+  useRouter } from "expo-router";
 import {
   Activity,
   AlertTriangle,
@@ -7,13 +9,15 @@ import {
   Info,
   Shield,
   TestTube,
-} from "lucide-react-native";
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+  } from "lucide-react-native";
+import { useCallback,
+  useEffect,
+  useLayoutEffect,
+  useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Switch,
@@ -21,6 +25,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { motionPermissionService } from "@/lib/services/motionPermissionService";
@@ -341,7 +346,7 @@ export default function FallDetectionSettingsScreen() {
                     isRTL && { textAlign: "left" },
                   ]}
                 >
-                  {isRTL ? "Ø¥Ø°Ù† Ø§Ù„Ø­Ø±ÙƒØ©" : "Motion Permission"}
+                  {isRTL ? "إذن الحركة" : "Motion Permission"}
                 </Text>
                 <Text
                   style={[

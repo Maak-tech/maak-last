@@ -25,7 +25,7 @@ import {
 } from "./trendDetectionService";
 
 export type PatternInsight = {
-  type: "temporal" | "correlation" | "trend" | "recommendation";
+  type: "temporal" | "correlation" | "trend" | "recommendation" | "ml";
   title: string;
   description: string;
   confidence: number; // 0-100
@@ -1305,6 +1305,336 @@ class HealthInsightsService {
     };
   }
 
+  private clamp(value: number, min = 0, max = 100): number {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  private getMean(values: number[]): number {
+    if (values.length === 0) {
+      return 0;
+    }
+    return values.reduce((sum, value) => sum + value, 0) / values.length;
+  }
+
+  private getStdDev(values: number[]): number {
+    if (values.length < 2) {
+      return 0;
+    }
+
+    const mean = this.getMean(values);
+    const variance =
+      values.reduce((sum, value) => sum + (value - mean) ** 2, 0) /
+      values.length;
+    return Math.sqrt(variance);
+  }
+
+  private scoreSymptomBurden(symptoms: Symptom[], start: Date, end: Date) {
+    const inWindow = symptoms.filter(
+      (symptom) => symptom.timestamp >= start && symptom.timestamp < end
+    );
+    if (inWindow.length === 0) {
+      return 0;
+    }
+
+    const daySpan = Math.max(
+      1,
+      Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+    );
+    const averageSeverity =
+      inWindow.reduce((sum, symptom) => sum + symptom.severity, 0) /
+      inWindow.length;
+
+    const frequencyScore = this.clamp((inWindow.length / daySpan) * 18, 0, 60);
+    const severityScore = this.clamp((averageSeverity / 5) * 40, 0, 40);
+    return Math.round(this.clamp(frequencyScore + severityScore, 0, 100));
+  }
+
+  private scoreMoodRisk(moods: Mood[], start: Date, end: Date) {
+    const inWindow = moods.filter(
+      (mood) => mood.timestamp >= start && mood.timestamp < end
+    );
+    if (inWindow.length === 0) {
+      return 0;
+    }
+
+    const negativeMoods = new Set<Mood["mood"]>([
+      "sad",
+      "anxious",
+      "stressed",
+      "tired",
+      "overwhelmed",
+      "angry",
+      "confused",
+      "empty",
+    ]);
+
+    const negativeRatio =
+      inWindow.filter((mood) => negativeMoods.has(mood.mood)).length /
+      inWindow.length;
+    const lowIntensityRatio =
+      inWindow.filter((mood) => mood.intensity <= 2).length / inWindow.length;
+
+    return Math.round(
+      this.clamp(negativeRatio * 70 + lowIntensityRatio * 30, 0, 100)
+    );
+  }
+
+  private scoreSleepRisk(vitals: VitalSample[]) {
+    const sleepReadings = vitals
+      .filter((vital) => vital.type === "sleepHours")
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+      .slice(0, 7);
+
+    if (sleepReadings.length < 3) {
+      return 0;
+    }
+
+    const averageSleep = this.getMean(sleepReadings.map((reading) => reading.value));
+    if (averageSleep >= 7) {
+      return 0;
+    }
+
+    return Math.round(this.clamp(((7 - averageSleep) / 3) * 100, 0, 100));
+  }
+
+  private getVitalAnomalySignals(vitals: VitalSample[]) {
+    const byType: Record<string, VitalSample[]> = {};
+    for (const vital of vitals) {
+      if (!byType[vital.type]) {
+        byType[vital.type] = [];
+      }
+      byType[vital.type].push(vital);
+    }
+
+    const anomalies: Array<{
+      type: string;
+      zScore: number;
+      latest: number;
+      baseline: number;
+      unit?: string;
+    }> = [];
+
+    for (const [type, readings] of Object.entries(byType)) {
+      if (readings.length < 5) {
+        continue;
+      }
+
+      const ordered = [...readings].sort(
+        (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
+      );
+      const values = ordered.map((reading) => reading.value);
+      const baseline = this.getMean(values);
+      const stdDev = this.getStdDev(values);
+      if (stdDev <= 0.01) {
+        continue;
+      }
+
+      const latest = ordered[ordered.length - 1];
+      const zScore = Math.abs((latest.value - baseline) / stdDev);
+      if (zScore < 1.8) {
+        continue;
+      }
+
+      anomalies.push({
+        type,
+        zScore,
+        latest: latest.value,
+        baseline,
+        unit: latest.unit,
+      });
+    }
+
+    return anomalies.sort((a, b) => b.zScore - a.zScore);
+  }
+
+  private generatePredictiveInsights(
+    symptoms: Symptom[],
+    medications: Medication[],
+    moods: Mood[],
+    vitals: VitalSample[],
+    start: Date,
+    end: Date,
+    isArabic = false
+  ): PatternInsight[] {
+    const insights: PatternInsight[] = [];
+
+    const symptomRisk = this.scoreSymptomBurden(symptoms, start, end);
+    const moodRisk = this.scoreMoodRisk(moods, start, end);
+    const sleepRisk = this.scoreSleepRisk(vitals);
+    const { compliance, missedDoses } = this.calculateMedicationCompliance(
+      medications,
+      start,
+      end
+    );
+    const medicationRisk = this.clamp(
+      (100 - compliance) + Math.min(20, missedDoses * 2),
+      0,
+      100
+    );
+    const anomalies = this.getVitalAnomalySignals(vitals);
+    const anomalyRisk =
+      anomalies.length > 0
+        ? this.clamp(
+            this.getMean(anomalies.map((signal) => signal.zScore)) * 32 +
+              Math.min(20, anomalies.length * 6),
+            0,
+            100
+          )
+        : 0;
+
+    const riskScore = Math.round(
+      this.clamp(
+        symptomRisk * 0.34 +
+          medicationRisk * 0.22 +
+          moodRisk * 0.18 +
+          anomalyRisk * 0.16 +
+          sleepRisk * 0.1,
+        0,
+        100
+      )
+    );
+
+    const evidencePoints =
+      symptoms.filter((symptom) => symptom.timestamp >= start && symptom.timestamp < end)
+        .length +
+      moods.filter((mood) => mood.timestamp >= start && mood.timestamp < end).length +
+      vitals.length +
+      medications.length * 2;
+    const confidence = Math.round(
+      this.clamp(55 + Math.min(35, evidencePoints / 3), 55, 92)
+    );
+
+    const riskLevel =
+      riskScore >= 67 ? "high" : riskScore >= 40 ? "moderate" : "low";
+    const drivers = [
+      {
+        label: isArabic ? "عبء الأعراض" : "Symptom burden",
+        contribution: symptomRisk * 0.34,
+      },
+      {
+        label: isArabic ? "الالتزام الدوائي" : "Medication adherence",
+        contribution: medicationRisk * 0.22,
+      },
+      {
+        label: isArabic ? "المزاج" : "Mood pattern",
+        contribution: moodRisk * 0.18,
+      },
+      {
+        label: isArabic ? "شذوذ القياسات الحيوية" : "Vital anomalies",
+        contribution: anomalyRisk * 0.16,
+      },
+      {
+        label: isArabic ? "النوم" : "Sleep stability",
+        contribution: sleepRisk * 0.1,
+      },
+    ]
+      .filter((driver) => driver.contribution > 4)
+      .sort((left, right) => right.contribution - left.contribution)
+      .slice(0, 3);
+
+    if (evidencePoints >= 8) {
+      const title = isArabic
+        ? "تقدير المخاطر الصحية (نموذج تنبؤي)"
+        : "Predictive Health Risk (ML Model)";
+      const driverSummary =
+        drivers.length > 0
+          ? drivers.map((driver) => driver.label).join(isArabic ? "، " : ", ")
+          : isArabic
+            ? "عوامل عامة"
+            : "general factors";
+      const description = isArabic
+        ? `يشير النموذج التنبؤي إلى مستوى خطر ${riskLevel === "high" ? "مرتفع" : riskLevel === "moderate" ? "متوسط" : "منخفض"} بنتيجة ${riskScore}/100. أهم العوامل الحالية: ${driverSummary}.`
+        : `The predictive model estimates a ${riskLevel} short-term risk with a score of ${riskScore}/100. Top drivers: ${driverSummary}.`;
+      const recommendation =
+        riskLevel === "high"
+          ? isArabic
+            ? "يُنصح بمراجعة المؤشرات الحيوية والأعراض خلال 24 ساعة، وتواصل مع مقدم الرعاية إذا استمر الاتجاه."
+            : "Review vitals and symptoms within 24 hours and contact a clinician if this trend continues."
+          : riskLevel === "moderate"
+            ? isArabic
+              ? "استمر في المتابعة اليومية مع التركيز على الالتزام الدوائي والنوم."
+              : "Continue daily tracking with focus on medication adherence and sleep regularity."
+            : isArabic
+              ? "استمر على نفس النمط الصحي الحالي مع الاستمرار في المتابعة."
+              : "Maintain current habits and continue routine monitoring.";
+
+      insights.push({
+        type: "ml",
+        title,
+        description,
+        confidence,
+        actionable: riskLevel !== "low",
+        recommendation,
+        data: {
+          riskScore,
+          riskLevel,
+          features: {
+            symptomRisk,
+            medicationRisk,
+            moodRisk,
+            anomalyRisk,
+            sleepRisk,
+          },
+          topDrivers: drivers,
+        },
+      });
+    }
+
+    for (const anomaly of anomalies.slice(0, 2)) {
+      if (anomaly.zScore < 2.2) {
+        continue;
+      }
+
+      const vitalName = this.getVitalDisplayName(anomaly.type, isArabic);
+      const unit = anomaly.unit || "";
+      const title = isArabic
+        ? `نمط غير معتاد في ${vitalName}`
+        : `Anomalous ${vitalName} Pattern`;
+      const description = isArabic
+        ? `آخر قراءة ${anomaly.latest.toFixed(1)}${unit ? ` ${unit}` : ""} مقارنة بمتوسط ${anomaly.baseline.toFixed(1)}${unit ? ` ${unit}` : ""} (انحراف z=${anomaly.zScore.toFixed(1)}).`
+        : `Latest reading is ${anomaly.latest.toFixed(1)}${unit ? ` ${unit}` : ""} versus baseline ${anomaly.baseline.toFixed(1)}${unit ? ` ${unit}` : ""} (z-score ${anomaly.zScore.toFixed(1)}).`;
+
+      insights.push({
+        type: "ml",
+        title,
+        description,
+        confidence: Math.round(this.clamp(60 + anomaly.zScore * 12, 60, 95)),
+        actionable: true,
+        recommendation: isArabic
+          ? "أعد القياس في ظروف مشابهة وراقب استمرار النمط قبل اتخاذ قرار علاجي."
+          : "Recheck under similar conditions and monitor whether the pattern persists before making care changes.",
+        data: {
+          anomalyType: anomaly.type,
+          zScore: Number(anomaly.zScore.toFixed(2)),
+          latest: Number(anomaly.latest.toFixed(2)),
+          baseline: Number(anomaly.baseline.toFixed(2)),
+        },
+      });
+    }
+
+    return insights;
+  }
+
+  private rankInsights(insights: PatternInsight[]): PatternInsight[] {
+    const typeWeights: Record<PatternInsight["type"], number> = {
+      ml: 18,
+      trend: 12,
+      correlation: 8,
+      recommendation: 6,
+      temporal: 4,
+    };
+
+    return [...insights].sort((left, right) => {
+      const leftScore =
+        left.confidence + (left.actionable ? 6 : 0) + typeWeights[left.type];
+      const rightScore =
+        right.confidence +
+        (right.actionable ? 6 : 0) +
+        typeWeights[right.type];
+      return rightScore - leftScore;
+    });
+  }
+
   /**
    * Get weekly health summary
    */
@@ -1409,20 +1739,29 @@ class HealthInsightsService {
 
     // Generate insights with localization
     // Note: createAlerts is false for summaries - alerts are created when vitals/symptoms are added
-    const allInsights = [
+    const allInsights = this.rankInsights([
       ...this.detectTemporalPatterns(weekSymptoms, weekMoods, isArabic),
       ...this.detectMedicationCorrelations(weekSymptoms, medications, isArabic),
       ...this.detectTrends(weekSymptoms, weekMoods, isArabic, userId, false),
       ...this.detectVitalTrends(weekVitals, isArabic, userId, false),
       ...this.detectVitalRanges(weekVitals, isArabic),
       ...this.detectIntegrationSpecificInsights(weekVitals, isArabic),
+      ...this.generatePredictiveInsights(
+        weekSymptoms,
+        medications,
+        weekMoods,
+        weekVitals,
+        start,
+        end,
+        isArabic
+      ),
       ...this.generateRecommendations(
         weekSymptoms,
         medications,
         weekMoods,
         isArabic
       ),
-    ];
+    ]);
 
     return {
       weekStart: start,
@@ -1553,7 +1892,7 @@ class HealthInsightsService {
 
     // Generate insights with localization
     // Note: createAlerts is false for summaries - alerts are created when vitals/symptoms are added
-    const allInsights = [
+    const allInsights = this.rankInsights([
       ...this.detectTemporalPatterns(monthSymptoms, monthMoods, isArabic),
       ...this.detectMedicationCorrelations(
         monthSymptoms,
@@ -1564,13 +1903,22 @@ class HealthInsightsService {
       ...this.detectVitalTrends(monthVitals, isArabic, userId, false),
       ...this.detectVitalRanges(monthVitals, isArabic),
       ...this.detectIntegrationSpecificInsights(monthVitals, isArabic),
+      ...this.generatePredictiveInsights(
+        monthSymptoms,
+        medications,
+        monthMoods,
+        monthVitals,
+        start,
+        end,
+        isArabic
+      ),
       ...this.generateRecommendations(
         monthSymptoms,
         medications,
         monthMoods,
         isArabic
       ),
-    ];
+    ]);
 
     // Generate recommendations
     const recommendations: string[] = [];
@@ -1619,20 +1967,29 @@ class HealthInsightsService {
       this.getVitalsForPeriod(userId, rangeStart, rangeEnd),
     ]);
 
-    return [
+    return this.rankInsights([
       ...this.detectTemporalPatterns(symptoms, moodsData, isArabic),
       ...this.detectMedicationCorrelations(symptoms, medications, isArabic),
       ...this.detectTrends(symptoms, moodsData, isArabic, userId, false),
       ...this.detectVitalTrends(vitals, isArabic, userId, false),
       ...this.detectVitalRanges(vitals, isArabic),
       ...this.detectIntegrationSpecificInsights(vitals, isArabic),
+      ...this.generatePredictiveInsights(
+        symptoms,
+        medications,
+        moodsData,
+        vitals,
+        rangeStart,
+        rangeEnd,
+        isArabic
+      ),
       ...this.generateRecommendations(
         symptoms,
         medications,
         moodsData,
         isArabic
       ),
-    ];
+    ]);
   }
 
   private async getVitalsForPeriod(

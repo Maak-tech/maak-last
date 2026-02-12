@@ -1,0 +1,38 @@
+diff --git a/node_modules/expo-font/ios/FontFamilyAliasManager.swift b/node_modules/expo-font/ios/FontFamilyAliasManager.swift
+index f785185..a5f37a2 100644
+--- a/node_modules/expo-font/ios/FontFamilyAliasManager.swift
++++ b/node_modules/expo-font/ios/FontFamilyAliasManager.swift
+@@ -9,6 +9,7 @@ private var fontFamilyAliases = [String: String]()
+  A flag that is set to `true` when the ``UIFont.fontNames(forFamilyName:)`` is already swizzled.
+  */
+ private var hasSwizzled = false
++private let swizzleLock = NSLock()
+ 
+ /**
+  Queue to protect shared resources
+@@ -55,6 +56,9 @@ internal struct FontFamilyAliasManager {
+  however the font usually has a different name encoded in the binary, thus the system may use a different name.
+  */
+ private func maybeSwizzleUIFont() {
++  swizzleLock.lock()
++  defer { swizzleLock.unlock() }
++
+   if hasSwizzled {
+     return
+   }
+@@ -63,7 +67,14 @@ private func maybeSwizzleUIFont() {
+   let newFontNamesMethod = class_getClassMethod(UIFont.self, #selector(UIFont._expo_fontNames(forFamilyName:)))
+ 
+   if let originalFontNamesMethod, let newFontNamesMethod {
+-    method_exchangeImplementations(originalFontNamesMethod, newFontNamesMethod)
++    let applySwizzle = {
++      method_exchangeImplementations(originalFontNamesMethod, newFontNamesMethod)
++    }
++    if Thread.isMainThread {
++      applySwizzle()
++    } else {
++      DispatchQueue.main.sync(execute: applySwizzle)
++    }
+   } else {
+     log.error("expo-font is unable to swizzle `UIFont.fontNames(forFamilyName:)`")
+   }

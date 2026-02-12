@@ -20,6 +20,16 @@ export type SharedScheduleDay = {
 };
 
 class SharedMedicationScheduleService {
+  private readonly familyScheduleCacheTtlMs = 60_000;
+  private readonly familyScheduleCache = new Map<
+    string,
+    { cachedAt: number; entries: MedicationScheduleEntry[] }
+  >();
+  private readonly familyScheduleInFlight = new Map<
+    string,
+    Promise<MedicationScheduleEntry[]>
+  >();
+
   private isMedicationScheduledForDate(
     medication: Medication,
     targetDate: Date
@@ -48,60 +58,150 @@ class SharedMedicationScheduleService {
     return true;
   }
 
+  private getTodayScheduleFromEntries(
+    entries: MedicationScheduleEntry[],
+    today = new Date()
+  ): SharedScheduleDay {
+    const normalizedToday = new Date(today);
+    normalizedToday.setHours(0, 0, 0, 0);
+
+    const todayEntries = entries.filter((entry) =>
+      this.isMedicationScheduledForDate(entry.medication, normalizedToday)
+    );
+
+    return {
+      date: normalizedToday,
+      entries: todayEntries,
+    };
+  }
+
+  private getUpcomingScheduleFromEntries(
+    entries: MedicationScheduleEntry[],
+    days = 7
+  ): SharedScheduleDay[] {
+    const scheduleDays: SharedScheduleDay[] = [];
+
+    for (let i = 0; i < days; i++) {
+      const date = new Date();
+      date.setDate(date.getDate() + i);
+      date.setHours(0, 0, 0, 0);
+
+      const dayEntries = entries.filter((entry) => {
+        if (!entry.nextDose) {
+          return false;
+        }
+        const entryDate = new Date(entry.nextDose);
+        entryDate.setHours(0, 0, 0, 0);
+        return entryDate.getTime() === date.getTime();
+      });
+
+      scheduleDays.push({
+        date,
+        entries: dayEntries,
+      });
+    }
+
+    return scheduleDays.filter((day) => day.entries.length > 0);
+  }
+
   /**
    * Get all medication schedules for family members
    */
   async getFamilyMedicationSchedules(
     familyId: string,
-    _userId?: string // Current user ID (to check permissions)
+    _userId?: string, // Current user ID (to check permissions)
+    forceRefresh = false,
+    familyMembersOverride?: User[]
   ): Promise<MedicationScheduleEntry[]> {
-    try {
-      // Get all family members
-      const familyMembers = await userService.getFamilyMembers(familyId);
+    const cached = this.familyScheduleCache.get(familyId);
+    if (
+      !forceRefresh &&
+      cached &&
+      Date.now() - cached.cachedAt < this.familyScheduleCacheTtlMs
+    ) {
+      return cached.entries;
+    }
 
-      // Get medications for all family members
-      const scheduleEntries: MedicationScheduleEntry[] = [];
+    const inFlight = this.familyScheduleInFlight.get(familyId);
+    if (!forceRefresh && inFlight) {
+      return inFlight;
+    }
 
-      for (const member of familyMembers) {
-        const medications = await medicationService.getUserMedications(
-          member.id
+    const loadPromise = (async () => {
+      try {
+        // Get all family members
+        const familyMembers =
+          familyMembersOverride && familyMembersOverride.length > 0
+            ? familyMembersOverride
+            : await userService.getFamilyMembers(familyId);
+
+        // Get medications for all family members in parallel
+        const medicationResults = await Promise.allSettled(
+          familyMembers.map((member) => medicationService.getUserMedications(member.id))
         );
 
-        // Filter only active medications
-        const activeMedications = medications.filter((m) => m.isActive);
+        const scheduleEntries: MedicationScheduleEntry[] = [];
 
-        for (const medication of activeMedications) {
-          const nextDose = this.calculateNextDose(medication);
-          const lastTaken = this.getLastTaken(medication);
-          const complianceRate = this.calculateComplianceRate(medication);
-          const missedDoses = this.countMissedDoses(medication);
+        for (const [index, result] of medicationResults.entries()) {
+          if (result.status !== "fulfilled") {
+            continue;
+          }
 
-          scheduleEntries.push({
-            medication,
-            member,
-            nextDose,
-            lastTaken,
-            complianceRate,
-            missedDoses,
-          });
+          const member = familyMembers[index];
+          if (!member) {
+            continue;
+          }
+
+          const activeMedications = result.value.filter((m) => m.isActive);
+
+          for (const medication of activeMedications) {
+            const nextDose = this.calculateNextDose(medication);
+            const lastTaken = this.getLastTaken(medication);
+            const complianceRate = this.calculateComplianceRate(medication);
+            const missedDoses = this.countMissedDoses(medication);
+
+            scheduleEntries.push({
+              medication,
+              member,
+              nextDose,
+              lastTaken,
+              complianceRate,
+              missedDoses,
+            });
+          }
         }
+
+        // Sort by next dose time
+        scheduleEntries.sort((a, b) => {
+          if (!(a.nextDose || b.nextDose)) {
+            return 0;
+          }
+          if (!a.nextDose) {
+            return 1;
+          }
+          if (!b.nextDose) {
+            return -1;
+          }
+          return a.nextDose.getTime() - b.nextDose.getTime();
+        });
+
+        this.familyScheduleCache.set(familyId, {
+          cachedAt: Date.now(),
+          entries: scheduleEntries,
+        });
+
+        return scheduleEntries;
+      } catch (_error) {
+        return [];
+      } finally {
+        this.familyScheduleInFlight.delete(familyId);
       }
+    })();
 
-      // Sort by next dose time
-      scheduleEntries.sort((a, b) => {
-        if (!(a.nextDose || b.nextDose)) {
-          return 0;
-        }
-        if (!a.nextDose) {
-          return 1;
-        }
-        if (!b.nextDose) {
-          return -1;
-        }
-        return a.nextDose.getTime() - b.nextDose.getTime();
-      });
+    this.familyScheduleInFlight.set(familyId, loadPromise);
 
-      return scheduleEntries;
+    try {
+      return await loadPromise;
     } catch (_error) {
       return [];
     }
@@ -260,23 +360,18 @@ class SharedMedicationScheduleService {
   /**
    * Get today's medication schedule for family
    */
-  async getTodaySchedule(familyId: string): Promise<SharedScheduleDay> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const entries = await this.getFamilyMedicationSchedules(familyId);
-
-    // Filter entries that have reminders scheduled for today
-    // A medication should appear in today's schedule if it has any reminders
-    // scheduled for today, regardless of whether they've been taken or not
-    const todayEntries = entries.filter((entry) =>
-      this.isMedicationScheduledForDate(entry.medication, today)
+  async getTodaySchedule(
+    familyId: string,
+    forceRefresh = false,
+    familyMembersOverride?: User[]
+  ): Promise<SharedScheduleDay> {
+    const entries = await this.getFamilyMedicationSchedules(
+      familyId,
+      undefined,
+      forceRefresh,
+      familyMembersOverride
     );
-
-    return {
-      date: today,
-      entries: todayEntries,
-    };
+    return this.getTodayScheduleFromEntries(entries);
   }
 
   /**
@@ -284,32 +379,43 @@ class SharedMedicationScheduleService {
    */
   async getUpcomingSchedule(
     familyId: string,
-    days = 7
+    days = 7,
+    forceRefresh = false,
+    familyMembersOverride?: User[]
   ): Promise<SharedScheduleDay[]> {
-    const entries = await this.getFamilyMedicationSchedules(familyId);
-    const scheduleDays: SharedScheduleDay[] = [];
+    const entries = await this.getFamilyMedicationSchedules(
+      familyId,
+      undefined,
+      forceRefresh,
+      familyMembersOverride
+    );
+    return this.getUpcomingScheduleFromEntries(entries, days);
+  }
 
-    for (let i = 0; i < days; i++) {
-      const date = new Date();
-      date.setDate(date.getDate() + i);
-      date.setHours(0, 0, 0, 0);
+  /**
+   * Get entries + today + upcoming schedules with a single family-medications fetch.
+   */
+  async getFamilyScheduleBundle(
+    familyId: string,
+    userId?: string,
+    forceRefresh = false,
+    familyMembersOverride?: User[],
+    upcomingDays = 7
+  ): Promise<{
+    entries: MedicationScheduleEntry[];
+    today: SharedScheduleDay;
+    upcoming: SharedScheduleDay[];
+  }> {
+    const entries = await this.getFamilyMedicationSchedules(
+      familyId,
+      userId,
+      forceRefresh,
+      familyMembersOverride
+    );
+    const today = this.getTodayScheduleFromEntries(entries);
+    const upcoming = this.getUpcomingScheduleFromEntries(entries, upcomingDays);
 
-      const dayEntries = entries.filter((entry) => {
-        if (!entry.nextDose) {
-          return false;
-        }
-        const entryDate = new Date(entry.nextDose);
-        entryDate.setHours(0, 0, 0, 0);
-        return entryDate.getTime() === date.getTime();
-      });
-
-      scheduleDays.push({
-        date,
-        entries: dayEntries,
-      });
-    }
-
-    return scheduleDays.filter((day) => day.entries.length > 0);
+    return { entries, today, upcoming };
   }
 
   /**

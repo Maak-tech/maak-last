@@ -55,7 +55,6 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
-  Clipboard,
   InteractionManager,
   Keyboard,
   Linking,
@@ -115,6 +114,7 @@ import {
 } from "@/lib/services/sharedMedicationScheduleService";
 import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
+import { setClipboardString } from "@/lib/utils/clipboard";
 import { logger } from "@/lib/utils/logger";
 import type { Allergy, User } from "@/types";
 import { safeFormatDate, safeFormatTime } from "@/utils/dateFormat";
@@ -319,9 +319,11 @@ export default function FamilyScreen() {
   const memberMetricsRef = useRef<FamilyMemberMetrics[]>([]);
   const loadingRef = useRef(false);
   const refreshingRef = useRef(false);
+  const familyMembersRequestInFlightRef = useRef(false);
   const loadingCaregiverDashboardRef = useRef(false);
   const loadingElderlyDashboardRef = useRef(false);
   const refreshingElderlyDashboardRef = useRef(false);
+  const medicationScheduleRequestInFlightRef = useRef(false);
   const focusLoadInFlightRef = useRef(false);
   const [selectedFilter, setSelectedFilter] = useState<FilterOption>({
     id: "personal",
@@ -419,16 +421,18 @@ export default function FamilyScreen() {
   const loadFamilyMembers = useCallback(
     async (isRefresh = false) => {
       // Prevent concurrent loads
-      if (
-        !isRefresh &&
-        loadingRef.current &&
-        familyMembersRef.current.length > 0
-      )
-        return;
+      if (!isRefresh && familyMembersRequestInFlightRef.current) return;
       if (isRefresh && refreshingRef.current) return;
+
+      if (!isRefresh) {
+        familyMembersRequestInFlightRef.current = true;
+      }
 
       if (!user?.familyId) {
         // If no familyId, we still want to show the UI (empty state)
+        familyMembersRequestInFlightRef.current = false;
+        loadingRef.current = false;
+        refreshingRef.current = false;
         setLoading(false);
         setRefreshing(false);
         setFamilyMembers([]);
@@ -531,6 +535,7 @@ export default function FamilyScreen() {
           loadingRef.current = false;
           setLoading(false);
         }
+        familyMembersRequestInFlightRef.current = false;
         refreshingRef.current = false;
         setRefreshing(false);
       }
@@ -540,18 +545,12 @@ export default function FamilyScreen() {
 
   // Load family members when user changes
   useEffect(() => {
-    if (!user) {
-      // If no user, set loading to false immediately
+    if (!(user?.id || user?.familyId)) {
       setLoading(false);
       return;
     }
 
-    if (user?.id || user?.familyId) {
-      loadFamilyMembers();
-    } else {
-      // If user exists but no id/familyId, set loading to false
-      setLoading(false);
-    }
+    loadFamilyMembers();
 
     // Safety timeout: ensure loading is never stuck true for more than 20 seconds
     const timeoutId = setTimeout(() => {
@@ -560,7 +559,7 @@ export default function FamilyScreen() {
 
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, user?.familyId, loadFamilyMembers, user]);
+  }, [user?.id, user?.familyId, loadFamilyMembers]);
 
   const loadEvents = useCallback(
     async (isRefresh = false, membersOverride?: typeof familyMembers) => {
@@ -998,8 +997,9 @@ export default function FamilyScreen() {
   useEffect(() => {
     loadMemberMetricsRef.current = loadMemberMetrics;
 
-    // If we already have family members but no metrics, load them now
+    // Keep list mode fast by deferring heavy per-member metrics until dashboard mode.
     if (
+      viewMode === "dashboard" &&
       familyMembers.length > 0 &&
       memberMetrics.length === 0 &&
       !loadingMetrics
@@ -1014,6 +1014,7 @@ export default function FamilyScreen() {
     memberMetrics.length,
     loadingMetrics,
     familyMembers,
+    viewMode,
   ]);
 
   // Load caregiver dashboard data
@@ -1051,8 +1052,10 @@ export default function FamilyScreen() {
   const loadMedicationSchedule = useCallback(
     async (isRefresh = false) => {
       if (!user?.familyId) return;
+      if (!isRefresh && medicationScheduleRequestInFlightRef.current) return;
 
       try {
+        medicationScheduleRequestInFlightRef.current = true;
         if (isRefresh) {
           // Don't show loading spinner on refresh
         } else {
@@ -1069,27 +1072,27 @@ export default function FamilyScreen() {
           );
         });
 
-        const dataPromise = Promise.all([
-          sharedMedicationScheduleService.getFamilyMedicationSchedules(
+        const dataPromise =
+          sharedMedicationScheduleService.getFamilyScheduleBundle(
             user.familyId,
-            user.id
-          ),
-          sharedMedicationScheduleService.getTodaySchedule(user.familyId),
-          sharedMedicationScheduleService.getUpcomingSchedule(user.familyId, 7),
-        ]);
+            user.id,
+            isRefresh,
+            familyMembersRef.current,
+            7
+          );
 
-        const [entries, today, upcoming] = (await Promise.race([
+        const { entries, today, upcoming } = (await Promise.race([
           dataPromise,
           timeoutPromise,
         ]).finally(() => {
           if (medicationScheduleTimeout) {
             clearTimeout(medicationScheduleTimeout);
           }
-        })) as [
-          MedicationScheduleEntry[],
-          SharedScheduleDay | null,
-          SharedScheduleDay[],
-        ];
+        })) as {
+          entries: MedicationScheduleEntry[];
+          today: SharedScheduleDay | null;
+          upcoming: SharedScheduleDay[];
+        };
 
         setMedicationScheduleEntries(entries);
         setTodaySchedule(today);
@@ -1100,18 +1103,12 @@ export default function FamilyScreen() {
         setTodaySchedule(null);
         setUpcomingSchedule([]);
       } finally {
+        medicationScheduleRequestInFlightRef.current = false;
         setLoadingMedicationSchedule(false);
       }
     },
     [user]
   );
-
-  // Load medication schedule when family members are loaded
-  useEffect(() => {
-    if (user?.familyId && !loadingMedicationSchedule) {
-      loadMedicationSchedule();
-    }
-  }, [user?.familyId, loadMedicationSchedule, loadingMedicationSchedule]);
 
   // Note: Metrics and events are now loaded in useFocusEffect to avoid duplicate loading
 
@@ -1386,7 +1383,7 @@ export default function FamilyScreen() {
                 });
               } catch (_error) {
                 // Fallback to copying to clipboard
-                await Clipboard.setString(shareMessage);
+                await setClipboardString(shareMessage);
                 Alert.alert(
                   isRTL ? "تم النسخ" : "Copied",
                   isRTL
@@ -1399,7 +1396,7 @@ export default function FamilyScreen() {
           {
             text: isRTL ? "نسخ رمز الدعوة فقط" : "Copy Invitation Code Only",
             onPress: async () => {
-              await Clipboard.setString(code);
+              await setClipboardString(code);
               Alert.alert(
                 isRTL ? "تم النسخ" : "Copied",
                 isRTL
@@ -1835,21 +1832,12 @@ export default function FamilyScreen() {
     [user?.id, isRTL]
   );
 
-  // Set default view mode to dashboard for admins when user loads (only once)
+  // Mark the initial view mode as initialized once user is available.
   useEffect(() => {
-    if (
-      user &&
-      isAdmin &&
-      !viewModeInitialized.current &&
-      viewMode === "list"
-    ) {
-      // Set to dashboard view for admins by default (only on initial load)
-      setViewMode("dashboard");
+    if (user) {
       viewModeInitialized.current = true;
-    } else if (user && !isAdmin) {
-      viewModeInitialized.current = true; // Mark as initialized for non-admins too
     }
-  }, [user?.id, isAdmin, viewMode, user]);
+  }, [user]);
 
   // Load caregiver dashboard when view mode changes to dashboard and user is admin
   useEffect(() => {
@@ -1885,10 +1873,8 @@ export default function FamilyScreen() {
           // Step 1: Load family members first and show immediately (if not already loaded)
           let members: typeof familyMembers = familyMembersRef.current;
           if (user?.familyId && members.length === 0) {
-            members = await userService.getFamilyMembers(user.familyId);
-            // Update state immediately so UI can render
-            setFamilyMembers(members);
-            familyMembersRef.current = members;
+            await loadFamilyMembers(false);
+            members = familyMembersRef.current;
           }
 
           // Load metrics in background (non-blocking) only if needed
@@ -1898,7 +1884,7 @@ export default function FamilyScreen() {
             (memberMetricsRef.current.length === 0 ||
               memberMetricsRef.current.length !== members.length);
 
-          if (needsMetricsLoad) {
+          if (viewMode === "dashboard" && needsMetricsLoad) {
             loadMemberMetrics(members).catch(() => {
               // Error loading member metrics
             });
@@ -1953,6 +1939,7 @@ export default function FamilyScreen() {
       loadCaregiverDashboard,
       loadElderlyDashboard,
       loadEvents,
+      loadFamilyMembers,
       loadMedicationSchedule,
     ])
   );
@@ -2144,7 +2131,7 @@ export default function FamilyScreen() {
                 });
               } catch (_error) {
                 // Fallback to copying to clipboard
-                await Clipboard.setString(shareMessage);
+                await setClipboardString(shareMessage);
                 Alert.alert(
                   isRTL ? "تم النسخ" : "Copied",
                   isRTL
@@ -2157,7 +2144,7 @@ export default function FamilyScreen() {
           {
             text: isRTL ? "نسخ رمز الدعوة فقط" : "Copy Invitation Code Only",
             onPress: async () => {
-              await Clipboard.setString(code);
+              await setClipboardString(code);
               Alert.alert(
                 isRTL ? "تم النسخ" : "Copied",
                 isRTL
@@ -2346,7 +2333,77 @@ export default function FamilyScreen() {
     return memberMetrics.filter((metric) => metric.user.id === user?.id);
   };
 
+  const getFilteredFamilyMembers = () => {
+    if (selectedFilter.type === "personal") {
+      return familyMembers.filter((member) => member.id === user?.id);
+    }
+    if (selectedFilter.type === "member" && selectedFilter.memberId) {
+      return familyMembers.filter(
+        (member) => member.id === selectedFilter.memberId
+      );
+    }
+    if (selectedFilter.type === "family") {
+      return familyMembers;
+    }
+    return familyMembers.filter((member) => member.id === user?.id);
+  };
+
   const filteredMemberMetrics = getFilteredMemberMetrics();
+  const filteredFamilyMembers = getFilteredFamilyMembers();
+
+  const renderDashboardFallbackCards = () => (
+    <View style={styles.dashboardGrid}>
+      {filteredFamilyMembers.map((member) => {
+        const fullName =
+          member.firstName && member.lastName
+            ? `${member.firstName} ${member.lastName}`
+            : member.firstName || "User";
+        const isCurrentUser = member.id === user?.id;
+
+        return (
+          <TouchableOpacity
+            key={member.id}
+            onPress={() => router.push(`/family/${member.id}`)}
+            style={styles.dashboardCard}
+          >
+            <View style={styles.dashboardCardHeader}>
+              <Avatar
+                avatarType={member.avatarType}
+                name={fullName}
+                size="lg"
+                source={member.avatar ? { uri: member.avatar } : undefined}
+              />
+              {isCurrentUser && (
+                <View style={styles.currentUserBadge}>
+                  <Text style={styles.currentUserBadgeText}>
+                    {isRTL ? "أنت" : "You"}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <Text
+              numberOfLines={1}
+              style={[styles.dashboardCardName, isRTL && styles.rtlText]}
+            >
+              {fullName}
+            </Text>
+
+            <View style={styles.dashboardMetrics}>
+              <View style={styles.dashboardMetric}>
+                <Activity color="#94A3B8" size={16} />
+                <Text
+                  style={[styles.dashboardMetricLabel, isRTL && styles.rtlText]}
+                >
+                  {isRTL ? "جاري تحميل البيانات..." : "Loading health data..."}
+                </Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
 
   const getFamilyStats = () => {
     const metricsToUse = filteredMemberMetrics;
@@ -2638,7 +2695,7 @@ export default function FamilyScreen() {
         </View>
 
         {/* Active Alerts */}
-        <AlertsCard />
+        <AlertsCard familyMembers={familyMembers} />
 
         {/* Needs Attention */}
         <View style={styles.section}>
@@ -3462,6 +3519,8 @@ export default function FamilyScreen() {
                       </Card>
                     ))}
                 </View>
+              ) : filteredFamilyMembers.length > 0 ? (
+                renderDashboardFallbackCards()
               ) : (
                 <View style={styles.emptyContainer}>
                   <Users color={theme.colors.text.secondary} size={64} />
@@ -3471,11 +3530,13 @@ export default function FamilyScreen() {
                 </View>
               )
             ) : // Regular Dashboard View for non-admins
-            loadingMetrics ? (
+            loadingMetrics &&
+              filteredMemberMetrics.length === 0 &&
+              filteredFamilyMembers.length === 0 ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator color="#2563EB" size="large" />
               </View>
-            ) : (
+            ) : filteredMemberMetrics.length > 0 ? (
               <View style={styles.dashboardGrid}>
                 {filteredMemberMetrics.map((metric) => {
                   const fullName =
@@ -3761,6 +3822,15 @@ export default function FamilyScreen() {
                     </TouchableOpacity>
                   );
                 })}
+              </View>
+            ) : filteredFamilyMembers.length > 0 ? (
+              renderDashboardFallbackCards()
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Users color={theme.colors.text.secondary} size={64} />
+                <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
+                  {isRTL ? "لا توجد بيانات" : "No data available"}
+                </Text>
               </View>
             )
           ) : (

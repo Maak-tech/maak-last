@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCallback, useEffect, useRef } from "react";
 import { Platform } from "react-native";
 import { useAuth } from "@/contexts/AuthContext";
@@ -129,11 +130,24 @@ export const useDailyNotificationScheduler = (enabled = true) => {
   const { user } = useAuth();
   const { ensureInitialized } = useNotifications();
   const lastScheduledDate = useRef<string | null>(null);
+  const schedulingInProgressRef = useRef(false);
+  const dailyIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const getDailyScheduleKey = useCallback(
+    (userId: string) => `smart_notifications_last_scheduled:${userId}`,
+    []
+  );
 
   const scheduleDailyNotifications = useCallback(async () => {
     if (!(enabled && user?.id) || Platform.OS === "web") {
       return;
     }
+
+    if (schedulingInProgressRef.current) {
+      return;
+    }
+
+    schedulingInProgressRef.current = true;
 
     try {
       // Ensure notifications are initialized
@@ -144,22 +158,28 @@ export const useDailyNotificationScheduler = (enabled = true) => {
 
       // Check if we've already scheduled for today
       const today = new Date().toDateString();
-      if (lastScheduledDate.current === today) {
+      const storageKey = getDailyScheduleKey(user.id);
+      const persistedDate = await AsyncStorage.getItem(storageKey);
+      const effectiveLastDate = lastScheduledDate.current || persistedDate;
+
+      if (effectiveLastDate === today) {
+        lastScheduledDate.current = today;
         return; // Already scheduled for today
       }
 
       // Schedule daily notifications
-      const result = await smartNotificationService.scheduleDailyNotifications(
-        user.id
-      );
+      await smartNotificationService.scheduleDailyNotifications(user.id);
 
-      if (result.scheduled > 0) {
-        lastScheduledDate.current = today;
-      }
+      // Mark as scheduled for today regardless of count to avoid repeated
+      // immediate "missed activity" prompts during the same day.
+      lastScheduledDate.current = today;
+      await AsyncStorage.setItem(storageKey, today);
     } catch (_error) {
       // Intentionally ignored: scheduler retries on next cycle.
+    } finally {
+      schedulingInProgressRef.current = false;
     }
-  }, [enabled, user?.id, ensureInitialized]);
+  }, [enabled, user?.id, ensureInitialized, getDailyScheduleKey]);
 
   useEffect(() => {
     if (!enabled) {
@@ -181,15 +201,19 @@ export const useDailyNotificationScheduler = (enabled = true) => {
       scheduleDailyNotifications();
 
       // Set up daily scheduling (every 24 hours)
-      const intervalId = setInterval(
+      dailyIntervalRef.current = setInterval(
         scheduleDailyNotifications,
         24 * 60 * 60 * 1000
       );
-
-      return () => clearInterval(intervalId);
     }, timeUntilTomorrow);
 
-    return () => clearTimeout(timeoutId);
+    return () => {
+      clearTimeout(timeoutId);
+      if (dailyIntervalRef.current) {
+        clearInterval(dailyIntervalRef.current);
+        dailyIntervalRef.current = null;
+      }
+    };
   }, [enabled, scheduleDailyNotifications]);
 
   return {

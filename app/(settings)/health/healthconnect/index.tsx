@@ -1,12 +1,13 @@
-import { router } from "expo-router";
-import { ChevronRight, Heart } from "lucide-react-native";
+import {
+  router } from "expo-router";
+import { ChevronRight,
+  Heart } from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   LayoutAnimation,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   type StyleProp,
   Text,
@@ -14,6 +15,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/contexts/ThemeContext";
 import { configureLayoutAnimationIfActive } from "@/lib/utils/appStateGuards";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";

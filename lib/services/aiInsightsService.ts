@@ -1,3 +1,12 @@
+import {
+  collection,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  where,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import type {
   MedicalHistory,
   Medication,
@@ -102,6 +111,159 @@ class AIInsightsService {
 
     return Promise.race([safePromise, timeoutPromise]);
   }
+
+  /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Baseline suggestions intentionally combine multiple health-data scenarios into one deterministic fallback path. */
+  /* biome-ignore lint/nursery/useMaxParams: Inputs are explicit domain datasets required to build deterministic baseline suggestions. */
+  private buildBaselineSuggestions(
+    userId: string,
+    symptoms: Symptom[],
+    medications: Medication[],
+    medicalHistory: MedicalHistory[],
+    hasVitalsData: boolean,
+    isArabic: boolean
+  ): {
+    healthSuggestions: HealthSuggestion[];
+    personalizedTips: string[];
+  } {
+    const now = new Date();
+    const suggestions: HealthSuggestion[] = [];
+    const tips: string[] = [];
+
+    const addSuggestion = (
+      suggestion: Omit<HealthSuggestion, "id" | "timestamp">
+    ) => {
+      suggestions.push({
+        id: `baseline-${userId}-${suggestions.length + 1}`,
+        timestamp: now,
+        ...suggestion,
+      });
+    };
+
+    if (
+      symptoms.length === 0 &&
+      medications.length === 0 &&
+      medicalHistory.length === 0 &&
+      !hasVitalsData
+    ) {
+      addSuggestion({
+        type: "preventive",
+        priority: "medium",
+        title: isArabic
+          ? "ابدأ بتتبع بياناتك الصحية"
+          : "Start tracking your health data",
+        description: isArabic
+          ? "سجّل الأعراض، المزاج، والدواء بشكل منتظم لنتمكن من تقديم رؤى أكثر دقة."
+          : "Log symptoms, mood, and medications regularly to unlock accurate insights.",
+        category: isArabic ? "الوقاية" : "Preventive",
+        action: {
+          label: isArabic ? "ابدأ التتبع" : "Start Tracking",
+          route: "/(tabs)/track",
+        },
+      });
+      tips.push(
+        isArabic
+          ? "أضف 3 إلى 5 سجلات خلال الأسبوع للحصول على أول تحليل مفيد."
+          : "Add 3 to 5 records this week to get your first useful insight."
+      );
+      return { healthSuggestions: suggestions, personalizedTips: tips };
+    }
+
+    if (
+      hasVitalsData &&
+      symptoms.length === 0 &&
+      medications.length === 0 &&
+      medicalHistory.length === 0
+    ) {
+      addSuggestion({
+        type: "preventive",
+        priority: "medium",
+        title: isArabic
+          ? "لديك قراءات حيوية جيدة، أضف سياقًا صحيًا"
+          : "You have vitals data, add more health context",
+        description: isArabic
+          ? "تم اكتشاف قراءات حيوية بالفعل. أضف الأعراض أو الأدوية أو التاريخ الطبي للحصول على رؤى أعمق وأكثر دقة."
+          : "Vital readings were detected. Add symptoms, medications, or medical history to unlock deeper and more personalized insights.",
+        category: isArabic ? "الوقاية" : "Preventive",
+        action: {
+          label: isArabic ? "أضف أعراضًا" : "Add Symptoms",
+          route: "/(tabs)/symptoms",
+        },
+      });
+      tips.push(
+        isArabic
+          ? "استمر في تسجيل العلامات الحيوية يوميًا، وأضف الأعراض لتحسين جودة التحليل."
+          : "Keep logging vitals daily and add symptoms to improve insight quality."
+      );
+    }
+
+    if (medications.length > 0) {
+      addSuggestion({
+        type: "medication",
+        priority: "medium",
+        title: isArabic
+          ? "حافظ على الالتزام بالأدوية"
+          : "Keep medication adherence consistent",
+        description: isArabic
+          ? "المتابعة اليومية للجرعات تحسن جودة الرؤى وتقلل المخاطر."
+          : "Daily dose tracking improves insight quality and helps reduce risk.",
+        category: isArabic ? "الأدوية" : "Medication",
+        action: {
+          label: isArabic ? "عرض الأدوية" : "View Medications",
+          route: "/(tabs)/medications",
+        },
+      });
+    }
+
+    if (symptoms.length > 0) {
+      const highSeverityCount = symptoms.filter((s) => s.severity >= 4).length;
+      addSuggestion({
+        type: "symptom",
+        priority: highSeverityCount > 0 ? "high" : "medium",
+        title: isArabic
+          ? "تابع شدة الأعراض بانتظام"
+          : "Track symptom severity consistently",
+        description: isArabic
+          ? "تسجيل الشدة والوقت يساعد على اكتشاف الأنماط الأسرع تأثيرًا."
+          : "Logging severity and timing helps detect impactful patterns faster.",
+        category: isArabic ? "الأعراض" : "Symptoms",
+        action: {
+          label: isArabic ? "عرض الأعراض" : "View Symptoms",
+          route: "/(tabs)/symptoms",
+        },
+      });
+    }
+
+    if (medicalHistory.length > 0) {
+      addSuggestion({
+        type: "preventive",
+        priority: "low",
+        title: isArabic
+          ? "راجع الخطة الصحية دوريًا"
+          : "Review your health plan regularly",
+        description: isArabic
+          ? "تحديث السجل الطبي يرفع دقة تقييم المخاطر والتوصيات."
+          : "Keeping medical history updated improves risk scoring and recommendations.",
+        category: isArabic ? "الصحة" : "Health",
+        action: {
+          label: isArabic ? "عرض السجل الطبي" : "View Medical History",
+          route: "/profile/medical-history",
+        },
+      });
+    }
+
+    if (tips.length === 0) {
+      tips.push(
+        isArabic
+          ? "استمر في إدخال البيانات يوميًا للحصول على توصيات أدق."
+          : "Continue daily tracking to unlock more accurate recommendations."
+      );
+    }
+
+    return {
+      healthSuggestions: suggestions.slice(0, 3),
+      personalizedTips: tips,
+    };
+  }
   /**
    * Batch fetch all required data once to reduce database queries
    */
@@ -109,32 +271,62 @@ class AIInsightsService {
     symptoms: Symptom[];
     medications: Medication[];
     medicalHistory: MedicalHistory[];
+    hasVitalsData: boolean;
   }> {
     // Fetch all data in parallel with optimized limits
-    const [symptoms, medications, medicalHistory] = await Promise.all([
-      symptomService.getUserSymptoms(userId, SYMPTOM_FETCH_LIMIT), // Limit for faster loads
-      medicationService.getUserMedications(userId),
-      medicalHistoryService.getUserMedicalHistory(userId),
-    ]);
+    const [symptoms, medications, medicalHistory, hasVitalsData] =
+      await Promise.all([
+        symptomService.getUserSymptoms(userId, SYMPTOM_FETCH_LIMIT), // Limit for faster loads
+        medicationService.getUserMedications(userId),
+        medicalHistoryService.getUserMedicalHistory(userId),
+        this.withTimeout(
+          "hasVitalsData",
+          this.hasVitalsData(userId),
+          2500,
+          false
+        ),
+      ]);
 
-    return { symptoms, medications, medicalHistory };
+    return { symptoms, medications, medicalHistory, hasVitalsData };
+  }
+
+  private async hasVitalsData(userId: string): Promise<boolean> {
+    try {
+      const q = query(
+        collection(db, "vitals"),
+        where("userId", "==", userId),
+        orderBy("timestamp", "desc"),
+        limit(1)
+      );
+      const snapshot = await getDocs(q);
+      return !snapshot.empty;
+    } catch {
+      return false;
+    }
   }
 
   /**
    * Generate comprehensive AI insights dashboard for a user
    */
+  /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Dashboard generation orchestrates multiple asynchronous insight pipelines with explicit fallback behavior. */
   async generateAIInsightsDashboard(
     userId: string,
     includeAINarrative = true,
     isArabic = false
   ): Promise<AIInsightsDashboard> {
     // Fetch all required data once
-    const { symptoms, medications, medicalHistory } = await this.withTimeout(
-      "fetchRequiredData",
-      this.fetchRequiredData(userId),
-      8000,
-      { symptoms: [], medications: [], medicalHistory: [] }
-    );
+    const { symptoms, medications, medicalHistory, hasVitalsData } =
+      await this.withTimeout(
+        "fetchRequiredData",
+        this.fetchRequiredData(userId),
+        8000,
+        {
+          symptoms: [],
+          medications: [],
+          medicalHistory: [],
+          hasVitalsData: false,
+        }
+      );
 
     const now = new Date();
     const fallbackCorrelation: CorrelationInsight = {
@@ -177,13 +369,22 @@ class AIInsightsService {
     const hasData =
       symptoms.length > 0 ||
       medications.length > 0 ||
-      medicalHistory.length > 0;
+      medicalHistory.length > 0 ||
+      hasVitalsData;
     if (!hasData) {
+      const baseline = this.buildBaselineSuggestions(
+        userId,
+        symptoms,
+        medications,
+        medicalHistory,
+        hasVitalsData,
+        isArabic
+      );
       const insightsSummary = this.calculateInsightsSummary(
         fallbackCorrelation,
         fallbackSymptomAnalysis,
         fallbackRiskAssessment,
-        [],
+        baseline.healthSuggestions,
         []
       );
       return {
@@ -194,8 +395,8 @@ class AIInsightsService {
         symptomAnalysis: fallbackSymptomAnalysis,
         riskAssessment: fallbackRiskAssessment,
         medicationAlerts: [],
-        healthSuggestions: [],
-        personalizedTips: [],
+        healthSuggestions: baseline.healthSuggestions,
+        personalizedTips: baseline.personalizedTips,
         insightsSummary,
         aiNarrative: undefined,
       };
@@ -267,10 +468,37 @@ class AIInsightsService {
         : fallbackRiskAssessment;
     const medicationAlerts =
       results[3].status === "fulfilled" ? results[3].value : [];
-    const healthSuggestions =
+    let healthSuggestions =
       results[4].status === "fulfilled" ? results[4].value : [];
-    const personalizedTips =
+    let personalizedTips =
       results[5].status === "fulfilled" ? results[5].value : [];
+
+    const noPrimaryInsights =
+      correlationAnalysis.correlationResults.length === 0 &&
+      symptomAnalysis.patterns.length === 0 &&
+      symptomAnalysis.diagnosisSuggestions.length === 0 &&
+      medicationAlerts.length === 0 &&
+      healthSuggestions.length === 0;
+
+    if (noPrimaryInsights) {
+      const baseline = this.buildBaselineSuggestions(
+        userId,
+        symptoms,
+        medications,
+        medicalHistory,
+        hasVitalsData,
+        isArabic
+      );
+      if (baseline.healthSuggestions.length > 0) {
+        healthSuggestions = baseline.healthSuggestions;
+      }
+      if (baseline.personalizedTips.length > 0) {
+        personalizedTips = [
+          ...baseline.personalizedTips,
+          ...personalizedTips,
+        ].slice(0, 4);
+      }
+    }
 
     // Generate AI narrative if requested
     let aiNarrative: string | undefined;

@@ -3,15 +3,18 @@
  * Allows users to manually enter blood pressure readings
  */
 
-import { addDoc, collection, Timestamp } from "firebase/firestore";
-import { Droplet, X } from "lucide-react-native";
+import {
+  addDoc,
+  collection,
+  Timestamp } from "firebase/firestore";
+import { Droplet,
+  X } from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
   Modal,
-  SafeAreaView,
   type StyleProp,
   Text,
   TextInput,
@@ -20,6 +23,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { auth, db } from "@/lib/firebase";

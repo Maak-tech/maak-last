@@ -1,10 +1,10 @@
-﻿import { useRouter } from "expo-router";
+﻿import {
+  useRouter } from "expo-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Image,
   type ImageStyle,
-  SafeAreaView,
   type StyleProp,
   Text,
   type TextStyle,
@@ -12,6 +12,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
@@ -27,37 +28,37 @@ const getOnboardingSteps = (userRole: string) => {
         key: "welcome",
         image: require("@/assets/images/welcome.png"),
         titleEn: "Welcome to Maak",
-        titleAr: "Ù…Ø±Ø­Ø¨Ø§Ù‹ Ø¨Ùƒ ÙÙŠ Ù…Ø¹Ùƒ",
+        titleAr: "مرحباً بك في معك",
         descEn:
           "Your family health companion. Keep track of your loved ones health and stay connected.",
         descAr:
-          "Ø±ÙÙŠÙ‚Ùƒ Ø§Ù„ØµØ­ÙŠ Ù„Ù„Ø¹Ø§Ø¦Ù„Ø©. ØªØ§Ø¨Ø¹ ØµØ­Ø© Ø£Ø­Ø¨Ø§Ø¦Ùƒ ÙˆØ§Ø¨Ù‚ÙŽ Ø¹Ù„Ù‰ ØªÙˆØ§ØµÙ„ Ù…Ø¹Ù‡Ù….",
+          "رفيقك الصحي للعائلة. تابع صحة أحبائك وابقَ على تواصل معهم.",
         onelinerEn: '"Health starts at home"',
-        onelinerAr: '"Ø®Ù„ÙŠÙ‡Ù… Ø¯Ø§ÙŠÙ…Ù‹Ø§ Ù…Ø¹Ùƒ"',
+        onelinerAr: '"خليهم دائماً معك"',
       },
       {
         key: "track",
         image: require("@/assets/images/track-health..png"),
         titleEn: "Track Health Together",
-        titleAr: "ØªØªØ¨Ø¹ Ø§Ù„ØµØ­Ø© Ù…Ø¹Ø§Ù‹",
+        titleAr: "تتبع الصحة معاً",
         descEn:
           "Monitor symptoms, medications, and vital signs for your entire family in one place.",
         descAr:
-          "Ø±Ø§Ù‚Ø¨ Ø§Ù„Ø£Ø¹Ø±Ø§Ø¶ ÙˆØ§Ù„Ø£Ø¯ÙˆÙŠØ© ÙˆØ§Ù„Ø¹Ù„Ø§Ù…Ø§Øª Ø§Ù„Ø­ÙŠÙˆÙŠØ© Ù„Ø¹Ø§Ø¦Ù„ØªÙƒ Ø¨Ø£ÙƒÙ…Ù„Ù‡Ø§ ÙÙŠ Ù…ÙƒØ§Ù† ÙˆØ§Ø­Ø¯.",
+          "راقب الأعراض والأدوية والعلامات الحيوية لعائلتك بأكملها في مكان واحد.",
         onelinerEn: '"Health starts at home"',
-        onelinerAr: '"Ø®Ù„ÙŠÙ‡Ù… Ø¯Ø§ÙŠÙ…Ù‹Ø§ Ù…Ø¹Ùƒ"',
+        onelinerAr: '"خليهم دائماً معك"',
       },
       {
         key: "family",
         image: require("@/assets/images/manage-family.png"),
         titleEn: "Manage Your Family",
-        titleAr: "Ø¥Ø¯Ø§Ø±Ø© Ø¹Ø§Ø¦Ù„ØªÙƒ",
+        titleAr: "إدارة عائلتك",
         descEn:
           "Invite family members, share health data, and provide care for each other.",
         descAr:
-          "Ø§Ø¯Ø¹ Ø£ÙØ±Ø§Ø¯ Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©ØŒ ÙˆØ´Ø§Ø±Ùƒ Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„ØµØ­ÙŠØ©ØŒ ÙˆØ§Ø¹ØªÙ†ÙˆØ§ Ø¨Ø¨Ø¹Ø¶ÙƒÙ… Ø§Ù„Ø¨Ø¹Ø¶.",
+          "ادع أفراد العائلة، وشارك البيانات الصحية، واعتنوا ببعضكم البعض.",
         onelinerEn: '"Health starts at home"',
-        onelinerAr: '"Ø®Ù„ÙŠÙ‡Ù… Ø¯Ø§ÙŠÙ…Ù‹Ø§ Ù…Ø¹Ùƒ"',
+        onelinerAr: '"خليهم دائماً معك"',
       },
     ];
   }
@@ -67,37 +68,37 @@ const getOnboardingSteps = (userRole: string) => {
       key: "welcome",
       image: require("@/assets/images/welcome.png"),
       titleEn: "Welcome to Maak",
-      titleAr: "Ù…Ø±Ø­Ø¨Ø§Ù‹ Ø¨Ùƒ ÙÙŠ Ù…Ø¹Ùƒ",
+      titleAr: "مرحباً بك في معك",
       descEn:
         "Your personal health companion. Track symptoms, medications, and get health insights.",
       descAr:
-        "Ø±ÙÙŠÙ‚Ùƒ Ø§Ù„ØµØ­ÙŠ Ø§Ù„Ø´Ø®ØµÙŠ. ØªØ§Ø¨Ø¹ Ø§Ù„Ø£Ø¹Ø±Ø§Ø¶ ÙˆØ§Ù„Ø£Ø¯ÙˆÙŠØ© ÙˆØ§Ø­ØµÙ„ Ø¹Ù„Ù‰ Ø±Ø¤Ù‰ ØµØ­ÙŠØ©.",
+        "رفيقك الصحي الشخصي. تابع الأعراض والأدوية واحصل على رؤى صحية.",
       onelinerEn: '"Health starts at home"',
-      onelinerAr: '"Ø§Ù„ØµØ­Ø© ØªØ¨Ø¯Ø£ Ù…Ù† Ø§Ù„Ù…Ù†Ø²Ù„"',
+      onelinerAr: '"الصحة تبدأ من المنزل"',
     },
     {
       key: "track",
       image: require("@/assets/images/track-health..png"),
       titleEn: "Track Your Health",
-      titleAr: "ØªØ§Ø¨Ø¹ ØµØ­ØªÙƒ",
+      titleAr: "تابع صحتك",
       descEn:
         "Easily log symptoms, manage medications, and monitor your vital signs.",
       descAr:
-        "Ø³Ø¬Ù„ Ø§Ù„Ø£Ø¹Ø±Ø§Ø¶ Ø¨Ø³Ù‡ÙˆÙ„Ø©ØŒ Ø£Ø¯Ø± Ø§Ù„Ø£Ø¯ÙˆÙŠØ©ØŒ ÙˆØ±Ø§Ù‚Ø¨ Ø§Ù„Ø¹Ù„Ø§Ù…Ø§Øª Ø§Ù„Ø­ÙŠÙˆÙŠØ©.",
+        "سجل الأعراض بسهولة، أدر الأدوية، وراقب العلامات الحيوية.",
       onelinerEn: '"Stay on top of your health"',
-      onelinerAr: '"Ø§Ø¨Ù‚ÙŽ Ø¹Ù„Ù‰ Ø§Ø·Ù„Ø§Ø¹ Ø¨ØµØ­ØªÙƒ"',
+      onelinerAr: '"ابقَ على اطلاع بصحتك"',
     },
     {
       key: "zeina",
       image: require("@/assets/images/welcome.png"), // Using welcome image as placeholder
       titleEn: "Meet Zeina",
-      titleAr: "ØªØ¹Ø±Ù Ø¹Ù„Ù‰ Ø²ÙŠÙ†Ø©",
+      titleAr: "تعرف على زينة",
       descEn:
         "Your AI health assistant is here to help answer questions and provide guidance.",
       descAr:
-        "Ù…Ø³Ø§Ø¹Ø¯Ùƒ Ø§Ù„ØµØ­ÙŠ Ø§Ù„Ø°ÙƒÙŠ Ù‡Ù†Ø§ Ù„Ù„Ù…Ø³Ø§Ø¹Ø¯Ø© ÙÙŠ Ø§Ù„Ø¥Ø¬Ø§Ø¨Ø© Ø¹Ù„Ù‰ Ø§Ù„Ø£Ø³Ø¦Ù„Ø© ÙˆØªÙ‚Ø¯ÙŠÙ… Ø§Ù„Ø¥Ø±Ø´Ø§Ø¯Ø§Øª.",
+        "مساعدك الصحي الذكي هنا للمساعدة في الإجابة على الأسئلة وتقديم الإرشادات.",
       onelinerEn: '"Your health companion"',
-      onelinerAr: '"Ø±ÙÙŠÙ‚Ùƒ Ø§Ù„ØµØ­ÙŠ"',
+      onelinerAr: '"رفيقك الصحي"',
     },
   ];
 };
@@ -291,14 +292,14 @@ export default function OnboardingScreen() {
 
   const currentStepData = onboardingSteps[currentStep];
   const isLastStep = currentStep === onboardingSteps.length - 1;
-  let primaryButtonLabel = isRTL ? "Ã˜Â§Ã™â€žÃ˜ÂªÃ˜Â§Ã™â€žÃ™Å " : "Next";
+  let primaryButtonLabel = isRTL ? "التالي" : "Next";
   if (isLastStep && isCompleting) {
     primaryButtonLabel = isRTL
-      ? "Ã˜Â¬Ã˜Â§Ã˜Â±Ã™Å  Ã˜Â§Ã™â€žÃ˜ÂªÃ˜Â­Ã™â€¦Ã™Å Ã™â€ž..."
+      ? "جاري التحميل..."
       : "Loading...";
   } else if (isLastStep) {
     primaryButtonLabel = isRTL
-      ? "Ã˜Â§Ã˜Â¨Ã˜Â¯Ã˜Â£ Ã˜Â§Ã™â€žÃ˜Â¢Ã™â€ "
+      ? "ابدأ الآن"
       : "Get Started";
   }
 
@@ -312,7 +313,7 @@ export default function OnboardingScreen() {
               [styles.skipText, isRTL && styles.rtlText] as StyleProp<TextStyle>
             }
           >
-            {isRTL ? "ØªØ®Ø·ÙŠ" : "Skip"}
+            {isRTL ? "تخطي" : "Skip"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -392,7 +393,7 @@ export default function OnboardingScreen() {
                   ] as StyleProp<TextStyle>
                 }
               >
-                {isRTL ? "Ø§Ù„Ø³Ø§Ø¨Ù‚" : "Back"}
+                {isRTL ? "السابق" : "Back"}
               </Text>
             </TouchableOpacity>
           )}

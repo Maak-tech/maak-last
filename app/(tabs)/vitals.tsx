@@ -120,6 +120,7 @@ export default function VitalsScreen() {
   const syncButtonRef = useRef<View>(null);
   const integrationButtonRef = useRef<View>(null);
   const initialLoadCompleted = useRef(false);
+  const INITIAL_LOAD_DELAY_MS = 1500;
   const getErrorMessage = (error: unknown, fallback: string) =>
     error instanceof Error ? error.message : fallback;
 
@@ -500,6 +501,11 @@ export default function VitalsScreen() {
               // Silently fail - sync is not critical for displaying vitals
             });
           }
+        } else {
+          // Clear stale vitals when no active provider permissions are found.
+          setVitals(null);
+          setSummary(null);
+          setLastSync(null);
         }
 
         // Mark initial load as completed
@@ -520,29 +526,21 @@ export default function VitalsScreen() {
   );
 
   useEffect(() => {
-    // CRITICAL: Delay loading vitals data to prevent HealthKit from loading at app startup
-    // This prevents RCTModuleMethod errors during app initialization
-    // Wait 10 seconds after component mount before attempting to load health data
-    // This ensures the React Native bridge is fully ready
+    // Small delay to avoid early native-module access while keeping vitals responsive.
     const timer = setTimeout(() => {
       loadVitalsData();
-    }, 10_000); // 10 second delay
+    }, INITIAL_LOAD_DELAY_MS);
 
     return () => clearTimeout(timer);
-  }, [loadVitalsData]);
+  }, [loadVitalsData, INITIAL_LOAD_DELAY_MS]);
 
   useFocusEffect(
     useCallback(() => {
-      // CRITICAL: Only refresh data on focus if initial load has completed
-      // This prevents crashes when navigating to this screen before React Native bridge is ready
-      // The initial load is handled by useEffect with a delay
-      // On subsequent focuses, refresh immediately since bridge should be ready
-      if (initialLoadCompleted.current && !(loading || refreshing)) {
-        // Already loaded once, safe to refresh immediately
+      // Refresh on re-focus once the initial load flow has completed.
+      if (initialLoadCompleted.current) {
         loadVitalsData();
       }
-      // If initial load hasn't completed yet, let useEffect handle it
-    }, [loadVitalsData, loading, refreshing])
+    }, [loadVitalsData])
   );
 
   const _loadAvailableMetrics = () => {

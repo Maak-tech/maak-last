@@ -16,6 +16,10 @@ import { alertService } from "@/lib/services/alertService";
 import { logFallDetectionDiagnostics } from "@/lib/utils/fallDetectionDiagnostics";
 import { useAuth } from "./AuthContext";
 
+const LEGACY_FALL_DETECTION_STORAGE_KEY = "fall_detection_enabled";
+const getFallDetectionStorageKey = (userId: string | null | undefined) =>
+  userId ? `fall_detection_enabled_${userId}` : LEGACY_FALL_DETECTION_STORAGE_KEY;
+
 type FallDetectionContextType = {
   isEnabled: boolean;
   isActive: boolean;
@@ -51,7 +55,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
   const { user } = useAuth();
   const { t } = useTranslation();
   const [isEnabled, setIsEnabled] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [isSettingLoaded, setIsSettingLoaded] = useState(false);
   const [lastAlert, setLastAlert] = useState<{
     alertId: string;
     timestamp: Date;
@@ -139,38 +143,76 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
     setIsActive(fallDetection.isActive);
   }, [fallDetection.isActive]);
 
-  // Load fall detection setting from storage (only on mount or when user changes)
+  // Load fall detection setting from storage for the current user.
   useEffect(() => {
     const loadFallDetectionSetting = async () => {
       try {
-        const enabled = await AsyncStorage.getItem("fall_detection_enabled");
+        setIsSettingLoaded(false);
+        const userStorageKey = getFallDetectionStorageKey(user?.id);
+        const enabled = await AsyncStorage.getItem(userStorageKey);
         if (enabled !== null) {
           const isEnabledValue = JSON.parse(enabled);
           setIsEnabled(isEnabledValue);
+        } else {
+          // One-time fallback from legacy global setting
+          const legacyEnabled = await AsyncStorage.getItem(
+            LEGACY_FALL_DETECTION_STORAGE_KEY
+          );
+          if (legacyEnabled !== null) {
+            const legacyValue = JSON.parse(legacyEnabled);
+            setIsEnabled(legacyValue);
+          } else {
+            setIsEnabled(false);
+          }
         }
-        setIsInitialized(true);
+        setIsSettingLoaded(true);
       } catch (_error) {
-        setIsInitialized(true);
+        setIsEnabled(false);
+        setIsSettingLoaded(true);
       }
     };
 
     loadFallDetectionSetting();
-  }, []); // Only run on mount
+  }, [user?.id]);
 
   // Auto-start fall detection when user becomes available and setting is enabled
   useEffect(() => {
-    if (isInitialized && isEnabled && user?.id && !isActive) {
+    if (isSettingLoaded && isEnabled && user?.id && !isActive) {
       startFallDetection();
     }
-  }, [isInitialized, isEnabled, user?.id, isActive, startFallDetection]);
+  }, [isSettingLoaded, isEnabled, user?.id, isActive, startFallDetection]);
+
+  // Retry once shortly after enabling if sensor initialization is delayed.
+  useEffect(() => {
+    if (!(isSettingLoaded && isEnabled && user?.id && !fallDetection.isActive)) {
+      return;
+    }
+
+    const retryTimer = setTimeout(() => {
+      startFallDetection();
+    }, 2500);
+
+    return () => {
+      clearTimeout(retryTimer);
+    };
+  }, [
+    isSettingLoaded,
+    isEnabled,
+    user?.id,
+    fallDetection.isActive,
+    startFallDetection,
+  ]);
 
   // Toggle fall detection setting
   const toggleFallDetection = useCallback(
     async (enabled: boolean) => {
       try {
         setIsEnabled(enabled);
+        const userStorageKey = getFallDetectionStorageKey(user?.id);
+        await AsyncStorage.setItem(userStorageKey, JSON.stringify(enabled));
+        // Keep legacy key in sync for backward compatibility.
         await AsyncStorage.setItem(
-          "fall_detection_enabled",
+          LEGACY_FALL_DETECTION_STORAGE_KEY,
           JSON.stringify(enabled)
         );
 
@@ -237,16 +279,21 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
     await logFallDetectionDiagnostics(
       isEnabled,
       fallDetection.isActive,
-      isInitialized,
+      fallDetection.isInitialized,
       lastAlert?.timestamp || null
     );
-  }, [isEnabled, fallDetection.isActive, isInitialized, lastAlert]);
+  }, [
+    isEnabled,
+    fallDetection.isActive,
+    fallDetection.isInitialized,
+    lastAlert,
+  ]);
 
   const value: FallDetectionContextType = useMemo(
     () => ({
       isEnabled,
       isActive,
-      isInitialized,
+      isInitialized: fallDetection.isInitialized,
       toggleFallDetection,
       startFallDetection,
       stopFallDetection,
@@ -257,7 +304,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
     [
       isEnabled,
       isActive,
-      isInitialized,
+      fallDetection.isInitialized,
       toggleFallDetection,
       startFallDetection,
       stopFallDetection,

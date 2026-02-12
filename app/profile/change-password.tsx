@@ -3,16 +3,22 @@
  * Allows users to change their password
  */
 
-import { useNavigation, useRouter } from "expo-router";
-import { ArrowLeft, Eye, EyeOff, Lock, Save } from "lucide-react-native";
-import { useLayoutEffect, useState } from "react";
+import {
+  useNavigation,
+  useRouter } from "expo-router";
+import { ArrowLeft,
+  Eye,
+  EyeOff,
+  Lock,
+  Save } from "lucide-react-native";
+import { useLayoutEffect,
+  useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -20,6 +26,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 
@@ -64,33 +71,33 @@ export default function ChangePasswordScreen() {
 
     if (!currentPassword) {
       newErrors.currentPassword = isRTL
-        ? "ÙŠØ±Ø¬Ù‰ Ø¥Ø¯Ø®Ø§Ù„ ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± Ø§Ù„Ø­Ø§Ù„ÙŠØ©"
+        ? "يرجى إدخال كلمة المرور الحالية"
         : "Please enter your current password";
     }
 
     if (!newPassword) {
       newErrors.newPassword = isRTL
-        ? "ÙŠØ±Ø¬Ù‰ Ø¥Ø¯Ø®Ø§Ù„ ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø©"
+        ? "يرجى إدخال كلمة المرور الجديدة"
         : "Please enter a new password";
     } else if (newPassword.length < 6) {
       newErrors.newPassword = isRTL
-        ? "ÙŠØ¬Ø¨ Ø£Ù† ØªÙƒÙˆÙ† ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± 6 Ø£Ø­Ø±Ù Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„"
+        ? "يجب أن تكون كلمة المرور 6 أحرف على الأقل"
         : "Password must be at least 6 characters";
     }
 
     if (!confirmPassword) {
       newErrors.confirmPassword = isRTL
-        ? "ÙŠØ±Ø¬Ù‰ ØªØ£ÙƒÙŠØ¯ ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø©"
+        ? "يرجى تأكيد كلمة المرور الجديدة"
         : "Please confirm your new password";
     } else if (newPassword !== confirmPassword) {
       newErrors.confirmPassword = isRTL
-        ? "ÙƒÙ„Ù…Ø§Øª Ø§Ù„Ù…Ø±ÙˆØ± ØºÙŠØ± Ù…ØªØ·Ø§Ø¨Ù‚Ø©"
+        ? "كلمات المرور غير متطابقة"
         : "Passwords do not match";
     }
 
     if (currentPassword === newPassword) {
       newErrors.newPassword = isRTL
-        ? "ÙŠØ¬Ø¨ Ø£Ù† ØªÙƒÙˆÙ† ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø© Ù…Ø®ØªÙ„ÙØ© Ø¹Ù† Ø§Ù„Ø­Ø§Ù„ÙŠØ©"
+        ? "يجب أن تكون كلمة المرور الجديدة مختلفة عن الحالية"
         : "New password must be different from current password";
     }
 
@@ -105,23 +112,23 @@ export default function ChangePasswordScreen() {
         // biome-ignore lint/suspicious/noAlert: Temporary web fallback.
         window.confirm(
           isRTL
-            ? "Ù„Ù… ÙŠØªÙ… Ø§Ù„Ø¹Ø«ÙˆØ± Ø¹Ù„Ù‰ Ø¹Ù†ÙˆØ§Ù† Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ"
+            ? "لم يتم العثور على عنوان البريد الإلكتروني"
             : "Email address not found"
         );
       } else {
         Alert.alert(
-          isRTL ? "Ø®Ø·Ø£" : "Error",
+          isRTL ? "خطأ" : "Error",
           isRTL
-            ? "Ù„Ù… ÙŠØªÙ… Ø§Ù„Ø¹Ø«ÙˆØ± Ø¹Ù„Ù‰ Ø¹Ù†ÙˆØ§Ù† Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ"
+            ? "لم يتم العثور على عنوان البريد الإلكتروني"
             : "Email address not found",
-          [{ text: isRTL ? "Ù…ÙˆØ§ÙÙ‚" : "OK" }]
+          [{ text: isRTL ? "موافق" : "OK" }]
         );
       }
       return;
     }
 
     const message = isRTL
-      ? `Ø³ÙŠØªÙ… Ø¥Ø±Ø³Ø§Ù„ Ø±Ø§Ø¨Ø· Ø¥Ø¹Ø§Ø¯Ø© ØªØ¹ÙŠÙŠÙ† ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± Ø¥Ù„Ù‰ ${user.email}. Ù‡Ù„ ØªØ±ÙŠØ¯ Ø§Ù„Ù…ØªØ§Ø¨Ø¹Ø©ØŸ`
+      ? `سيتم إرسال رابط إعادة تعيين كلمة المرور إلى ${user.email}. هل تريد المتابعة؟`
       : `A password reset link will be sent to ${user.email}. Do you want to continue?`;
 
     if (Platform.OS === "web") {
@@ -133,16 +140,16 @@ export default function ChangePasswordScreen() {
     } else {
       Alert.alert(
         isRTL
-          ? "Ø¥Ø¹Ø§Ø¯Ø© ØªØ¹ÙŠÙŠÙ† ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±"
+          ? "إعادة تعيين كلمة المرور"
           : "Reset Password",
         message,
         [
           {
-            text: isRTL ? "Ø¥Ù„ØºØ§Ø¡" : "Cancel",
+            text: isRTL ? "إلغاء" : "Cancel",
             style: "cancel",
           },
           {
-            text: isRTL ? "Ø¥Ø±Ø³Ø§Ù„" : "Send",
+            text: isRTL ? "إرسال" : "Send",
             onPress: sendResetEmail,
           },
         ]
@@ -161,7 +168,7 @@ export default function ChangePasswordScreen() {
       await resetPassword(user.email);
 
       const successMessage = isRTL
-        ? `ØªÙ… Ø¥Ø±Ø³Ø§Ù„ Ø±Ø§Ø¨Ø· Ø¥Ø¹Ø§Ø¯Ø© ØªØ¹ÙŠÙŠÙ† ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± Ø¥Ù„Ù‰ ${user.email}. ÙŠØ±Ø¬Ù‰ Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† Ø¨Ø±ÙŠØ¯Ùƒ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ.`
+        ? `تم إرسال رابط إعادة تعيين كلمة المرور إلى ${user.email}. يرجى التحقق من بريدك الإلكتروني.`
         : `Password reset link has been sent to ${user.email}. Please check your email.`;
 
       if (Platform.OS === "web") {
@@ -170,11 +177,11 @@ export default function ChangePasswordScreen() {
         router.back();
       } else {
         Alert.alert(
-          isRTL ? "ØªÙ… Ø§Ù„Ø¥Ø±Ø³Ø§Ù„" : "Email Sent",
+          isRTL ? "تم الإرسال" : "Email Sent",
           successMessage,
           [
             {
-              text: isRTL ? "Ù…ÙˆØ§ÙÙ‚" : "OK",
+              text: isRTL ? "موافق" : "OK",
               onPress: () => router.back(),
             },
           ]
@@ -184,15 +191,15 @@ export default function ChangePasswordScreen() {
       const errorMessage =
         (error as { message?: string }).message ||
         (isRTL
-          ? "ÙØ´Ù„ Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ"
+          ? "فشل إرسال البريد الإلكتروني"
           : "Failed to send email");
 
       if (Platform.OS === "web") {
         // biome-ignore lint/suspicious/noAlert: Temporary web fallback.
         window.alert(errorMessage);
       } else {
-        Alert.alert(isRTL ? "Ø®Ø·Ø£" : "Error", errorMessage, [
-          { text: isRTL ? "Ù…ÙˆØ§ÙÙ‚" : "OK" },
+        Alert.alert(isRTL ? "خطأ" : "Error", errorMessage, [
+          { text: isRTL ? "موافق" : "OK" },
         ]);
       }
     } finally {
@@ -219,13 +226,13 @@ export default function ChangePasswordScreen() {
       setConfirmPassword("");
 
       Alert.alert(
-        isRTL ? "ØªÙ… Ø§Ù„ØªØºÙŠÙŠØ±" : "Password Changed",
+        isRTL ? "تم التغيير" : "Password Changed",
         isRTL
-          ? "ØªÙ… ØªØºÙŠÙŠØ± ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± Ø¨Ù†Ø¬Ø§Ø­"
+          ? "تم تغيير كلمة المرور بنجاح"
           : "Your password has been changed successfully",
         [
           {
-            text: isRTL ? "Ù…ÙˆØ§ÙÙ‚" : "OK",
+            text: isRTL ? "موافق" : "OK",
             onPress: () => {
               router.back();
             },
@@ -237,7 +244,7 @@ export default function ChangePasswordScreen() {
       let errorMessage =
         (error as { message?: string }).message ||
         (isRTL
-          ? "ÙØ´Ù„ ØªØºÙŠÙŠØ± ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±"
+          ? "فشل تغيير كلمة المرور"
           : "Failed to change password");
 
       // Provide more helpful error messages based on error content
@@ -248,30 +255,30 @@ export default function ChangePasswordScreen() {
         errorMessage.toLowerCase().includes("invalid-credential")
       ) {
         errorMessage = isRTL
-          ? "ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± Ø§Ù„Ø­Ø§Ù„ÙŠØ© ØºÙŠØ± ØµØ­ÙŠØ­Ø©. ÙŠØ±Ø¬Ù‰ Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± ÙˆØ§Ù„Ù…Ø­Ø§ÙˆÙ„Ø© Ù…Ø±Ø© Ø£Ø®Ø±Ù‰."
+          ? "كلمة المرور الحالية غير صحيحة. يرجى التحقق من كلمة المرور والمحاولة مرة أخرى."
           : "Current password is incorrect. Please verify your current password and try again.";
         // Set error on current password field
         setErrors({ currentPassword: errorMessage });
       } else if (errorMessage.toLowerCase().includes("network")) {
         errorMessage = isRTL
-          ? "Ø®Ø·Ø£ ÙÙŠ Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ø§Ù„Ø´Ø¨ÙƒØ©. ÙŠØ±Ø¬Ù‰ Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† Ø§ØªØµØ§Ù„Ùƒ Ø¨Ø§Ù„Ø¥Ù†ØªØ±Ù†Øª ÙˆØ§Ù„Ù…Ø­Ø§ÙˆÙ„Ø© Ù…Ø±Ø© Ø£Ø®Ø±Ù‰."
+          ? "خطأ في الاتصال بالشبكة. يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى."
           : "Network error. Please check your internet connection and try again.";
       } else if (
         errorMessage.toLowerCase().includes("sign out") ||
         errorMessage.toLowerCase().includes("recent login")
       ) {
         errorMessage = isRTL
-          ? "Ù„Ø£Ø³Ø¨Ø§Ø¨ Ø£Ù…Ù†ÙŠØ©ØŒ ÙŠØ±Ø¬Ù‰ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø®Ø±ÙˆØ¬ ÙˆØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ù…Ø±Ø© Ø£Ø®Ø±Ù‰ Ù‚Ø¨Ù„ ØªØºÙŠÙŠØ± ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±."
+          ? "لأسباب أمنية، يرجى تسجيل الخروج وتسجيل الدخول مرة أخرى قبل تغيير كلمة المرور."
           : "For security reasons, please sign out and sign in again before changing your password.";
       } else if (errorMessage.toLowerCase().includes("weak")) {
         errorMessage = isRTL
-          ? "ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø© Ø¶Ø¹ÙŠÙØ©. ÙŠØ¬Ø¨ Ø£Ù† ØªÙƒÙˆÙ† 6 Ø£Ø­Ø±Ù Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„."
+          ? "كلمة المرور الجديدة ضعيفة. يجب أن تكون 6 أحرف على الأقل."
           : "New password is too weak. It must be at least 6 characters long.";
         setErrors({ newPassword: errorMessage });
       }
 
-      Alert.alert(isRTL ? "Ø®Ø·Ø£" : "Error", errorMessage, [
-        { text: isRTL ? "Ù…ÙˆØ§ÙÙ‚" : "OK" },
+      Alert.alert(isRTL ? "خطأ" : "Error", errorMessage, [
+        { text: isRTL ? "موافق" : "OK" },
       ]);
     } finally {
       setLoading(false);
@@ -304,13 +311,13 @@ export default function ChangePasswordScreen() {
           </TouchableOpacity>
           <Lock color={theme.colors.primary.main} size={32} />
           <Text style={[styles.title, { color: theme.colors.text.primary }]}>
-            {isRTL ? "ØªØºÙŠÙŠØ± ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±" : "Change Password"}
+            {isRTL ? "تغيير كلمة المرور" : "Change Password"}
           </Text>
           <Text
             style={[styles.subtitle, { color: theme.colors.text.secondary }]}
           >
             {isRTL
-              ? "Ù‚Ù… Ø¨ØªØ­Ø¯ÙŠØ« ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± Ù„Ø­Ø³Ø§Ø¨Ùƒ"
+              ? "قم بتحديث كلمة المرور لحسابك"
               : "Update your account password"}
           </Text>
         </View>
@@ -331,7 +338,7 @@ export default function ChangePasswordScreen() {
               ]}
             >
               {isRTL
-                ? "ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± Ø§Ù„Ø­Ø§Ù„ÙŠØ©"
+                ? "كلمة المرور الحالية"
                 : "Current Password"}
             </Text>
             <View style={styles.inputContainer}>
@@ -348,7 +355,7 @@ export default function ChangePasswordScreen() {
                 passwordRules=""
                 placeholder={
                   isRTL
-                    ? "Ø£Ø¯Ø®Ù„ ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± Ø§Ù„Ø­Ø§Ù„ÙŠØ©"
+                    ? "أدخل كلمة المرور الحالية"
                     : "Enter current password"
                 }
                 placeholderTextColor={theme.colors.text.secondary}
@@ -401,7 +408,7 @@ export default function ChangePasswordScreen() {
                 ]}
               >
                 {isRTL
-                  ? "Ù†Ø³ÙŠØª ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±ØŸ"
+                  ? "نسيت كلمة المرور؟"
                   : "Forgot Password?"}
               </Text>
             </TouchableOpacity>
@@ -416,7 +423,7 @@ export default function ChangePasswordScreen() {
                 isRTL && styles.rtlText,
               ]}
             >
-              {isRTL ? "ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø©" : "New Password"}
+              {isRTL ? "كلمة المرور الجديدة" : "New Password"}
             </Text>
             <View style={styles.inputContainer}>
               <TextInput
@@ -432,7 +439,7 @@ export default function ChangePasswordScreen() {
                 passwordRules=""
                 placeholder={
                   isRTL
-                    ? "Ø£Ø¯Ø®Ù„ ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø©"
+                    ? "أدخل كلمة المرور الجديدة"
                     : "Enter new password"
                 }
                 placeholderTextColor={theme.colors.text.secondary}
@@ -476,7 +483,7 @@ export default function ChangePasswordScreen() {
               ]}
             >
               {isRTL
-                ? "ÙŠØ¬Ø¨ Ø£Ù† ØªÙƒÙˆÙ† 6 Ø£Ø­Ø±Ù Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„"
+                ? "يجب أن تكون 6 أحرف على الأقل"
                 : "Must be at least 6 characters"}
             </Text>
           </View>
@@ -491,7 +498,7 @@ export default function ChangePasswordScreen() {
               ]}
             >
               {isRTL
-                ? "ØªØ£ÙƒÙŠØ¯ ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±"
+                ? "تأكيد كلمة المرور الجديدة"
                 : "Confirm New Password"}
             </Text>
             <View style={styles.inputContainer}>
@@ -508,7 +515,7 @@ export default function ChangePasswordScreen() {
                 passwordRules=""
                 placeholder={
                   isRTL
-                    ? "Ø£Ø¹Ø¯ Ø¥Ø¯Ø®Ø§Ù„ ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø©"
+                    ? "أعد إدخال كلمة المرور الجديدة"
                     : "Re-enter new password"
                 }
                 placeholderTextColor={theme.colors.text.secondary}
@@ -564,7 +571,7 @@ export default function ChangePasswordScreen() {
               <>
                 <Save color="#FFFFFF" size={20} />
                 <Text style={styles.saveButtonText}>
-                  {isRTL ? "Ø­ÙØ¸ Ø§Ù„ØªØºÙŠÙŠØ±Ø§Øª" : "Save Changes"}
+                  {isRTL ? "حفظ التغييرات" : "Save Changes"}
                 </Text>
               </>
             )}
@@ -590,7 +597,7 @@ export default function ChangePasswordScreen() {
               ]}
             >
               {isRTL
-                ? "Ù„Ø£Ø³Ø¨Ø§Ø¨ Ø£Ù…Ù†ÙŠØ©ØŒ Ø³ÙŠÙØ·Ù„Ø¨ Ù…Ù†Ùƒ Ø¥Ø¹Ø§Ø¯Ø© ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ø¨Ø¹Ø¯ ØªØºÙŠÙŠØ± ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±."
+                ? "لأسباب أمنية، قد يُطلب منك إعادة تسجيل الدخول بعد تغيير كلمة المرور."
                 : "For security reasons, you may need to sign in again after changing your password."}
             </Text>
           </View>
