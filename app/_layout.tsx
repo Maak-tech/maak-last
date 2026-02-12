@@ -9,7 +9,7 @@ import "@/lib/polyfills/pushNotificationIOS";
 import "@/lib/utils/reanimatedSetup";
 
 import * as Notifications from "expo-notifications";
-import { Stack } from "expo-router";
+import { Stack, useNavigationContainerRef } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
@@ -40,7 +40,27 @@ import { initializeCrashlytics } from "@/lib/services/crashlyticsService";
 import { initializeErrorHandlers } from "@/lib/utils/errorHandler";
 import { revenueCatService } from "@/lib/services/revenueCatService";
 import { logger } from "@/lib/utils/logger";
-import * as Sentry from '@sentry/react-native';
+import * as Sentry from "@sentry/react-native";
+
+const routingInstrumentation = Sentry.reactNavigationIntegration();
+
+const sanitizeTransactionName = (name: string | undefined): string => {
+  if (!name) {
+    return "unknown";
+  }
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return "unknown";
+  }
+  return trimmed.replace(/\s+/g, " ").slice(0, 200);
+};
+
+Sentry.addGlobalEventProcessor((event) => {
+  if (event.type === "transaction") {
+    event.transaction = sanitizeTransactionName(event.transaction);
+  }
+  return event;
+});
 
 Sentry.init({
   dsn: 'https://3c10b6c7baa9d0cd68ececd5fc353a0b@o4510873580470272.ingest.us.sentry.io/4510873582501888',
@@ -52,10 +72,21 @@ Sentry.init({
   // Enable Logs
   enableLogs: true,
 
+  // Tracing (set to 1.0 for verification, tune down for production)
+  tracesSampleRate: 1.0,
+
+  // User Interaction Tracing
+  enableUserInteractionTracing: true,
+
   // Configure Session Replay
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1,
-  integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
+  integrations: [
+    Sentry.reactNativeTracingIntegration(),
+    routingInstrumentation,
+    Sentry.mobileReplayIntegration(),
+    Sentry.feedbackIntegration(),
+  ],
 
   // uncomment the line below to enable Spotlight (https://spotlightjs.com)
   // spotlight: __DEV__,
@@ -103,7 +134,8 @@ if (!globalWithWarnFilter.__maakWarnFilterInstalled) {
   globalWithWarnFilter.__maakWarnFilterInstalled = true;
 }
 
-export default Sentry.wrap(function RootLayout() {
+function RootLayout() {
+  const navigationRef = useNavigationContainerRef();
   const [isAppActive, setIsAppActive] = useState(
     AppState.currentState === "active"
   );
@@ -112,6 +144,10 @@ export default Sentry.wrap(function RootLayout() {
   );
   const backgroundLaunchLoggedRef = useRef(false);
   const notificationHandlerConfiguredRef = useRef(false);
+
+  useEffect(() => {
+    routingInstrumentation.registerNavigationContainer(navigationRef);
+  }, [navigationRef]);
 
   useEffect(() => {
     if (hasBeenActive) {
@@ -270,4 +306,8 @@ export default Sentry.wrap(function RootLayout() {
       </SafeAreaProvider>
     </ErrorBoundary>
   );
+}
+
+export default Sentry.wrap(RootLayout, {
+  touchEventBoundaryProps: { labelName: "sentry-label" },
 });

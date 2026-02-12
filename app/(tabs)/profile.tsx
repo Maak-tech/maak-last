@@ -407,110 +407,137 @@ export default function ProfileScreen() {
 
     lastHealthSummaryLoadAtRef.current = now;
     loadHealthDataRef.current = true;
-    try {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
+    await Sentry.startSpan(
+      { name: "profile.loadHealthData", op: "ui.load" },
+      async () => {
+        const loadStart = Date.now();
+        try {
+          if (isRefresh) {
+            setRefreshing(true);
+          } else {
+            setLoading(true);
+          }
+
+          type SettledHealthResults = [
+            PromiseSettledResult<Symptom[]>,
+            PromiseSettledResult<Medication[]>,
+          ];
+
+          // Add timeout to prevent hanging
+          const timeoutPromise: Promise<SettledHealthResults> = new Promise(
+            (resolve) =>
+              setTimeout(
+                () =>
+                  resolve([
+                    { status: "fulfilled", value: [] },
+                    { status: "fulfilled", value: [] },
+                  ]),
+                8000 // Reduced to 8 second timeout
+              )
+          );
+
+          // OPTIMIZATION: Only fetch recent symptoms (last 90 days) instead of ALL symptoms
+          // This dramatically reduces data transfer and processing time
+          const ninetyDaysAgo = new Date();
+          ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+          // Fetch symptoms and medications with limits to improve performance
+          const dataPromise = Promise.allSettled([
+            symptomService.getUserSymptoms(user.id, 120), // Lower payload for faster summary load
+            medicationService.getUserMedications(user.id), // Medications are usually fewer
+          ]);
+
+          const results = await Promise.race([dataPromise, timeoutPromise]);
+
+          // Extract results with fallbacks
+          const symptoms =
+            results[0].status === "fulfilled" ? results[0].value : [];
+          const medications =
+            results[1].status === "fulfilled" ? results[1].value : [];
+
+          // Filter recent symptoms for display (last 30 days)
+          const recentSymptoms = symptoms.filter(
+            (s) =>
+              new Date(s.timestamp).getTime() >
+              Date.now() - 30 * 24 * 60 * 60 * 1000
+          );
+          const activeMedications = medications.filter((m) => m.isActive);
+
+          // OPTIMIZATION: Calculate health score only with recent data (last 90 days)
+          // This reduces computation time significantly
+          const symptomsForScore = symptoms.filter(
+            (s) => new Date(s.timestamp).getTime() >= ninetyDaysAgo.getTime()
+          );
+
+          // Calculate health score from fetched data (faster, avoids duplicate fetch)
+          // Use calculateHealthScoreFromData instead of calculateHealthScore to reuse data
+          let healthScoreResult: HealthScoreResult;
+          try {
+            healthScoreResult = calculateHealthScoreFromData(
+              symptomsForScore,
+              medications
+            );
+          } catch (_error) {
+            // Fallback if calculation fails
+            healthScoreResult = {
+              score: 85,
+              breakdown: {
+                baseScore: 100,
+                symptomPenalty: 0,
+                medicationBonus: 0,
+              },
+              factors: {
+                recentSymptoms: 0,
+                symptomSeverityAvg: 0,
+                medicationCompliance: 100,
+                activeMedications: 0,
+              },
+              rating: "fair",
+            };
+          }
+
+          setHealthData({
+            symptoms: recentSymptoms,
+            medications: activeMedications,
+            healthScore: healthScoreResult.score,
+            healthScoreResult,
+          });
+
+          Sentry.setMeasurement(
+            "profile.health_summary.symptoms_count",
+            recentSymptoms.length,
+            "none"
+          );
+          Sentry.setMeasurement(
+            "profile.health_summary.medications_count",
+            activeMedications.length,
+            "none"
+          );
+          Sentry.setMeasurement(
+            "profile.health_summary.health_score",
+            healthScoreResult.score,
+            "none"
+          );
+        } catch (_error) {
+          // Silently handle error - set default values to prevent infinite loading
+          setHealthData({
+            symptoms: [],
+            medications: [],
+            healthScore: 85,
+            healthScoreResult: null,
+          });
+        } finally {
+          Sentry.setMeasurement(
+            "profile.health_summary.load_duration",
+            Date.now() - loadStart,
+            "millisecond"
+          );
+          setLoading(false);
+          setRefreshing(false);
+          loadHealthDataRef.current = false;
+        }
       }
-
-      type SettledHealthResults = [
-        PromiseSettledResult<Symptom[]>,
-        PromiseSettledResult<Medication[]>,
-      ];
-
-      // Add timeout to prevent hanging
-      const timeoutPromise: Promise<SettledHealthResults> = new Promise(
-        (resolve) =>
-          setTimeout(
-            () =>
-              resolve([
-                { status: "fulfilled", value: [] },
-                { status: "fulfilled", value: [] },
-              ]),
-            8000 // Reduced to 8 second timeout
-          )
-      );
-
-      // OPTIMIZATION: Only fetch recent symptoms (last 90 days) instead of ALL symptoms
-      // This dramatically reduces data transfer and processing time
-      const ninetyDaysAgo = new Date();
-      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-
-      // Fetch symptoms and medications with limits to improve performance
-      const dataPromise = Promise.allSettled([
-        symptomService.getUserSymptoms(user.id, 120), // Lower payload for faster summary load
-        medicationService.getUserMedications(user.id), // Medications are usually fewer
-      ]);
-
-      const results = await Promise.race([dataPromise, timeoutPromise]);
-
-      // Extract results with fallbacks
-      const symptoms =
-        results[0].status === "fulfilled" ? results[0].value : [];
-      const medications =
-        results[1].status === "fulfilled" ? results[1].value : [];
-
-      // Filter recent symptoms for display (last 30 days)
-      const recentSymptoms = symptoms.filter(
-        (s) =>
-          new Date(s.timestamp).getTime() >
-          Date.now() - 30 * 24 * 60 * 60 * 1000
-      );
-      const activeMedications = medications.filter((m) => m.isActive);
-
-      // OPTIMIZATION: Calculate health score only with recent data (last 90 days)
-      // This reduces computation time significantly
-      const symptomsForScore = symptoms.filter(
-        (s) => new Date(s.timestamp).getTime() >= ninetyDaysAgo.getTime()
-      );
-
-      // Calculate health score from fetched data (faster, avoids duplicate fetch)
-      // Use calculateHealthScoreFromData instead of calculateHealthScore to reuse data
-      let healthScoreResult: HealthScoreResult;
-      try {
-        healthScoreResult = calculateHealthScoreFromData(
-          symptomsForScore,
-          medications
-        );
-      } catch (_error) {
-        // Fallback if calculation fails
-        healthScoreResult = {
-          score: 85,
-          breakdown: {
-            baseScore: 100,
-            symptomPenalty: 0,
-            medicationBonus: 0,
-          },
-          factors: {
-            recentSymptoms: 0,
-            symptomSeverityAvg: 0,
-            medicationCompliance: 100,
-            activeMedications: 0,
-          },
-          rating: "fair",
-        };
-      }
-
-      setHealthData({
-        symptoms: recentSymptoms,
-        medications: activeMedications,
-        healthScore: healthScoreResult.score,
-        healthScoreResult,
-      });
-    } catch (_error) {
-      // Silently handle error - set default values to prevent infinite loading
-      setHealthData({
-        symptoms: [],
-        medications: [],
-        healthScore: 85,
-        healthScoreResult: null,
-      });
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-      loadHealthDataRef.current = false;
-    }
+    );
   }
 
   useEffect(() => {
@@ -1393,23 +1420,6 @@ export default function ProfileScreen() {
             </View>
           </View>
         ))}
-
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, isRTL && { textAlign: "right" }]}>
-            Sentry
-          </Text>
-          <View style={styles.sectionItems}>
-            <View style={{ padding: 16 }}>
-              <Button
-                fullWidth
-                onPress={() => {
-                  Sentry.captureException(new Error("First error"));
-                }}
-                title="Try!"
-              />
-            </View>
-          </View>
-        </View>
 
         {/* Sign Out Button */}
         <TouchableOpacity onPress={handleLogout} style={styles.signOutButton}>
