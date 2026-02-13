@@ -72,8 +72,8 @@ function handleGlobalError(error: Error, isFatal = false) {
         const emit =
           isFatal &&
           typeof observabilityEmitter.emitImmediatePlatformEvent === "function"
-            ? observabilityEmitter.emitImmediatePlatformEvent
-            : observabilityEmitter.emitPlatformEvent;
+            ? observabilityEmitter.emitImmediatePlatformEvent.bind(observabilityEmitter)
+            : observabilityEmitter.emitPlatformEvent.bind(observabilityEmitter);
 
         void emit(
           isFatal ? "js_fatal_error" : "js_error",
