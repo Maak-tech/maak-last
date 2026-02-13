@@ -729,7 +729,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     flex: 1,
     textAlign: "center",
   },
@@ -754,20 +754,20 @@ const styles = StyleSheet.create({
   },
   welcomeTitle: {
     fontSize: 24,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     marginBottom: 8,
     textAlign: "center",
   },
   welcomeDescription: {
     fontSize: 16,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     textAlign: "center",
     lineHeight: 24,
     paddingHorizontal: 16,
   },
   rtlText: {
     textAlign: "right",
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
   },
   providersSection: {
     padding: 24,

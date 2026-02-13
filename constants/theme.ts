@@ -1,21 +1,22 @@
 export const Colors = {
-  // Primary Colors (Navy Blue & Orange)
+  // Primary Colors (Maak Teal)
   primary: {
-    main: "#1E3A8A", // Navy Blue - Main primary
-    light: "#3B82F6", // Lighter navy blue
-    dark: "#1E40AF", // Darker navy blue
-    50: "#EFF6FF", // Very light navy tint
-    100: "#DBEAFE", // Light navy tint
-    200: "#BFDBFE", // Medium light navy tint
+    main: "#003543", // Maak teal primary
+    light: "#00667A", // Lighter teal for highlights
+    dark: "#03303C", // Darker teal
+    50: "#F0FAFB", // Very light teal tint
+    100: "#E6F7F9", // Light teal tint
+    200: "#D4F1F4", // Medium light teal tint
   },
 
+  // Secondary Colors (Maak Gold)
   secondary: {
-    main: "#EA580C", // Orange - Main secondary
-    light: "#FB923C", // Lighter orange
-    dark: "#C2410C", // Darker orange
-    50: "#FFF7ED", // Very light orange tint
-    100: "#FFEDD5", // Light orange tint
-    200: "#FED7AA", // Medium light orange tint
+    main: "#EB9C0C", // Maak gold accent
+    light: "#F1D8A3", // Soft gold
+    dark: "#D68A0A", // Darker gold
+    50: "#FFF9EF", // Warm background tint
+    100: "#FDF1D8", // Light gold tint
+    200: "#F1D8A3", // Medium light gold tint
   },
 
   // Accent Colors
@@ -28,44 +29,44 @@ export const Colors = {
 
   // Neutral Colors
   neutral: {
-    50: "#F8FAFC", // Very light background
-    100: "#F1F5F9", // Light background
-    200: "#E2E8F0", // Light border
-    300: "#CBD5E1", // Medium border
-    400: "#94A3B8", // Light text
-    500: "#64748B", // Medium text
-    600: "#475569", // Dark text
-    700: "#334155", // Darker text
-    800: "#1E293B", // Very dark text
-    900: "#0F172A", // Black text
+    50: "#F9FAFB", // Very light background
+    100: "#F3F4F6", // Light background
+    200: "#E5E7EB", // Light border
+    300: "#D1D5DB", // Medium border
+    400: "#BEC5D0", // Light text
+    500: "#9CA3AF", // Medium text
+    600: "#6C7280", // Dark text
+    700: "#4E5661", // Darker text
+    800: "#2E3338", // Very dark text
+    900: "#1A1D1F", // Near black
     white: "#FFFFFF", // Pure white
   },
 
   // Semantic Colors
   background: {
-    primary: "#F8FAFC", // Main app background
+    primary: "#F9FDFE", // Main app background
     secondary: "#FFFFFF", // Card background
-    tertiary: "#F1F5F9", // Section background
+    tertiary: "#FFF9EF", // Warm section background
   },
 
   text: {
-    primary: "#1E293B", // Main text
-    secondary: "#64748B", // Secondary text
-    tertiary: "#94A3B8", // Tertiary text
+    primary: "#1A1D1F", // Main text
+    secondary: "#6C7280", // Secondary text
+    tertiary: "#9CA3AF", // Tertiary text
     inverse: "#FFFFFF", // White text on dark backgrounds
   },
 
   border: {
-    light: "#F1F5F9", // Light borders
-    medium: "#E2E8F0", // Medium borders
-    dark: "#CBD5E1", // Dark borders
+    light: "#E5E7EB", // Light borders
+    medium: "#D1D5DB", // Medium borders
+    dark: "#BEC5D0", // Dark borders
   },
 
-  // Status Colors with Navy/Orange Theme
+  // Status Colors
   status: {
     active: "#10B981", // Green for active/completed
-    pending: "#EA580C", // Orange for pending
-    inactive: "#94A3B8", // Gray for inactive
+    pending: "#F59E0B", // Gold/orange for pending
+    inactive: "#9CA3AF", // Gray for inactive
     critical: "#EF4444", // Red for critical
   },
 
@@ -74,7 +75,7 @@ export const Colors = {
     excellent: "#10B981", // Green for excellent health
     good: "#3B82F6", // Blue for good health
     fair: "#F59E0B", // Yellow for fair health
-    poor: "#EA580C", // Orange for poor health
+    poor: "#EB9C0C", // Gold for poor health
     critical: "#EF4444", // Red for critical health
   },
 
@@ -82,7 +83,7 @@ export const Colors = {
   severity: {
     1: "#10B981", // Mild - Green
     2: "#F59E0B", // Mild-Moderate - Yellow
-    3: "#EA580C", // Moderate - Orange
+    3: "#EB9C0C", // Moderate - Gold
     4: "#EF4444", // Severe - Red
     5: "#DC2626", // Critical - Dark Red
   },
@@ -91,12 +92,12 @@ export const Colors = {
 export const Typography = {
   // Font Families
   fontFamily: {
-    regular: "Geist-Regular",
-    medium: "Geist-Medium",
-    semiBold: "Geist-SemiBold",
-    bold: "Geist-Bold",
-    arabic: "Cairo-Regular",
-    arabicBold: "Cairo-Bold",
+    regular: "Inter-Regular",
+    medium: "Inter-Medium",
+    semiBold: "Inter-SemiBold",
+    bold: "Inter-Bold",
+    arabic: "NotoSansArabic-Regular",
+    arabicBold: "NotoSansArabic-Bold",
   },
 
   // Font Sizes (using scalable sizes)

@@ -4,10 +4,14 @@
 /* biome-ignore-all lint/complexity/noForEach: collection refactor deferred to a focused cleanup pass. */
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import {
+  AlertCircle,
   ArrowLeft,
+  Bell,
+  Calendar,
+  CheckCircle2,
+  ChevronRight,
   Clock,
   Edit,
-  Info,
   Minus,
   Pill,
   Plus,
@@ -38,9 +42,11 @@ import MedicationRefillCard from "@/app/components/MedicationRefillCard";
 import TagInput from "@/app/components/TagInput";
 import AnimatedCheckButton from "@/components/AnimatedCheckButton";
 // Design System Components
-import { Button, Card, Input } from "@/components/design-system";
+import { Button, Input } from "@/components/design-system";
 import { Badge } from "@/components/design-system/AdditionalComponents";
 import { Caption, Heading, Text } from "@/components/design-system/Typography";
+import GradientScreen from "@/components/figma/GradientScreen";
+import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/hooks/useNotifications";
 import { allergyService } from "@/lib/services/allergyService";
@@ -240,11 +246,19 @@ const MEDICATION_DOSAGES: Record<string, string> = {
   Cumin: "As needed",
 };
 
+const MEDICATION_ACCENTS = [
+  "#3B82F6",
+  "#10B981",
+  "#8B5CF6",
+  "#F97316",
+  "#EF4444",
+];
+
 export default function MedicationsScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const router = useRouter();
-  const params = useLocalSearchParams<{ tour?: string }>();
+  const params = useLocalSearchParams<{ returnTo?: string; tour?: string }>();
   const [showAddModal, setShowAddModal] = useState(false);
   const [medications, setMedications] = useState<Medication[]>([]);
   const [loading, setLoading] = useState(false);
@@ -1186,6 +1200,43 @@ export default function MedicationsScreen() {
     }
   };
 
+  const getMedicationAccent = (name: string) => {
+    let hash = 0;
+    for (let i = 0; i < name.length; i += 1) {
+      hash = (hash << 5) - hash + name.charCodeAt(i);
+      hash |= 0;
+    }
+    const index = Math.abs(hash) % MEDICATION_ACCENTS.length;
+    return MEDICATION_ACCENTS[index];
+  };
+
+  const getTimeUntil = (time: string | undefined) => {
+    if (!(time && time.includes(":"))) {
+      return "";
+    }
+    const [hoursStr, minutesStr] = time.split(":");
+    const hours = Number.parseInt(hoursStr, 10);
+    const minutes = Number.parseInt(minutesStr, 10);
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+      return "";
+    }
+    const now = new Date();
+    const target = new Date();
+    target.setHours(hours, minutes, 0, 0);
+    if (target < now) {
+      target.setDate(target.getDate() + 1);
+    }
+    const diffMinutes = Math.max(
+      0,
+      Math.round((target.getTime() - now.getTime()) / 60_000)
+    );
+    if (diffMinutes < 60) {
+      return `${diffMinutes} min`;
+    }
+    const diffHours = Math.round(diffMinutes / 60);
+    return `${diffHours} hour${diffHours === 1 ? "" : "s"}`;
+  };
+
   const getTodayStats = () => {
     const currentTotalMeds = medications.length;
     const currentTakenMeds = medications.filter(
@@ -1231,6 +1282,60 @@ export default function MedicationsScreen() {
   };
 
   const { totalMeds, takenMeds } = getTodayStats();
+  const activeMedications = medications.filter(
+    (medication) => medication.isActive
+  );
+  const activeMedsCount = activeMedications.length || medications.length;
+  const displayMedications =
+    activeMedications.length > 0 ? activeMedications : medications;
+  const adherence =
+    totalMeds > 0 ? Math.round((takenMeds / totalMeds) * 100) : 0;
+  const dueToday = Math.max(totalMeds - takenMeds, 0);
+
+  const parseTimeToMinutes = (time: string | undefined) => {
+    if (!(time && time.includes(":"))) {
+      return Number.MAX_SAFE_INTEGER;
+    }
+    const [hours, minutes] = time.split(":");
+    const hoursValue = Number.parseInt(hours, 10);
+    const minutesValue = Number.parseInt(minutes, 10);
+    if (Number.isNaN(hoursValue) || Number.isNaN(minutesValue)) {
+      return Number.MAX_SAFE_INTEGER;
+    }
+    return hoursValue * 60 + minutesValue;
+  };
+
+  const upcomingDoses = activeMedications
+    .flatMap((medication) => {
+      const reminders = Array.isArray(medication.reminders)
+        ? medication.reminders
+        : [];
+      return reminders
+        .filter((reminder) => !reminder.taken)
+        .map((reminder) => ({ medication, reminder }));
+    })
+    .sort(
+      (a, b) =>
+        parseTimeToMinutes(a.reminder.time) -
+        parseTimeToMinutes(b.reminder.time)
+    )
+    .slice(0, 4);
+
+  const recentHistory = activeMedications
+    .flatMap((medication) => {
+      const reminders = Array.isArray(medication.reminders)
+        ? medication.reminders
+        : [];
+      return reminders
+        .filter((reminder) => reminder.taken)
+        .map((reminder) => ({ medication, reminder }));
+    })
+    .sort(
+      (a, b) =>
+        parseTimeToMinutes(b.reminder.time) -
+        parseTimeToMinutes(a.reminder.time)
+    )
+    .slice(0, 4);
 
   if (!user) {
     return (
@@ -1249,75 +1354,75 @@ export default function MedicationsScreen() {
   }
 
   return (
-    <SafeAreaView
+    <GradientScreen
       edges={["top"]}
       pointerEvents="box-none"
       style={styles.container}
     >
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={[styles.backButton, isRTL && styles.backButtonRTL]}
-        >
-          <ArrowLeft
-            color="#1E293B"
-            size={24}
-            style={[isRTL && { transform: [{ rotate: "180deg" }] }]}
-          />
-        </TouchableOpacity>
-
-        <Heading level={4} style={[styles.title, isRTL && styles.rtlText]}>
-          {t("medications")}
-        </Heading>
-
-        <View style={styles.headerButtons}>
-          <TouchableOpacity
-            onPress={() => setShowHowTo(true)}
-            style={styles.headerHelpButton}
-          >
-            <Info color="#FFFFFF" size={18} />
-          </TouchableOpacity>
-          <View collapsable={false} ref={addMedicationButtonRef}>
-            <TouchableOpacity
-              onPress={() => {
-                setNewMedication({
-                  name: "",
-                  dosage: "",
-                  frequency: "",
-                  reminders: [{ time: "", period: "AM" }], // Start with one empty reminder
-                  notes: "",
-                  quantity: undefined,
-                  quantityUnit: "pills",
-                  lastRefillDate: undefined,
-                  refillReminderDays: 7,
-                  tags: [],
-                });
-                setSelectedTargetUser(user.id);
-                setMedicationSuggestions([]);
-                setShowSuggestions(false);
-                setShowAddModal(true);
-              }}
-              style={styles.headerAddButton}
-            >
-              <Plus color="#FFFFFF" size={24} />
-            </TouchableOpacity>
+      <View style={styles.figmaMedicationHeaderWrap}>
+        <WavyBackground height={190} variant="teal">
+          <View style={styles.figmaMedicationHeaderContent}>
+            <View style={styles.figmaMedicationHeaderRow}>
+              <TouchableOpacity
+                onPress={() =>
+                  params.returnTo === "track"
+                    ? router.push("/(tabs)/track")
+                    : router.back()
+                }
+                style={styles.figmaMedicationBackButton}
+              >
+                <ArrowLeft color="#003543" size={20} />
+              </TouchableOpacity>
+              <View style={styles.figmaMedicationHeaderTitle}>
+                <View style={styles.figmaMedicationTitleRow}>
+                  <Pill color="#EB9C0C" size={20} />
+                  <Text style={styles.figmaMedicationTitle}>Medications</Text>
+                </View>
+                <Text style={styles.figmaMedicationSubtitle}>
+                  Manage medication schedule
+                </Text>
+              </View>
+              <View collapsable={false} ref={addMedicationButtonRef}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setNewMedication({
+                      name: "",
+                      dosage: "",
+                      frequency: "",
+                      reminders: [{ time: "", period: "AM" }],
+                      notes: "",
+                      quantity: undefined,
+                      quantityUnit: "pills",
+                      lastRefillDate: undefined,
+                      refillReminderDays: 7,
+                      tags: [],
+                    });
+                    setSelectedTargetUser(user.id);
+                    setMedicationSuggestions([]);
+                    setShowSuggestions(false);
+                    setShowAddModal(true);
+                  }}
+                  style={styles.figmaMedicationAddButton}
+                >
+                  <Plus color="#FFFFFF" size={20} />
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
-        </View>
+        </WavyBackground>
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.contentInner}
+        contentContainerStyle={styles.figmaMedicationContent}
         refreshControl={
           <RefreshControl
             onRefresh={() => loadMedications(true)}
             refreshing={refreshing}
-            tintColor="#2563EB"
+            tintColor="#0F766E"
           />
         }
         showsVerticalScrollIndicator={false}
-        style={styles.content}
       >
-        {/* Enhanced Data Filter */}
         <FamilyDataFilter
           currentUserId={user.id}
           familyMembers={familyMembers}
@@ -1327,224 +1432,353 @@ export default function MedicationsScreen() {
           selectedFilter={selectedFilter}
         />
 
-        {/* Refill Alerts */}
         {selectedFilter.type === "personal" && (
-          <MedicationRefillCard refillSummary={refillSummary} />
+          <View style={styles.figmaMedicationSection}>
+            <MedicationRefillCard refillSummary={refillSummary} />
+          </View>
         )}
 
-        {/* Medication Interaction Warnings */}
-        <MedicationInteractionWarning
-          medications={medications.filter((m) => m.isActive)}
-        />
+        <View style={styles.figmaMedicationSection}>
+          <MedicationInteractionWarning medications={displayMedications} />
+        </View>
 
-        {/* Today's Progress */}
-        <Card
-          contentStyle={undefined}
-          pressable={false}
-          style={styles.progressCard}
-          variant="elevated"
-        >
-          <Heading
-            level={5}
-            style={[styles.progressTitle, isRTL && styles.rtlText]}
-          >
-            {selectedFilter.type === "family"
-              ? isRTL
-                ? "تقدم العائلة اليوم"
-                : "Family's Progress Today"
-              : selectedFilter.type === "member"
-                ? isRTL
-                  ? `تقدم ${selectedFilter.memberName} اليوم`
-                  : `${selectedFilter.memberName}'s Progress Today`
-                : isRTL
-                  ? "تقدم اليوم"
-                  : "Today's Progress"}
-          </Heading>
-          <View style={styles.progressInfo}>
-            <Text
-              size="large"
-              style={[styles.progressText, isRTL && styles.rtlText]}
-              weight="bold"
-            >
-              {takenMeds}/{totalMeds} {isRTL ? "مأخوذة" : "taken"}
-            </Text>
-            <View style={styles.progressBar}>
-              <View
-                style={[
-                  styles.progressFill,
-                  {
-                    width: `${
-                      totalMeds > 0 ? (takenMeds / totalMeds) * 100 : 0
-                    }%`,
-                  },
-                ]}
-              />
+        {dueToday > 0 && (
+          <View style={styles.figmaMedicationAlertBanner}>
+            <AlertCircle color="#DC2626" size={18} />
+            <View style={styles.figmaMedicationAlertTextWrap}>
+              <Text style={styles.figmaMedicationAlertTitle}>
+                Doses due today
+              </Text>
+              <Text style={styles.figmaMedicationAlertText}>
+                You have {dueToday} dose{dueToday === 1 ? "" : "s"} to take
+                today.
+              </Text>
             </View>
           </View>
-        </Card>
+        )}
 
-        {/* Today's Medications */}
-        <View style={styles.section}>
-          <Heading
-            level={5}
-            style={[
-              styles.sectionTitle,
-              isRTL && styles.sectionTitleRTL,
-              isRTL && styles.rtlText,
-            ]}
-          >
-            {selectedFilter.type === "family"
-              ? isRTL
-                ? "أدوية العائلة"
-                : "Family Medications"
-              : selectedFilter.type === "member"
-                ? isRTL
-                  ? `أدوية ${selectedFilter.memberName}`
-                  : `${selectedFilter.memberName}'s Medications`
-                : isRTL
-                  ? "أدوية اليوم"
-                  : "Today's Medications"}
-          </Heading>
+        <View style={styles.figmaMedicationStatsRow}>
+          <View style={styles.figmaMedicationStatCard}>
+            <Text style={styles.figmaMedicationStatValue}>
+              {activeMedsCount}
+            </Text>
+            <Text style={styles.figmaMedicationStatLabel}>Active Meds</Text>
+          </View>
+          <View style={styles.figmaMedicationStatCard}>
+            <View style={styles.figmaMedicationStatTrendRow}>
+              <CheckCircle2 color="#10B981" size={14} />
+              <Text
+                style={[styles.figmaMedicationStatValue, { color: "#10B981" }]}
+              >
+                {adherence}%
+              </Text>
+            </View>
+            <Text style={styles.figmaMedicationStatLabel}>Adherence</Text>
+          </View>
+          <View style={styles.figmaMedicationStatCard}>
+            <Text style={styles.figmaMedicationStatValue}>{dueToday}</Text>
+            <Text style={styles.figmaMedicationStatLabel}>Due Today</Text>
+          </View>
+        </View>
 
-          {medications.length > 0 ? (
-            <Card
-              contentStyle={undefined}
-              pressable={false}
-              style={styles.medicationsList}
-              variant="elevated"
-            >
-              {medications.map((medication) => (
-                <View key={medication.id} style={styles.medicationItem}>
-                  <View style={styles.medicationLeft}>
-                    <View style={styles.medicationIcon}>
-                      <Pill color="#2563EB" size={20} />
-                    </View>
-
-                    <View style={styles.medicationInfo}>
-                      <View style={styles.medicationHeader}>
-                        <Text
-                          size="large"
-                          style={[
-                            styles.medicationName,
-                            isRTL && styles.rtlText,
-                          ]}
-                          weight="semibold"
-                        >
-                          {medication.name}
-                        </Text>
-                        {/* Show member name for family/admin views */}
-                        {(selectedFilter.type === "family" ||
-                          selectedFilter.type === "member") && (
-                          <Badge
-                            size="small"
-                            style={styles.memberBadge}
-                            variant="info"
-                          >
-                            {getMemberName(medication.userId)}
-                          </Badge>
-                        )}
-                      </View>
-                      <Caption
-                        numberOfLines={undefined}
+        <View style={styles.figmaMedicationSection}>
+          <View style={styles.figmaMedicationSectionHeader}>
+            <Text style={styles.figmaMedicationSectionTitle}>
+              Active medications
+            </Text>
+            <View style={styles.figmaMedicationSectionMeta}>
+              <Text style={styles.figmaMedicationSectionLink}>Manage</Text>
+              <ChevronRight color="#94A3B8" size={16} />
+            </View>
+          </View>
+          <View style={styles.figmaMedicationList}>
+            {displayMedications.length > 0 ? (
+              displayMedications.map((medication) => {
+                const reminders = Array.isArray(medication.reminders)
+                  ? medication.reminders
+                  : [];
+                const visibleReminders = reminders.slice(0, 3);
+                const extraReminders =
+                  reminders.length > visibleReminders.length
+                    ? reminders.length - visibleReminders.length
+                    : 0;
+                const canManage =
+                  medication.userId === user.id ||
+                  (isAdmin &&
+                    (selectedFilter.type === "family" ||
+                      selectedFilter.type === "member"));
+                const accent = getMedicationAccent(medication.name);
+                const takenToday =
+                  reminders.length > 0 &&
+                  reminders.every((reminder) => reminder.taken);
+                return (
+                  <View key={medication.id} style={styles.figmaMedicationCard}>
+                    <View style={styles.figmaMedicationCardHeader}>
+                      <View
                         style={[
-                          styles.medicationDosage,
-                          isRTL && styles.rtlText,
+                          styles.figmaMedicationIconWrap,
+                          { backgroundColor: `${accent}15` },
                         ]}
                       >
-                        {medication.dosage} • {medication.frequency}
-                      </Caption>
-                      {medication.tags && medication.tags.length > 0 && (
-                        <View style={styles.medicationTags}>
-                          {medication.tags.slice(0, 3).map((tag, _index) => (
-                            <Badge
-                              key={`${medication.id}-${tag}`}
-                              size="small"
-                              style={styles.medicationTag}
-                              variant="outline"
-                            >
-                              <Text style={styles.medicationTagText}>
-                                {tag}
-                              </Text>
-                            </Badge>
-                          ))}
-                          {medication.tags.length > 3 && (
-                            <Caption
-                              numberOfLines={1}
-                              style={styles.moreTagsText}
-                            >
-                              +{medication.tags.length - 3}
-                            </Caption>
+                        <Pill color={accent} size={20} />
+                      </View>
+                      <View style={styles.figmaMedicationCardInfo}>
+                        <View style={styles.figmaMedicationCardTopRow}>
+                          <Text style={styles.figmaMedicationName}>
+                            {medication.name}
+                          </Text>
+                          {takenToday ? (
+                            <CheckCircle2 color="#10B981" size={18} />
+                          ) : (
+                            <AlertCircle color="#F97316" size={18} />
                           )}
                         </View>
-                      )}
-                      <View style={styles.medicationTime}>
-                        <Clock color="#64748B" size={12} />
-                        <Caption
-                          numberOfLines={undefined}
-                          style={[
-                            styles.medicationTimeText,
-                            isRTL && styles.rtlText,
-                          ]}
-                        >
-                          {getNextDoseText(medication)}
-                        </Caption>
+                        <Text style={styles.figmaMedicationDosage}>
+                          {medication.dosage || "Dose not set"} -{" "}
+                          {medication.frequency}
+                        </Text>
+                        {(selectedFilter.type === "family" ||
+                          selectedFilter.type === "member") && (
+                          <Text style={styles.figmaMedicationMemberTag}>
+                            {getMemberName(medication.userId)}
+                          </Text>
+                        )}
+                        {medication.tags && medication.tags.length > 0 && (
+                          <View style={styles.figmaMedicationTags}>
+                            {medication.tags.slice(0, 3).map((tag) => (
+                              <Badge
+                                key={`${medication.id}-${tag}`}
+                                size="small"
+                                style={styles.figmaMedicationTag}
+                                variant="outline"
+                              >
+                                <Text style={styles.figmaMedicationTagText}>
+                                  {tag}
+                                </Text>
+                              </Badge>
+                            ))}
+                            {medication.tags.length > 3 && (
+                              <Text style={styles.figmaMedicationMoreTags}>
+                                +{medication.tags.length - 3}
+                              </Text>
+                            )}
+                          </View>
+                        )}
+                        <View style={styles.figmaMedicationMetaRow}>
+                          <Clock color="#6C7280" size={12} />
+                          <Text style={styles.figmaMedicationMetaText}>
+                            {getNextDoseText(medication)}
+                          </Text>
+                        </View>
                       </View>
+                      <ChevronRight color="#94A3B8" size={18} />
                     </View>
-                  </View>
-
-                  <View style={styles.medicationActions}>
-                    {/* Show all reminders with animated check buttons */}
-                    <View style={styles.remindersDisplay}>
-                      {medication.reminders.map((reminder) => {
-                        // Check if user can mark this medication as taken
+                    <View style={styles.figmaMedicationReminders}>
+                      {visibleReminders.map((reminder) => {
                         const canMarkTaken =
-                          medication.userId === user.id || // Owner can mark their own
-                          (isAdmin && user.familyId); // Admin can mark for family members
-
+                          medication.userId === user.id ||
+                          (isAdmin && user.familyId);
+                        const reminderId = reminder.id;
                         return (
                           <AnimatedCheckButton
-                            disabled={!canMarkTaken}
+                            disabled={!(canMarkTaken && reminderId)}
                             isChecked={reminder.taken}
                             key={reminder.id}
                             label={convertTo12Hour(reminder.time)}
                             onPress={() =>
-                              toggleMedicationTaken(medication.id, reminder.id)
+                              reminderId &&
+                              toggleMedicationTaken(medication.id, reminderId)
                             }
                             size="sm"
-                            style={styles.reminderButton}
+                            style={styles.figmaMedicationReminderButton}
                           />
                         );
                       })}
+                      {extraReminders > 0 && (
+                        <View style={styles.figmaMedicationReminderMore}>
+                          <Text style={styles.figmaMedicationReminderMoreText}>
+                            +{extraReminders} more
+                          </Text>
+                        </View>
+                      )}
                     </View>
-
-                    {/* Show action buttons only for medications user can manage */}
-                    {(medication.userId === user.id ||
-                      (isAdmin &&
-                        (selectedFilter.type === "family" ||
-                          selectedFilter.type === "member"))) && (
-                      <View style={styles.actionButtons}>
+                    {canManage && (
+                      <View style={styles.figmaMedicationManageRow}>
                         <TouchableOpacity
                           onPress={() => handleEditMedication(medication)}
-                          style={styles.actionButton}
+                          style={styles.figmaMedicationManageButton}
                         >
                           <Edit color="#64748B" size={16} />
+                          <Text style={styles.figmaMedicationManageText}>
+                            Edit
+                          </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           onPress={() => handleDeleteMedication(medication)}
-                          style={[styles.actionButton, styles.deleteButton]}
+                          style={[
+                            styles.figmaMedicationManageButton,
+                            styles.figmaMedicationManageButtonDanger,
+                          ]}
                         >
                           <Trash2 color="#EF4444" size={16} />
+                          <Text
+                            style={[
+                              styles.figmaMedicationManageText,
+                              styles.figmaMedicationManageTextDanger,
+                            ]}
+                          >
+                            Delete
+                          </Text>
                         </TouchableOpacity>
                       </View>
                     )}
                   </View>
-                </View>
-              ))}
-            </Card>
-          ) : (
-            <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-              {isRTL ? "لا توجد أدوية مضافة" : "No medications added yet"}
+                );
+              })
+            ) : (
+              <Text style={styles.figmaMedicationEmpty}>
+                No medications added yet
+              </Text>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.figmaMedicationSection}>
+          <View style={styles.figmaMedicationSectionHeader}>
+            <Text style={styles.figmaMedicationSectionTitle}>
+              Upcoming doses
             </Text>
+            <Bell color="#003543" size={18} />
+          </View>
+          {upcomingDoses.length > 0 ? (
+            <View style={styles.figmaMedicationUpcomingList}>
+              {upcomingDoses.map(({ medication, reminder }) => {
+                const canMarkTaken =
+                  medication.userId === user.id || (isAdmin && user.familyId);
+                const reminderId = reminder.id;
+                const accent = getMedicationAccent(medication.name);
+                const memberLabel =
+                  selectedFilter.type === "personal"
+                    ? ""
+                    : ` - ${getMemberName(medication.userId)}`;
+                const timeUntil = getTimeUntil(reminder.time);
+                return (
+                  <View
+                    key={`${medication.id}-${reminder.time}`}
+                    style={styles.figmaMedicationUpcomingRow}
+                  >
+                    <View style={styles.figmaMedicationUpcomingLeft}>
+                      <View
+                        style={[
+                          styles.figmaMedicationUpcomingIcon,
+                          { backgroundColor: `${accent}15` },
+                        ]}
+                      >
+                        <Bell color={accent} size={16} />
+                      </View>
+                      <View>
+                        <Text style={styles.figmaMedicationUpcomingName}>
+                          {medication.name} {medication.dosage || ""}
+                        </Text>
+                        <Text style={styles.figmaMedicationUpcomingDetail}>
+                          {convertTo12Hour(reminder.time)}
+                          {timeUntil ? ` - in ${timeUntil}` : ""}
+                          {memberLabel}
+                        </Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      disabled={!(canMarkTaken && reminderId)}
+                      onPress={() =>
+                        reminderId &&
+                        toggleMedicationTaken(medication.id, reminderId)
+                      }
+                      style={[
+                        styles.figmaMedicationMarkButton,
+                        !(canMarkTaken && reminderId) &&
+                          styles.figmaMedicationMarkButtonDisabled,
+                      ]}
+                    >
+                      <Text style={styles.figmaMedicationMarkButtonText}>
+                        Mark Taken
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </View>
+          ) : (
+            <Text style={styles.figmaMedicationEmpty}>No upcoming doses</Text>
+          )}
+        </View>
+
+        <View style={styles.figmaMedicationSection}>
+          <View style={styles.figmaMedicationSectionHeader}>
+            <Text style={styles.figmaMedicationSectionTitle}>
+              Recent History
+            </Text>
+            <Calendar color="#003543" size={18} />
+          </View>
+          {recentHistory.length > 0 ? (
+            <View style={styles.figmaMedicationHistoryList}>
+              {recentHistory.map(({ medication, reminder }) => {
+                const accent = getMedicationAccent(medication.name);
+                const memberLabel =
+                  selectedFilter.type === "personal"
+                    ? ""
+                    : ` - ${getMemberName(medication.userId)}`;
+                const status = reminder.taken ? "Taken" : "Missed";
+                return (
+                  <View
+                    key={`${medication.id}-${reminder.time}-taken`}
+                    style={styles.figmaMedicationHistoryRow}
+                  >
+                    <View
+                      style={[
+                        styles.figmaMedicationHistoryIcon,
+                        { backgroundColor: `${accent}15` },
+                      ]}
+                    >
+                      {reminder.taken ? (
+                        <CheckCircle2 color={accent} size={16} />
+                      ) : (
+                        <AlertCircle color="#EF4444" size={16} />
+                      )}
+                    </View>
+                    <View style={styles.figmaMedicationHistoryInfo}>
+                      <Text style={styles.figmaMedicationHistoryName}>
+                        {medication.name} {medication.dosage || ""}
+                      </Text>
+                      <Text style={styles.figmaMedicationHistoryDetail}>
+                        {convertTo12Hour(reminder.time)}
+                        {memberLabel}
+                      </Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.figmaMedicationHistoryStatus,
+                        reminder.taken
+                          ? styles.figmaMedicationHistoryStatusTaken
+                          : styles.figmaMedicationHistoryStatusMissed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.figmaMedicationHistoryStatusText,
+                          reminder.taken
+                            ? styles.figmaMedicationHistoryStatusTextTaken
+                            : styles.figmaMedicationHistoryStatusTextMissed,
+                        ]}
+                      >
+                        {status}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          ) : (
+            <Text style={styles.figmaMedicationEmpty}>No recent doses</Text>
           )}
         </View>
       </ScrollView>
@@ -2143,7 +2377,7 @@ export default function MedicationsScreen() {
       </Modal>
 
       {/* Bulk Import Modal */}
-    </SafeAreaView>
+    </GradientScreen>
   );
 }
 
@@ -2151,6 +2385,427 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F8FAFC",
+  },
+  figmaMedicationHeaderWrap: {
+    marginHorizontal: -20,
+    marginTop: -20,
+    marginBottom: 12,
+  },
+  figmaMedicationHeaderContent: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 16,
+  },
+  figmaMedicationHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  figmaMedicationBackButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  figmaMedicationHeaderTitle: {
+    flex: 1,
+  },
+  figmaMedicationTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  figmaMedicationTitle: {
+    fontSize: 22,
+    fontFamily: "Inter-Bold",
+    color: "#FFFFFF",
+  },
+  figmaMedicationSubtitle: {
+    fontSize: 13,
+    fontFamily: "Inter-SemiBold",
+    color: "rgba(0, 53, 67, 0.85)",
+  },
+  figmaMedicationAddButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#003543",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  figmaMedicationHeaderStatsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 12,
+  },
+  figmaMedicationHeaderChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(255, 255, 255, 0.6)",
+  },
+  figmaMedicationHeaderChipText: {
+    fontSize: 12,
+    fontFamily: "Inter-SemiBold",
+    color: "#003543",
+  },
+  figmaMedicationContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 140,
+  },
+  figmaMedicationAlertBanner: {
+    flexDirection: "row",
+    gap: 12,
+    backgroundColor: "#FFF1F2",
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    marginBottom: 16,
+  },
+  figmaMedicationAlertTextWrap: {
+    flex: 1,
+  },
+  figmaMedicationAlertTitle: {
+    fontSize: 14,
+    fontFamily: "Inter-Bold",
+    color: "#991B1B",
+    marginBottom: 4,
+  },
+  figmaMedicationAlertText: {
+    fontSize: 12,
+    fontFamily: "Inter-Medium",
+    color: "#B91C1C",
+  },
+  figmaMedicationStatsRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 20,
+  },
+  figmaMedicationStatCard: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  figmaMedicationStatValue: {
+    fontSize: 20,
+    fontFamily: "Inter-Bold",
+    color: "#003543",
+    marginBottom: 4,
+  },
+  figmaMedicationStatLabel: {
+    fontSize: 11,
+    fontFamily: "Inter-SemiBold",
+    color: "#64748B",
+  },
+  figmaMedicationStatTrendRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  figmaMedicationSection: {
+    marginBottom: 20,
+  },
+  figmaMedicationSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  figmaMedicationSectionTitle: {
+    fontSize: 18,
+    fontFamily: "Inter-Bold",
+    color: "#0F172A",
+  },
+  figmaMedicationSectionMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  figmaMedicationSectionLink: {
+    fontSize: 12,
+    fontFamily: "Inter-SemiBold",
+    color: "#003543",
+  },
+  figmaMedicationList: {
+    gap: 12,
+  },
+  figmaMedicationCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 14,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  figmaMedicationCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  figmaMedicationIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  figmaMedicationCardTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  figmaMedicationCardInfo: {
+    flex: 1,
+  },
+  figmaMedicationName: {
+    fontSize: 15,
+    fontFamily: "Inter-SemiBold",
+    color: "#0F172A",
+  },
+  figmaMedicationMemberTag: {
+    marginTop: 4,
+    fontSize: 11,
+    fontFamily: "Inter-Medium",
+    color: "#64748B",
+  },
+  figmaMedicationDosage: {
+    fontSize: 12,
+    fontFamily: "Inter-Medium",
+    color: "#475569",
+    marginTop: 2,
+  },
+  figmaMedicationTags: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 6,
+  },
+  figmaMedicationTag: {
+    borderColor: "#E2E8F0",
+  },
+  figmaMedicationTagText: {
+    fontSize: 10,
+    fontFamily: "Inter-Medium",
+    color: "#0F766E",
+  },
+  figmaMedicationMoreTags: {
+    fontSize: 10,
+    fontFamily: "Inter-Medium",
+    color: "#64748B",
+  },
+  figmaMedicationMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 6,
+  },
+  figmaMedicationMetaText: {
+    fontSize: 11,
+    fontFamily: "Inter-Medium",
+    color: "#64748B",
+  },
+  figmaMedicationActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  figmaMedicationActionButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F1F5F9",
+  },
+  figmaMedicationActionButtonDanger: {
+    backgroundColor: "#FEF2F2",
+  },
+  figmaMedicationReminders: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 12,
+  },
+  figmaMedicationReminderButton: {
+    marginBottom: 0,
+  },
+  figmaMedicationReminderMore: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "#E2E8F0",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  figmaMedicationReminderMoreText: {
+    fontSize: 10,
+    fontFamily: "Inter-SemiBold",
+    color: "#64748B",
+  },
+  figmaMedicationManageRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 12,
+  },
+  figmaMedicationManageButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: "#F1F5F9",
+  },
+  figmaMedicationManageButtonDanger: {
+    backgroundColor: "#FEF2F2",
+  },
+  figmaMedicationManageText: {
+    fontSize: 12,
+    fontFamily: "Inter-SemiBold",
+    color: "#64748B",
+  },
+  figmaMedicationManageTextDanger: {
+    color: "#EF4444",
+  },
+  figmaMedicationEmpty: {
+    fontSize: 13,
+    fontFamily: "Inter-Medium",
+    color: "#64748B",
+  },
+  figmaMedicationUpcomingList: {
+    gap: 12,
+  },
+  figmaMedicationUpcomingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 12,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  figmaMedicationUpcomingLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+  },
+  figmaMedicationUpcomingIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  figmaMedicationUpcomingName: {
+    fontSize: 14,
+    fontFamily: "Inter-SemiBold",
+    color: "#0F172A",
+  },
+  figmaMedicationUpcomingDetail: {
+    fontSize: 11,
+    fontFamily: "Inter-Medium",
+    color: "#64748B",
+    marginTop: 2,
+  },
+  figmaMedicationQuickButton: {
+    marginLeft: 12,
+  },
+  figmaMedicationMarkButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: "rgba(0, 53, 67, 0.1)",
+  },
+  figmaMedicationMarkButtonDisabled: {
+    opacity: 0.5,
+  },
+  figmaMedicationMarkButtonText: {
+    fontSize: 12,
+    fontFamily: "Inter-SemiBold",
+    color: "#003543",
+  },
+  figmaMedicationHistoryList: {
+    gap: 10,
+  },
+  figmaMedicationHistoryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    padding: 12,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  figmaMedicationHistoryIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  figmaMedicationHistoryInfo: {
+    flex: 1,
+  },
+  figmaMedicationHistoryName: {
+    fontSize: 13,
+    fontFamily: "Inter-SemiBold",
+    color: "#0F172A",
+  },
+  figmaMedicationHistoryDetail: {
+    fontSize: 11,
+    fontFamily: "Inter-Medium",
+    color: "#64748B",
+    marginTop: 2,
+  },
+  figmaMedicationHistoryStatus: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  figmaMedicationHistoryStatusTaken: {
+    backgroundColor: "rgba(16, 185, 129, 0.12)",
+  },
+  figmaMedicationHistoryStatusMissed: {
+    backgroundColor: "rgba(239, 68, 68, 0.12)",
+  },
+  figmaMedicationHistoryStatusText: {
+    fontSize: 11,
+    fontFamily: "Inter-SemiBold",
+  },
+  figmaMedicationHistoryStatusTextTaken: {
+    color: "#10B981",
+  },
+  figmaMedicationHistoryStatusTextMissed: {
+    color: "#EF4444",
   },
   header: {
     flexDirection: "row",
@@ -2172,7 +2827,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#1E293B",
   },
   headerButtons: {
@@ -2216,7 +2871,7 @@ const styles = StyleSheet.create({
   },
   progressTitle: {
     fontSize: 18,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     marginBottom: 12,
   },
@@ -2227,7 +2882,7 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 24,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#10B981",
     minWidth: 80,
   },
@@ -2248,7 +2903,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     marginBottom: 12,
   },
@@ -2292,13 +2947,13 @@ const styles = StyleSheet.create({
   },
   medicationName: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     marginBottom: 2,
   },
   medicationDosage: {
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     marginBottom: 4,
   },
@@ -2309,7 +2964,7 @@ const styles = StyleSheet.create({
   },
   medicationTimeText: {
     fontSize: 12,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
   },
   reminderButton: {
@@ -2331,7 +2986,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
   },
   closeButton: {
@@ -2349,13 +3004,13 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 16,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#374151",
     marginBottom: 8,
   },
   helperText: {
     fontSize: 12,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     marginBottom: 8,
     marginTop: -4,
@@ -2367,7 +3022,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     backgroundColor: "#FFFFFF",
   },
   quantityRow: {
@@ -2394,13 +3049,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     backgroundColor: "#FFFFFF",
     textAlignVertical: "top",
     minHeight: 80,
   },
   rtlInput: {
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
   },
   frequencyGrid: {
     flexDirection: "row",
@@ -2420,7 +3075,7 @@ const styles = StyleSheet.create({
   },
   frequencyChipText: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
   },
   frequencyChipTextSelected: {
@@ -2438,18 +3093,18 @@ const styles = StyleSheet.create({
   },
   submitButtonText: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#FFFFFF",
   },
   emptyText: {
     fontSize: 16,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     textAlign: "center",
   },
   rtlText: {
     textAlign: "right",
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
   },
   centerContainer: {
     flex: 1,
@@ -2458,7 +3113,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     textAlign: "center",
   },
@@ -2499,7 +3154,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     backgroundColor: "#FFFFFF",
   },
   reminderTimeInput: {
@@ -2510,7 +3165,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     backgroundColor: "#FFFFFF",
     minWidth: 80,
   },
@@ -2535,7 +3190,7 @@ const styles = StyleSheet.create({
   },
   periodButtonText: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
   },
   periodButtonTextSelected: {
@@ -2562,7 +3217,7 @@ const styles = StyleSheet.create({
   },
   reminderTimeText: {
     fontSize: 10,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     marginTop: 2,
   },
@@ -2583,7 +3238,7 @@ const styles = StyleSheet.create({
   },
   memberBadgeText: {
     fontSize: 10,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#6366F1",
   },
   // Member selection styles
@@ -2609,7 +3264,7 @@ const styles = StyleSheet.create({
   },
   memberName: {
     fontSize: 16,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#1E293B",
   },
   memberNameSelected: {
@@ -2617,7 +3272,7 @@ const styles = StyleSheet.create({
   },
   memberRole: {
     fontSize: 12,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
     backgroundColor: "#F1F5F9",
     paddingHorizontal: 8,
@@ -2657,7 +3312,7 @@ const styles = StyleSheet.create({
   },
   suggestionText: {
     fontSize: 16,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#1E293B",
   },
   medicationTags: {
@@ -2673,7 +3328,7 @@ const styles = StyleSheet.create({
   },
   medicationTagText: {
     fontSize: 10,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
   },
   moreTagsText: {
     fontSize: 10,

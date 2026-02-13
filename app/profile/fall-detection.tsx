@@ -20,9 +20,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import GradientScreen from "@/components/figma/GradientScreen";
+import WavyBackground from "@/components/figma/WavyBackground";
 import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
-import { useTheme } from "@/contexts/ThemeContext";
 import { motionPermissionService } from "@/lib/services/motionPermissionService";
 import { safeFormatDateTime } from "@/utils/dateFormat";
 
@@ -31,7 +31,6 @@ export default function FallDetectionSettingsScreen() {
   const { i18n } = useTranslation();
   const router = useRouter();
   const navigation = useNavigation();
-  const { theme, isDark } = useTheme();
   const {
     isEnabled,
     isActive,
@@ -148,25 +147,14 @@ export default function FallDetectionSettingsScreen() {
 
   if (checkingPermissions) {
     return (
-      <SafeAreaView
-        style={[
-          styles.container,
-          { backgroundColor: theme.colors.background.primary },
-        ]}
-      >
+      <GradientScreen edges={["top"]} style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator color={theme.colors.primary.main} size="large" />
-          <Text
-            style={[
-              styles.loadingText,
-              { color: theme.colors.text.primary },
-              isRTL && { textAlign: "left" },
-            ]}
-          >
+          <ActivityIndicator color="#003543" size="large" />
+          <Text style={[styles.loadingText, isRTL && { textAlign: "left" }]}>
             {isRTL ? "جاري التحميل..." : "Loading..."}
           </Text>
         </View>
-      </SafeAreaView>
+      </GradientScreen>
     );
   }
 
@@ -216,41 +204,54 @@ export default function FallDetectionSettingsScreen() {
   }
 
   return (
-    <SafeAreaView
-      style={[
-        styles.container,
-        { backgroundColor: theme.colors.background.primary },
-      ]}
-    >
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <ArrowLeft color={theme.colors.text.primary} size={24} />
-        </TouchableOpacity>
-        <Text
-          style={[
-            styles.title,
-            { color: theme.colors.text.primary },
-            isRTL && { textAlign: "left" },
-          ]}
-        >
-          {isRTL ? "كشف السقوط" : "Fall Detection"}
-        </Text>
-        <View style={styles.headerSpacer} />
+    <GradientScreen edges={["top"]} style={styles.container}>
+      <View style={styles.headerWrapper}>
+        <WavyBackground height={220} variant="teal">
+          <View style={styles.headerContent}>
+            <View style={[styles.headerRow, isRTL && styles.headerRowRTL]}>
+              <TouchableOpacity
+                onPress={() => router.back()}
+                style={styles.backButton}
+              >
+                <ArrowLeft
+                  color="#003543"
+                  size={20}
+                  style={
+                    isRTL ? { transform: [{ rotate: "180deg" }] } : undefined
+                  }
+                />
+              </TouchableOpacity>
+              <View style={styles.headerTitle}>
+                <View
+                  style={[styles.headerTitleRow, isRTL && styles.headerRowRTL]}
+                >
+                  <Shield color="#EB9C0C" size={20} />
+                  <Text style={styles.headerTitleText}>
+                    {isRTL ? "كشف السقوط" : "Fall Detection"}
+                  </Text>
+                </View>
+                <Text style={[styles.headerSubtitle, isRTL && styles.rtlText]}>
+                  {isRTL
+                    ? "مراقبة الحركة وتنبيهات الطوارئ"
+                    : "Motion monitoring and emergency alerts"}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </WavyBackground>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        style={styles.scrollView}
+      >
         {/* Master Toggle */}
         <View style={styles.section}>
           <View
             style={[
               styles.masterToggleCard,
-              {
-                backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
-                borderColor: masterBorderColor,
-              },
+              { borderColor: masterBorderColor },
             ]}
           >
             <View style={styles.masterToggleContent}>
@@ -272,7 +273,6 @@ export default function FallDetectionSettingsScreen() {
                 <Text
                   style={[
                     styles.masterToggleTitle,
-                    { color: theme.colors.text.primary },
                     isRTL && { textAlign: "left" },
                   ]}
                 >
@@ -281,7 +281,6 @@ export default function FallDetectionSettingsScreen() {
                 <Text
                   style={[
                     styles.masterToggleSubtitle,
-                    { color: theme.colors.text.secondary },
                     isRTL && { textAlign: "left" },
                   ]}
                 >
@@ -304,25 +303,13 @@ export default function FallDetectionSettingsScreen() {
 
         {/* Status Section */}
         <View style={styles.section}>
-          <Text
-            style={[
-              styles.sectionTitle,
-              { color: theme.colors.text.primary },
-              isRTL && { textAlign: "left" },
-            ]}
-          >
+          <Text style={[styles.sectionTitle, isRTL && { textAlign: "left" }]}>
             {isRTL ? "الحالة" : "Status"}
           </Text>
 
           {/* Permission Status */}
           <View
-            style={[
-              styles.statusCard,
-              {
-                backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
-                borderColor: permissionBorderColor,
-              },
-            ]}
+            style={[styles.statusCard, { borderColor: permissionBorderColor }]}
           >
             <View style={styles.statusHeader}>
               {permissionStatus?.granted ? (
@@ -335,20 +322,12 @@ export default function FallDetectionSettingsScreen() {
               )}
               <View style={styles.statusInfo}>
                 <Text
-                  style={[
-                    styles.statusTitle,
-                    { color: theme.colors.text.primary },
-                    isRTL && { textAlign: "left" },
-                  ]}
+                  style={[styles.statusTitle, isRTL && { textAlign: "left" }]}
                 >
                   {isRTL ? "إذن الحركة" : "Motion Permission"}
                 </Text>
                 <Text
-                  style={[
-                    styles.statusText,
-                    { color: theme.colors.text.secondary },
-                    isRTL && { textAlign: "left" },
-                  ]}
+                  style={[styles.statusText, isRTL && { textAlign: "left" }]}
                 >
                   {permissionStatusText}
                 </Text>
@@ -370,10 +349,7 @@ export default function FallDetectionSettingsScreen() {
           <View
             style={[
               styles.statusCard,
-              {
-                backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
-                borderColor: isActive ? "#10B981" : "#E5E7EB",
-              },
+              { borderColor: isActive ? "#10B981" : "#E5E7EB" },
             ]}
           >
             <View style={styles.statusHeader}>
@@ -384,20 +360,12 @@ export default function FallDetectionSettingsScreen() {
               )}
               <View style={styles.statusInfo}>
                 <Text
-                  style={[
-                    styles.statusTitle,
-                    { color: theme.colors.text.primary },
-                    isRTL && { textAlign: "left" },
-                  ]}
+                  style={[styles.statusTitle, isRTL && { textAlign: "left" }]}
                 >
                   {isRTL ? "حالة المراقبة" : "Monitoring Status"}
                 </Text>
                 <Text
-                  style={[
-                    styles.statusText,
-                    { color: theme.colors.text.secondary },
-                    isRTL && { textAlign: "left" },
-                  ]}
+                  style={[styles.statusText, isRTL && { textAlign: "left" }]}
                 >
                   {monitoringStatusText}
                 </Text>
@@ -407,33 +375,17 @@ export default function FallDetectionSettingsScreen() {
 
           {/* Last Alert */}
           {lastAlert ? (
-            <View
-              style={[
-                styles.statusCard,
-                {
-                  backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
-                  borderColor: "#2563EB",
-                },
-              ]}
-            >
+            <View style={[styles.statusCard, { borderColor: "#2563EB" }]}>
               <View style={styles.statusHeader}>
                 <AlertTriangle color="#2563EB" size={24} />
                 <View style={styles.statusInfo}>
                   <Text
-                    style={[
-                      styles.statusTitle,
-                      { color: theme.colors.text.primary },
-                      isRTL && { textAlign: "left" },
-                    ]}
+                    style={[styles.statusTitle, isRTL && { textAlign: "left" }]}
                   >
                     {isRTL ? "آخر تنبيه" : "Last Alert"}
                   </Text>
                   <Text
-                    style={[
-                      styles.statusText,
-                      { color: theme.colors.text.secondary },
-                      isRTL && { textAlign: "left" },
-                    ]}
+                    style={[styles.statusText, isRTL && { textAlign: "left" }]}
                   >
                     {isRTL
                       ? `تم في: ${safeFormatDateTime(
@@ -452,13 +404,7 @@ export default function FallDetectionSettingsScreen() {
 
         {/* Actions Section */}
         <View style={styles.section}>
-          <Text
-            style={[
-              styles.sectionTitle,
-              { color: theme.colors.text.primary },
-              isRTL && { textAlign: "left" },
-            ]}
-          >
+          <Text style={[styles.sectionTitle, isRTL && { textAlign: "left" }]}>
             {isRTL ? "الإجراءات" : "Actions"}
           </Text>
 
@@ -468,20 +414,17 @@ export default function FallDetectionSettingsScreen() {
             style={[
               styles.actionButton,
               {
-                backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
-                borderColor: isEnabled ? "#2563EB" : "#E5E7EB",
+                borderColor: isEnabled ? "#003543" : "#E5E7EB",
                 opacity: isEnabled ? 1 : 0.5,
               },
             ]}
           >
-            <TestTube color={isEnabled ? "#2563EB" : "#9CA3AF"} size={20} />
+            <TestTube color={isEnabled ? "#003543" : "#9CA3AF"} size={20} />
             <Text
               style={[
                 styles.actionButtonText,
                 {
-                  color: isEnabled
-                    ? theme.colors.text.primary
-                    : theme.colors.text.secondary,
+                  color: isEnabled ? "#1A1D1F" : "#6C7280",
                 },
                 isRTL && { textAlign: "left" },
               ]}
@@ -493,44 +436,18 @@ export default function FallDetectionSettingsScreen() {
 
         {/* Information Section */}
         <View style={styles.section}>
-          <Text
-            style={[
-              styles.sectionTitle,
-              { color: theme.colors.text.primary },
-              isRTL && { textAlign: "left" },
-            ]}
-          >
+          <Text style={[styles.sectionTitle, isRTL && { textAlign: "left" }]}>
             {isRTL ? "معلومات" : "Information"}
           </Text>
 
-          <View
-            style={[
-              styles.infoCard,
-              {
-                backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
-                borderColor: isDark ? "#334155" : "#E2E8F0",
-              },
-            ]}
-          >
+          <View style={styles.infoCard}>
             <View style={styles.infoHeader}>
-              <Info color={theme.colors.primary.main} size={20} />
-              <Text
-                style={[
-                  styles.infoTitle,
-                  { color: theme.colors.text.primary },
-                  isRTL && { textAlign: "left" },
-                ]}
-              >
+              <Info color="#003543" size={20} />
+              <Text style={[styles.infoTitle, isRTL && { textAlign: "left" }]}>
                 {isRTL ? "كيف يعمل" : "How It Works"}
               </Text>
             </View>
-            <Text
-              style={[
-                styles.infoText,
-                { color: theme.colors.text.secondary },
-                isRTL && { textAlign: "left" },
-              ]}
-            >
+            <Text style={[styles.infoText, isRTL && { textAlign: "left" }]}>
               {isRTL
                 ? "يستخدم التطبيق مستشعرات الحركة في جهازك (مقياس التسارع والجيروسكوب) لاكتشاف الحركات المفاجئة التي قد تشير إلى السقوط. عند اكتشاف السقوط، يتم إرسال تنبيه تلقائي إلى جهات الاتصال الطارئة الخاصة بك مع موقعك."
                 : "The app uses your device's motion sensors (accelerometer and gyroscope) to detect sudden movements that may indicate a fall. When a fall is detected, an automatic alert is sent to your emergency contacts with your location."}
@@ -572,7 +489,7 @@ export default function FallDetectionSettingsScreen() {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </GradientScreen>
   );
 }
 
@@ -589,42 +506,77 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
+    color: "#1A1D1F",
   },
-  header: {
+  headerWrapper: {
+    flexShrink: 0,
+    marginHorizontal: -20,
+    marginTop: -20,
+    marginBottom: 12,
+  },
+  headerContent: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 16,
+  },
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    padding: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    gap: 12,
+  },
+  headerRowRTL: {
+    flexDirection: "row-reverse",
   },
   backButton: {
-    padding: 8,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "600",
-    flex: 1,
-    textAlign: "center",
-  },
-  headerSpacer: {
     width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.5)",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  content: {
+  headerTitle: {
     flex: 1,
+  },
+  headerTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  headerTitleText: {
+    fontSize: 22,
+    fontFamily: "Inter-Bold",
+    color: "#FFFFFF",
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    fontFamily: "Inter-SemiBold",
+    color: "rgba(0, 53, 67, 0.85)",
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+  },
+  rtlText: {
+    textAlign: "right",
   },
   section: {
-    padding: 16,
+    marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 18,
+    fontFamily: "Inter-Bold",
+    color: "#1A1D1F",
     marginBottom: 12,
   },
   masterToggleCard: {
-    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
     padding: 20,
     flexDirection: "row",
     alignItems: "center",
@@ -632,9 +584,9 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   masterToggleContent: {
     flexDirection: "row",
@@ -654,21 +606,25 @@ const styles = StyleSheet.create({
   },
   masterToggleTitle: {
     fontSize: 18,
-    fontWeight: "600",
+    fontFamily: "Inter-SemiBold",
+    color: "#1A1D1F",
     marginBottom: 4,
   },
   masterToggleSubtitle: {
     fontSize: 14,
+    fontFamily: "Inter-Regular",
+    color: "#6C7280",
   },
   statusCard: {
-    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
     elevation: 2,
   },
   statusHeader: {
@@ -681,11 +637,14 @@ const styles = StyleSheet.create({
   },
   statusTitle: {
     fontSize: 16,
-    fontWeight: "500",
+    fontFamily: "Inter-SemiBold",
+    color: "#1A1D1F",
     marginBottom: 2,
   },
   statusText: {
     fontSize: 13,
+    fontFamily: "Inter-Regular",
+    color: "#6C7280",
   },
   linkButton: {
     marginTop: 12,
@@ -696,12 +655,13 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   linkButtonText: {
-    color: "#2563EB",
+    color: "#003543",
     fontSize: 14,
-    fontWeight: "600",
+    fontFamily: "Inter-SemiBold",
   },
   actionButton: {
-    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
     padding: 16,
     flexDirection: "row",
     alignItems: "center",
@@ -709,9 +669,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
     elevation: 2,
   },
   actionButtonText: {
@@ -720,10 +680,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   infoCard: {
-    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
   infoHeader: {
     flexDirection: "row",
@@ -732,11 +694,14 @@ const styles = StyleSheet.create({
   },
   infoTitle: {
     fontSize: 16,
-    fontWeight: "600",
+    fontFamily: "Inter-SemiBold",
+    color: "#1A1D1F",
     marginStart: 12,
   },
   infoText: {
     fontSize: 14,
+    fontFamily: "Inter-Regular",
+    color: "#6C7280",
     lineHeight: 20,
   },
 });

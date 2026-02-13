@@ -23,7 +23,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import GradientScreen from "@/components/figma/GradientScreen";
+import WavyBackground from "@/components/figma/WavyBackground";
 
 type ContactCardProps = {
   icon: LucideIcon;
@@ -176,32 +177,52 @@ export default function HelpSupportScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.push("/(tabs)/profile")}
-          style={[styles.backButton, isRTL && styles.backButtonRTL]}
-        >
-          <ArrowLeft
-            color="#1E293B"
-            size={24}
-            style={[isRTL && { transform: [{ rotate: "180deg" }] }]}
-          />
-        </TouchableOpacity>
-
-        <Text style={[styles.headerTitle, isRTL && { textAlign: "left" }]}>
-          {isRTL ? "المساعدة والدعم" : "Help & Support"}
-        </Text>
-
-        <View style={styles.headerSpacer} />
+    <GradientScreen edges={["top"]} style={styles.container}>
+      <View style={styles.headerWrapper}>
+        <WavyBackground height={220} variant="teal">
+          <View style={styles.headerContent}>
+            <View style={[styles.headerRow, isRTL && styles.headerRowRTL]}>
+              <TouchableOpacity
+                onPress={() => router.push("/(tabs)/profile")}
+                style={styles.backButton}
+              >
+                <ArrowLeft
+                  color="#003543"
+                  size={20}
+                  style={
+                    isRTL ? { transform: [{ rotate: "180deg" }] } : undefined
+                  }
+                />
+              </TouchableOpacity>
+              <View style={styles.headerTitle}>
+                <View
+                  style={[styles.headerTitleRow, isRTL && styles.headerRowRTL]}
+                >
+                  <HelpCircle color="#EB9C0C" size={20} />
+                  <Text style={styles.headerTitleText}>
+                    {isRTL ? "المساعدة والدعم" : "Help & Support"}
+                  </Text>
+                </View>
+                <Text style={[styles.headerSubtitle, isRTL && styles.rtlText]}>
+                  {isRTL
+                    ? "فريق دعم معاك متاح لمساعدتك"
+                    : "Maak support team is here to help you"}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </WavyBackground>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        style={styles.scrollView}
+      >
         {/* Welcome Section */}
         <View style={styles.welcomeSection}>
           <View style={styles.welcomeIcon}>
-            <HelpCircle color="#2563EB" size={40} />
+            <HelpCircle color="#EB9C0C" size={40} />
           </View>
           <Text style={[styles.welcomeTitle, isRTL && { textAlign: "left" }]}>
             {isRTL ? "نحن هنا لمساعدتك" : "We're Here to Help"}
@@ -397,78 +418,100 @@ export default function HelpSupportScreen() {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </GradientScreen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
+  headerWrapper: {
+    flexShrink: 0,
+    marginHorizontal: -20,
+    marginTop: -20,
+    marginBottom: 12,
+  },
+  headerContent: {
+    paddingHorizontal: 24,
     paddingTop: 20,
     paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  headerRowRTL: {
+    flexDirection: "row-reverse",
   },
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: "#F1F5F9",
-    justifyContent: "center",
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.5)",
     alignItems: "center",
-  },
-  backButtonRTL: {
-    transform: [{ scaleX: -1 }],
+    justifyContent: "center",
   },
   headerTitle: {
-    fontSize: 18,
-    fontFamily: "Geist-SemiBold",
-    color: "#1E293B",
     flex: 1,
-    textAlign: "center",
   },
-  headerSpacer: {
-    width: 40,
+  headerTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
   },
-  content: {
+  headerTitleText: {
+    fontSize: 22,
+    fontFamily: "Inter-Bold",
+    color: "#FFFFFF",
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    fontFamily: "Inter-SemiBold",
+    color: "rgba(0, 53, 67, 0.85)",
+  },
+  scrollView: {
     flex: 1,
-    paddingHorizontal: 20,
+  },
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 40,
   },
   welcomeSection: {
     alignItems: "center",
     paddingVertical: 32,
     backgroundColor: "#FFFFFF",
-    marginTop: 20,
-    borderRadius: 16,
     marginBottom: 24,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   welcomeIcon: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "#EBF4FF",
+    backgroundColor: "#FFF8EB",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 16,
   },
   welcomeTitle: {
     fontSize: 24,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#1E293B",
     marginBottom: 8,
     textAlign: "center",
   },
   welcomeDescription: {
     fontSize: 16,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     textAlign: "center",
     lineHeight: 24,
@@ -479,7 +522,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     marginBottom: 16,
   },
@@ -487,13 +530,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
     elevation: 2,
   },
   contactIcon: {
@@ -509,32 +554,34 @@ const styles = StyleSheet.create({
   },
   contactTitle: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     marginBottom: 2,
   },
   contactSubtitle: {
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     marginBottom: 4,
   },
   contactValue: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
-    color: "#2563EB",
+    fontFamily: "Inter-Medium",
+    color: "#003543",
   },
   businessHours: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 24,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
     elevation: 2,
   },
   hoursContent: {
@@ -543,19 +590,19 @@ const styles = StyleSheet.create({
   },
   hoursTitle: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     marginBottom: 4,
   },
   hoursText: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#059669",
     marginBottom: 2,
   },
   hoursSubtext: {
     fontSize: 12,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
   },
   helpGrid: {
@@ -565,13 +612,15 @@ const styles = StyleSheet.create({
   helpCard: {
     flex: 1,
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
     elevation: 2,
   },
   helpIcon: {
@@ -584,14 +633,14 @@ const styles = StyleSheet.create({
   },
   helpTitle: {
     fontSize: 14,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     marginBottom: 4,
     textAlign: "center",
   },
   helpDescription: {
     fontSize: 12,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     textAlign: "center",
     lineHeight: 16,
@@ -605,36 +654,38 @@ const styles = StyleSheet.create({
   },
   comingSoonText: {
     fontSize: 10,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#D97706",
     textTransform: "uppercase",
   },
   faqItem: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
     elevation: 2,
   },
   faqQuestion: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     marginBottom: 8,
   },
   faqAnswer: {
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     lineHeight: 20,
   },
   emergencySection: {
     backgroundColor: "#FEF2F2",
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 20,
     marginBottom: 24,
     borderWidth: 1,
@@ -656,12 +707,12 @@ const styles = StyleSheet.create({
   },
   emergencyTitle: {
     fontSize: 18,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#DC2626",
   },
   emergencyDescription: {
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#7F1D1D",
     marginBottom: 16,
     lineHeight: 20,
@@ -674,20 +725,22 @@ const styles = StyleSheet.create({
   },
   emergencyNumber: {
     fontSize: 18,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#FFFFFF",
   },
   locationSection: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 32,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
     elevation: 2,
   },
   locationContent: {
@@ -696,17 +749,16 @@ const styles = StyleSheet.create({
   },
   locationTitle: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     marginBottom: 4,
   },
   locationText: {
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
   },
   rtlText: {
     textAlign: "right",
-    fontFamily: "Geist-Regular",
   },
 });

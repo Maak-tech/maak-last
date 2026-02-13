@@ -17,6 +17,7 @@ import {
   Check,
   ChevronRight,
   Heart,
+  MoreVertical,
   Phone,
   Pill,
   Smile,
@@ -27,7 +28,6 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
   InteractionManager,
   Linking,
   Modal,
@@ -37,17 +37,17 @@ import {
   type StyleProp,
   type TextStyle,
   TouchableOpacity,
+  useWindowDimensions,
   View,
   type ViewStyle,
 } from "react-native";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 // Design System Components
 import ProactiveHealthSuggestions from "@/app/components/ProactiveHealthSuggestions";
 import { Card } from "@/components/design-system";
-import { Caption, Heading, Text } from "@/components/design-system/Typography";
+import { Heading, Text } from "@/components/design-system/Typography";
+import GradientScreen from "@/components/figma/GradientScreen";
+import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -77,6 +77,9 @@ export default function DashboardScreen() {
   const [todaysMedications, setTodaysMedications] = useState<Medication[]>([]);
   const [alertsCount, setAlertsCount] = useState(0);
   const [familyMembersCount, setFamilyMembersCount] = useState(0);
+  const [activeTrackingTab, setActiveTrackingTab] = useState<
+    "symptoms" | "medications" | "moods" | "vitals"
+  >("symptoms");
   const [showAlertsModal, setShowAlertsModal] = useState(false);
   const [userAlerts, setUserAlerts] = useState<any[]>([]);
   const [loadingAlerts, setLoadingAlerts] = useState(false);
@@ -97,10 +100,16 @@ export default function DashboardScreen() {
   const tourTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const medicationReminderSyncKeyRef = useRef<string | null>(null);
   const params = useLocalSearchParams<{ tour?: string }>();
+  const { width, height } = useWindowDimensions();
 
   const isRTL = i18n.language === "ar";
   const isAdmin = user?.role === "admin";
   const _hasFamily = Boolean(user?.familyId);
+  const isIphone16Pro =
+    Math.round(Math.min(width, height)) === 393 &&
+    Math.round(Math.max(width, height)) === 852;
+  const contentPadding = isIphone16Pro ? 24 : theme.spacing.lg;
+  const headerPadding = isIphone16Pro ? 28 : theme.spacing.xl;
 
   // Initialize daily notification scheduler
   const notificationPrefs = (user as any)?.preferences?.notifications;
@@ -119,7 +128,7 @@ export default function DashboardScreen() {
       createThemedStyles((theme) => ({
         container: {
           flex: 1,
-          backgroundColor: theme.colors.background.primary,
+          backgroundColor: "transparent",
         },
         centerContainer: {
           flex: 1,
@@ -130,7 +139,7 @@ export default function DashboardScreen() {
           flex: 1,
         },
         contentInner: {
-          paddingHorizontal: theme.spacing.base,
+          paddingHorizontal: contentPadding,
           paddingVertical: theme.spacing.base,
           paddingBottom: 100, // Extra padding for tab bar
         },
@@ -138,75 +147,112 @@ export default function DashboardScreen() {
           marginBottom: theme.spacing.xl,
         },
         welcomeText: {
-          ...getTextStyle(theme, "heading", "bold", theme.colors.primary.main),
-          marginBottom: 4,
-          fontSize: 28,
+          ...getTextStyle(theme, "heading", "bold", theme.colors.neutral.white),
+          marginBottom: theme.spacing.xs,
+          fontSize: 34,
         },
         dateText: {
-          ...getTextStyle(
-            theme,
-            "body",
-            "regular",
-            theme.colors.text.secondary
-          ),
+          ...getTextStyle(theme, "body", "bold", theme.colors.primary.main),
+          fontSize: 18,
         },
         dateTextRTL: {
           alignSelf: "flex-start" as const,
           textAlign: "left" as const,
         },
-        statsContainer: {
-          flexDirection: "row" as const,
-          paddingHorizontal: theme.spacing.base,
-          paddingVertical: theme.spacing.sm,
+        wavyHeaderWrapper: {
+          marginHorizontal: -contentPadding,
+          marginTop: -theme.spacing.base,
+          marginBottom: theme.spacing.lg,
+        },
+        wavyHeaderContent: {
+          paddingHorizontal: headerPadding,
+          paddingTop: headerPadding,
+          paddingBottom: headerPadding,
+          minHeight: 230,
+          justifyContent: "space-between" as const,
+        },
+        wavyHeaderTopRow: {
+          flexDirection: isRTL ? "row-reverse" : "row",
+          alignItems: "center" as const,
+          justifyContent: "space-between" as const,
+        },
+        wavyHeaderActions: {
+          flexDirection: isRTL ? "row-reverse" : "row",
+          alignItems: "center" as const,
+          gap: theme.spacing.md,
+        },
+        headerDateRow: {
+          marginTop: theme.spacing.lg,
+        },
+        alertBadgeButton: {
+          width: 44,
+          height: 44,
+          borderRadius: 22,
+          backgroundColor: theme.colors.secondary.main,
+          alignItems: "center" as const,
+          justifyContent: "center" as const,
+          ...theme.shadows.md,
+        },
+        alertBadgeText: {
+          ...getTextStyle(theme, "body", "bold", theme.colors.neutral.white),
+          fontSize: 16,
+        },
+        statsSection: {
           marginBottom: theme.spacing.xl,
         },
-        statCard: {
-          width: Dimensions.get("window").width * 0.6,
+        statsScrollContent: {
+          flexDirection: "row" as const,
+          gap: theme.spacing.lg,
+          paddingRight: contentPadding,
+        },
+        statGridCard: {
+          flex: 0,
           alignItems: "center" as const,
-          justifyContent: "center" as const,
+          justifyContent: "flex-start" as const,
           minHeight: 160,
-          marginEnd: theme.spacing.md,
+          borderRadius: theme.borderRadius.xl,
+          backgroundColor: theme.colors.background.secondary,
+          borderWidth: 1,
+          borderColor: theme.colors.border.light,
+          paddingTop: theme.spacing.sm,
+          paddingBottom: theme.spacing.lg,
+          paddingHorizontal: theme.spacing.md,
+          ...theme.shadows.md,
         },
-        statCardContent: {
+        statGridCardHorizontal: {
+          width: 150,
+          height: 180,
+        },
+        statGridIconWrap: {
+          width: 44,
+          height: 44,
           alignItems: "center" as const,
           justifyContent: "center" as const,
-          padding: theme.spacing.lg,
-          paddingTop: theme.spacing.xl,
-          paddingHorizontal: theme.spacing.md,
-          width: "100%",
-          flexWrap: "nowrap" as const,
+          marginTop: theme.spacing.xs,
+          marginBottom: theme.spacing.sm,
+          alignSelf: "center" as const,
         },
-        statValue: {
+        statGridValue: {
           ...getTextStyle(
             theme,
             "heading",
             "bold",
             theme.colors.secondary.main
           ),
-          fontSize: 32,
-          marginTop: 0,
-          marginBottom: theme.spacing.sm,
+          fontSize: 36,
+          lineHeight: 40,
+          marginBottom: theme.spacing.xs,
           textAlign: "center" as const,
-          includeFontPadding: false,
-          flexShrink: 1,
-          minHeight: 40,
-          paddingHorizontal: theme.spacing.xs,
-          paddingTop: theme.spacing.xs,
         },
-        statValueRTL: {
-          textAlign: "right" as const,
-        },
-        statIcon: {
-          marginBottom: theme.spacing.xl,
-        },
-        statLabel: {
-          ...getTextStyle(theme, "body", "medium", theme.colors.text.secondary),
+        statGridLabel: {
+          ...getTextStyle(
+            theme,
+            "body",
+            "regular",
+            theme.colors.text.secondary
+          ),
+          textAlign: "center" as const,
           fontSize: 14,
-          textAlign: "center" as const,
-          paddingHorizontal: theme.spacing.xs,
-        },
-        statLabelRTL: {
-          textAlign: "right" as const,
         },
         alertCard: {
           backgroundColor: `${theme.colors.accent.error}10`,
@@ -235,12 +281,7 @@ export default function DashboardScreen() {
           ...getTextStyle(theme, "body", "regular", theme.colors.accent.error),
         },
         section: {
-          backgroundColor: theme.colors.background.secondary,
-          borderRadius: theme.borderRadius.lg,
-          padding: theme.spacing.base,
-          marginBottom: theme.spacing.base,
-          ...theme.shadows.md,
-          alignItems: "stretch" as const,
+          marginBottom: theme.spacing.lg,
         },
         sectionTitle: {
           ...getTextStyle(
@@ -267,6 +308,78 @@ export default function DashboardScreen() {
         },
         viewAllText: {
           ...getTextStyle(theme, "body", "medium", theme.colors.primary.main),
+          fontSize: 14,
+        },
+        sectionHeaderRow: {
+          flexDirection: "row" as const,
+          justifyContent: "space-between" as const,
+          alignItems: "center" as const,
+          marginBottom: theme.spacing.sm,
+        },
+        sectionTitlePrimary: {
+          ...getTextStyle(
+            theme,
+            "subheading",
+            "bold",
+            theme.colors.primary.main
+          ),
+        },
+        sectionCard: {
+          backgroundColor: theme.colors.background.secondary,
+          borderRadius: theme.borderRadius.xl,
+          padding: theme.spacing.lg,
+          borderWidth: 1,
+          borderColor: theme.colors.border.light,
+          ...theme.shadows.md,
+        },
+        medicationRow: {
+          flexDirection: "row" as const,
+          alignItems: "center" as const,
+          gap: theme.spacing.md,
+          paddingVertical: theme.spacing.base,
+          borderBottomWidth: 1,
+          borderBottomColor: theme.colors.border.light,
+        },
+        medicationIconWrap: {
+          width: 48,
+          height: 48,
+          borderRadius: 24,
+          backgroundColor: theme.colors.neutral[100],
+          alignItems: "center" as const,
+          justifyContent: "center" as const,
+        },
+        medicationAction: {
+          width: 44,
+          height: 44,
+          borderRadius: 22,
+          backgroundColor: theme.colors.primary.main,
+          alignItems: "center" as const,
+          justifyContent: "center" as const,
+          ...theme.shadows.sm,
+        },
+        medicationActionDisabled: {
+          opacity: 0.6,
+        },
+        symptomRow: {
+          flexDirection: "row" as const,
+          alignItems: "center" as const,
+          justifyContent: "space-between" as const,
+          paddingVertical: theme.spacing.base,
+          borderBottomWidth: 1,
+          borderBottomColor: theme.colors.border.light,
+        },
+        symptomDots: {
+          flexDirection: "row" as const,
+          gap: 6,
+          marginHorizontal: theme.spacing.sm,
+        },
+        symptomDot: {
+          width: 8,
+          height: 8,
+          borderRadius: 4,
+        },
+        symptomMoreButton: {
+          padding: 4,
         },
         medicationItem: {
           flexDirection: "row" as const,
@@ -290,6 +403,7 @@ export default function DashboardScreen() {
         medicationName: {
           ...getTextStyle(theme, "body", "semibold", theme.colors.text.primary),
           marginBottom: 4,
+          fontSize: 18,
         },
         medicationNameRTL: {
           textAlign: "right" as const,
@@ -379,44 +493,15 @@ export default function DashboardScreen() {
           ),
           marginTop: 2,
         },
-        sosButton: {
-          backgroundColor: theme.colors.accent.error,
-          borderRadius: theme.borderRadius.full,
-          width: 60,
-          height: 60,
-          justifyContent: "center" as const,
-          alignItems: "center" as const,
-          position: "absolute" as const,
-          bottom: theme.spacing.xl,
-          ...theme.shadows.lg,
-          zIndex: 1000,
-        },
-        sosButtonLTR: {
-          right: theme.spacing.base,
-        },
-        sosButtonRTL: {
-          left: theme.spacing.base,
-        },
-        sosButtonText: {
-          ...getTextStyle(theme, "caption", "bold", theme.colors.neutral.white),
-          fontSize: 10,
-          marginTop: 2,
-        },
-        headerWithSOS: {
-          flexDirection: "row" as const,
-          justifyContent: "space-between" as const,
-          alignItems: "flex-start" as const,
-          marginBottom: theme.spacing.lg,
-          paddingTop: theme.spacing.sm,
-        },
         headerContent: {
           flex: 1,
         },
         sosHeaderButton: {
           backgroundColor: theme.colors.accent.error,
-          borderRadius: theme.borderRadius.lg,
+          borderRadius: theme.borderRadius.full,
           paddingVertical: theme.spacing.sm,
-          paddingHorizontal: theme.spacing.md,
+          paddingHorizontal: theme.spacing.lg,
+          minHeight: 44,
           flexDirection: "row" as const,
           alignItems: "center" as const,
           gap: theme.spacing.sm,
@@ -461,10 +546,41 @@ export default function DashboardScreen() {
           marginBottom: theme.spacing.xl,
           ...theme.shadows.md,
         },
+        trackingTabsRow: {
+          marginBottom: theme.spacing.md,
+        },
+        trackingTabsContent: {
+          flexDirection: "row" as const,
+          gap: theme.spacing.sm,
+          paddingRight: contentPadding,
+        },
+        trackingTab: {
+          paddingHorizontal: theme.spacing.md,
+          paddingVertical: theme.spacing.sm,
+          borderRadius: 999,
+          borderWidth: 1,
+          borderColor: theme.colors.border.light,
+          backgroundColor: theme.colors.background.primary,
+        },
+        trackingTabActive: {
+          backgroundColor: theme.colors.primary.main,
+          borderColor: theme.colors.primary.main,
+        },
+        trackingTabText: {
+          ...getTextStyle(
+            theme,
+            "caption",
+            "medium",
+            theme.colors.text.secondary
+          ),
+        },
+        trackingTabTextActive: {
+          color: theme.colors.neutral.white,
+        },
         trackingOptions: {
           flexDirection: "row" as const,
           gap: theme.spacing.md,
-          flexWrap: "wrap" as const,
+          flexWrap: "nowrap" as const,
         },
         trackingCard: {
           flex: 1,
@@ -629,7 +745,7 @@ export default function DashboardScreen() {
           color: theme.colors.neutral.white,
         },
       }))(theme),
-    [theme, isRTL]
+    [theme, isRTL, contentPadding, headerPadding]
   );
 
   // Memoize navigation handlers to prevent recreation on every render
@@ -656,6 +772,69 @@ export default function DashboardScreen() {
   const navigateToTrack = useCallback(() => {
     router.push("/(tabs)/track");
   }, []);
+
+  const trackingTabs = useMemo(
+    () => [
+      {
+        id: "symptoms",
+        label: isRTL ? "الأعراض الصحية" : "Symptoms",
+        description: isRTL ? "تسجيل الأعراض الصحية" : "Log health symptoms",
+        ctaLabel: isRTL ? "تسجيل" : "Log",
+        icon: Activity,
+        iconColor: theme.colors.primary.main,
+        iconBackground: theme.colors.primary[50],
+        ctaColor: theme.colors.primary.main,
+        onPress: navigateToSymptoms,
+      },
+      {
+        id: "medications",
+        label: isRTL ? "الأدوية" : "Medications",
+        description: isRTL
+          ? "إدارة الأدوية والتذكيرات"
+          : "Manage meds & reminders",
+        ctaLabel: isRTL ? "إدارة" : "Manage",
+        icon: Pill,
+        iconColor: theme.colors.accent.success,
+        iconBackground: `${theme.colors.accent.success}20`,
+        ctaColor: theme.colors.accent.success,
+        onPress: navigateToMedications,
+      },
+      {
+        id: "moods",
+        label: isRTL ? "الحالة النفسية" : "Mood",
+        description: isRTL ? "تسجيل المزاج اليومي" : "Track daily mood",
+        ctaLabel: isRTL ? "تسجيل" : "Log",
+        icon: Smile,
+        iconColor: theme.colors.accent.warning,
+        iconBackground: `${theme.colors.accent.warning}20`,
+        ctaColor: theme.colors.accent.warning,
+        onPress: navigateToMoods,
+      },
+      {
+        id: "vitals",
+        label: isRTL ? "العلامات الحيوية" : "Vitals",
+        description: isRTL ? "قياس الضغط والنبض" : "Blood pressure & pulse",
+        ctaLabel: isRTL ? "قياس" : "Measure",
+        icon: Heart,
+        iconColor: theme.colors.accent.info,
+        iconBackground: `${theme.colors.accent.info}20`,
+        ctaColor: theme.colors.accent.info,
+        onPress: navigateToVitals,
+      },
+    ],
+    [
+      isRTL,
+      theme,
+      navigateToSymptoms,
+      navigateToMedications,
+      navigateToMoods,
+      navigateToVitals,
+    ]
+  );
+
+  const activeTrackingTabData =
+    trackingTabs.find((tab) => tab.id === activeTrackingTab) ?? trackingTabs[0];
+  const ActiveTrackingIcon = activeTrackingTabData?.icon ?? Activity;
 
   const loadDashboardData = useCallback(async () => {
     if (!user) {
@@ -1302,15 +1481,27 @@ export default function DashboardScreen() {
     );
   };
 
+  const handleAlertsBadgePress = async () => {
+    if (!user?.id || alertsCount === 0) {
+      return;
+    }
+    setShowAlertsModal(true);
+    setLoadingAlerts(true);
+    try {
+      const alerts = await alertService.getActiveAlerts(user.id);
+      setUserAlerts(alerts);
+    } finally {
+      setLoadingAlerts(false);
+    }
+  };
+
   // Default widget order
   const enabledWidgets = [
     "stats",
+    "alerts",
+    "healthInsights",
     "todaysMedications",
     "recentSymptoms",
-    "healthInsights",
-    "alerts",
-    "familyMembers",
-    "quickActions",
   ];
 
   // Widget render functions
@@ -1318,134 +1509,145 @@ export default function DashboardScreen() {
     switch (widgetId) {
       case "stats":
         return (
-          <View key="stats">
+          <View key="stats" style={styles.statsSection as ViewStyle}>
             <ScrollView
-              contentContainerStyle={styles.statsContainer as ViewStyle}
-              horizontal
+              contentContainerStyle={styles.statsScrollContent as ViewStyle}
+              horizontal={true}
               showsHorizontalScrollIndicator={false}
-              style={
-                isRTL
-                  ? { marginStart: -theme.spacing.base, marginEnd: 0 }
-                  : { marginHorizontal: -theme.spacing.base }
-              }
             >
               <Card
-                contentStyle={{ padding: 0 }}
+                contentStyle={{ padding: 0, overflow: "visible" }}
                 onPress={navigateToSymptoms}
                 pressable={true}
-                style={styles.statCard as ViewStyle}
+                style={[
+                  styles.statGridCard as ViewStyle,
+                  styles.statGridCardHorizontal as ViewStyle,
+                  {
+                    paddingTop: theme.spacing.md,
+                    overflow: "visible" as const,
+                  },
+                ]}
                 variant="elevated"
               >
-                <View style={styles.statCardContent as ViewStyle}>
-                  <View style={styles.statIcon as ViewStyle}>
-                    <Activity color={theme.colors.primary.main} size={32} />
-                  </View>
-                  <Text
-                    adjustsFontSizeToFit={true}
-                    color={theme.colors.secondary.main}
-                    minimumFontScale={0.6}
-                    numberOfLines={1}
-                    size="large"
-                    style={[
-                      styles.statValue,
-                      isRTL && styles.statValueRTL,
-                      isRTL && styles.rtlText,
-                    ]}
-                    weight="bold"
-                  >
-                    {stats.symptomsThisWeek}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.statLabel,
-                      isRTL && styles.statLabelRTL,
-                      isRTL && styles.rtlText,
-                    ]}
-                    weight="medium"
-                  >
-                    {isRTL
-                      ? "الأعراض الصحية هذا الأسبوع"
-                      : "Symptoms This Week"}
-                  </Text>
+                <View
+                  style={[
+                    styles.statGridIconWrap as ViewStyle,
+                    { marginTop: 0, marginBottom: theme.spacing.xs },
+                  ]}
+                >
+                  <Activity color={theme.colors.primary.main} size={28} />
                 </View>
+                <Text
+                  adjustsFontSizeToFit={true}
+                  color={theme.colors.secondary.main}
+                  minimumFontScale={0.7}
+                  numberOfLines={1}
+                  size="large"
+                  style={[
+                    styles.statGridValue,
+                    { marginTop: theme.spacing.lg },
+                    isRTL && styles.rtlText,
+                  ]}
+                  weight="bold"
+                >
+                  {stats.symptomsThisWeek}
+                </Text>
+                <Text
+                  style={[styles.statGridLabel, isRTL && styles.rtlText]}
+                  weight="medium"
+                >
+                  {isRTL ? "??????? ?????????" : "Symptoms This Week"}
+                </Text>
               </Card>
 
               <Card
-                contentStyle={{ padding: 0 }}
+                contentStyle={{ padding: 0, overflow: "visible" }}
                 onPress={navigateToMedications}
                 pressable={true}
-                style={styles.statCard as ViewStyle}
+                style={[
+                  styles.statGridCard as ViewStyle,
+                  styles.statGridCardHorizontal as ViewStyle,
+                  {
+                    paddingTop: theme.spacing.md,
+                    overflow: "visible" as const,
+                  },
+                ]}
                 variant="elevated"
               >
-                <View style={styles.statCardContent as ViewStyle}>
-                  <View style={styles.statIcon as ViewStyle}>
-                    <Pill color={theme.colors.accent.success} size={32} />
-                  </View>
-                  <Text
-                    adjustsFontSizeToFit={true}
-                    color={theme.colors.secondary.main}
-                    minimumFontScale={0.7}
-                    numberOfLines={1}
-                    size="large"
-                    style={[
-                      styles.statValue,
-                      isRTL && styles.statValueRTL,
-                      isRTL && styles.rtlText,
-                    ]}
-                    weight="bold"
-                  >
-                    {stats.medicationCompliance}%
-                  </Text>
-                  <Text
-                    style={[
-                      styles.statLabel,
-                      isRTL && styles.statLabelRTL,
-                      isRTL && styles.rtlText,
-                    ]}
-                    weight="medium"
-                  >
-                    {isRTL ? "الالتزام بالدواء" : "Med Compliance"}
-                  </Text>
+                <View
+                  style={[
+                    styles.statGridIconWrap as ViewStyle,
+                    { marginTop: 0, marginBottom: theme.spacing.xs },
+                  ]}
+                >
+                  <Pill color={theme.colors.accent.success} size={28} />
                 </View>
+                <Text
+                  adjustsFontSizeToFit={true}
+                  color={theme.colors.secondary.main}
+                  minimumFontScale={0.7}
+                  numberOfLines={1}
+                  size="large"
+                  style={[
+                    styles.statGridValue,
+                    { marginTop: theme.spacing.lg },
+                    isRTL && styles.rtlText,
+                  ]}
+                  weight="bold"
+                >
+                  {stats.medicationCompliance}%
+                </Text>
+                <Text
+                  style={[styles.statGridLabel, isRTL && styles.rtlText]}
+                  weight="medium"
+                >
+                  {isRTL ? "???????? ????????" : "Med Compliance"}
+                </Text>
               </Card>
 
               <Card
-                contentStyle={{ padding: 0 }}
+                contentStyle={{ padding: 0, overflow: "visible" }}
                 onPress={navigateToFamily}
                 pressable={true}
-                style={styles.statCard as ViewStyle}
+                style={[
+                  styles.statGridCard as ViewStyle,
+                  styles.statGridCardHorizontal as ViewStyle,
+                  {
+                    paddingTop: theme.spacing.md,
+                    overflow: "visible" as const,
+                  },
+                ]}
                 variant="elevated"
               >
-                <View style={styles.statCardContent as ViewStyle}>
-                  <View style={styles.statIcon as ViewStyle}>
-                    <Users color={theme.colors.secondary.main} size={32} />
-                  </View>
-                  <Text
-                    adjustsFontSizeToFit={true}
-                    color={theme.colors.secondary.main}
-                    minimumFontScale={0.7}
-                    numberOfLines={1}
-                    size="large"
-                    style={[
-                      styles.statValue,
-                      isRTL && styles.statValueRTL,
-                      isRTL && styles.rtlText,
-                    ]}
-                    weight="bold"
-                  >
-                    {familyMembersCount || 1}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.statLabel,
-                      isRTL && styles.statLabelRTL,
-                      isRTL && styles.rtlText,
-                    ]}
-                    weight="medium"
-                  >
-                    {isRTL ? "أفراد العائلة" : "Family Members"}
-                  </Text>
+                <View
+                  style={[
+                    styles.statGridIconWrap as ViewStyle,
+                    { marginTop: 0, marginBottom: theme.spacing.xs },
+                  ]}
+                >
+                  <Users color={theme.colors.primary.main} size={28} />
                 </View>
+                <Text
+                  adjustsFontSizeToFit={true}
+                  color={theme.colors.secondary.main}
+                  minimumFontScale={0.7}
+                  numberOfLines={1}
+                  size="large"
+                  style={[
+                    styles.statGridValue,
+                    { marginTop: theme.spacing.lg },
+                    isRTL && styles.rtlText,
+                  ]}
+                  weight="bold"
+                >
+                  {familyMembersCount}
+                </Text>
+                <Text
+                  style={[styles.statGridLabel, isRTL && styles.rtlText]}
+                  weight="medium"
+                >
+                  {isRTL ? "أفراد العائلة" : "Family Members"}
+                </Text>
               </Card>
             </ScrollView>
           </View>
@@ -1454,53 +1656,46 @@ export default function DashboardScreen() {
       case "todaysMedications":
         return (
           <View key="todaysMedications" style={styles.section as ViewStyle}>
-            <View style={styles.sectionHeader as ViewStyle}>
+            <View style={styles.sectionHeaderRow as ViewStyle}>
               <Text
                 style={[
-                  styles.sectionTitle,
+                  styles.sectionTitlePrimary,
                   isRTL && styles.rtlText,
                   isRTL && { textAlign: "right" as const },
                 ]}
               >
-                {isRTL ? "أدوية اليوم" : "Today's Medications"}
+                {isRTL ? "????? ?????" : "Today's Medications"}
               </Text>
               <TouchableOpacity
                 onPress={navigateToMedications}
                 style={styles.viewAllButton as ViewStyle}
               >
                 <Text style={[styles.viewAllText, isRTL && styles.rtlText]}>
-                  {isRTL ? "عرض الكل" : "View All"}
+                  {isRTL ? "??? ????" : "View All"}
                 </Text>
                 <ChevronRight color={theme.colors.primary.main} size={16} />
               </TouchableOpacity>
             </View>
 
-            {todaysMedications.length > 0 ? (
-              todaysMedications.slice(0, 3).map((medication) => {
-                const todayDate = new Date();
-                const nextReminder = getNextUpcomingReminder(medication);
-                const hasUntakenReminders = nextReminder !== null;
-                const allTaken =
-                  Array.isArray(medication.reminders) &&
-                  medication.reminders.length > 0 &&
-                  medication.reminders.every((r) =>
-                    isReminderTakenToday(r, todayDate)
-                  );
+            <View style={styles.sectionCard as ViewStyle}>
+              {todaysMedications.length > 0 ? (
+                todaysMedications.slice(0, 2).map((medication) => {
+                  const todayDate = new Date();
+                  const nextReminder = getNextUpcomingReminder(medication);
+                  const hasUntakenReminders = nextReminder !== null;
+                  const allTaken =
+                    Array.isArray(medication.reminders) &&
+                    medication.reminders.length > 0 &&
+                    medication.reminders.every((r) =>
+                      isReminderTakenToday(r, todayDate)
+                    );
 
-                return (
-                  <View
-                    key={medication.id}
-                    style={styles.medicationItem as ViewStyle}
-                  >
-                    <TouchableOpacity
-                      onPress={navigateToMedications}
-                      style={{
-                        flex: 1,
-                        flexDirection: "row",
-                        alignItems: "center",
-                      }}
+                  return (
+                    <View
+                      key={medication.id}
+                      style={styles.medicationRow as ViewStyle}
                     >
-                      <View style={styles.medicationIcon as ViewStyle}>
+                      <View style={styles.medicationIconWrap as ViewStyle}>
                         <Pill color={theme.colors.primary.main} size={20} />
                       </View>
                       <View style={styles.medicationInfo as ViewStyle}>
@@ -1520,7 +1715,8 @@ export default function DashboardScreen() {
                             isRTL && styles.rtlText,
                           ]}
                         >
-                          {medication.dosage} • {medication.frequency}
+                          {medication.dosage || ""} •{" "}
+                          {medication.frequency || ""}
                           {nextReminder && (
                             <Text
                               style={[
@@ -1530,31 +1726,23 @@ export default function DashboardScreen() {
                               ]}
                             >
                               {" • "}
-                              {isRTL ? "التذكير التالي: " : "Next: "}
+                              {isRTL ? "??????? ??????: " : "Next: "}
                               {nextReminder.time}
                             </Text>
                           )}
                         </Text>
                       </View>
-                    </TouchableOpacity>
-                    <View style={styles.medicationStatus as ViewStyle}>
-                      {hasUntakenReminders ? (
-                        <TouchableOpacity
-                          disabled={markingMedication === medication.id}
-                          onPress={() => handleMarkMedicationTaken(medication)}
-                          style={[
-                            styles.statusCheckContainer,
-                            {
-                              backgroundColor:
-                                markingMedication === medication.id
-                                  ? theme.colors.neutral[400]
-                                  : theme.colors.primary.main,
-                              opacity:
-                                markingMedication === medication.id ? 0.6 : 1,
-                            },
-                          ]}
-                        >
-                          {markingMedication === medication.id ? (
+                      <TouchableOpacity
+                        disabled={markingMedication === medication.id}
+                        onPress={() => handleMarkMedicationTaken(medication)}
+                        style={[
+                          styles.medicationAction,
+                          markingMedication === medication.id &&
+                            styles.medicationActionDisabled,
+                        ]}
+                      >
+                        {hasUntakenReminders ? (
+                          markingMedication === medication.id ? (
                             <ActivityIndicator
                               color={theme.colors.neutral.white}
                               size={16}
@@ -1562,179 +1750,123 @@ export default function DashboardScreen() {
                           ) : (
                             <Pill
                               color={theme.colors.neutral.white}
-                              size={14}
-                              strokeWidth={2.5}
+                              size={16}
                             />
-                          )}
-                        </TouchableOpacity>
-                      ) : allTaken ? (
-                        <View
-                          style={[
-                            styles.statusCheckContainer,
-                            { backgroundColor: theme.colors.accent.success },
-                          ]}
-                        >
+                          )
+                        ) : allTaken ? (
                           <Check
                             color={theme.colors.neutral.white}
                             size={16}
                             strokeWidth={3}
                           />
-                        </View>
-                      ) : (
-                        <View
-                          style={[
-                            styles.statusCheckContainer,
-                            {
-                              backgroundColor:
-                                theme.colors.background.secondary,
-                              borderColor: theme.colors.border.medium,
-                              borderWidth: 2,
-                            },
-                          ]}
-                        >
+                        ) : (
                           <Check
-                            color={theme.colors.text.tertiary}
+                            color={theme.colors.neutral.white}
                             size={16}
                             strokeWidth={2}
                           />
-                        </View>
-                      )}
+                        )}
+                      </TouchableOpacity>
                     </View>
-                  </View>
-                );
-              })
-            ) : (
-              <TouchableOpacity
-                onPress={navigateToMedications}
-                style={styles.emptyContainer as ViewStyle}
-              >
-                <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-                  {isRTL
-                    ? "لا توجد أدوية لليوم - اضغط لإضافة دواء"
-                    : "No medications for today - tap to add"}
-                </Text>
-              </TouchableOpacity>
-            )}
+                  );
+                })
+              ) : (
+                <TouchableOpacity
+                  onPress={navigateToMedications}
+                  style={styles.emptyContainer as ViewStyle}
+                >
+                  <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
+                    {isRTL
+                      ? "?? ???? ????? ????? - ???? ???????"
+                      : "No medications for today - tap to add"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         );
 
       case "recentSymptoms":
         return (
           <View key="recentSymptoms" style={styles.section as ViewStyle}>
-            <View style={styles.sectionHeader as ViewStyle}>
+            <View style={styles.sectionHeaderRow as ViewStyle}>
               <Text
                 style={[
-                  styles.sectionTitle,
+                  styles.sectionTitlePrimary,
                   isRTL && styles.rtlText,
                   isRTL && { textAlign: "right" as const },
                 ]}
               >
-                {isRTL ? "الأعراض الصحية الأخيرة" : "Recent Symptoms"}
+                {isRTL ? "??????? ???????" : "Recent Symptoms"}
               </Text>
               <TouchableOpacity
                 onPress={navigateToSymptoms}
                 style={styles.viewAllButton as ViewStyle}
               >
                 <Text style={[styles.viewAllText, isRTL && styles.rtlText]}>
-                  {isRTL ? "عرض الكل" : "View All"}
+                  {isRTL ? "??? ????" : "View All"}
                 </Text>
                 <ChevronRight color={theme.colors.primary.main} size={16} />
               </TouchableOpacity>
             </View>
 
-            {recentSymptoms.length > 0 ? (
-              recentSymptoms.map((symptom) => (
+            <View style={styles.sectionCard as ViewStyle}>
+              {recentSymptoms.length > 0 ? (
+                recentSymptoms.slice(0, 3).map((symptom) => (
+                  <View key={symptom.id} style={styles.symptomRow as ViewStyle}>
+                    <View style={styles.symptomInfo as ViewStyle}>
+                      <Text
+                        style={[styles.symptomType, isRTL && styles.rtlText]}
+                      >
+                        {t(symptom.type)}
+                      </Text>
+                      <Text
+                        style={[styles.symptomTime, isRTL && styles.rtlText]}
+                      >
+                        {formatDate(symptom.timestamp) || ""} •{" "}
+                        {formatTime(symptom.timestamp) || ""}
+                      </Text>
+                    </View>
+                    <View style={styles.symptomDots as ViewStyle}>
+                      {[...new Array(4)].map((_, i) => (
+                        <View
+                          key={i}
+                          style={[
+                            styles.symptomDot,
+                            {
+                              backgroundColor:
+                                i < symptom.severity
+                                  ? getSeverityColor(symptom.severity)
+                                  : theme.colors.neutral[200],
+                            },
+                          ]}
+                        />
+                      ))}
+                    </View>
+                    <TouchableOpacity
+                      onPress={navigateToSymptoms}
+                      style={styles.symptomMoreButton as ViewStyle}
+                    >
+                      <MoreVertical
+                        color={theme.colors.text.secondary}
+                        size={18}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                ))
+              ) : (
                 <TouchableOpacity
-                  key={symptom.id}
                   onPress={navigateToSymptoms}
-                  style={[
-                    styles.symptomItem as ViewStyle,
-                    isRTL && { flexDirection: "row-reverse" as const },
-                  ]}
+                  style={styles.emptyContainer as ViewStyle}
                 >
-                  {isRTL ? (
-                    <>
-                      <View style={styles.severityDisplay as ViewStyle}>
-                        {[...new Array(5)].map((_, i) => (
-                          <View
-                            key={i}
-                            style={[
-                              styles.severityDot,
-                              {
-                                backgroundColor:
-                                  i < symptom.severity
-                                    ? getSeverityColor(symptom.severity)
-                                    : theme.colors.neutral[200],
-                              },
-                            ]}
-                          />
-                        ))}
-                      </View>
-                      <View style={[styles.symptomInfo, styles.symptomInfoRTL]}>
-                        <Text
-                          style={[
-                            styles.symptomType,
-                            styles.symptomTypeRTL,
-                            styles.rtlText,
-                          ]}
-                        >
-                          {t(symptom.type)}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.symptomTime,
-                            styles.rtlText,
-                            { textAlign: "right" as const },
-                          ]}
-                        >
-                          {formatDate(symptom.timestamp)} •{" "}
-                          {formatTime(symptom.timestamp)}
-                        </Text>
-                      </View>
-                    </>
-                  ) : (
-                    <>
-                      <View style={styles.symptomInfo as ViewStyle}>
-                        <Text style={[styles.symptomType]}>
-                          {t(symptom.type)}
-                        </Text>
-                        <Text style={[styles.symptomTime]}>
-                          {formatDate(symptom.timestamp)} •{" "}
-                          {formatTime(symptom.timestamp)}
-                        </Text>
-                      </View>
-                      <View style={styles.severityDisplay as ViewStyle}>
-                        {[...new Array(5)].map((_, i) => (
-                          <View
-                            key={i}
-                            style={[
-                              styles.severityDot,
-                              {
-                                backgroundColor:
-                                  i < symptom.severity
-                                    ? getSeverityColor(symptom.severity)
-                                    : theme.colors.neutral[200],
-                              },
-                            ]}
-                          />
-                        ))}
-                      </View>
-                    </>
-                  )}
+                  <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
+                    {isRTL
+                      ? "?? ???? ????? ????? - ???? ???????"
+                      : "No symptoms recorded - tap to add"}
+                  </Text>
                 </TouchableOpacity>
-              ))
-            ) : (
-              <TouchableOpacity
-                onPress={navigateToSymptoms}
-                style={styles.emptyContainer as ViewStyle}
-              >
-                <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-                  {isRTL
-                    ? "لا توجد أعراض الصحية مسجلة - اضغط لإضافة أعراض صحية"
-                    : "No symptoms recorded - tap to add"}
-                </Text>
-              </TouchableOpacity>
-            )}
+              )}
+            </View>
           </View>
         );
 
@@ -1868,7 +2000,7 @@ export default function DashboardScreen() {
 
   if (!user) {
     return (
-      <SafeAreaView
+      <GradientScreen
         edges={["top"]}
         pointerEvents="box-none"
         style={styles.container as ViewStyle}
@@ -1884,12 +2016,12 @@ export default function DashboardScreen() {
             )}
           </Text>
         </View>
-      </SafeAreaView>
+      </GradientScreen>
     );
   }
 
   return (
-    <SafeAreaView
+    <GradientScreen
       edges={["top"]}
       pointerEvents="box-none"
       style={styles.container as ViewStyle}
@@ -1908,119 +2040,79 @@ export default function DashboardScreen() {
           showsVerticalScrollIndicator={false}
           style={styles.content as ViewStyle}
         >
-          {/* Header with SOS Button */}
-          <View style={styles.headerWithSOS as ViewStyle}>
-            {isRTL ? (
-              <>
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  onPress={handleSOS}
-                  style={[
-                    styles.sosHeaderButton as ViewStyle,
-                    { marginEnd: theme.spacing.md },
-                  ]}
-                >
-                  <Phone color={theme.colors.neutral.white} size={20} />
+          {/* Wavy Header */}
+          <View style={styles.wavyHeaderWrapper as ViewStyle}>
+            <WavyBackground height={240} variant="teal">
+              <View style={styles.wavyHeaderContent as ViewStyle}>
+                <View style={styles.wavyHeaderTopRow as ViewStyle}>
+                  <View style={styles.headerContent as ViewStyle}>
+                    <Heading
+                      color={theme.colors.neutral.white}
+                      level={2}
+                      style={[styles.welcomeText, isRTL && styles.rtlText]}
+                    >
+                      {isRTL
+                        ? `مرحباً، ${user.firstName || "User"}`
+                        : `Welcome, ${user.firstName || "User"}`}
+                    </Heading>
+                  </View>
+
+                  <View style={styles.wavyHeaderActions as ViewStyle}>
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      onPress={handleSOS}
+                      style={styles.sosHeaderButton as ViewStyle}
+                    >
+                      <Phone color={theme.colors.neutral.white} size={18} />
+                      <Text
+                        color={theme.colors.neutral.white}
+                        style={styles.sosHeaderText as StyleProp<TextStyle>}
+                        weight="bold"
+                      >
+                        SOS
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      onPress={handleAlertsBadgePress}
+                      style={styles.alertBadgeButton as ViewStyle}
+                    >
+                      <Text
+                        color={theme.colors.neutral.white}
+                        style={styles.alertBadgeText as StyleProp<TextStyle>}
+                        weight="bold"
+                      >
+                        {alertsCount}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={styles.headerDateRow as ViewStyle}>
                   <Text
-                    color={theme.colors.neutral.white}
-                    style={styles.sosHeaderText as StyleProp<TextStyle>}
+                    color={theme.colors.primary.main}
+                    numberOfLines={1}
+                    size="medium"
+                    style={[styles.dateText, isRTL && styles.rtlText]}
                     weight="bold"
                   >
-                    SOS
+                    {safeFormatDate(
+                      new Date(),
+                      isRTL ? "ar-u-ca-gregory" : "en-US",
+                      {
+                        weekday: "long",
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      }
+                    )}
                   </Text>
-                </TouchableOpacity>
-                <View
-                  style={[
-                    {
-                      marginStart: theme.spacing.md,
-                      alignItems: "flex-end",
-                      flexShrink: 0,
-                    },
-                  ]}
-                >
-                  <Heading
-                    color={theme.colors.primary.main}
-                    level={4}
-                    style={[
-                      styles.welcomeText,
-                      styles.rtlText,
-                      { textAlign: "right" },
-                    ]}
-                  >
-                    {`مرحباً، ${user.firstName || "User"}`}
-                  </Heading>
-                  <Caption
-                    color={theme.colors.text.secondary}
-                    numberOfLines={undefined}
-                    style={[
-                      styles.dateText,
-                      styles.rtlText,
-                      styles.dateTextRTL,
-                      { textAlign: "right" },
-                    ]}
-                  >
-                    {safeFormatDate(new Date(), "ar-u-ca-gregory", {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </Caption>
                 </View>
-              </>
-            ) : (
-              <>
-                <View
-                  style={[
-                    styles.headerContent as ViewStyle,
-                    isRTL && { marginEnd: theme.spacing.md },
-                  ]}
-                >
-                  <Heading
-                    color={theme.colors.primary.main}
-                    level={4}
-                    style={[styles.welcomeText, isRTL && styles.rtlText]}
-                  >
-                    {`Welcome, ${user.firstName || "User"}`}
-                  </Heading>
-                  <Caption
-                    color={theme.colors.text.secondary}
-                    numberOfLines={undefined}
-                    style={[
-                      styles.dateText,
-                      isRTL && styles.rtlText,
-                      isRTL && styles.dateTextRTL,
-                    ]}
-                  >
-                    {safeFormatDate(new Date(), "en-US", {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </Caption>
-                </View>
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  onPress={handleSOS}
-                  style={[
-                    styles.sosHeaderButton as ViewStyle,
-                    isRTL && { marginStart: theme.spacing.md },
-                  ]}
-                >
-                  <Phone color={theme.colors.neutral.white} size={20} />
-                  <Text
-                    color={theme.colors.neutral.white}
-                    style={styles.sosHeaderText as StyleProp<TextStyle>}
-                    weight="bold"
-                  >
-                    SOS
-                  </Text>
-                </TouchableOpacity>
-              </>
-            )}
+              </View>
+            </WavyBackground>
           </View>
 
           {/* Render widgets dynamically */}
@@ -2407,175 +2499,97 @@ export default function DashboardScreen() {
                 </Text>
               </View>
 
-              <View style={styles.trackingOptions as ViewStyle}>
-                <TouchableOpacity
-                  onPress={navigateToSymptoms}
-                  style={styles.trackingCard as ViewStyle}
+              <View style={styles.trackingTabsRow as ViewStyle}>
+                <ScrollView
+                  contentContainerStyle={
+                    styles.trackingTabsContent as ViewStyle
+                  }
+                  horizontal={true}
+                  showsHorizontalScrollIndicator={false}
                 >
-                  <View
-                    style={[
-                      styles.trackingCardIcon,
-                      { backgroundColor: theme.colors.primary[50] },
-                    ]}
-                  >
-                    <Activity color={theme.colors.primary.main} size={28} />
-                  </View>
-                  <Text
-                    style={[styles.trackingCardTitle, isRTL && styles.rtlText]}
-                  >
-                    {isRTL ? "الأعراض الصحية" : "Symptoms"}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.trackingCardSubtitle,
-                      isRTL && styles.rtlText,
-                    ]}
-                  >
-                    {isRTL ? "تسجيل الأعراض الصحية" : "Log health symptoms"}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={navigateToSymptoms}
-                    style={styles.trackingCardButton as ViewStyle}
-                  >
-                    <Activity color={theme.colors.neutral.white} size={16} />
-                    <Text
-                      style={
-                        styles.trackingCardButtonText as StyleProp<TextStyle>
-                      }
-                    >
-                      {isRTL ? "تسجيل" : "Log"}
-                    </Text>
-                  </TouchableOpacity>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={navigateToMedications}
-                  style={styles.trackingCard as ViewStyle}
-                >
-                  <View
-                    style={[
-                      styles.trackingCardIcon,
-                      { backgroundColor: `${theme.colors.accent.success}20` },
-                    ]}
-                  >
-                    <Pill color={theme.colors.accent.success} size={28} />
-                  </View>
-                  <Text
-                    style={[styles.trackingCardTitle, isRTL && styles.rtlText]}
-                  >
-                    {isRTL ? "الأدوية" : "Medications"}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.trackingCardSubtitle,
-                      isRTL && styles.rtlText,
-                    ]}
-                  >
-                    {isRTL
-                      ? "إدارة الأدوية والتذكيرات"
-                      : "Manage meds & reminders"}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={navigateToMedications}
-                    style={styles.trackingCardButton as ViewStyle}
-                  >
-                    <Pill color={theme.colors.neutral.white} size={16} />
-                    <Text
-                      style={
-                        styles.trackingCardButtonText as StyleProp<TextStyle>
-                      }
-                    >
-                      {isRTL ? "إدارة" : "Manage"}
-                    </Text>
-                  </TouchableOpacity>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={navigateToMoods}
-                  style={styles.trackingCard as ViewStyle}
-                >
-                  <View
-                    style={[
-                      styles.trackingCardIcon,
-                      { backgroundColor: `${theme.colors.accent.warning}20` },
-                    ]}
-                  >
-                    <Smile color={theme.colors.accent.warning} size={28} />
-                  </View>
-                  <Text
-                    style={[styles.trackingCardTitle, isRTL && styles.rtlText]}
-                  >
-                    {isRTL ? "الحالة النفسية" : "Mood"}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.trackingCardSubtitle,
-                      isRTL && styles.rtlText,
-                    ]}
-                  >
-                    {isRTL ? "تسجيل المزاج اليومي" : "Track daily mood"}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={navigateToMoods}
-                    style={[
-                      styles.trackingCardButton,
-                      { backgroundColor: theme.colors.accent.warning },
-                    ]}
-                  >
-                    <Smile color={theme.colors.neutral.white} size={16} />
-                    <Text
-                      style={
-                        styles.trackingCardButtonText as StyleProp<TextStyle>
-                      }
-                    >
-                      {isRTL ? "تسجيل" : "Log"}
-                    </Text>
-                  </TouchableOpacity>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={navigateToVitals}
-                  style={styles.trackingCard as ViewStyle}
-                >
-                  <View
-                    style={[
-                      styles.trackingCardIcon,
-                      { backgroundColor: `${theme.colors.accent.info}20` },
-                    ]}
-                  >
-                    <Heart color={theme.colors.accent.info} size={28} />
-                  </View>
-                  <Text
-                    style={[styles.trackingCardTitle, isRTL && styles.rtlText]}
-                  >
-                    {isRTL ? "العلامات الحيوية" : "Vitals"}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.trackingCardSubtitle,
-                      isRTL && styles.rtlText,
-                    ]}
-                  >
-                    {isRTL ? "قياس الضغط والنبض" : "Blood pressure & pulse"}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={navigateToVitals}
-                    style={[
-                      styles.trackingCardButton,
-                      { backgroundColor: theme.colors.accent.info },
-                    ]}
-                  >
-                    <Heart color={theme.colors.neutral.white} size={16} />
-                    <Text
-                      style={
-                        styles.trackingCardButtonText as StyleProp<TextStyle>
-                      }
-                    >
-                      {isRTL ? "قياس" : "Measure"}
-                    </Text>
-                  </TouchableOpacity>
-                </TouchableOpacity>
+                  {trackingTabs.map((tab) => {
+                    const isActive = tab.id === activeTrackingTab;
+                    return (
+                      <TouchableOpacity
+                        key={tab.id}
+                        onPress={() => setActiveTrackingTab(tab.id)}
+                        style={[
+                          styles.trackingTab as ViewStyle,
+                          isActive && styles.trackingTabActive,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.trackingTabText,
+                            isActive && styles.trackingTabTextActive,
+                            isRTL && styles.rtlText,
+                          ]}
+                        >
+                          {tab.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
               </View>
+
+              {activeTrackingTabData ? (
+                <View style={styles.trackingOptions as ViewStyle}>
+                  <TouchableOpacity
+                    onPress={activeTrackingTabData.onPress}
+                    style={styles.trackingCard as ViewStyle}
+                  >
+                    <View
+                      style={[
+                        styles.trackingCardIcon,
+                        {
+                          backgroundColor: activeTrackingTabData.iconBackground,
+                        },
+                      ]}
+                    >
+                      <ActiveTrackingIcon
+                        color={activeTrackingTabData.iconColor}
+                        size={28}
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        styles.trackingCardTitle,
+                        isRTL && styles.rtlText,
+                      ]}
+                    >
+                      {activeTrackingTabData.label}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.trackingCardSubtitle,
+                        isRTL && styles.rtlText,
+                      ]}
+                    >
+                      {activeTrackingTabData.description}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={activeTrackingTabData.onPress}
+                      style={[
+                        styles.trackingCardButton,
+                        { backgroundColor: activeTrackingTabData.ctaColor },
+                      ]}
+                    >
+                      <ActiveTrackingIcon
+                        color={theme.colors.neutral.white}
+                        size={16}
+                      />
+                      <Text
+                        style={
+                          styles.trackingCardButtonText as StyleProp<TextStyle>
+                        }
+                      >
+                        {activeTrackingTabData.ctaLabel}
+                      </Text>
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
             </View>
           )}
 
@@ -2589,6 +2603,6 @@ export default function DashboardScreen() {
           </View>
         </ScrollView>
       </View>
-    </SafeAreaView>
+    </GradientScreen>
   );
 }

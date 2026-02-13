@@ -1,10 +1,15 @@
 import { useFocusEffect, useRouter } from "expo-router";
 import {
+  AlertCircle,
   ArrowLeft,
+  Bug,
   Edit,
+  Leaf,
   MoreVertical,
+  Pill,
   Plus,
   Trash2,
+  UtensilsCrossed,
   X,
 } from "lucide-react-native";
 import { useCallback, useState } from "react";
@@ -23,6 +28,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Button, Card, Input } from "@/components/design-system";
 import { Badge } from "@/components/design-system/AdditionalComponents";
 import { Caption, Heading, Text } from "@/components/design-system/Typography";
+import GradientScreen from "@/components/figma/GradientScreen";
+import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { allergyService } from "@/lib/services/allergyService";
@@ -102,6 +109,7 @@ export default function AllergiesScreen() {
   const { user } = useAuth();
   const { theme } = useTheme();
   const router = useRouter();
+  const params = useLocalSearchParams<{ returnTo?: string }>();
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedAllergy, setSelectedAllergy] = useState("");
   const [customAllergy, setCustomAllergy] = useState("");
@@ -118,6 +126,64 @@ export default function AllergiesScreen() {
   const [showActionsMenu, setShowActionsMenu] = useState<string | null>(null);
   const [familyMembers, setFamilyMembers] = useState<UserType[]>([]);
   const [selectedTargetUser, setSelectedTargetUser] = useState<string>("");
+  const severityColors: Record<string, string> = {
+    mild: "#FBBF24",
+    moderate: "#F97316",
+    severe: "#EF4444",
+    "severe-life-threatening": "#DC2626",
+  };
+  const severityLabels: Record<string, string> = {
+    mild: "Mild",
+    moderate: "Moderate",
+    severe: "Severe",
+    "severe-life-threatening": "Severe",
+  };
+
+  const classifyAllergy = (name: string) => {
+    const normalized = name.toLowerCase();
+    if (
+      normalized.includes("penicillin") ||
+      normalized.includes("aspirin") ||
+      normalized.includes("medication") ||
+      normalized.includes("drug")
+    ) {
+      return { type: "Medication", icon: Pill };
+    }
+    if (
+      normalized.includes("peanut") ||
+      normalized.includes("nut") ||
+      normalized.includes("milk") ||
+      normalized.includes("egg") ||
+      normalized.includes("fish") ||
+      normalized.includes("shellfish") ||
+      normalized.includes("soy") ||
+      normalized.includes("wheat") ||
+      normalized.includes("sesame")
+    ) {
+      return { type: "Food", icon: UtensilsCrossed };
+    }
+    if (
+      normalized.includes("pollen") ||
+      normalized.includes("dust") ||
+      normalized.includes("mold") ||
+      normalized.includes("dander") ||
+      normalized.includes("latex")
+    ) {
+      return { type: "Environmental", icon: Leaf };
+    }
+    if (normalized.includes("bee") || normalized.includes("sting")) {
+      return { type: "Insect", icon: Bug };
+    }
+    return { type: "Other", icon: AlertCircle };
+  };
+  const severeCount = allergies.filter(
+    (allergy) =>
+      allergy.severity === "severe" ||
+      allergy.severity === "severe-life-threatening"
+  ).length;
+  const categoryCount = new Set(
+    allergies.map((allergy) => classifyAllergy(allergy.name).type)
+  ).size;
 
   const isRTL = i18n.language === "ar";
   const isAdmin = user?.role === "admin";
@@ -428,7 +494,7 @@ export default function AllergiesScreen() {
         contentStyle={undefined}
         key={allergy.id}
         pressable={false}
-        style={styles.allergyCard}
+        style={styles.figmaAllergyCard}
         variant="elevated"
       >
         <View style={styles.allergyHeader}>
@@ -445,7 +511,7 @@ export default function AllergiesScreen() {
                 numberOfLines={undefined}
                 style={[styles.allergyDate, isRTL && styles.rtlText]}
               >
-                {formatDate(allergy.discoveredDate || allergy.timestamp)}
+                {formatDate(allergy.discoveredDate || allergy.timestamp) || ""}
               </Caption>
               <Badge
                 size="small"
@@ -520,6 +586,299 @@ export default function AllergiesScreen() {
     container: {
       flex: 1,
       backgroundColor: theme.colors.background.primary,
+    },
+    figmaAllergyHeaderWrapper: {
+      marginHorizontal: -20,
+      marginTop: -20,
+      marginBottom: 12,
+    },
+    figmaAllergyHeaderContent: {
+      paddingHorizontal: 24,
+      paddingTop: 20,
+      paddingBottom: 16,
+    },
+    figmaAllergyHeaderRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    figmaAllergyBackButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: "rgba(255, 255, 255, 0.5)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    figmaAllergyHeaderTitle: {
+      flex: 1,
+    },
+    figmaAllergyTitleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginBottom: 4,
+    },
+    figmaAllergyTitle: {
+      fontSize: 22,
+      fontFamily: "Inter-Bold",
+      color: "#FFFFFF",
+    },
+    figmaAllergySubtitle: {
+      fontSize: 13,
+      fontFamily: "Inter-SemiBold",
+      color: "rgba(0, 53, 67, 0.85)",
+    },
+    figmaAllergyAddButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: "#EB9C0C",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    figmaAllergyContent: {
+      paddingHorizontal: 24,
+      paddingBottom: 120,
+    },
+    figmaAllergyAlertBanner: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 10,
+      padding: 16,
+      borderRadius: 16,
+      backgroundColor: "rgba(239, 68, 68, 0.12)",
+      borderWidth: 1,
+      borderColor: "rgba(239, 68, 68, 0.2)",
+      marginBottom: 20,
+    },
+    figmaAllergyAlertTextWrap: {
+      flex: 1,
+    },
+    figmaAllergyAlertTitle: {
+      fontSize: 14,
+      fontFamily: "Inter-SemiBold",
+      color: "#EF4444",
+      marginBottom: 4,
+    },
+    figmaAllergyAlertText: {
+      fontSize: 12,
+      fontFamily: "Inter-Regular",
+      color: "rgba(239, 68, 68, 0.8)",
+    },
+    figmaAllergyStatsRow: {
+      flexDirection: "row",
+      gap: 12,
+      marginBottom: 24,
+    },
+    figmaAllergyStatCard: {
+      flex: 1,
+      backgroundColor: "#FFFFFF",
+      borderRadius: 16,
+      paddingVertical: 16,
+      alignItems: "center",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    figmaAllergyStatValue: {
+      fontSize: 22,
+      fontFamily: "Inter-Bold",
+      color: "#003543",
+      marginBottom: 4,
+    },
+    figmaAllergyStatLabel: {
+      fontSize: 12,
+      fontFamily: "Inter-Regular",
+      color: "#6C7280",
+    },
+    figmaAllergySection: {
+      marginBottom: 24,
+    },
+    figmaAllergySectionHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 12,
+    },
+    figmaAllergySectionTitle: {
+      fontSize: 18,
+      fontFamily: "Inter-Bold",
+      color: "#1A1D1F",
+    },
+    figmaAllergySectionLink: {
+      fontSize: 14,
+      fontFamily: "Inter-Medium",
+      color: "#003543",
+    },
+    figmaAllergyList: {
+      gap: 12,
+    },
+    figmaAllergyCard: {
+      backgroundColor: "#FFFFFF",
+      borderRadius: 16,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: "#E5E7EB",
+    },
+    figmaAllergyCardHeader: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 12,
+    },
+    figmaAllergyIconWrap: {
+      width: 48,
+      height: 48,
+      borderRadius: 14,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    figmaAllergyCardInfo: {
+      flex: 1,
+    },
+    figmaAllergyCardTitleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 6,
+    },
+    figmaAllergyCardTitle: {
+      fontSize: 16,
+      fontFamily: "Inter-SemiBold",
+      color: "#1A1D1F",
+    },
+    figmaAllergySeverityBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    figmaAllergySeverityText: {
+      fontSize: 11,
+      fontFamily: "Inter-SemiBold",
+    },
+    figmaAllergyTypeText: {
+      fontSize: 12,
+      fontFamily: "Inter-Regular",
+      color: "#6C7280",
+      marginBottom: 4,
+    },
+    figmaAllergyReactionText: {
+      fontSize: 12,
+      fontFamily: "Inter-Regular",
+      color: "#003543",
+      marginBottom: 4,
+    },
+    figmaAllergyReactionLabel: {
+      fontFamily: "Inter-SemiBold",
+    },
+    figmaAllergyDiagnosedText: {
+      fontSize: 11,
+      fontFamily: "Inter-Regular",
+      color: "#6C7280",
+    },
+    figmaAllergyPlanCard: {
+      backgroundColor: "rgba(249, 115, 22, 0.08)",
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 24,
+    },
+    figmaAllergyPlanTitle: {
+      fontSize: 16,
+      fontFamily: "Inter-SemiBold",
+      color: "#1A1D1F",
+      marginBottom: 6,
+    },
+    figmaAllergyPlanText: {
+      fontSize: 12,
+      fontFamily: "Inter-Regular",
+      color: "#6C7280",
+    },
+    figmaAllergyFab: {
+      position: "absolute",
+      right: 20,
+      bottom: 100,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: "#EB9C0C",
+      alignItems: "center",
+      justifyContent: "center",
+      shadowColor: "#0F172A",
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.18,
+      shadowRadius: 12,
+      elevation: 6,
+    },
+    figmaAllergyCardActions: {
+      position: "relative",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    figmaAllergyActionsButton: {
+      padding: 8,
+      marginLeft: 4,
+    },
+    figmaAllergyActionsMenu: {
+      position: "absolute",
+      right: 0,
+      top: 36,
+      backgroundColor: "#FFFFFF",
+      borderRadius: 12,
+      padding: 8,
+      minWidth: 120,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 8,
+      elevation: 8,
+      zIndex: 1000,
+    },
+    figmaAllergyActionItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      gap: 10,
+    },
+    figmaAllergyActionText: {
+      fontSize: 14,
+      fontFamily: "Inter-Medium",
+      color: "#1A1D1F",
+    },
+    figmaAllergyActionTextDanger: {
+      fontSize: 14,
+      fontFamily: "Inter-Medium",
+      color: "#EF4444",
+    },
+    figmaAllergyEmptyState: {
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 48,
+      paddingHorizontal: 24,
+    },
+    figmaAllergyEmptyText: {
+      fontSize: 16,
+      fontFamily: "Inter-Medium",
+      color: "#6C7280",
+      marginTop: 16,
+      marginBottom: 24,
+      textAlign: "center",
+    },
+    figmaAllergyEmptyAddButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: "#EB9C0C",
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      borderRadius: 12,
+    },
+    figmaAllergyEmptyAddText: {
+      fontSize: 16,
+      fontFamily: "Inter-SemiBold",
+      color: "#FFFFFF",
     },
     header: {
       flexDirection: "row",
@@ -621,7 +980,7 @@ export default function AllergiesScreen() {
     },
     allergyName: {
       fontSize: 18,
-      fontFamily: "Geist-SemiBold",
+      fontFamily: "Inter-SemiBold",
       color: theme.colors.text.primary,
       marginBottom: theme.spacing.xs,
     },
@@ -731,7 +1090,7 @@ export default function AllergiesScreen() {
       fontWeight: "600",
     },
     rtlTextInput: {
-      fontFamily: "Geist-Regular",
+      fontFamily: "Inter-Regular",
     },
     allergyOptions: {
       flexDirection: "row",
@@ -807,7 +1166,7 @@ export default function AllergiesScreen() {
     },
     memberOptionText: {
       fontSize: 14,
-      fontFamily: "Geist-Medium",
+      fontFamily: "Inter-Medium",
       color: theme.colors.text.primary,
     },
     memberOptionTextSelected: {
@@ -835,39 +1194,52 @@ export default function AllergiesScreen() {
   }
 
   return (
-    <SafeAreaView
+    <GradientScreen
       edges={["top"]}
       pointerEvents="box-none"
       style={styles.container}
     >
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={[styles.backButton, isRTL && styles.backButtonRTL]}
-        >
-          <ArrowLeft
-            color="#1E293B"
-            size={24}
-            style={[isRTL && { transform: [{ rotate: "180deg" }] }]}
-          />
-        </TouchableOpacity>
-
-        <Heading level={4} style={[styles.title, isRTL && styles.rtlText]}>
-          {t("allergies")}
-        </Heading>
-        <TouchableOpacity
-          onPress={() => {
-            resetForm();
-            setShowAddModal(true);
-          }}
-          style={styles.addButton}
-        >
-          <Plus color="#FFFFFF" size={24} />
-        </TouchableOpacity>
+      <View style={styles.figmaAllergyHeaderWrapper}>
+        <WavyBackground height={240} variant="teal">
+          <View style={styles.figmaAllergyHeaderContent}>
+            <View style={styles.figmaAllergyHeaderRow}>
+              <TouchableOpacity
+                onPress={() =>
+                  params.returnTo === "track"
+                    ? router.push("/(tabs)/track")
+                    : router.back()
+                }
+                style={styles.figmaAllergyBackButton}
+              >
+                <ArrowLeft color="#003543" size={20} />
+              </TouchableOpacity>
+              <View style={styles.figmaAllergyHeaderTitle}>
+                <View style={styles.figmaAllergyTitleRow}>
+                  <AlertCircle color="#EB9C0C" size={20} />
+                  <Text style={styles.figmaAllergyTitle}>{t("allergies")}</Text>
+                </View>
+                <Text
+                  style={[styles.figmaAllergySubtitle, isRTL && styles.rtlText]}
+                >
+                  {t("manageAllergyInformation", "Manage allergy information")}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  resetForm();
+                  setShowAddModal(true);
+                }}
+                style={styles.figmaAllergyAddButton}
+              >
+                <Plus color="#FFFFFF" size={20} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </WavyBackground>
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.contentInner}
+        contentContainerStyle={styles.figmaAllergyContent}
         refreshControl={
           <RefreshControl
             onRefresh={() => loadAllergies(true)}
@@ -876,86 +1248,196 @@ export default function AllergiesScreen() {
           />
         }
         showsVerticalScrollIndicator={false}
-        style={styles.content}
       >
-        {/* Stats Section */}
-        <View style={styles.statsSection}>
-          <Heading
-            level={5}
-            style={[
-              styles.sectionTitle,
-              isRTL && styles.sectionTitleRTL,
-              isRTL && styles.rtlText,
-            ]}
-          >
-            {t("statistics")}
-          </Heading>
-          <View style={styles.statsGrid}>
-            <Card
-              contentStyle={undefined}
-              pressable={false}
-              style={styles.statCard}
-              variant="elevated"
-            >
-              <Text
-                size="large"
-                style={[styles.statValue, isRTL && styles.rtlText]}
-                weight="bold"
-              >
-                {allergies.length}
+        {severeCount > 0 && (
+          <View style={styles.figmaAllergyAlertBanner}>
+            <AlertCircle color="#EF4444" size={18} />
+            <View style={styles.figmaAllergyAlertTextWrap}>
+              <Text style={styles.figmaAllergyAlertTitle}>
+                Critical Allergies Alert
               </Text>
-              <Caption
-                numberOfLines={undefined}
-                style={[styles.statLabel, isRTL && styles.rtlText]}
-              >
-                {t("totalAllergies")}
-              </Caption>
-            </Card>
-            <Card
-              contentStyle={undefined}
-              pressable={false}
-              style={styles.statCard}
-              variant="elevated"
-            >
-              <Text
-                size="large"
-                style={[styles.statValue, isRTL && styles.rtlText]}
-                weight="bold"
-              >
-                {
-                  allergies.filter(
-                    (a) =>
-                      a.severity === "severe" ||
-                      a.severity === "severe-life-threatening"
-                  ).length
-                }
+              <Text style={styles.figmaAllergyAlertText}>
+                You have {severeCount} severe allergy. Always carry emergency
+                medication and inform healthcare providers.
               </Text>
-              <Caption
-                numberOfLines={undefined}
-                style={[styles.statLabel, isRTL && styles.rtlText]}
-              >
-                {t("severeAllergies")}
-              </Caption>
-            </Card>
+            </View>
+          </View>
+        )}
+
+        <View style={styles.figmaAllergyStatsRow}>
+          <View style={styles.figmaAllergyStatCard}>
+            <Text style={styles.figmaAllergyStatValue}>{allergies.length}</Text>
+            <Text style={styles.figmaAllergyStatLabel}>Total</Text>
+          </View>
+          <View style={styles.figmaAllergyStatCard}>
+            <Text style={[styles.figmaAllergyStatValue, { color: "#EF4444" }]}>
+              {severeCount}
+            </Text>
+            <Text style={styles.figmaAllergyStatLabel}>Severe</Text>
+          </View>
+          <View style={styles.figmaAllergyStatCard}>
+            <Text style={styles.figmaAllergyStatValue}>{categoryCount}</Text>
+            <Text style={styles.figmaAllergyStatLabel}>Categories</Text>
           </View>
         </View>
 
-        {/* Allergies List */}
-        <View style={styles.allergiesSection}>
-          <Heading
-            level={5}
-            style={[
-              styles.sectionTitle,
-              isRTL && styles.sectionTitleRTL,
-              isRTL && styles.rtlText,
-            ]}
-          >
-            {t("myAllergies")}
-          </Heading>
+        <View style={styles.figmaAllergySection}>
+          <View style={styles.figmaAllergySectionHeader}>
+            <Text style={styles.figmaAllergySectionTitle}>Known Allergies</Text>
+            <TouchableOpacity
+              onPress={() => Alert.alert("Export", "Export coming soon")}
+            >
+              <Text style={styles.figmaAllergySectionLink}>Export List</Text>
+            </TouchableOpacity>
+          </View>
 
-          {renderAllergiesContent()}
+          <View style={styles.figmaAllergyList}>
+            {allergies.length === 0 ? (
+              <View style={styles.figmaAllergyEmptyState}>
+                <AlertCircle color="#94A3B8" size={48} />
+                <Text style={styles.figmaAllergyEmptyText}>
+                  {t("noAllergiesRecorded")}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    resetForm();
+                    setShowAddModal(true);
+                  }}
+                  style={styles.figmaAllergyEmptyAddButton}
+                >
+                  <Plus color="#FFFFFF" size={20} />
+                  <Text style={styles.figmaAllergyEmptyAddText}>
+                    {t("addAllergy")}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              allergies.map((allergy) => {
+                const { type, icon: Icon } = classifyAllergy(allergy.name);
+                const severityColor =
+                  severityColors[allergy.severity] || "#F59E0B";
+                const diagnosedDate = coerceDate(
+                  allergy.discoveredDate || allergy.timestamp
+                );
+                return (
+                  <View key={allergy.id} style={styles.figmaAllergyCard}>
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => handleEditAllergy(allergy)}
+                      style={styles.figmaAllergyCardHeader}
+                    >
+                      <View
+                        style={[
+                          styles.figmaAllergyIconWrap,
+                          { backgroundColor: `${severityColor}1A` },
+                        ]}
+                      >
+                        <Icon color={severityColor} size={20} />
+                      </View>
+                      <View style={styles.figmaAllergyCardInfo}>
+                        <View style={styles.figmaAllergyCardTitleRow}>
+                          <Text style={styles.figmaAllergyCardTitle}>
+                            {allergy.name}
+                          </Text>
+                          <View
+                            style={[
+                              styles.figmaAllergySeverityBadge,
+                              { backgroundColor: `${severityColor}1A` },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.figmaAllergySeverityText,
+                                { color: severityColor },
+                              ]}
+                            >
+                              {severityLabels[allergy.severity] || "Moderate"}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text style={styles.figmaAllergyTypeText}>{type}</Text>
+                        <Text style={styles.figmaAllergyReactionText}>
+                          <Text style={styles.figmaAllergyReactionLabel}>
+                            Reaction:
+                          </Text>{" "}
+                          {allergy.reaction || "Not specified"}
+                        </Text>
+                        <Text style={styles.figmaAllergyDiagnosedText}>
+                          Diagnosed:{" "}
+                          {diagnosedDate
+                            ? safeFormatDate(diagnosedDate)
+                            : "N/A"}
+                        </Text>
+                      </View>
+                      <View style={styles.figmaAllergyCardActions}>
+                        <TouchableOpacity
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            setShowActionsMenu(
+                              showActionsMenu === allergy.id ? null : allergy.id
+                            );
+                          }}
+                          style={styles.figmaAllergyActionsButton}
+                        >
+                          <MoreVertical color="#6C7280" size={20} />
+                        </TouchableOpacity>
+                        {showActionsMenu === allergy.id && (
+                          <View style={styles.figmaAllergyActionsMenu}>
+                            <TouchableOpacity
+                              onPress={() => handleEditAllergy(allergy)}
+                              style={styles.figmaAllergyActionItem}
+                            >
+                              <Edit
+                                color={theme.colors.text.primary}
+                                size={16}
+                              />
+                              <Text style={styles.figmaAllergyActionText}>
+                                {t("edit")}
+                              </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() => handleDeleteAllergy(allergy.id)}
+                              style={styles.figmaAllergyActionItem}
+                            >
+                              <Trash2
+                                color={theme.colors.accent.error}
+                                size={16}
+                              />
+                              <Text style={styles.figmaAllergyActionTextDanger}>
+                                {t("delete")}
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })
+            )}
+          </View>
+        </View>
+
+        <View style={styles.figmaAllergyPlanCard}>
+          <Text style={styles.figmaAllergyPlanTitle}>
+            Emergency Action Plan
+          </Text>
+          <Text style={styles.figmaAllergyPlanText}>
+            Keep your allergy action plan updated and share it with caregivers
+            and medical professionals.
+          </Text>
         </View>
       </ScrollView>
+
+      <TouchableOpacity
+        onPress={() => {
+          resetForm();
+          setShowAddModal(true);
+        }}
+        style={styles.figmaAllergyFab}
+      >
+        <Plus color="#FFFFFF" size={22} />
+      </TouchableOpacity>
 
       {/* Add/Edit Modal */}
       <Modal
@@ -1150,6 +1632,6 @@ export default function AllergiesScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </GradientScreen>
   );
 }

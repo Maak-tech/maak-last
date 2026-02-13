@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
   },
   languageText: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#475569",
   },
   logoContainer: {
@@ -389,13 +389,13 @@ const styles = StyleSheet.create({
   },
   appName: {
     fontSize: 32,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#1E293B",
     marginBottom: 8,
   },
   tagline: {
     fontSize: 16,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     textAlign: "center",
   },
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#1E293B",
     marginBottom: 32,
     textAlign: "center",
@@ -424,14 +424,14 @@ const styles = StyleSheet.create({
   errorText: {
     color: "#DC2626",
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
   },
   inputContainer: {
     marginBottom: 20,
   },
   label: {
     fontSize: 16,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#374151",
     marginBottom: 8,
   },
@@ -445,11 +445,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     backgroundColor: "#FFFFFF",
   },
   rtlInput: {
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
   },
   forgotButton: {
     alignSelf: "flex-end",
@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
   forgotText: {
     color: "#2563EB",
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
   },
   loginButton: {
     backgroundColor: "#2563EB",
@@ -476,7 +476,7 @@ const styles = StyleSheet.create({
   loginButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
   },
   registerContainer: {
     flexDirection: "row",
@@ -488,17 +488,17 @@ const styles = StyleSheet.create({
   },
   registerText: {
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
   },
   registerLink: {
     fontSize: 14,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#2563EB",
   },
   rtlText: {
     textAlign: "right",
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
   },
   familySection: {
     marginVertical: 16,
@@ -517,18 +517,18 @@ const styles = StyleSheet.create({
   },
   familyToggleText: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#2563EB",
     flex: 1,
   },
   optionalText: {
     fontSize: 12,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
   },
   helperText: {
     fontSize: 12,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     marginTop: 4,
     lineHeight: 16,

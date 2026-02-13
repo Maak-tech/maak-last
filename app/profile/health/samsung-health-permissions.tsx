@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 20,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     flex: 1,
     textAlign: "center",
   },
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     marginTop: 16,
   },
   scrollContent: {
@@ -507,13 +507,13 @@ const styles = StyleSheet.create({
   },
   infoTitle: {
     fontSize: 18,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     textAlign: "center",
     marginBottom: 8,
   },
   infoDescription: {
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     textAlign: "center",
     lineHeight: 20,
   },
@@ -563,12 +563,12 @@ const styles = StyleSheet.create({
   },
   groupTitle: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     flex: 1,
   },
   groupCount: {
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
   },
   metricItem: {
     marginLeft: 36,
@@ -601,12 +601,12 @@ const styles = StyleSheet.create({
   },
   metricName: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     marginBottom: 2,
   },
   metricDescription: {
     fontSize: 12,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     lineHeight: 16,
   },
   connectSection: {
@@ -628,13 +628,13 @@ const styles = StyleSheet.create({
   },
   connectButtonText: {
     fontSize: 16,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#FFFFFF",
     marginRight: 8,
   },
   selectionSummary: {
     fontSize: 12,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     textAlign: "center",
   },
   rtlText: {

@@ -25,6 +25,8 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import GradientScreen from "@/components/figma/GradientScreen";
+import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
 import { medicalHistoryService } from "@/lib/services/medicalHistoryService";
 import { userService } from "@/lib/services/userService";
@@ -63,6 +65,7 @@ export default function MedicalHistoryScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const navigation = useNavigation();
+  const params = useLocalSearchParams<{ returnTo?: string }>();
 
   // Hide the default header to prevent duplicate headers
   useLayoutEffect(() => {
@@ -74,7 +77,9 @@ export default function MedicalHistoryScreen() {
   const [loading, setLoading] = useState(true);
   const [medicalHistory, setMedicalHistory] = useState<MedicalHistory[]>([]);
   const [_summary, setSummary] = useState<unknown>(null);
-  const [activeTab, setActiveTab] = useState<"personal" | "family">("personal");
+  const [activeTab, setActiveTab] = useState<
+    "conditions" | "surgeries" | "vaccinations" | "family"
+  >("conditions");
   const [showAddModal, setShowAddModal] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
   const [newCondition, setNewCondition] = useState({
@@ -139,6 +144,15 @@ export default function MedicalHistoryScreen() {
 
   const personalHistory = medicalHistory.filter((h) => !h.isFamily);
   const familyHistory = medicalHistory.filter((h) => h.isFamily);
+  const surgeryHistory = personalHistory.filter((h) =>
+    h.tags?.includes("surgery")
+  );
+  const vaccinationHistory = personalHistory.filter((h) =>
+    h.tags?.includes("vaccination")
+  );
+  const conditionHistory = personalHistory.filter(
+    (h) => !(h.tags?.includes("surgery") || h.tags?.includes("vaccination"))
+  );
 
   const loadFamilyMembers = useCallback(async () => {
     if (!user?.familyId) {
@@ -331,221 +345,282 @@ export default function MedicalHistoryScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => {
-            try {
-              if (router.canGoBack?.()) {
-                router.back();
-              } else {
-                router.push("/(tabs)/profile");
-              }
-            } catch (_error) {
-              router.push("/(tabs)/profile");
-            }
-          }}
-          style={[styles.backButton, isRTL && styles.backButtonRTL]}
-        >
-          <ArrowLeft
-            color="#1E293B"
-            size={24}
-            style={[isRTL && { transform: [{ rotate: "180deg" }] }]}
-          />
-        </TouchableOpacity>
-
-        <Text style={[styles.headerTitle, isRTL && { textAlign: "left" }]}>
-          {isRTL ? "التاريخ الطبي" : "Medical History"}
-        </Text>
-
-        <TouchableOpacity
-          onPress={() => setShowAddModal(true)}
-          style={styles.searchButton}
-        >
-          <Plus color="#2563EB" size={20} />
-        </TouchableOpacity>
+    <GradientScreen>
+      <View style={styles.figmaHeaderWrapper}>
+        <WavyBackground height={220} variant="teal">
+          <View style={styles.figmaHeader}>
+            <TouchableOpacity
+              onPress={() => {
+                try {
+                  if (params.returnTo === "track") {
+                    router.push("/(tabs)/track");
+                  } else if (router.canGoBack?.()) {
+                    router.back();
+                  } else {
+                    router.push("/(tabs)/profile");
+                  }
+                } catch (_error) {
+                  router.push("/(tabs)/profile");
+                }
+              }}
+              style={styles.figmaBackButton}
+            >
+              <ArrowLeft
+                color="#003543"
+                size={20}
+                style={[isRTL && { transform: [{ rotate: "180deg" }] }]}
+              />
+            </TouchableOpacity>
+            <View style={styles.figmaHeaderText}>
+              <View style={styles.figmaHeaderTitleRow}>
+                <FileText color="#EB9C0C" size={22} />
+                <Text style={styles.figmaHeaderTitle}>Medical History</Text>
+              </View>
+              <Text style={styles.figmaHeaderSubtitle}>
+                Complete health record
+              </Text>
+            </View>
+          </View>
+        </WavyBackground>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator color="#2563EB" size="large" />
-            <Text style={[styles.loadingText, isRTL && { textAlign: "left" }]}>
-              {isRTL
-                ? "جاري تحميل التاريخ الطبي..."
-                : "Loading medical history..."}
-            </Text>
-          </View>
-        ) : medicalHistory.length === 0 ? (
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIcon}>
-              <FileText color="#94A3B8" size={40} />
-            </View>
-            <Text style={[styles.emptyTitle, isRTL && { textAlign: "left" }]}>
-              {isRTL ? "لا توجد سجلات طبية" : "No Medical Records"}
-            </Text>
-            <Text
-              style={[styles.emptyDescription, isRTL && { textAlign: "left" }]}
-            >
-              {isRTL
-                ? "ابدأ بإضافة حالاتك الطبية والأدوية"
-                : "Start by adding your medical conditions and medications"}
-            </Text>
-            <TouchableOpacity
-              onPress={() => setShowAddModal(true)}
-              style={styles.addButton}
-            >
-              <Plus color="#FFFFFF" size={16} />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        style={styles.figmaScrollView}
+      >
+        <View style={styles.figmaContent}>
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator color="#2563EB" size="large" />
               <Text
-                style={[styles.addButtonText, isRTL && { textAlign: "left" }]}
+                style={[styles.loadingText, isRTL && { textAlign: "left" }]}
               >
-                {isRTL ? "إضافة سجل" : "Add Record"}
+                {isRTL
+                  ? "???????? ?????????? ?????????????? ??????????..."
+                  : "Loading medical history..."}
               </Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <>
-            {/* Tab Selector */}
-            <View style={styles.tabContainer}>
-              <TouchableOpacity
-                onPress={() => setActiveTab("personal")}
-                style={[
-                  styles.tab,
-                  activeTab === "personal" && styles.activeTab,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeTab === "personal" && styles.activeTabText,
-                    isRTL && { textAlign: "left" },
-                  ]}
-                >
-                  {isRTL ? "شخصي" : "Personal"}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setActiveTab("family")}
-                style={[styles.tab, activeTab === "family" && styles.activeTab]}
-              >
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeTab === "family" && styles.activeTabText,
-                    isRTL && { textAlign: "left" },
-                  ]}
-                >
-                  {isRTL ? "عائلي" : "Family"}
-                </Text>
-              </TouchableOpacity>
             </View>
+          ) : (
+            <>
+              <View style={styles.figmaTabs}>
+                {[
+                  { id: "conditions", label: "Conditions" },
+                  { id: "surgeries", label: "Surgeries" },
+                  { id: "vaccinations", label: "Vaccines" },
+                  { id: "family", label: "Family" },
+                ].map((tab) => (
+                  <TouchableOpacity
+                    key={tab.id}
+                    onPress={() =>
+                      setActiveTab(
+                        tab.id as
+                          | "conditions"
+                          | "surgeries"
+                          | "vaccinations"
+                          | "family"
+                      )
+                    }
+                    style={[
+                      styles.figmaTabButton,
+                      activeTab === tab.id && styles.figmaTabButtonActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.figmaTabText,
+                        activeTab === tab.id && styles.figmaTabTextActive,
+                      ]}
+                    >
+                      {tab.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-            {/* Medical Records List */}
-            <View style={styles.recordsList}>
-              {(activeTab === "personal" ? personalHistory : familyHistory).map(
-                (record) => (
-                  <View key={record.id} style={styles.recordItem}>
-                    <View style={styles.recordLeft}>
-                      <View style={styles.recordIcon}>
-                        <Heart
-                          color={getSeverityColor(record.severity)}
-                          size={20}
-                        />
-                      </View>
-                      <View style={styles.recordInfo}>
-                        <Text
-                          style={[
-                            styles.recordCondition,
-                            isRTL && { textAlign: "left" },
-                          ]}
-                        >
-                          {translateCondition(record.condition)}
-                        </Text>
-                        <View style={styles.recordMeta}>
-                          <View
-                            style={[
-                              styles.severityBadge,
-                              {
-                                backgroundColor: `${getSeverityColor(record.severity)}20`,
-                              },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.severityText,
-                                { color: getSeverityColor(record.severity) },
-                                isRTL && { textAlign: "left" },
-                              ]}
-                            >
-                              {getSeverityText(record.severity)}
+              {activeTab === "conditions" && (
+                <View style={styles.figmaSection}>
+                  <Text style={styles.figmaSectionTitle}>
+                    Chronic Conditions
+                  </Text>
+                  {conditionHistory.length === 0 ? (
+                    <Text style={styles.figmaEmptyText}>
+                      No conditions recorded yet.
+                    </Text>
+                  ) : (
+                    conditionHistory.map((record) => (
+                      <View key={record.id} style={styles.figmaCard}>
+                        <View style={styles.figmaCardIcon}>
+                          <Heart
+                            color={getSeverityColor(record.severity)}
+                            size={22}
+                          />
+                        </View>
+                        <View style={styles.figmaCardBody}>
+                          <View style={styles.figmaCardHeader}>
+                            <Text style={styles.figmaCardTitle}>
+                              {translateCondition(record.condition)}
                             </Text>
-                          </View>
-                          {record.diagnosedDate ? (
-                            <Text
+                            <View
                               style={[
-                                styles.recordDate,
-                                isRTL && { textAlign: "left" },
+                                styles.figmaBadge,
+                                {
+                                  backgroundColor: `${getSeverityColor(record.severity)}20`,
+                                },
                               ]}
                             >
-                              {safeFormatDate(
-                                new Date(record.diagnosedDate),
-                                isRTL ? "ar-u-ca-gregory" : "en-US"
-                              )}
+                              <Text
+                                style={[
+                                  styles.figmaBadgeText,
+                                  { color: getSeverityColor(record.severity) },
+                                ]}
+                              >
+                                {getSeverityText(record.severity)}
+                              </Text>
+                            </View>
+                          </View>
+                          <Text style={styles.figmaCardMeta}>
+                            Diagnosed:{" "}
+                            {record.diagnosedDate
+                              ? safeFormatDate(
+                                  new Date(record.diagnosedDate),
+                                  isRTL ? "ar-u-ca-gregory" : "en-US"
+                                )
+                              : "Unknown"}
+                          </Text>
+                          {record.notes ? (
+                            <Text style={styles.figmaCardMeta}>
+                              {record.notes}
                             </Text>
                           ) : null}
                         </View>
-                        {record.notes ? (
-                          <Text
-                            style={[
-                              styles.recordNotes,
-                              isRTL && { textAlign: "left" },
-                            ]}
-                          >
-                            {record.notes}
+                        <TouchableOpacity
+                          onPress={() => handleDeleteCondition(record.id)}
+                          style={styles.figmaDeleteButton}
+                        >
+                          <Trash2 color="#EF4444" size={16} />
+                        </TouchableOpacity>
+                      </View>
+                    ))
+                  )}
+                </View>
+              )}
+
+              {activeTab === "surgeries" && (
+                <View style={styles.figmaSection}>
+                  <Text style={styles.figmaSectionTitle}>Surgical History</Text>
+                  {surgeryHistory.length === 0 ? (
+                    <Text style={styles.figmaEmptyText}>
+                      No surgeries recorded yet.
+                    </Text>
+                  ) : (
+                    surgeryHistory.map((record) => (
+                      <View key={record.id} style={styles.figmaCard}>
+                        <View style={styles.figmaCardIconAlt}>
+                          <FileText color="#6366F1" size={22} />
+                        </View>
+                        <View style={styles.figmaCardBody}>
+                          <Text style={styles.figmaCardTitle}>
+                            {translateCondition(record.condition)}
                           </Text>
-                        ) : null}
-                        {record.isFamily ? (
-                          <Text
-                            style={[
-                              styles.recordRelation,
-                              isRTL && { textAlign: "left" },
-                            ]}
-                          >
+                          <Text style={styles.figmaCardMeta}>
+                            {record.diagnosedDate
+                              ? safeFormatDate(
+                                  new Date(record.diagnosedDate),
+                                  isRTL ? "ar-u-ca-gregory" : "en-US"
+                                )
+                              : "Unknown date"}
+                          </Text>
+                          {record.notes ? (
+                            <Text style={styles.figmaCardMeta}>
+                              {record.notes}
+                            </Text>
+                          ) : null}
+                        </View>
+                      </View>
+                    ))
+                  )}
+                </View>
+              )}
+
+              {activeTab === "vaccinations" && (
+                <View style={styles.figmaSection}>
+                  <Text style={styles.figmaSectionTitle}>
+                    Vaccination Record
+                  </Text>
+                  {vaccinationHistory.length === 0 ? (
+                    <Text style={styles.figmaEmptyText}>
+                      No vaccinations recorded yet.
+                    </Text>
+                  ) : (
+                    vaccinationHistory.map((record) => (
+                      <View key={record.id} style={styles.figmaCard}>
+                        <View style={styles.figmaCardIconAlt}>
+                          <FileText color="#10B981" size={22} />
+                        </View>
+                        <View style={styles.figmaCardBody}>
+                          <Text style={styles.figmaCardTitle}>
+                            {translateCondition(record.condition)}
+                          </Text>
+                          <Text style={styles.figmaCardMeta}>
+                            Last:{" "}
+                            {record.diagnosedDate
+                              ? safeFormatDate(
+                                  new Date(record.diagnosedDate),
+                                  isRTL ? "ar-u-ca-gregory" : "en-US"
+                                )
+                              : "Unknown"}
+                          </Text>
+                          {record.notes ? (
+                            <Text style={styles.figmaCardMeta}>
+                              {record.notes}
+                            </Text>
+                          ) : null}
+                        </View>
+                      </View>
+                    ))
+                  )}
+                </View>
+              )}
+
+              {activeTab === "family" && (
+                <View style={styles.figmaSection}>
+                  <Text style={styles.figmaSectionTitle}>
+                    Family Health History
+                  </Text>
+                  {familyHistory.length === 0 ? (
+                    <Text style={styles.figmaEmptyText}>
+                      No family history recorded yet.
+                    </Text>
+                  ) : (
+                    familyHistory.map((record) => (
+                      <View key={record.id} style={styles.figmaCard}>
+                        <View style={styles.figmaCardIconAlt}>
+                          <Heart color="#8B5CF6" size={22} />
+                        </View>
+                        <View style={styles.figmaCardBody}>
+                          <Text style={styles.figmaCardTitle}>
+                            {translateCondition(record.condition)}
+                          </Text>
+                          <Text style={styles.figmaCardMeta}>
                             {getFamilyRelationText(record)}
                           </Text>
-                        ) : null}
+                        </View>
                       </View>
-                    </View>
-                    <View style={styles.recordActions}>
-                      <TouchableOpacity
-                        onPress={() => handleDeleteCondition(record.id)}
-                        style={styles.actionButton}
-                      >
-                        <Trash2 color="#EF4444" size={16} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                )
+                    ))
+                  )}
+                </View>
               )}
-            </View>
-
-            {/* Add Record Button */}
-            <TouchableOpacity
-              onPress={() => setShowAddModal(true)}
-              style={styles.floatingAddButton}
-            >
-              <Plus color="#FFFFFF" size={20} />
-              <Text
-                style={[styles.floatingAddText, isRTL && { textAlign: "left" }]}
-              >
-                {isRTL ? "إضافة سجل جديد" : "Add New Record"}
-              </Text>
-            </TouchableOpacity>
-          </>
-        )}
+            </>
+          )}
+        </View>
       </ScrollView>
 
+      <TouchableOpacity
+        onPress={() => setShowAddModal(true)}
+        style={styles.figmaFab}
+      >
+        <Plus color="#FFFFFF" size={22} />
+      </TouchableOpacity>
       {/* Add Medical History Modal */}
       <Modal
         animationType="slide"
@@ -813,7 +888,7 @@ export default function MedicalHistoryScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
-    </SafeAreaView>
+    </GradientScreen>
   );
 }
 
@@ -846,7 +921,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     flex: 1,
     textAlign: "center",
@@ -863,6 +938,169 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
   },
+  figmaHeaderWrapper: {
+    flexShrink: 0,
+  },
+  figmaScrollView: {
+    flex: 1,
+  },
+  figmaHeader: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 28,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  figmaBackButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  figmaHeaderText: {
+    flex: 1,
+  },
+  figmaHeaderTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  figmaHeaderTitle: {
+    fontSize: 22,
+    fontFamily: "Inter-Bold",
+    color: "#FFFFFF",
+  },
+  figmaHeaderSubtitle: {
+    fontSize: 13,
+    color: "#003543",
+  },
+  figmaContent: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 140,
+  },
+  figmaTabs: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 20,
+  },
+  figmaTabButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+  },
+  figmaTabButtonActive: {
+    backgroundColor: "#003543",
+  },
+  figmaTabText: {
+    fontSize: 12,
+    fontFamily: "Inter-Medium",
+    color: "#6C7280",
+  },
+  figmaTabTextActive: {
+    color: "#FFFFFF",
+  },
+  figmaSection: {
+    marginBottom: 24,
+  },
+  figmaSectionTitle: {
+    fontSize: 16,
+    fontFamily: "Inter-SemiBold",
+    color: "#1A1D1F",
+    marginBottom: 12,
+  },
+  figmaEmptyText: {
+    fontSize: 13,
+    color: "#6C7280",
+  },
+  figmaCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  figmaCardIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: "#EEF2F7",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  figmaCardIconAlt: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: "rgba(99,102,241,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  figmaCardBody: {
+    flex: 1,
+  },
+  figmaCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+    gap: 8,
+  },
+  figmaCardTitle: {
+    fontSize: 14,
+    fontFamily: "Inter-SemiBold",
+    color: "#1A1D1F",
+    flex: 1,
+  },
+  figmaBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  figmaBadgeText: {
+    fontSize: 10,
+    fontFamily: "Inter-Medium",
+  },
+  figmaCardMeta: {
+    fontSize: 12,
+    color: "#6C7280",
+    marginBottom: 4,
+  },
+  figmaDeleteButton: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+  },
+  figmaFab: {
+    position: "absolute",
+    bottom: 32,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#EB9C0C",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -871,7 +1109,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
     marginTop: 16,
   },
@@ -890,14 +1128,14 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 18,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     marginBottom: 8,
     textAlign: "center",
   },
   emptyDescription: {
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     textAlign: "center",
     marginBottom: 24,
@@ -915,12 +1153,12 @@ const styles = StyleSheet.create({
   },
   addButtonText: {
     fontSize: 14,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#FFFFFF",
   },
   comingSoon: {
     fontSize: 16,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
     textAlign: "center",
     marginTop: 100,
@@ -928,7 +1166,7 @@ const styles = StyleSheet.create({
   },
   rtlText: {
     textAlign: "right",
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
   },
   tabContainer: {
     flexDirection: "row",
@@ -950,7 +1188,7 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
   },
   activeTabText: {
@@ -994,7 +1232,7 @@ const styles = StyleSheet.create({
   },
   recordCondition: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     marginBottom: 4,
   },
@@ -1011,22 +1249,22 @@ const styles = StyleSheet.create({
   },
   severityText: {
     fontSize: 10,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
   },
   recordDate: {
     fontSize: 12,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
   },
   recordNotes: {
     fontSize: 12,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     marginBottom: 2,
   },
   recordRelation: {
     fontSize: 10,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#6366F1",
   },
   recordActions: {
@@ -1058,7 +1296,7 @@ const styles = StyleSheet.create({
   },
   floatingAddText: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#FFFFFF",
   },
   modalContainer: {
@@ -1077,7 +1315,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
   },
   closeButton: {
@@ -1095,7 +1333,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 16,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#374151",
     marginBottom: 8,
   },
@@ -1106,7 +1344,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     backgroundColor: "#FFFFFF",
   },
   textArea: {
@@ -1116,13 +1354,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     backgroundColor: "#FFFFFF",
     textAlignVertical: "top",
     minHeight: 80,
   },
   rtlInput: {
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
   },
   severityOptions: {
     flexDirection: "row",
@@ -1142,7 +1380,7 @@ const styles = StyleSheet.create({
   },
   severityOptionText: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
   },
   severityOptionTextSelected: {
@@ -1163,7 +1401,7 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#FFFFFF",
   },
   toggleContainer: {
@@ -1195,7 +1433,7 @@ const styles = StyleSheet.create({
   },
   memberOptionText: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
   },
   memberOptionTextSelected: {
@@ -1203,7 +1441,7 @@ const styles = StyleSheet.create({
   },
   helperText: {
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     fontStyle: "italic",
   },
@@ -1212,7 +1450,7 @@ const styles = StyleSheet.create({
   },
   examplesLabel: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
     marginBottom: 8,
   },
@@ -1231,7 +1469,7 @@ const styles = StyleSheet.create({
   },
   exampleChipText: {
     fontSize: 13,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#475569",
   },
 });

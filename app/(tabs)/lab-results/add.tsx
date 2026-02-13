@@ -1,5 +1,12 @@
 import { router } from "expo-router";
-import { ChevronDown, Plus, Trash2, X } from "lucide-react-native";
+import {
+  ArrowLeft,
+  ChevronDown,
+  Plus,
+  TestTube,
+  Trash2,
+  X,
+} from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -11,7 +18,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import TagInput from "@/app/components/TagInput";
 import { Button } from "@/components/design-system";
 import {
@@ -19,6 +25,8 @@ import {
   Heading,
   Text as TypographyText,
 } from "@/components/design-system/Typography";
+import GradientScreen from "@/components/figma/GradientScreen";
+import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { labResultService } from "@/lib/services/labResultService";
@@ -236,6 +244,56 @@ export default function AddLabResultScreen() {
     container: {
       flex: 1,
       backgroundColor: theme.colors.background.primary,
+    },
+    figmaLabHeaderWrap: {
+      marginHorizontal: -20,
+      marginTop: -20,
+      marginBottom: 12,
+    },
+    figmaLabHeaderContent: {
+      paddingHorizontal: 24,
+      paddingTop: 20,
+      paddingBottom: 16,
+    },
+    figmaLabHeaderRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: theme.spacing.sm,
+    },
+    figmaLabBackButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: "rgba(255, 255, 255, 0.5)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    figmaLabHeaderTitle: {
+      flex: 1,
+    },
+    figmaLabTitleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: theme.spacing.xs,
+      marginBottom: 4,
+    },
+    figmaLabTitle: {
+      fontSize: 20,
+      fontFamily: "Inter-Bold",
+      color: "#FFFFFF",
+    },
+    figmaLabSubtitle: {
+      fontSize: 12,
+      fontFamily: "Inter-SemiBold",
+      color: "rgba(0, 53, 67, 0.85)",
+    },
+    figmaLabCloseButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 12,
+      backgroundColor: "rgba(255, 255, 255, 0.6)",
+      alignItems: "center",
+      justifyContent: "center",
     },
     header: {
       flexDirection: isRTL ? "row-reverse" : "row",
@@ -540,17 +598,39 @@ export default function AddLabResultScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Heading
-          level={5}
-          style={[styles.label, { marginBottom: 0 }, isRTL && styles.rtlText]}
-        >
-          {isRTL ? "إضافة نتيجة مختبر" : "Add Lab Result"}
-        </Heading>
-        <TouchableOpacity onPress={() => router.back()}>
-          <X color={currentTheme.colors.text.primary} size={24} />
-        </TouchableOpacity>
+    <GradientScreen
+      edges={["top"]}
+      pointerEvents="box-none"
+      style={styles.container}
+    >
+      <View style={styles.figmaLabHeaderWrap}>
+        <WavyBackground height={190} variant="teal">
+          <View style={styles.figmaLabHeaderContent}>
+            <View style={styles.figmaLabHeaderRow}>
+              <TouchableOpacity
+                onPress={() => router.back()}
+                style={styles.figmaLabBackButton}
+              >
+                <ArrowLeft color="#003543" size={20} />
+              </TouchableOpacity>
+              <View style={styles.figmaLabHeaderTitle}>
+                <View style={styles.figmaLabTitleRow}>
+                  <TestTube color="#0F766E" size={20} />
+                  <Text style={styles.figmaLabTitle}>Add Lab Result</Text>
+                </View>
+                <Text style={styles.figmaLabSubtitle}>
+                  Enter test details and values
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => router.back()}
+                style={styles.figmaLabCloseButton}
+              >
+                <X color="#003543" size={18} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </WavyBackground>
       </View>
 
       <ScrollView style={styles.content}>
@@ -974,6 +1054,6 @@ export default function AddLabResultScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </GradientScreen>
   );
 }

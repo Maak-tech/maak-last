@@ -1,9 +1,9 @@
 /* biome-ignore-all lint/style/noNestedTernary: preserving existing conditional layout flow while iterating in batches. */
 import { router } from "expo-router";
 import {
-  ChevronLeft,
+  ArrowLeft,
   ChevronRight,
-  Plus,
+  Droplet,
   TestTube,
   X,
 } from "lucide-react-native";
@@ -30,6 +30,8 @@ import {
   Heading,
   Text as TypographyText,
 } from "@/components/design-system/Typography";
+import GradientScreen from "@/components/figma/GradientScreen";
+import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { labResultService } from "@/lib/services/labResultService";
@@ -42,6 +44,7 @@ export default function LabResultsScreen() {
   const { i18n } = useTranslation();
   const { user } = useAuth();
   const { theme } = useTheme();
+  const params = useLocalSearchParams<{ returnTo?: string }>();
   const isRTL = i18n.language === "ar";
 
   const [labResults, setLabResults] = useState<LabResult[]>([]);
@@ -53,11 +56,91 @@ export default function LabResultsScreen() {
     "all"
   );
 
+  const getResultStatus = (result: LabResult) => {
+    const hasFlagged = result.results?.some((entry) => entry.flagged);
+    const hasAbnormal = result.results?.some(
+      (entry) =>
+        entry.status &&
+        entry.status !== "normal" &&
+        entry.status !== "low" &&
+        entry.status !== "high"
+    );
+    const hasHighLow = result.results?.some(
+      (entry) => entry.status === "high" || entry.status === "low"
+    );
+    return hasFlagged || hasAbnormal || hasHighLow ? "review" : "normal";
+  };
+
+  const normalCount = labResults.filter(
+    (result) => getResultStatus(result) === "normal"
+  ).length;
+  const reviewCount = Math.max(labResults.length - normalCount, 0);
+
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: large screen style map.
   const styles = createThemedStyles((screenTheme) => ({
     container: {
       flex: 1,
       backgroundColor: screenTheme.colors.background.primary,
+    },
+    figmaLabHeaderWrap: {
+      marginHorizontal: -20,
+      marginTop: -20,
+      marginBottom: 12,
+    },
+    figmaLabHeaderContent: {
+      paddingHorizontal: 24,
+      paddingTop: 20,
+      paddingBottom: 16,
+    },
+    figmaLabHeaderRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    figmaLabBackButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: "rgba(255, 255, 255, 0.5)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    figmaLabHeaderTitle: {
+      flex: 1,
+    },
+    figmaLabTitleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginBottom: 4,
+    },
+    figmaLabTitle: {
+      fontSize: 22,
+      fontFamily: "Inter-Bold",
+      color: "#FFFFFF",
+    },
+    figmaLabSubtitle: {
+      fontSize: 13,
+      fontFamily: "Inter-SemiBold",
+      color: "rgba(0, 53, 67, 0.85)",
+    },
+    figmaLabAddButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: "#003543",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    figmaLabFilters: {
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      gap: 8,
+    },
+    figmaLabContent: {
+      paddingHorizontal: 20,
+      paddingBottom: 140,
+      gap: 12,
     },
     content: {
       flex: 1,
@@ -315,45 +398,43 @@ export default function LabResultsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container as StyleProp<ViewStyle>}>
-      <View style={styles.header as StyleProp<ViewStyle>}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={[
-            {
-              padding: theme.spacing.xs,
-              marginEnd: theme.spacing.sm,
-            },
-            isRTL && { marginEnd: 0, marginStart: theme.spacing.sm },
-          ]}
-        >
-          <ChevronLeft
-            color={theme.colors.text.primary}
-            size={24}
-            style={isRTL ? { transform: [{ rotate: "180deg" }] } : undefined}
-          />
-        </TouchableOpacity>
-        <Heading
-          level={4}
-          style={[
-            styles.headerTitle as TextStyle,
-            isRTL ? (styles.rtlText as TextStyle) : undefined,
-            { flex: 1 },
-          ]}
-        >
-          {isRTL ? "نتائج المختبر" : "Lab Results"}
-        </Heading>
-        <TouchableOpacity
-          onPress={() => router.push("/(tabs)/lab-results/add")}
-          style={styles.addButton as StyleProp<ViewStyle>}
-        >
-          <Plus color={theme.colors.neutral.white} size={24} />
-        </TouchableOpacity>
+    <GradientScreen
+      edges={["top"]}
+      pointerEvents="box-none"
+      style={styles.container as StyleProp<ViewStyle>}
+    >
+      <View style={styles.figmaLabHeaderWrap as StyleProp<ViewStyle>}>
+        <WavyBackground height={240} variant="teal">
+          <View style={styles.figmaLabHeaderContent as StyleProp<ViewStyle>}>
+            <View style={styles.figmaLabHeaderRow as StyleProp<ViewStyle>}>
+              <TouchableOpacity
+                onPress={() =>
+                  params.returnTo === "track"
+                    ? router.push("/(tabs)/track")
+                    : router.back()
+                }
+                style={styles.figmaLabBackButton as StyleProp<ViewStyle>}
+              >
+                <ArrowLeft color="#003543" size={20} />
+              </TouchableOpacity>
+              <View style={styles.figmaLabHeaderTitle as StyleProp<ViewStyle>}>
+                <View style={styles.figmaLabTitleRow as StyleProp<ViewStyle>}>
+                  <Droplet color="#EB9C0C" size={20} />
+                  <Text style={styles.figmaLabTitle as TextStyle}>
+                    Lab Results
+                  </Text>
+                </View>
+                <Text style={styles.figmaLabSubtitle as TextStyle}>
+                  Track and store test results
+                </Text>
+              </View>
+            </View>
+          </View>
+        </WavyBackground>
       </View>
-
       {/* Filters */}
       <ScrollView
-        contentContainerStyle={styles.filterContainer as StyleProp<ViewStyle>}
+        contentContainerStyle={styles.figmaLabFilters as StyleProp<ViewStyle>}
         horizontal
         showsHorizontalScrollIndicator={false}
       >
@@ -379,7 +460,6 @@ export default function LabResultsScreen() {
           </TouchableOpacity>
         ))}
       </ScrollView>
-
       {/* Results List */}
       {loading ? (
         <View style={styles.emptyContainer as StyleProp<ViewStyle>}>
@@ -413,7 +493,7 @@ export default function LabResultsScreen() {
         </ScrollView>
       ) : (
         <ScrollView
-          contentContainerStyle={styles.resultsList as StyleProp<ViewStyle>}
+          contentContainerStyle={styles.figmaLabContent as StyleProp<ViewStyle>}
           refreshControl={
             <RefreshControl
               onRefresh={() => loadLabResults(true)}
@@ -422,145 +502,166 @@ export default function LabResultsScreen() {
           }
           style={styles.content as StyleProp<ViewStyle>}
         >
+          <View style={styles.figmaLabStatsRow as StyleProp<ViewStyle>}>
+            <View style={styles.figmaLabStatCard as StyleProp<ViewStyle>}>
+              <Text style={styles.figmaLabStatValue as TextStyle}>
+                {labResults.length}
+              </Text>
+              <Text style={styles.figmaLabStatLabel as TextStyle}>
+                Recent Tests
+              </Text>
+            </View>
+            <View style={styles.figmaLabStatCard as StyleProp<ViewStyle>}>
+              <Text
+                style={[
+                  styles.figmaLabStatValue as TextStyle,
+                  { color: "#10B981" },
+                ]}
+              >
+                {normalCount}
+              </Text>
+              <Text style={styles.figmaLabStatLabel as TextStyle}>Normal</Text>
+            </View>
+            <View style={styles.figmaLabStatCard as StyleProp<ViewStyle>}>
+              <Text
+                style={[
+                  styles.figmaLabStatValue as TextStyle,
+                  { color: "#F97316" },
+                ]}
+              >
+                {reviewCount}
+              </Text>
+              <Text style={styles.figmaLabStatLabel as TextStyle}>
+                Needs Review
+              </Text>
+            </View>
+          </View>
           {/* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: card markup includes multiple health-result render branches. */}
-          {labResults.map((result) => (
-            <Card
-              contentStyle={undefined}
-              key={result.id}
-              onPress={() => {
-                setSelectedResult(result);
-                setShowAddModal(true);
-              }}
-              style={styles.resultCard as StyleProp<ViewStyle>}
-              variant="elevated"
-            >
-              <View style={styles.resultHeader as StyleProp<ViewStyle>}>
-                <View style={{ flex: 1 }}>
-                  <TypographyText
-                    style={[
-                      styles.resultTitle as TextStyle,
-                      isRTL ? (styles.rtlText as TextStyle) : undefined,
-                    ]}
-                    weight="bold"
-                  >
-                    {result.testName}
-                  </TypographyText>
-                  <Caption
-                    numberOfLines={1}
-                    style={[
-                      styles.resultDate as TextStyle,
-                      isRTL ? (styles.rtlText as TextStyle) : undefined,
-                    ]}
-                  >
-                    {formatDate(result.testDate)}
-                  </Caption>
-                </View>
-                <Badge
-                  size="small"
-                  style={undefined}
-                  variant={getTestTypeBadgeVariant(result.testType)}
-                >
-                  {result.testType}
-                </Badge>
-              </View>
-
-              {result.facility ? (
-                <Caption
-                  numberOfLines={1}
-                  style={[
-                    styles.resultDate as TextStyle,
-                    isRTL ? (styles.rtlText as TextStyle) : undefined,
-                  ]}
-                >
-                  {isRTL ? "المنشأة: " : "Facility: "}
-                  {result.facility}
-                </Caption>
-              ) : null}
-
-              {result.results.length > 0 ? (
-                <View style={styles.resultValues as StyleProp<ViewStyle>}>
-                  {result.results.slice(0, 3).map((value) => (
-                    <View
-                      key={`${result.id}-${value.name}-${String(value.value)}-${value.unit ?? ""}`}
-                      style={styles.resultValueItem as StyleProp<ViewStyle>}
+          {labResults.map((result) => {
+            const status = getResultStatus(result);
+            const statusColor = status === "normal" ? "#10B981" : "#F97316";
+            const facilityLabel = result.facility || result.orderedBy || "Lab";
+            const resultsPreview = result.results?.slice(0, 4) ?? [];
+            return (
+              <Card
+                contentStyle={undefined}
+                key={result.id}
+                onPress={() => {
+                  setSelectedResult(result);
+                  setShowAddModal(true);
+                }}
+                style={styles.figmaLabCard as StyleProp<ViewStyle>}
+                variant="elevated"
+              >
+                <View style={styles.figmaLabCardHeader as StyleProp<ViewStyle>}>
+                  <View style={styles.figmaLabCardTitleWrap as ViewStyle}>
+                    <TypographyText
+                      style={styles.figmaLabCardTitle as TextStyle}
+                      weight="bold"
                     >
-                      <TypographyText
-                        style={[
-                          styles.resultValueName as StyleProp<TextStyle>,
-                          isRTL && (styles.rtlText as StyleProp<TextStyle>),
-                        ]}
-                      >
-                        {value.name}
-                      </TypographyText>
-                      <View
-                        style={styles.resultValueData as StyleProp<ViewStyle>}
-                      >
-                        <TypographyText
-                          style={[
-                            styles.resultValueText as StyleProp<TextStyle>,
-                            { color: getStatusColor(value.status) },
-                          ]}
-                        >
-                          {value.value}
-                        </TypographyText>
-                        {value.unit ? (
-                          <Caption
-                            numberOfLines={1}
-                            style={
-                              styles.resultValueUnit as StyleProp<TextStyle>
-                            }
-                          >
-                            {value.unit}
-                          </Caption>
-                        ) : null}
-                        {value.status ? (
-                          <Badge
-                            size="small"
-                            style={undefined}
-                            variant={getResultBadgeVariant(value.status)}
-                          >
-                            {getStatusLabel(value.status)}
-                          </Badge>
-                        ) : null}
-                      </View>
-                    </View>
-                  ))}
-                  {result.results.length > 3 && (
-                    <Caption
-                      numberOfLines={1}
+                      {result.testName}
+                    </TypographyText>
+                    <Text style={styles.figmaLabCardMeta as TextStyle}>
+                      {formatDate(result.testDate) || ""} •{" "}
+                      {facilityLabel || ""}
+                    </Text>
+                  </View>
+                  <View style={styles.figmaLabCardHeaderActions as ViewStyle}>
+                    <View
                       style={[
-                        styles.resultDate as TextStyle,
-                        isRTL ? (styles.rtlText as TextStyle) : undefined,
+                        styles.figmaLabStatusBadge as ViewStyle,
+                        { backgroundColor: `${statusColor}15` },
                       ]}
                     >
-                      {isRTL
-                        ? `+${result.results.length - 3} المزيد`
-                        : `+${result.results.length - 3} more`}
-                    </Caption>
-                  )}
+                      <Text
+                        style={[
+                          styles.figmaLabStatusText as TextStyle,
+                          { color: statusColor },
+                        ]}
+                      >
+                        {status === "normal" ? "Normal" : "Review"}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (result.attachments && result.attachments[0]) {
+                          router.push(result.attachments[0]);
+                        }
+                      }}
+                      style={styles.figmaLabDownloadButton as ViewStyle}
+                    >
+                      <Download color="#003543" size={16} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              ) : null}
 
-              <View
-                style={{
-                  flexDirection: isRTL ? "row-reverse" : "row",
-                  marginTop: theme.spacing.sm,
-                }}
-              >
-                <ChevronRight
-                  color={theme.colors.text.secondary}
-                  size={16}
-                  style={{
-                    marginLeft: isRTL ? 0 : "auto",
-                    marginRight: isRTL ? "auto" : 0,
+                <View style={styles.figmaLabResultsList as ViewStyle}>
+                  {resultsPreview.map((value) => {
+                    const valueStatus = value.status;
+                    const valueColor =
+                      valueStatus === "high"
+                        ? "#F97316"
+                        : valueStatus === "low"
+                          ? "#3B82F6"
+                          : valueStatus === "critical"
+                            ? "#EF4444"
+                            : "#10B981";
+                    return (
+                      <View
+                        key={`${result.id}-${value.name}-${String(value.value)}-${value.unit ?? ""}`}
+                        style={styles.figmaLabResultRow as ViewStyle}
+                      >
+                        <View style={styles.figmaLabResultLabel as ViewStyle}>
+                          <Text style={styles.figmaLabResultName as TextStyle}>
+                            {value.name}
+                          </Text>
+                          {valueStatus && valueStatus !== "normal" ? (
+                            <View
+                              style={[
+                                styles.figmaLabResultIconWrap as ViewStyle,
+                                { borderColor: valueColor },
+                              ]}
+                            >
+                              {valueStatus === "low" ? (
+                                <TrendingDown color={valueColor} size={12} />
+                              ) : (
+                                <TrendingUp color={valueColor} size={12} />
+                              )}
+                            </View>
+                          ) : null}
+                        </View>
+                        <View style={styles.figmaLabResultValue as ViewStyle}>
+                          <Text style={styles.figmaLabResultValueText}>
+                            {value.value} {value.unit || ""}
+                          </Text>
+                          {value.referenceRange ? (
+                            <Text style={styles.figmaLabResultRange}>
+                              Range: {value.referenceRange}
+                            </Text>
+                          ) : null}
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    setSelectedResult(result);
+                    setShowAddModal(true);
                   }}
-                />
-              </View>
-            </Card>
-          ))}
+                  style={styles.figmaLabViewButton as ViewStyle}
+                >
+                  <Text style={styles.figmaLabViewButtonText as TextStyle}>
+                    View Full Report
+                  </Text>
+                  <ChevronRight color="#003543" size={14} />
+                </TouchableOpacity>
+              </Card>
+            );
+          })}
         </ScrollView>
       )}
-
       {/* Detail Modal */}
       <Modal
         animationType="slide"
@@ -603,7 +704,7 @@ export default function LabResultsScreen() {
                     ]}
                   >
                     {isRTL ? "التاريخ: " : "Date: "}
-                    {formatDate(selectedResult.testDate)}
+                    {formatDate(selectedResult.testDate) || ""}
                   </Caption>
                   {selectedResult.facility ? (
                     <Caption
@@ -726,6 +827,7 @@ export default function LabResultsScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
-    </SafeAreaView>
+      ;
+    </GradientScreen>
   );
 }

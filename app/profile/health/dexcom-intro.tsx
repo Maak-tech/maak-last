@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 20,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     flex: 1,
     textAlign: "center",
   },
@@ -369,13 +369,13 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     fontSize: 28,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     textAlign: "center",
     marginBottom: 12,
   },
   heroSubtitle: {
     fontSize: 16,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     textAlign: "center",
     lineHeight: 24,
   },
@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 20,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     marginBottom: 16,
   },
   benefitsList: {
@@ -407,12 +407,12 @@ const styles = StyleSheet.create({
   },
   benefitTitle: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     marginBottom: 4,
   },
   benefitDescription: {
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     lineHeight: 20,
   },
   cgmInfo: {
@@ -424,7 +424,7 @@ const styles = StyleSheet.create({
   },
   cgmText: {
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     lineHeight: 20,
   },
   privacyList: {
@@ -437,7 +437,7 @@ const styles = StyleSheet.create({
   },
   privacyText: {
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     flex: 1,
   },
   connectSection: {
@@ -456,13 +456,13 @@ const styles = StyleSheet.create({
   },
   connectButtonText: {
     fontSize: 16,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#FFFFFF",
     marginRight: 8,
   },
   disclaimer: {
     fontSize: 12,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     textAlign: "center",
     lineHeight: 18,
   },

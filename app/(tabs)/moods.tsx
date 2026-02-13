@@ -3,13 +3,15 @@
 import { router, useFocusEffect } from "expo-router";
 import {
   ArrowLeft,
+  Brain,
+  ChevronRight,
   Edit,
-  MoreVertical,
   Plus,
   Trash2,
+  TrendingUp,
   X,
 } from "lucide-react-native";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
@@ -22,12 +24,15 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { PieChart } from "react-native-chart-kit";
 import { SafeAreaView } from "react-native-safe-area-context";
 import FamilyDataFilter, {
   type FilterOption,
 } from "@/app/components/FamilyDataFilter";
+import HealthChart from "@/app/components/HealthChart";
+import GradientScreen from "@/components/figma/GradientScreen";
+import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
-import { useTheme } from "@/contexts/ThemeContext";
 import { moodService } from "@/lib/services/moodService";
 import { userService } from "@/lib/services/userService";
 import { logger } from "@/lib/utils/logger";
@@ -81,7 +86,7 @@ const MOOD_OPTIONS = [
 export default function MoodsScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
-  const { theme } = useTheme();
+  const params = useLocalSearchParams<{ returnTo?: string }>();
   const emptyStats = {
     totalMoods: 0,
     avgIntensity: 0,
@@ -108,6 +113,120 @@ export default function MoodsScreen() {
   const isRTL = i18n.language === "ar";
   const isAdmin = user?.role === "admin";
   const hasFamily = Boolean(user?.familyId);
+  const topMoodDistribution = [...stats.moodDistribution]
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 4);
+  const distributionTotal =
+    topMoodDistribution.reduce((sum, item) => sum + item.count, 0) || 1;
+  const recentMoods = moods.slice(0, 6);
+  const totalEntries = stats.totalMoods || moods.length;
+
+  const moodTrendSeries = useMemo(() => {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - 6);
+
+    const dailyData = new Map<string, number[]>();
+    moods.forEach((mood) => {
+      const moodDate =
+        mood.timestamp instanceof Date
+          ? mood.timestamp
+          : new Date(mood.timestamp);
+      if (moodDate < startDate || moodDate > endDate) {
+        return;
+      }
+      const key = moodDate.toDateString();
+      if (!dailyData.has(key)) {
+        dailyData.set(key, []);
+      }
+      dailyData.get(key)?.push(mood.intensity);
+    });
+
+    const labels: string[] = [];
+    const data: number[] = [];
+    for (let i = 0; i < 7; i += 1) {
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + i);
+      const key = date.toDateString();
+      const values = dailyData.get(key) || [];
+      const avg =
+        values.length > 0
+          ? values.reduce((sum, value) => sum + value, 0) / values.length
+          : 0;
+      labels.push(
+        date.toLocaleDateString(i18n.language || "en", { weekday: "short" })
+      );
+      data.push(avg);
+    }
+
+    return {
+      labels,
+      datasets: [
+        {
+          data,
+          color: (opacity: number) => `rgba(139, 92, 246, ${opacity})`,
+          strokeWidth: 3,
+        },
+      ],
+    };
+  }, [moods, i18n.language]);
+
+  const improvementPercent = useMemo(() => {
+    const now = new Date();
+    const startCurrent = new Date();
+    startCurrent.setDate(now.getDate() - 7);
+    const startPrevious = new Date();
+    startPrevious.setDate(now.getDate() - 14);
+
+    const current = moods.filter((mood) => {
+      const date =
+        mood.timestamp instanceof Date
+          ? mood.timestamp
+          : new Date(mood.timestamp);
+      return date >= startCurrent && date <= now;
+    });
+    const previous = moods.filter((mood) => {
+      const date =
+        mood.timestamp instanceof Date
+          ? mood.timestamp
+          : new Date(mood.timestamp);
+      return date >= startPrevious && date < startCurrent;
+    });
+
+    const avg = (items: Mood[]) =>
+      items.length === 0
+        ? 0
+        : items.reduce((sum, item) => sum + item.intensity, 0) / items.length;
+
+    const prevAvg = avg(previous);
+    if (prevAvg === 0) {
+      return 0;
+    }
+    const currentAvg = avg(current);
+    const delta = ((currentAvg - prevAvg) / prevAvg) * 100;
+    return Math.max(0, Math.round(delta));
+  }, [moods]);
+
+  const moodDistributionPie = useMemo(() => {
+    if (topMoodDistribution.length === 0) {
+      return [];
+    }
+    return topMoodDistribution.map((item) => ({
+      name: t(item.mood, formatMoodLabel(item.mood)),
+      population: item.count,
+      color: getMoodColor(item.mood),
+      legendFontColor: "#6C7280",
+      legendFontSize: 12,
+    }));
+  }, [topMoodDistribution, t]);
+
+  const quickMoodFigmaOptions = [
+    { value: "veryHappy", label: "Great", emoji: "😊", color: "#10B981" },
+    { value: "happy", label: "Good", emoji: "🙂", color: "#3B82F6" },
+    { value: "neutral", label: "Neutral", emoji: "😐", color: "#FBBF24" },
+    { value: "sad", label: "Low", emoji: "🙁", color: "#F97316" },
+    { value: "verySad", label: "Bad", emoji: "😢", color: "#EF4444" },
+  ] as const;
 
   const loadMoods = useCallback(
     async (isRefresh = false) => {
@@ -623,6 +742,15 @@ export default function MoodsScreen() {
     return moodOption?.emoji || "😐";
   };
 
+  const formatMoodLabel = (moodType: string) => {
+    if (!moodType) {
+      return "Mood";
+    }
+    return moodType
+      .replace(/([A-Z])/g, " $1")
+      .replace(/^./, (char) => char.toUpperCase());
+  };
+
   const formatDate = (date: Date) => {
     const now = new Date();
     const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
@@ -696,53 +824,50 @@ export default function MoodsScreen() {
   }
 
   return (
-    <SafeAreaView
+    <GradientScreen
       edges={["top"]}
       pointerEvents="box-none"
       style={styles.container}
     >
-      {/* Custom Header with Back Button */}
-      <View style={styles.customHeader}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <ArrowLeft color={theme.colors.text.primary} size={24} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
-          {isRTL ? "تتبع الحالة النفسية" : "Mood Tracking"}
-        </Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      <View style={styles.header}>
-        <Text style={[styles.title, isRTL && styles.rtlText]}>
-          {isRTL ? "تتبع الحالة النفسية" : "Mood Tracking"}
-        </Text>
-        <TouchableOpacity
-          onPress={() => {
-            setSelectedTargetUser(user.id);
-            setShowAddModal(true);
-          }}
-          style={styles.addButton}
-        >
-          <Plus color="#FFFFFF" size={24} />
-        </TouchableOpacity>
+      <View style={styles.figmaMoodHeaderWrap}>
+        <WavyBackground height={240} variant="teal">
+          <View style={styles.figmaMoodHeaderContent}>
+            <View style={styles.figmaMoodHeaderRow}>
+              <TouchableOpacity
+                onPress={() =>
+                  params.returnTo === "track"
+                    ? router.push("/(tabs)/track")
+                    : router.back()
+                }
+                style={styles.figmaMoodBackButton}
+              >
+                <ArrowLeft color="#003543" size={20} />
+              </TouchableOpacity>
+              <View style={styles.figmaMoodHeaderTitle}>
+                <View style={styles.figmaMoodTitleRow}>
+                  <Brain color="#EB9C0C" size={20} />
+                  <Text style={styles.figmaMoodTitle}>Mood Tracking</Text>
+                </View>
+                <Text style={styles.figmaMoodSubtitle}>
+                  Monitor emotional wellbeing
+                </Text>
+              </View>
+            </View>
+          </View>
+        </WavyBackground>
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.contentInner}
+        contentContainerStyle={styles.figmaMoodContent}
         refreshControl={
           <RefreshControl
             onRefresh={() => loadMoods(true)}
             refreshing={refreshing}
-            tintColor="#2563EB"
+            tintColor="#0F766E"
           />
         }
         showsVerticalScrollIndicator={false}
-        style={styles.content}
       >
-        {/* Enhanced Data Filter */}
         <FamilyDataFilter
           currentUserId={user.id}
           familyMembers={familyMembers}
@@ -752,184 +877,250 @@ export default function MoodsScreen() {
           selectedFilter={selectedFilter}
         />
 
-        {/* Stats Section */}
-        <View style={styles.statsSection}>
-          <Text
-            style={[
-              styles.sectionTitle,
-              isRTL && styles.sectionTitleRTL,
-              isRTL && styles.rtlText,
-            ]}
-          >
-            {t("thisWeek")}
-          </Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <Text style={[styles.statValue, isRTL && styles.rtlText]}>
-                {stats.totalMoods}
-              </Text>
-              <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
-                {selectedFilter.type === "family"
-                  ? isRTL
-                    ? "حالات النفسية العائلة"
-                    : "Family Moods"
-                  : selectedFilter.type === "member"
-                    ? isRTL
-                      ? `حالات النفسية  ${selectedFilter.memberName}`
-                      : `${selectedFilter.memberName}'s Moods`
-                    : isRTL
-                      ? "إجمالي حالات النفسية"
-                      : "Total Moods"}
+        <View style={styles.figmaMoodStatsRow}>
+          <View style={styles.figmaMoodStatCard}>
+            <Text style={styles.figmaMoodStatValue}>
+              {stats.avgIntensity.toFixed(1)}
+            </Text>
+            <Text style={styles.figmaMoodStatLabel}>Avg Mood</Text>
+          </View>
+          <View style={styles.figmaMoodStatCard}>
+            <View style={styles.figmaMoodStatTrendRow}>
+              <TrendingUp color="#10B981" size={14} />
+              <Text style={[styles.figmaMoodStatValue, { color: "#10B981" }]}>
+                {improvementPercent}%
               </Text>
             </View>
-            <View style={styles.statCard}>
-              <Text style={[styles.statValue, isRTL && styles.rtlText]}>
-                {stats.avgIntensity.toFixed(1)}
-              </Text>
-              <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "متوسط الشدة" : "Avg Intensity"}
-              </Text>
+            <Text style={styles.figmaMoodStatLabel}>Improved</Text>
+          </View>
+          <View style={styles.figmaMoodStatCard}>
+            <Text style={styles.figmaMoodStatValue}>{totalEntries}</Text>
+            <Text style={styles.figmaMoodStatLabel}>Entries</Text>
+          </View>
+        </View>
+
+        <View style={styles.figmaMoodSection}>
+          <View style={styles.figmaMoodSectionHeader}>
+            <Text style={styles.figmaMoodSectionTitle}>Mood Trend</Text>
+            <TouchableOpacity>
+              <Text style={styles.figmaMoodSectionLink}>7 Days</Text>
+            </TouchableOpacity>
+          </View>
+          <HealthChart
+            data={moodTrendSeries}
+            height={200}
+            showGrid={true}
+            showLegend={false}
+            title=""
+            yAxisSuffix=""
+          />
+        </View>
+
+        <View style={styles.figmaMoodSection}>
+          <Text style={styles.figmaMoodSectionTitle}>Mood Distribution</Text>
+          <View style={styles.figmaMoodDistributionCard}>
+            <View style={styles.figmaMoodDistributionChart}>
+              {moodDistributionPie.length > 0 ? (
+                <PieChart
+                  accessor="population"
+                  backgroundColor="transparent"
+                  center={[0, 0]}
+                  data={moodDistributionPie}
+                  hasLegend={false}
+                  height={140}
+                  paddingLeft="0"
+                  width={140}
+                />
+              ) : (
+                <Text style={styles.figmaMoodEmptyText}>No mood data yet</Text>
+              )}
+            </View>
+            <View style={styles.figmaMoodDistributionLegend}>
+              {topMoodDistribution.map((item) => {
+                const percentage = Math.round(
+                  (item.count / distributionTotal) * 100
+                );
+                return (
+                  <View
+                    key={item.mood}
+                    style={styles.figmaMoodDistributionLegendRow}
+                  >
+                    <View style={styles.figmaMoodDistributionLegendLabel}>
+                      <View
+                        style={[
+                          styles.figmaMoodDot,
+                          { backgroundColor: getMoodColor(item.mood) },
+                        ]}
+                      />
+                      <Text style={styles.figmaMoodDistributionLegendText}>
+                        {t(item.mood, formatMoodLabel(item.mood))}
+                      </Text>
+                    </View>
+                    <Text style={styles.figmaMoodDistributionLegendValue}>
+                      {percentage}%
+                    </Text>
+                  </View>
+                );
+              })}
             </View>
           </View>
         </View>
 
-        {/* Moods List */}
-        <View style={styles.moodsSection}>
-          <Text
-            style={[
-              styles.sectionTitle,
-              isRTL && styles.sectionTitleRTL,
-              isRTL && styles.rtlText,
-            ]}
-          >
-            {selectedFilter.type === "family"
-              ? isRTL
-                ? "حالات النفسية لعائلتك الفترة الأخيرة"
-                : "Recent Family Moods"
-              : selectedFilter.type === "member"
-                ? isRTL
-                  ? `حالات النفسية ل ${selectedFilter.memberName} الفترة الأخيرة`
-                  : `${selectedFilter.memberName}'s Recent Moods`
-                : isRTL
-                  ? "حالات النفسية الخاصة بي الفترة الأخيرة"
-                  : "My Recent Moods"}
-          </Text>
+        <View style={styles.figmaMoodSection}>
+          <Text style={styles.figmaMoodSectionTitle}>How are you feeling?</Text>
+          <View style={styles.figmaMoodQuickGrid}>
+            {quickMoodFigmaOptions.map((option) => (
+              <TouchableOpacity
+                key={option.value}
+                onPress={() => {
+                  setSelectedMood(option.value as MoodType);
+                  setIntensity(3);
+                  setSelectedTargetUser(
+                    selectedFilter.type === "member" && selectedFilter.memberId
+                      ? selectedFilter.memberId
+                      : user.id
+                  );
+                  setShowActionsMenu(null);
+                  setShowAddModal(true);
+                }}
+                style={styles.figmaMoodQuickButton}
+              >
+                <Text style={styles.figmaMoodQuickEmoji}>{option.emoji}</Text>
+                <Text style={styles.figmaMoodQuickLabel}>{option.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
 
+        <View style={styles.figmaMoodSection}>
+          <View style={styles.figmaMoodSectionHeader}>
+            <Text style={styles.figmaMoodSectionTitle}>Recent Entries</Text>
+            <TouchableOpacity>
+              <Text style={styles.figmaMoodSectionLink}>View All</Text>
+            </TouchableOpacity>
+          </View>
           {loading ? (
-            <View style={styles.centerContainer}>
-              <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
-                {isRTL ? "جاري التحميل..." : "Loading..."}
-              </Text>
+            <View style={styles.figmaMoodEmptyState}>
+              <Text style={styles.figmaMoodEmptyText}>Loading moods...</Text>
             </View>
-          ) : moods.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-                {isRTL ? "لا توجد حالات نفسية مسجلة" : "No moods recorded"}
-              </Text>
+          ) : recentMoods.length === 0 ? (
+            <View style={styles.figmaMoodEmptyState}>
+              <Text style={styles.figmaMoodEmptyText}>No moods recorded</Text>
             </View>
           ) : (
-            moods.map((mood) => (
-              <View key={mood.id} style={styles.moodCard}>
-                <View style={styles.moodHeader}>
-                  <View style={styles.moodInfo}>
-                    <View style={styles.moodEmojiContainer}>
-                      <Text style={styles.moodEmoji}>
-                        {getMoodEmoji(mood.mood)}
-                      </Text>
-                      <Text style={[styles.moodType, isRTL && styles.rtlText]}>
-                        {t(mood.mood)}
-                      </Text>
-                    </View>
-                    <View style={styles.moodMeta}>
-                      <Text style={[styles.moodDate, isRTL && styles.rtlText]}>
-                        {formatDate(mood.timestamp)}
-                      </Text>
-                      {/* Show member name for family/admin views */}
-                      {(selectedFilter.type === "family" ||
-                        selectedFilter.type === "member") && (
-                        <View style={styles.memberBadge}>
-                          <Text
-                            style={[
-                              styles.memberBadgeText,
-                              isRTL && styles.rtlText,
-                            ]}
-                          >
-                            {getMemberName(mood.userId)}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                  <View style={styles.moodActions}>
-                    <View
-                      style={[
-                        styles.intensityBadge,
-                        { backgroundColor: getMoodColor(mood.mood) },
-                      ]}
-                    >
-                      <Text style={styles.intensityText}>{mood.intensity}</Text>
-                    </View>
-                    {/* Show action menu only for moods user can manage */}
-                    {(mood.userId === user.id ||
-                      (isAdmin &&
-                        (selectedFilter.type === "family" ||
-                          selectedFilter.type === "member"))) && (
-                      <TouchableOpacity
-                        onPress={() =>
-                          setShowActionsMenu(
-                            showActionsMenu === mood.id ? null : mood.id
-                          )
-                        }
-                        style={styles.actionsButton}
-                      >
-                        <MoreVertical color="#64748B" size={16} />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-
-                {mood.notes ? (
-                  <Text style={[styles.moodNotes, isRTL && styles.rtlText]}>
-                    {mood.notes}
-                  </Text>
-                ) : null}
-
-                {/* Actions Menu */}
-                {showActionsMenu === mood.id && (
-                  <View style={styles.actionsMenu}>
+            <View style={styles.figmaMoodEntryList}>
+              {recentMoods.map((mood) => {
+                const canManage =
+                  mood.userId === user.id ||
+                  (isAdmin &&
+                    (selectedFilter.type === "family" ||
+                      selectedFilter.type === "member"));
+                const memberLabel =
+                  selectedFilter.type === "personal"
+                    ? ""
+                    : ` - ${getMemberName(mood.userId)}`;
+                const tags =
+                  mood.notes
+                    ?.split(",")
+                    .map((tag) => tag.trim())
+                    .filter(Boolean) ?? [];
+                return (
+                  <View key={mood.id} style={styles.figmaMoodEntryCard}>
                     <TouchableOpacity
+                      activeOpacity={0.8}
+                      onLongPress={() =>
+                        canManage
+                          ? setShowActionsMenu(
+                              showActionsMenu === mood.id ? null : mood.id
+                            )
+                          : null
+                      }
                       onPress={() => handleEditMood(mood)}
-                      style={styles.actionItem}
+                      style={styles.figmaMoodEntryRow}
                     >
-                      <Edit color="#64748B" size={16} />
-                      <Text
-                        style={[styles.actionText, isRTL && styles.rtlText]}
-                      >
-                        {isRTL ? "تعديل" : "Edit"}
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => handleDeleteMood(mood)}
-                      style={styles.actionItem}
-                    >
-                      <Trash2 color="#EF4444" size={16} />
-                      <Text
+                      <View
                         style={[
-                          styles.actionText,
-                          styles.deleteText,
-                          isRTL && styles.rtlText,
+                          styles.figmaMoodEntryIcon,
+                          { backgroundColor: `${getMoodColor(mood.mood)}15` },
                         ]}
                       >
-                        {isRTL ? "حذف" : "Delete"}
-                      </Text>
+                        <Text style={styles.figmaMoodEntryEmoji}>
+                          {getMoodEmoji(mood.mood)}
+                        </Text>
+                      </View>
+                      <View style={styles.figmaMoodEntryInfo}>
+                        <View style={styles.figmaMoodEntryHeader}>
+                          <Text style={styles.figmaMoodEntryTitle}>
+                            {t(mood.mood, formatMoodLabel(mood.mood))}
+                          </Text>
+                          <Text style={styles.figmaMoodEntryTime}>
+                            {formatDate(mood.timestamp) || ""}
+                            {memberLabel}
+                          </Text>
+                        </View>
+                        <View style={styles.figmaMoodEntryTags}>
+                          {tags.length > 0 ? (
+                            tags.slice(0, 3).map((tag) => (
+                              <View
+                                key={`${mood.id}-${tag}`}
+                                style={styles.figmaMoodEntryTag}
+                              >
+                                <Text style={styles.figmaMoodEntryTagText}>
+                                  {tag}
+                                </Text>
+                              </View>
+                            ))
+                          ) : (
+                            <Text style={styles.figmaMoodEntryTagEmpty}>
+                              No notes
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+                      <ChevronRight color="#6C7280" size={18} />
                     </TouchableOpacity>
+                    {showActionsMenu === mood.id && (
+                      <View style={styles.figmaMoodActionsMenu}>
+                        <TouchableOpacity
+                          onPress={() => handleEditMood(mood)}
+                          style={styles.figmaMoodActionItem}
+                        >
+                          <Edit color="#64748B" size={16} />
+                          <Text style={styles.figmaMoodActionText}>Edit</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => handleDeleteMood(mood)}
+                          style={styles.figmaMoodActionItem}
+                        >
+                          <Trash2 color="#EF4444" size={16} />
+                          <Text
+                            style={[
+                              styles.figmaMoodActionText,
+                              styles.figmaMoodActionDelete,
+                            ]}
+                          >
+                            Delete
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
                   </View>
-                )}
-              </View>
-            ))
+                );
+              })}
+            </View>
           )}
         </View>
       </ScrollView>
+
+      <TouchableOpacity
+        onPress={() => {
+          setSelectedTargetUser(user.id);
+          setShowAddModal(true);
+        }}
+        style={styles.figmaMoodFab}
+      >
+        <Plus color="#FFFFFF" size={22} />
+      </TouchableOpacity>
 
       {/* Add Mood Modal */}
       <Modal
@@ -1194,7 +1385,7 @@ export default function MoodsScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
-    </SafeAreaView>
+    </GradientScreen>
   );
 }
 
@@ -1202,6 +1393,441 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F8FAFC",
+  },
+  figmaMoodHeaderWrap: {
+    marginHorizontal: -20,
+    marginTop: -20,
+    marginBottom: 12,
+  },
+  figmaMoodHeaderContent: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 16,
+  },
+  figmaMoodHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  figmaMoodBackButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  figmaMoodHeaderTitle: {
+    flex: 1,
+  },
+  figmaMoodTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  figmaMoodTitle: {
+    fontSize: 22,
+    fontFamily: "Inter-Bold",
+    color: "#FFFFFF",
+  },
+  figmaMoodSubtitle: {
+    fontSize: 13,
+    fontFamily: "Inter-SemiBold",
+    color: "rgba(0, 53, 67, 0.85)",
+  },
+  figmaMoodAddButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#003543",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  figmaMoodContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 140,
+  },
+  figmaMoodStatsRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 20,
+  },
+  figmaMoodStatCard: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  figmaMoodStatValue: {
+    fontSize: 20,
+    fontFamily: "Inter-Bold",
+    color: "#003543",
+    marginBottom: 4,
+  },
+  figmaMoodStatLabel: {
+    fontSize: 11,
+    fontFamily: "Inter-SemiBold",
+    color: "#64748B",
+  },
+  figmaMoodStatTrendRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  figmaMoodSection: {
+    marginBottom: 20,
+  },
+  figmaMoodSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  figmaMoodSectionTitle: {
+    fontSize: 18,
+    fontFamily: "Inter-Bold",
+    color: "#0F172A",
+  },
+  figmaMoodSectionLink: {
+    fontSize: 13,
+    fontFamily: "Inter-SemiBold",
+    color: "#003543",
+  },
+  figmaMoodSectionHint: {
+    fontSize: 12,
+    fontFamily: "Inter-SemiBold",
+    color: "#0F766E",
+  },
+  figmaMoodDistributionCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 16,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  figmaMoodDistributionChart: {
+    width: 140,
+    height: 140,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  figmaMoodDistributionLegend: {
+    flex: 1,
+    gap: 10,
+  },
+  figmaMoodDistributionLegendRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  figmaMoodDistributionLegendLabel: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  figmaMoodDistributionLegendText: {
+    fontSize: 13,
+    fontFamily: "Inter-Medium",
+    color: "#1A1D1F",
+  },
+  figmaMoodDistributionLegendValue: {
+    fontSize: 13,
+    fontFamily: "Inter-SemiBold",
+    color: "#6C7280",
+  },
+  figmaMoodTrendCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 16,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  figmaMoodTrendInfo: {
+    gap: 6,
+  },
+  figmaMoodTrendValue: {
+    fontSize: 18,
+    fontFamily: "Inter-Bold",
+    color: "#0F766E",
+  },
+  figmaMoodTrendLabel: {
+    fontSize: 12,
+    fontFamily: "Inter-SemiBold",
+    color: "#64748B",
+  },
+  figmaMoodDistributionList: {
+    gap: 10,
+  },
+  figmaMoodDistributionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  figmaMoodDistributionLabel: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    width: 110,
+  },
+  figmaMoodDistributionText: {
+    fontSize: 12,
+    fontFamily: "Inter-SemiBold",
+    color: "#0F172A",
+  },
+  figmaMoodDistributionBar: {
+    flex: 1,
+    height: 8,
+    backgroundColor: "#E2E8F0",
+    borderRadius: 999,
+    overflow: "hidden",
+  },
+  figmaMoodDistributionFill: {
+    height: "100%",
+    borderRadius: 999,
+  },
+  figmaMoodDistributionValue: {
+    fontSize: 11,
+    fontFamily: "Inter-SemiBold",
+    color: "#64748B",
+    width: 36,
+    textAlign: "right",
+  },
+  figmaMoodQuickGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    rowGap: 12,
+    columnGap: 8,
+  },
+  figmaMoodQuickButton: {
+    width: "18%",
+    borderWidth: 2,
+    borderColor: "#E5E7EB",
+    borderRadius: 14,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+  },
+  figmaMoodQuickEmoji: {
+    fontSize: 20,
+    marginBottom: 4,
+  },
+  figmaMoodQuickLabel: {
+    fontSize: 11,
+    fontFamily: "Inter-SemiBold",
+    color: "#6C7280",
+  },
+  figmaMoodEntryList: {
+    gap: 12,
+  },
+  figmaMoodEntryCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 14,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  figmaMoodEntryRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  figmaMoodEntryIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  figmaMoodEntryEmoji: {
+    fontSize: 22,
+  },
+  figmaMoodEntryInfo: {
+    flex: 1,
+  },
+  figmaMoodEntryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
+  figmaMoodEntryTitle: {
+    fontSize: 14,
+    fontFamily: "Inter-SemiBold",
+    color: "#1A1D1F",
+  },
+  figmaMoodEntryTime: {
+    fontSize: 11,
+    fontFamily: "Inter-Medium",
+    color: "#6C7280",
+  },
+  figmaMoodEntryTags: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  figmaMoodEntryTag: {
+    backgroundColor: "rgba(0, 53, 67, 0.1)",
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  figmaMoodEntryTagText: {
+    fontSize: 11,
+    fontFamily: "Inter-SemiBold",
+    color: "#003543",
+  },
+  figmaMoodEntryTagEmpty: {
+    fontSize: 11,
+    fontFamily: "Inter-Medium",
+    color: "#9CA3AF",
+  },
+  figmaMoodList: {
+    gap: 12,
+  },
+  figmaMoodCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 14,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  figmaMoodCardHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  figmaMoodCardInfo: {
+    flex: 1,
+  },
+  figmaMoodCardTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  figmaMoodCardTitle: {
+    fontSize: 14,
+    fontFamily: "Inter-SemiBold",
+    color: "#0F172A",
+  },
+  figmaMoodCardMeta: {
+    fontSize: 11,
+    fontFamily: "Inter-Medium",
+    color: "#64748B",
+    marginTop: 4,
+  },
+  figmaMoodDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 999,
+  },
+  figmaMoodCardActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  figmaMoodIntensityBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  figmaMoodIntensityText: {
+    fontSize: 12,
+    fontFamily: "Inter-Bold",
+    color: "#FFFFFF",
+  },
+  figmaMoodActionsButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F1F5F9",
+  },
+  figmaMoodNotes: {
+    marginTop: 10,
+    fontSize: 12,
+    fontFamily: "Inter-Medium",
+    color: "#475569",
+    lineHeight: 18,
+  },
+  figmaMoodActionsMenu: {
+    flexDirection: "row",
+    gap: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+    marginTop: 12,
+    paddingTop: 12,
+  },
+  figmaMoodActionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  figmaMoodActionText: {
+    fontSize: 12,
+    fontFamily: "Inter-SemiBold",
+    color: "#64748B",
+  },
+  figmaMoodActionDelete: {
+    color: "#EF4444",
+  },
+  figmaMoodEmptyState: {
+    paddingVertical: 16,
+    alignItems: "center",
+  },
+  figmaMoodEmptyText: {
+    fontSize: 12,
+    fontFamily: "Inter-Medium",
+    color: "#64748B",
+    textAlign: "center",
+  },
+  figmaMoodFab: {
+    position: "absolute",
+    right: 20,
+    bottom: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#EB9C0C",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 6,
   },
   header: {
     flexDirection: "row",
@@ -1215,11 +1841,11 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#1E293B",
   },
   rtlText: {
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     textAlign: "right",
   },
   addButton: {
@@ -1242,7 +1868,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     marginBottom: 12,
   },
@@ -1267,13 +1893,13 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 24,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#2563EB",
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
     textAlign: "center",
   },
@@ -1311,7 +1937,7 @@ const styles = StyleSheet.create({
   },
   moodType: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
   },
   moodMeta: {
@@ -1321,7 +1947,7 @@ const styles = StyleSheet.create({
   },
   moodDate: {
     fontSize: 12,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
   },
   memberBadge: {
@@ -1332,7 +1958,7 @@ const styles = StyleSheet.create({
   },
   memberBadgeText: {
     fontSize: 10,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#6366F1",
   },
   moodActions: {
@@ -1349,7 +1975,7 @@ const styles = StyleSheet.create({
   },
   intensityText: {
     fontSize: 12,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#FFFFFF",
   },
   actionsButton: {
@@ -1357,7 +1983,7 @@ const styles = StyleSheet.create({
   },
   moodNotes: {
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#475569",
     lineHeight: 20,
   },
@@ -1377,7 +2003,7 @@ const styles = StyleSheet.create({
   },
   actionText: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
   },
   deleteText: {
@@ -1394,18 +2020,18 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
     textAlign: "center",
   },
   loadingText: {
     fontSize: 16,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
   },
   errorText: {
     fontSize: 16,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#EF4444",
     textAlign: "center",
   },
@@ -1426,7 +2052,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
   },
   closeButton: {
@@ -1441,7 +2067,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     marginBottom: 8,
   },
@@ -1450,7 +2076,7 @@ const styles = StyleSheet.create({
   },
   categoryLabel: {
     fontSize: 14,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#64748B",
     marginBottom: 12,
     textTransform: "uppercase",
@@ -1482,13 +2108,13 @@ const styles = StyleSheet.create({
   },
   moodOptionText: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
     textAlign: "center",
   },
   moodOptionTextSelected: {
     color: "#2563EB",
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
   },
   textInput: {
     backgroundColor: "#FFFFFF",
@@ -1498,11 +2124,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#1E293B",
   },
   rtlTextInput: {
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
   },
   textArea: {
     minHeight: 80,
@@ -1532,7 +2158,7 @@ const styles = StyleSheet.create({
   },
   intensityButtonText: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#64748B",
   },
   intensityButtonTextActive: {
@@ -1544,7 +2170,7 @@ const styles = StyleSheet.create({
   },
   intensityLabel: {
     fontSize: 12,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
   },
   saveButton: {
@@ -1559,7 +2185,7 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#FFFFFF",
   },
   // Member selection styles
@@ -1585,7 +2211,7 @@ const styles = StyleSheet.create({
   },
   memberName: {
     fontSize: 16,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#1E293B",
   },
   memberNameSelected: {
@@ -1593,7 +2219,7 @@ const styles = StyleSheet.create({
   },
   memberRole: {
     fontSize: 12,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
     backgroundColor: "#F1F5F9",
     paddingHorizontal: 8,
@@ -1623,7 +2249,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     textAlign: "center",
   },

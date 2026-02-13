@@ -13,7 +13,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import GradientScreen from "@/components/figma/GradientScreen";
+import WavyBackground from "@/components/figma/WavyBackground";
 import {
   documentService,
   type ParsedDocument,
@@ -89,31 +90,51 @@ export default function PrivacyPolicyScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.push("/(tabs)/profile")}
-          style={[styles.backButton, isRTL && styles.backButtonRTL]}
-        >
-          <ArrowLeft
-            color="#1E293B"
-            size={24}
-            style={[isRTL && { transform: [{ rotate: "180deg" }] }]}
-          />
-        </TouchableOpacity>
-
-        <Text style={[styles.headerTitle, isRTL && { textAlign: "left" }]}>
-          {isRTL ? "سياسة الخصوصية" : "Privacy Policy"}
-        </Text>
-
-        <View style={styles.headerSpacer} />
+    <GradientScreen edges={["top"]} style={styles.container}>
+      <View style={styles.headerWrapper}>
+        <WavyBackground height={220} variant="teal">
+          <View style={styles.headerContent}>
+            <View style={[styles.headerRow, isRTL && styles.headerRowRTL]}>
+              <TouchableOpacity
+                onPress={() => router.push("/(tabs)/profile")}
+                style={styles.backButton}
+              >
+                <ArrowLeft
+                  color="#003543"
+                  size={20}
+                  style={
+                    isRTL ? { transform: [{ rotate: "180deg" }] } : undefined
+                  }
+                />
+              </TouchableOpacity>
+              <View style={styles.headerTitle}>
+                <View
+                  style={[styles.headerTitleRow, isRTL && styles.headerRowRTL]}
+                >
+                  <Shield color="#EB9C0C" size={20} />
+                  <Text style={styles.headerTitleText}>
+                    {isRTL ? "سياسة الخصوصية" : "Privacy Policy"}
+                  </Text>
+                </View>
+                <Text style={[styles.headerSubtitle, isRTL && styles.rtlText]}>
+                  {isRTL
+                    ? "كيف نحمي ونستخدم بياناتك"
+                    : "How we protect and use your data"}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </WavyBackground>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        style={styles.scrollView}
+      >
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator color="#2563EB" size="large" />
+            <ActivityIndicator color="#003543" size="large" />
             <Text style={[styles.loadingText, isRTL && { textAlign: "left" }]}>
               {isRTL ? "جاري التحميل..." : "Loading..."}
             </Text>
@@ -139,7 +160,7 @@ export default function PrivacyPolicyScreen() {
             {/* Introduction */}
             <View style={styles.introSection}>
               <View style={styles.introIcon}>
-                <Shield color="#2563EB" size={40} />
+                <Shield color="#EB9C0C" size={40} />
               </View>
               <Text style={[styles.introTitle, isRTL && { textAlign: "left" }]}>
                 {isRTL ? "سياسة خصوصية تطبيق معاك" : document.title}
@@ -187,71 +208,93 @@ export default function PrivacyPolicyScreen() {
           </Text>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </GradientScreen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
+  headerWrapper: {
+    flexShrink: 0,
+    marginHorizontal: -20,
+    marginTop: -20,
+    marginBottom: 12,
+  },
+  headerContent: {
+    paddingHorizontal: 24,
     paddingTop: 20,
     paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  headerRowRTL: {
+    flexDirection: "row-reverse",
   },
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: "#F1F5F9",
-    justifyContent: "center",
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.5)",
     alignItems: "center",
-  },
-  backButtonRTL: {
-    transform: [{ scaleX: -1 }],
+    justifyContent: "center",
   },
   headerTitle: {
-    fontSize: 18,
-    fontFamily: "Geist-SemiBold",
-    color: "#1E293B",
     flex: 1,
-    textAlign: "center",
   },
-  headerSpacer: {
-    width: 40,
+  headerTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
   },
-  content: {
+  headerTitleText: {
+    fontSize: 22,
+    fontFamily: "Inter-Bold",
+    color: "#FFFFFF",
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    fontFamily: "Inter-SemiBold",
+    color: "rgba(0, 53, 67, 0.85)",
+  },
+  scrollView: {
     flex: 1,
-    paddingHorizontal: 20,
+  },
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 40,
   },
   introSection: {
     alignItems: "center",
     paddingVertical: 32,
     backgroundColor: "#FFFFFF",
-    marginTop: 20,
-    borderRadius: 16,
     marginBottom: 24,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   introIcon: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "#EBF4FF",
+    backgroundColor: "#FFF8EB",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 16,
   },
   introTitle: {
     fontSize: 24,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#1E293B",
     marginBottom: 12,
     textAlign: "center",
@@ -259,7 +302,7 @@ const styles = StyleSheet.create({
   },
   introDescription: {
     fontSize: 16,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     textAlign: "center",
     lineHeight: 24,
@@ -277,18 +320,20 @@ const styles = StyleSheet.create({
   },
   lastUpdatedText: {
     fontSize: 12,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
   },
   sectionCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
     elevation: 2,
   },
   subsectionCard: {
@@ -297,21 +342,21 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     marginBottom: 12,
   },
   mainSectionTitle: {
     fontSize: 18,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
   },
   subsectionTitle: {
     fontSize: 14,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
   },
   sectionContent: {
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#374151",
     lineHeight: 20,
   },
@@ -323,8 +368,8 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    fontFamily: "Geist-Medium",
-    color: "#64748B",
+    fontFamily: "Inter-Medium",
+    color: "#1A1D1F",
     marginTop: 16,
   },
   errorContainer: {
@@ -336,25 +381,25 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#EF4444",
     textAlign: "center",
     marginBottom: 16,
   },
   retryButton: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#EB9C0C",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
   },
   retryButtonText: {
     fontSize: 14,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#FFFFFF",
   },
   noContentText: {
     fontSize: 16,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
     textAlign: "center",
     marginTop: 50,
@@ -362,6 +407,5 @@ const styles = StyleSheet.create({
   },
   rtlText: {
     textAlign: "right",
-    fontFamily: "Geist-Regular",
   },
 });

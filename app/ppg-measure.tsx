@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 export default function PPGMeasureScreen() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const params = useLocalSearchParams<{ returnTo?: string }>();
   type PPGComponentProps = {
     onClose: () => void;
     onMeasurementComplete: () => void;
@@ -92,7 +93,11 @@ export default function PPGMeasureScreen() {
             )}
           </Text>
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() =>
+              params.returnTo === "track"
+                ? router.push("/(tabs)/track")
+                : router.back()
+            }
             style={styles.backButtonLarge}
           >
             <Text style={styles.backButtonLargeText}>
@@ -133,7 +138,11 @@ export default function PPGMeasureScreen() {
         <PPGComponent
           onClose={() => {
             // Navigate back when closed
-            router.back();
+            if (params.returnTo === "track") {
+              router.push("/(tabs)/track");
+            } else {
+              router.back();
+            }
           }}
           onMeasurementComplete={() => {
             // Keep this route mounted so the PPG modal can show the success UI + score.

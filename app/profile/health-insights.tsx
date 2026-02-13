@@ -1,58 +1,83 @@
 import { router } from "expo-router";
-import { ChevronLeft } from "lucide-react-native";
+import { ArrowLeft, Brain } from "lucide-react-native";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   RefreshControl,
   ScrollView,
+  StyleSheet,
+  Text,
   TouchableOpacity,
   View,
-  type ViewStyle,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { AIInsightsDashboard } from "@/app/components/AIInsightsDashboard";
 import HealthInsightsCard from "@/app/components/HealthInsightsCard";
-import { Heading } from "@/components/design-system/Typography";
+import GradientScreen from "@/components/figma/GradientScreen";
+import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
-import { useTheme } from "@/contexts/ThemeContext";
-import { createThemedStyles } from "@/utils/styles";
 
 export default function HealthInsightsScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
-  const { theme } = useTheme();
   const isRTL = i18n.language === "ar";
   const [refreshing, setRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const styles = createThemedStyles((tokens) => ({
+  const styles = StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: tokens.colors.background.primary,
+      backgroundColor: "transparent",
     },
-    header: {
-      flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",
-      alignItems: "center" as const,
-      paddingHorizontal: tokens.spacing.base,
-      paddingVertical: tokens.spacing.md,
-      borderBottomWidth: 1,
-      borderBottomColor: tokens.colors.border.light,
+    headerWrap: {
+      marginHorizontal: -20,
+      marginTop: -20,
+      marginBottom: 12,
+    },
+    headerContent: {
+      paddingHorizontal: 24,
+      paddingTop: 20,
+      paddingBottom: 16,
+    },
+    headerRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
     },
     backButton: {
-      marginRight: isRTL ? 0 : tokens.spacing.md,
-      marginLeft: isRTL ? tokens.spacing.md : 0,
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: "rgba(255, 255, 255, 0.5)",
+      alignItems: "center",
+      justifyContent: "center",
     },
     headerTitle: {
       flex: 1,
     },
+    headerTitleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginBottom: 4,
+    },
+    headerTitleText: {
+      fontSize: 22,
+      fontFamily: "Inter-Bold",
+      color: "#FFFFFF",
+    },
+    headerSubtitle: {
+      fontSize: 13,
+      fontFamily: "Inter-SemiBold",
+      color: "rgba(0, 53, 67, 0.85)",
+    },
     content: {
-      flex: 1,
+      paddingHorizontal: 24,
+      paddingBottom: 40,
     },
-    contentInner: {
-      paddingHorizontal: tokens.spacing.base,
-      paddingVertical: tokens.spacing.base,
+    rtlText: {
+      textAlign: "right",
     },
-  }))(theme);
+  });
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -65,44 +90,75 @@ export default function HealthInsightsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container as ViewStyle}>
-      <View style={styles.header as ViewStyle}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton as ViewStyle}
-        >
-          <ChevronLeft
-            color={theme.colors.text.primary}
-            size={24}
-            style={isRTL ? { transform: [{ rotate: "180deg" }] } : undefined}
-          />
-        </TouchableOpacity>
-        <View style={styles.headerTitle as ViewStyle}>
-          <Heading color={theme.colors.text.primary} level={4}>
-            {t("healthInsights")}
-          </Heading>
-        </View>
+    <GradientScreen
+      edges={["top"]}
+      pointerEvents="box-none"
+      style={styles.container}
+    >
+      <View style={styles.headerWrap}>
+        <WavyBackground height={180} variant="teal">
+          <View style={styles.headerContent}>
+            <View
+              style={[
+                styles.headerRow,
+                isRTL && { flexDirection: "row-reverse" as const },
+              ]}
+            >
+              <TouchableOpacity
+                onPress={() => router.back()}
+                style={styles.backButton}
+              >
+                <ArrowLeft
+                  color="#003543"
+                  size={20}
+                  style={
+                    isRTL ? { transform: [{ rotate: "180deg" }] } : undefined
+                  }
+                />
+              </TouchableOpacity>
+              <View style={styles.headerTitle}>
+                <View
+                  style={[
+                    styles.headerTitleRow,
+                    isRTL && { flexDirection: "row-reverse" as const },
+                  ]}
+                >
+                  <Brain color="#EB9C0C" size={20} />
+                  <Text style={styles.headerTitleText}>
+                    {t("healthInsights", "Health Insights")}
+                  </Text>
+                </View>
+                <Text
+                  numberOfLines={1}
+                  style={[styles.headerSubtitle, isRTL && styles.rtlText]}
+                >
+                  {t("healthInsightsSubtitle")}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </WavyBackground>
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.contentInner as ViewStyle}
+        contentContainerStyle={styles.content}
         refreshControl={
-          <RefreshControl onRefresh={onRefresh} refreshing={refreshing} />
+          <RefreshControl
+            onRefresh={onRefresh}
+            refreshing={refreshing}
+            tintColor="#003543"
+          />
         }
         showsVerticalScrollIndicator={false}
-        style={styles.content as ViewStyle}
       >
         <HealthInsightsCard key={`health-insights-card-${refreshKey}`} />
         <AIInsightsDashboard
           compact={false}
           embedded={true}
           key={`health-insights-dashboard-${refreshKey}`}
-          onInsightPress={() => {
-            // Navigate to analytics tab for detailed view
-            router.push("/(tabs)/analytics");
-          }}
+          onInsightPress={() => router.push("/(tabs)/analytics")}
         />
       </ScrollView>
-    </SafeAreaView>
+    </GradientScreen>
   );
 }

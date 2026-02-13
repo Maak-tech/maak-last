@@ -54,6 +54,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import CoachMark from "@/app/components/CoachMark";
+import GradientScreen from "@/components/figma/GradientScreen";
+import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
@@ -91,7 +93,7 @@ export default function VitalsScreen() {
   const { user } = useAuth();
   const { theme } = useTheme();
   const router = useRouter();
-  const params = useLocalSearchParams<{ tour?: string }>();
+  const params = useLocalSearchParams<{ returnTo?: string; tour?: string }>();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hasPermissions, setHasPermissions] = useState(false);
@@ -136,6 +138,69 @@ export default function VitalsScreen() {
     container: {
       flex: 1,
       backgroundColor: theme.colors.background.primary,
+    },
+    figmaVitalsHeaderWrap: {
+      marginHorizontal: -20,
+      marginTop: -20,
+      marginBottom: 12,
+    },
+    figmaVitalsHeaderContent: {
+      paddingHorizontal: 24,
+      paddingTop: 20,
+      paddingBottom: 16,
+    },
+    figmaVitalsHeaderRow: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: theme.spacing.sm,
+    },
+    figmaVitalsBackButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: "rgba(255, 255, 255, 0.5)",
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+    },
+    figmaVitalsHeaderTitle: {
+      flex: 1,
+    },
+    figmaVitalsTitleRow: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: theme.spacing.xs,
+      marginBottom: 4,
+    },
+    figmaVitalsTitle: {
+      fontSize: 22,
+      fontFamily: "Inter-Bold",
+      color: "#FFFFFF",
+    },
+    figmaVitalsSubtitle: {
+      fontSize: 13,
+      fontFamily: "Inter-SemiBold",
+      color: "rgba(0, 53, 67, 0.85)",
+    },
+    figmaVitalsHeaderActions: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: theme.spacing.sm,
+    },
+    figmaVitalsSyncRow: {
+      marginTop: theme.spacing.base,
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: theme.spacing.xs,
+      backgroundColor: "rgba(255, 255, 255, 0.6)",
+      alignSelf: "flex-start" as const,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
+      borderRadius: 999,
+    },
+    figmaVitalsSyncText: {
+      fontSize: 12,
+      fontFamily: "Inter-SemiBold",
+      color: "#003543",
     },
     header: {
       paddingHorizontal: theme.spacing.lg,
@@ -1956,96 +2021,79 @@ export default function VitalsScreen() {
   const vitalCards = getVitalCards();
 
   return (
-    <SafeAreaView
+    <GradientScreen
       edges={["top"]}
       pointerEvents="box-none"
       style={styles.container as ViewStyle}
     >
       {/* Header */}
-      <View style={styles.header as ViewStyle}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton as ViewStyle}
-        >
-          <ArrowLeft color={theme.colors.text.primary} size={24} />
-        </TouchableOpacity>
-        <Text
-          style={
-            [
-              styles.headerTitle,
-              isRTL && styles.rtlText,
-            ] as StyleProp<TextStyle>
-          }
-        >
-          {isRTL ? "المؤشرات الحيوية" : "Vital Signs"}
-        </Text>
-        <Text
-          style={
-            [
-              styles.headerSubtitle,
-              isRTL && styles.rtlText,
-            ] as StyleProp<TextStyle>
-          }
-        >
-          {isRTL
-            ? "مراقبة صحتك من مصادر متعددة"
-            : "Monitor your health from multiple sources"}
-        </Text>
-
-        <View style={styles.headerActions as ViewStyle}>
-          <View style={styles.syncInfo as ViewStyle}>
-            {lastSync ? (
-              <>
-                <CheckCircle color={theme.colors.accent.success} size={12} />
-                <Text
-                  style={
-                    [
-                      styles.syncText,
-                      isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
-                  }
-                >
-                  {isRTL
-                    ? `آخر مزامنة: ${safeFormatTime(lastSync, "ar", { hour: "2-digit", minute: "2-digit" })}`
-                    : `Last sync: ${safeFormatTime(lastSync, "en-US", { hour: "2-digit", minute: "2-digit" })}`}
+      <View style={styles.figmaVitalsHeaderWrap as ViewStyle}>
+        <WavyBackground height={210} variant="teal">
+          <View style={styles.figmaVitalsHeaderContent as ViewStyle}>
+            <View style={styles.figmaVitalsHeaderRow as ViewStyle}>
+              <TouchableOpacity
+                onPress={() =>
+                  params.returnTo === "track"
+                    ? router.push("/(tabs)/track")
+                    : router.back()
+                }
+                style={styles.figmaVitalsBackButton as ViewStyle}
+              >
+                <ArrowLeft color="#003543" size={20} />
+              </TouchableOpacity>
+              <View style={styles.figmaVitalsHeaderTitle as ViewStyle}>
+                <View style={styles.figmaVitalsTitleRow as ViewStyle}>
+                  <Activity color="#0F766E" size={20} />
+                  <Text style={styles.figmaVitalsTitle as TextStyle}>
+                    Vital Signs
+                  </Text>
+                </View>
+                <Text style={styles.figmaVitalsSubtitle as TextStyle}>
+                  Monitor your health from multiple sources
                 </Text>
-              </>
+              </View>
+              <View style={styles.figmaVitalsHeaderActions as ViewStyle}>
+                <TouchableOpacity
+                  onPress={() => setShowHowTo(true)}
+                  style={styles.helpButton as ViewStyle}
+                >
+                  <Info color={theme.colors.text.secondary} size={18} />
+                </TouchableOpacity>
+                <View collapsable={false} ref={syncButtonRef}>
+                  <TouchableOpacity
+                    disabled={refreshing}
+                    onPress={handleSyncData}
+                    style={styles.syncButton as ViewStyle}
+                  >
+                    {refreshing ? (
+                      <ActivityIndicator
+                        color={theme.colors.neutral.white}
+                        size="small"
+                      />
+                    ) : (
+                      <RefreshCw color={theme.colors.neutral.white} size={16} />
+                    )}
+                    <Text style={styles.syncButtonText as StyleProp<TextStyle>}>
+                      {refreshing ? "Syncing..." : "Sync"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+            {lastSync ? (
+              <View style={styles.figmaVitalsSyncRow as ViewStyle}>
+                <CheckCircle color="#0F766E" size={12} />
+                <Text style={styles.figmaVitalsSyncText as TextStyle}>
+                  Last sync:{" "}
+                  {safeFormatTime(lastSync, "en-US", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </Text>
+              </View>
             ) : null}
           </View>
-          <View style={styles.headerButtons as ViewStyle}>
-            <TouchableOpacity
-              onPress={() => setShowHowTo(true)}
-              style={styles.helpButton as ViewStyle}
-            >
-              <Info color={theme.colors.text.secondary} size={18} />
-            </TouchableOpacity>
-            <View collapsable={false} ref={syncButtonRef}>
-              <TouchableOpacity
-                disabled={refreshing}
-                onPress={handleSyncData}
-                style={styles.syncButton as ViewStyle}
-              >
-                {refreshing ? (
-                  <ActivityIndicator
-                    color={theme.colors.neutral.white}
-                    size="small"
-                  />
-                ) : (
-                  <RefreshCw color={theme.colors.neutral.white} size={16} />
-                )}
-                <Text style={styles.syncButtonText as StyleProp<TextStyle>}>
-                  {refreshing
-                    ? isRTL
-                      ? "مزامنة..."
-                      : "Syncing..."
-                    : isRTL
-                      ? "مزامنة"
-                      : "Sync"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+        </WavyBackground>
       </View>
 
       <ScrollView
@@ -2232,6 +2280,6 @@ export default function VitalsScreen() {
         title={isRTL ? "مزامنة المؤشرات الحيوية" : "Sync health vitals"}
         visible={showHowTo}
       />
-    </SafeAreaView>
+    </GradientScreen>
   );
 }

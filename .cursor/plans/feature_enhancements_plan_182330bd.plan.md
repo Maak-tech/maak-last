@@ -32,12 +32,12 @@ Based on your app's current capabilities and the 1-2 week pre-launch timeline, h
 
 **Implementation:**
 
-- Add weekly and monthly adherence charts to [`app/(tabs)/medications.tsx`](app/\\(tabs)/medications.tsx)
+- Add weekly and monthly adherence charts to `[app/(tabs)/medications.tsx](app/\\(tabs)`/medications.tsx)
 - Create an adherence history view showing:
   - 7-day, 30-day, and 90-day compliance percentages
   - Line chart showing daily adherence trends
   - Best/worst medication adherence breakdown
-- Extend [`lib/services/medicationService.ts`](lib/services/medicationService.ts) to add:
+- Extend `[lib/services/medicationService.ts](lib/services/medicationService.ts)` to add:
   - `getAdherenceHistory(userId, days)` function
   - `getAdherenceByMedication(userId)` function
 - Show streak counter ("12 days of perfect adherence!")
@@ -48,7 +48,7 @@ Based on your app's current capabilities and the 1-2 week pre-launch timeline, h
 
 ### 2. Health Reports & Data Export
 
-**Why:** Currently shows "Coming Soon" alert (line 170-177 in [`app/(tabs)/profile.tsx`](app/\\(tabs)/profile.tsx)). Critical for doctor visits and user data ownership.
+**Why:** Currently shows "Coming Soon" alert (line 170-177 in `[app/(tabs)/profile.tsx](app/\\(tabs)`/profile.tsx)). Critical for doctor visits and user data ownership.
 
 **Implementation:**
 
@@ -64,7 +64,7 @@ Based on your app's current capabilities and the 1-2 week pre-launch timeline, h
 
 **Files to modify:**
 
-- [`app/(tabs)/profile.tsx`](app/\\(tabs)/profile.tsx) - Replace "Coming Soon" alert with real functionality
+- `[app/(tabs)/profile.tsx](app/\\(tabs)`/profile.tsx) - Replace "Coming Soon" alert with real functionality
 - New file: `lib/services/reportService.ts`
 
 **Impact:** High - Essential for healthcare provider communication and trust
@@ -77,7 +77,7 @@ Based on your app's current capabilities and the 1-2 week pre-launch timeline, h
 
 **Implementation:**
 
-- Add `quantity` and `pillsPerDose` fields to Medication type in [`types/index.ts`](types/index.ts)
+- Add `quantity` and `pillsPerDose` fields to Medication type in `[types/index.ts](types/index.ts)`
 - Track remaining quantity when marking doses as taken
 - Alert when quantity drops below threshold (e.g., 3 days remaining)
 - Add "Refilled" action button in medication detail view
@@ -85,10 +85,10 @@ Based on your app's current capabilities and the 1-2 week pre-launch timeline, h
 
 **Files to modify:**
 
-- [`types/index.ts`](types/index.ts) - Update Medication interface
-- [`lib/services/medicationService.ts`](lib/services/medicationService.ts) - Add refill tracking logic
-- [`app/(tabs)/medications.tsx`](app/\\(tabs)/medications.tsx) - UI for quantity management
-- [`lib/services/pushNotificationService.ts`](lib/services/pushNotificationService.ts) - Add refill notification
+- `[types/index.ts](types/index.ts)` - Update Medication interface
+- `[lib/services/medicationService.ts](lib/services/medicationService.ts)` - Add refill tracking logic
+- `[app/(tabs)/medications.tsx](app/\\(tabs)`/medications.tsx) - UI for quantity management
+- `[lib/services/pushNotificationService.ts](lib/services/pushNotificationService.ts)` - Add refill notification
 
 **Impact:** Medium-High - Prevents medication gaps, improves adherence
 
@@ -116,7 +116,7 @@ Based on your app's current capabilities and the 1-2 week pre-launch timeline, h
 
 - New: `lib/services/achievementService.ts`
 - New: `app/profile/achievements.tsx`
-- [`app/(tabs)/profile.tsx`](app/\\(tabs)/profile.tsx) - Add achievements section
+- `[app/(tabs)/profile.tsx](app/\\(tabs)`/profile.tsx) - Add achievements section
 - New: `components/AchievementBadge.tsx`
 
 **Impact:** High - Significant engagement and retention boost
@@ -129,7 +129,7 @@ Based on your app's current capabilities and the 1-2 week pre-launch timeline, h
 
 **Implementation:**
 
-- Add "Quick Mark" section to [`app/(tabs)/index.tsx`](app/\\(tabs)/index.tsx)
+- Add "Quick Mark" section to `[app/(tabs)/index.tsx](app/\\(tabs)`/index.tsx)
 - Show medications due in next hour with one-tap checkboxes
 - Add "Mark All Current" button for multiple medications
 - Create floating action button (FAB) for common actions:
@@ -140,7 +140,7 @@ Based on your app's current capabilities and the 1-2 week pre-launch timeline, h
 
 **Files to modify:**
 
-- [`app/(tabs)/index.tsx`](app/\\(tabs)/index.tsx) - Enhanced quick actions UI
+- `[app/(tabs)/index.tsx](app/\\(tabs)`/index.tsx) - Enhanced quick actions UI
 - New: `components/QuickActionFAB.tsx`
 - New: `components/SwipeableCard.tsx`
 
@@ -159,7 +159,7 @@ Based on your app's current capabilities and the 1-2 week pre-launch timeline, h
 
 ### 7. Medication Barcode Scanner
 
-- Camera permission already exists ([`app.json`](app.json):27)
+- Camera permission already exists (`[app.json](app.json)`:27)
 - Use `expo-barcode-scanner` to scan medication barcodes
 - Auto-populate name and dosage from database/API
 - Fallback to manual entry
@@ -262,28 +262,21 @@ Based on your app's current capabilities and the 1-2 week pre-launch timeline, h
 After implementing features, monitor:
 
 1. **Engagement:**
-
-   - Daily Active Users (DAU)
-   - Average session duration
-   - Feature adoption rates
-
+  - Daily Active Users (DAU)
+  - Average session duration
+  - Feature adoption rates
 2. **Retention:**
-
-   - Day 1, 7, 30 retention rates
-   - Medication adherence improvements
-   - Family sharing activation rate
-
+  - Day 1, 7, 30 retention rates
+  - Medication adherence improvements
+  - Family sharing activation rate
 3. **Health Outcomes:**
-
-   - Average medication adherence percentage
-   - Symptom logging frequency
-   - Fall detection response time
-
+  - Average medication adherence percentage
+  - Symptom logging frequency
+  - Fall detection response time
 4. **Satisfaction:**
-
-   - App Store ratings
-   - In-app feedback
-   - Feature request patterns
+  - App Store ratings
+  - In-app feedback
+  - Feature request patterns
 
 ---
 
@@ -318,15 +311,12 @@ After implementing features, monitor:
 ## 🎯 Recommended Implementation Order (Pre-Launch)
 
 1. **Week 1:**
-
-   - Medication adherence trends (2-3 days)
-   - Refill reminders (1-2 days)
-   - Quick actions enhancements (1-2 days)
-
+  - Medication adherence trends (2-3 days)
+  - Refill reminders (1-2 days)
+  - Quick actions enhancements (1-2 days)
 2. **Week 2:**
-
-   - Health reports & PDF export (3-4 days)
-   - Achievements system (2-3 days)
-   - Testing and polish (1-2 days)
+  - Health reports & PDF export (3-4 days)
+  - Achievements system (2-3 days)
+  - Testing and polish (1-2 days)
 
 This gives you 5 substantial new features that users will immediately notice and appreciate, all achievable within your 1-2 week timeline.

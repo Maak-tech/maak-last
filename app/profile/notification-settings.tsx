@@ -25,7 +25,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import GradientScreen from "@/components/figma/GradientScreen";
+import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/hooks/useNotifications";
 import { pushNotificationService } from "@/lib/services/pushNotificationService";
@@ -260,53 +261,85 @@ export default function NotificationSettingsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <GradientScreen edges={["top"]} style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator color="#2563EB" size="large" />
+          <ActivityIndicator color="#003543" size="large" />
           <Text style={[styles.loadingText, isRTL && { textAlign: "left" }]}>
             {t("loading", "Loading...")}
           </Text>
         </View>
-      </SafeAreaView>
+      </GradientScreen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <ArrowLeft color="#333" size={24} />
-        </TouchableOpacity>
-        <Text style={[styles.title, isRTL && { textAlign: "left" }]}>
-          {t("notificationSettings", "Notification Settings")}
-        </Text>
-        <TouchableOpacity
-          disabled={saving}
-          onPress={handleSaveSettings}
-          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-        >
-          {saving ? (
-            <ActivityIndicator color="#2563EB" size="small" />
-          ) : (
-            <Text
-              style={[styles.saveButtonText, isRTL && { textAlign: "left" }]}
-            >
-              {t("save", "Save")}
-            </Text>
-          )}
-        </TouchableOpacity>
+    <GradientScreen edges={["top"]} style={styles.container}>
+      <View style={styles.headerWrapper}>
+        <WavyBackground height={220} variant="teal">
+          <View style={styles.headerContent}>
+            <View style={[styles.headerRow, isRTL && styles.headerRowRTL]}>
+              <TouchableOpacity
+                onPress={() => router.back()}
+                style={styles.backButton}
+              >
+                <ArrowLeft
+                  color="#003543"
+                  size={20}
+                  style={
+                    isRTL ? { transform: [{ rotate: "180deg" }] } : undefined
+                  }
+                />
+              </TouchableOpacity>
+              <View style={styles.headerTitle}>
+                <View
+                  style={[styles.headerTitleRow, isRTL && styles.headerRowRTL]}
+                >
+                  <Bell color="#EB9C0C" size={20} />
+                  <Text style={styles.headerTitleText}>
+                    {t("notificationSettings", "Notification Settings")}
+                  </Text>
+                </View>
+                <Text style={[styles.headerSubtitle, isRTL && styles.rtlText]}>
+                  {t(
+                    "manageNotificationPreferences",
+                    "Manage your notification preferences"
+                  )}
+                </Text>
+              </View>
+              <TouchableOpacity
+                disabled={saving}
+                onPress={handleSaveSettings}
+                style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+              >
+                {saving ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text
+                    style={[
+                      styles.saveButtonText,
+                      isRTL && { textAlign: "left" },
+                    ]}
+                  >
+                    {t("save", "Save")}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </WavyBackground>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        style={styles.scrollView}
+      >
         {/* Master Toggle */}
         <View style={styles.section}>
           <View style={styles.masterToggleCard}>
             <View style={styles.masterToggleContent}>
               {settings.enabled ? (
-                <Bell color="#2563EB" size={32} />
+                <Bell color="#EB9C0C" size={32} />
               ) : (
                 <BellOff color="#9CA3AF" size={32} />
               )}
@@ -337,7 +370,7 @@ export default function NotificationSettingsScreen() {
             <Switch
               onValueChange={() => toggleSetting("enabled")}
               thumbColor={settings.enabled ? "#FFFFFF" : "#9CA3AF"}
-              trackColor={{ false: "#E5E7EB", true: "#2563EB" }}
+              trackColor={{ false: "#E5E7EB", true: "#EB9C0C" }}
               value={settings.enabled}
             />
           </View>
@@ -606,14 +639,13 @@ export default function NotificationSettingsScreen() {
           </Text>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </GradientScreen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
   },
   loadingContainer: {
     flex: 1,
@@ -622,65 +654,100 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    fontFamily: "Geist-Medium",
-    color: "#64748B",
+    fontFamily: "Inter-Medium",
+    color: "#1A1D1F",
     marginTop: 16,
   },
-  header: {
+  headerWrapper: {
+    flexShrink: 0,
+    marginHorizontal: -20,
+    marginTop: -20,
+    marginBottom: 12,
+  },
+  headerContent: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 16,
+  },
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    padding: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    gap: 12,
+  },
+  headerRowRTL: {
+    flexDirection: "row-reverse",
   },
   backButton: {
-    padding: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.5)",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  title: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1F2937",
+  headerTitle: {
+    flex: 1,
+  },
+  headerTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  headerTitleText: {
+    fontSize: 22,
+    fontFamily: "Inter-Bold",
+    color: "#FFFFFF",
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    fontFamily: "Inter-SemiBold",
+    color: "rgba(0, 53, 67, 0.85)",
   },
   saveButton: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: "#EBF4FF",
-    borderRadius: 8,
+    paddingVertical: 10,
+    backgroundColor: "#EB9C0C",
+    borderRadius: 12,
   },
   saveButtonDisabled: {
     opacity: 0.5,
   },
   saveButtonText: {
     fontSize: 14,
-    fontWeight: "600",
-    color: "#2563EB",
+    fontFamily: "Inter-SemiBold",
+    color: "#FFFFFF",
   },
-  content: {
+  scrollView: {
     flex: 1,
   },
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+  },
   section: {
-    padding: 16,
+    marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#1F2937",
+    fontSize: 18,
+    fontFamily: "Inter-Bold",
+    color: "#1A1D1F",
     marginBottom: 12,
   },
   masterToggleCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 20,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   masterToggleContent: {
     flexDirection: "row",
@@ -703,16 +770,18 @@ const styles = StyleSheet.create({
   },
   settingItem: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
     elevation: 2,
   },
   settingLeft: {
@@ -743,9 +812,11 @@ const styles = StyleSheet.create({
   },
   quietHoursSettings: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     marginTop: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
   timeRow: {
     flexDirection: "row",
@@ -787,7 +858,7 @@ const styles = StyleSheet.create({
   },
   clearButton: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     flexDirection: "row",
     alignItems: "center",

@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     flex: 1,
     textAlign: "center",
   },
@@ -420,13 +420,13 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     marginTop: 16,
     textAlign: "center",
   },
   subtitle: {
     fontSize: 16,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     marginTop: 8,
     textAlign: "center",
     lineHeight: 24,
@@ -437,7 +437,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 20,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     marginBottom: 16,
   },
   benefitItem: {
@@ -458,12 +458,12 @@ const styles = StyleSheet.create({
   },
   benefitTitle: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     marginBottom: 4,
   },
   benefitDesc: {
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     lineHeight: 20,
   },
   privacySection: {
@@ -493,12 +493,12 @@ const styles = StyleSheet.create({
   },
   privacyTitle: {
     fontSize: 15,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     marginBottom: 4,
   },
   privacyDesc: {
     fontSize: 13,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     lineHeight: 18,
   },
   continueButton: {
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
   continueButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     marginEnd: 8,
   },
   rtlText: {

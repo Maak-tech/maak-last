@@ -12,6 +12,15 @@ import { useIsFocused } from "@react-navigation/native";
 import * as Sentry from "@sentry/react-native";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import {
+  collection,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  Timestamp,
+  where,
+} from "firebase/firestore";
+import {
   Activity,
   AlertTriangle,
   Bell,
@@ -32,8 +41,12 @@ import {
   Lock,
   LogOut,
   MapPin,
+  MessageSquare,
+  Moon,
+  Phone,
   Plus,
   RefreshCw,
+  Settings,
   Shield,
   TestTube,
   TrendingUp,
@@ -60,7 +73,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AIInsightsDashboard } from "@/app/components/AIInsightsDashboard";
 import GlobalSearch from "@/app/components/GlobalSearch";
 import Avatar from "@/components/Avatar";
 import {
@@ -71,11 +83,18 @@ import {
   Text as TypographyText,
 } from "@/components/design-system";
 import { Badge } from "@/components/design-system/AdditionalComponents";
+import GradientScreen from "@/components/figma/GradientScreen";
+import Sparkline from "@/components/figma/Sparkline";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
 import { useRealtimeHealthContext } from "@/contexts/RealtimeHealthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { db } from "@/lib/firebase";
 import { calendarService } from "@/lib/services/calendarService";
+import {
+  healthDataService,
+  type VitalSigns,
+} from "@/lib/services/healthDataService";
 import {
   calculateHealthScoreFromData,
   type HealthScoreResult,
@@ -98,6 +117,7 @@ import type {
 import {
   safeFormatDate,
   safeFormatDateTime,
+  safeFormatNumber,
   safeFormatTime,
 } from "@/utils/dateFormat";
 
@@ -154,6 +174,12 @@ export default function ProfileScreen() {
     healthScore: 85,
     healthScoreResult: null as HealthScoreResult | null,
   });
+  const [latestVitals, setLatestVitals] = useState<VitalSigns | null>(null);
+  const [vitalsSparklines, setVitalsSparklines] = useState({
+    heartRate: [] as number[],
+    sleepHours: [] as number[],
+    steps: [] as number[],
+  });
   const [exporting, setExporting] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [calendarCurrentDate, setCalendarCurrentDate] = useState(new Date());
@@ -208,9 +234,118 @@ export default function ProfileScreen() {
   const checkSyncStatusRef = useRef(checkSyncStatus);
   checkSyncStatusRef.current = checkSyncStatus;
 
+  const buildDateKey = (date: Date) => {
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, "0");
+    const day = `${date.getDate()}`.padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const buildSparklineSeries = (
+    startDate: Date,
+    days: number,
+    valuesByDate: Map<string, number[]>,
+    aggregator: "avg" | "sum"
+  ) => {
+    const series: number[] = [];
+    for (let i = 0; i < days; i += 1) {
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + i);
+      const key = buildDateKey(date);
+      const values = valuesByDate.get(key) || [];
+      if (values.length === 0) {
+        series.push(0);
+      } else if (aggregator === "sum") {
+        series.push(values.reduce((sum, value) => sum + value, 0));
+      } else {
+        series.push(
+          values.reduce((sum, value) => sum + value, 0) / values.length
+        );
+      }
+    }
+    const hasData = series.some((value) => value > 0);
+    return hasData ? series : [];
+  };
+
+  const fetchVitalsSparklines = useCallback(async (userId: string) => {
+    const days = 7;
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - (days - 1));
+    const startTimestamp = Timestamp.fromDate(startDate);
+
+    const vitalsQuery = query(
+      collection(db, "vitals"),
+      where("userId", "==", userId),
+      where("timestamp", ">=", startTimestamp),
+      orderBy("timestamp", "asc"),
+      limit(300)
+    );
+
+    const snapshot = await getDocs(vitalsQuery);
+    const heartRateByDate = new Map<string, number[]>();
+    const stepsByDate = new Map<string, number[]>();
+    const sleepByDate = new Map<string, number[]>();
+
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      const type = data.type as string | undefined;
+      if (!type) {
+        return;
+      }
+      if (type !== "heartRate" && type !== "steps" && type !== "sleepHours") {
+        return;
+      }
+      const timestamp = data.timestamp?.toDate?.() || new Date();
+      const valueRaw = data.value;
+      const value =
+        typeof valueRaw === "number"
+          ? valueRaw
+          : typeof valueRaw === "string"
+            ? Number(valueRaw)
+            : Number.NaN;
+      if (Number.isNaN(value)) {
+        return;
+      }
+      const dateKey = buildDateKey(timestamp);
+      if (type === "heartRate") {
+        if (!heartRateByDate.has(dateKey)) {
+          heartRateByDate.set(dateKey, []);
+        }
+        heartRateByDate.get(dateKey)?.push(value);
+      } else if (type === "steps") {
+        if (!stepsByDate.has(dateKey)) {
+          stepsByDate.set(dateKey, []);
+        }
+        stepsByDate.get(dateKey)?.push(value);
+      } else if (type === "sleepHours") {
+        if (!sleepByDate.has(dateKey)) {
+          sleepByDate.set(dateKey, []);
+        }
+        sleepByDate.get(dateKey)?.push(value);
+      }
+    });
+
+    return {
+      heartRate: buildSparklineSeries(startDate, days, heartRateByDate, "avg"),
+      steps: buildSparklineSeries(startDate, days, stepsByDate, "sum"),
+      sleepHours: buildSparklineSeries(startDate, days, sleepByDate, "sum"),
+    };
+  }, []);
+
   // Helper function to convert Western numerals to Arabic numerals
   const toArabicNumerals = (num: number): string => {
-    const arabicNumerals = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
+    const arabicNumerals = [
+      "Ù ",
+      "Ù¡",
+      "Ù¢",
+      "Ù£",
+      "Ù¤",
+      "Ù¥",
+      "Ù¦",
+      "Ù§",
+      "Ù¨",
+      "Ù©",
+    ];
     return num
       .toString()
       .replace(/\d/g, (digit) => arabicNumerals[Number.parseInt(digit, 10)]);
@@ -414,6 +549,12 @@ export default function ProfileScreen() {
           type SettledHealthResults = [
             PromiseSettledResult<Symptom[]>,
             PromiseSettledResult<Medication[]>,
+            PromiseSettledResult<VitalSigns | null>,
+            PromiseSettledResult<{
+              heartRate: number[];
+              sleepHours: number[];
+              steps: number[];
+            }>,
           ];
 
           // Add timeout to prevent hanging
@@ -424,6 +565,11 @@ export default function ProfileScreen() {
                   resolve([
                     { status: "fulfilled", value: [] },
                     { status: "fulfilled", value: [] },
+                    { status: "fulfilled", value: null },
+                    {
+                      status: "fulfilled",
+                      value: { heartRate: [], sleepHours: [], steps: [] },
+                    },
                   ]),
                 8000 // Reduced to 8 second timeout
               )
@@ -438,6 +584,8 @@ export default function ProfileScreen() {
           const dataPromise = Promise.allSettled([
             symptomService.getUserSymptoms(user.id, 120), // Lower payload for faster summary load
             medicationService.getUserMedications(user.id), // Medications are usually fewer
+            healthDataService.getLatestVitals(),
+            fetchVitalsSparklines(user.id),
           ]);
 
           const results = await Promise.race([dataPromise, timeoutPromise]);
@@ -447,6 +595,12 @@ export default function ProfileScreen() {
             results[0].status === "fulfilled" ? results[0].value : [];
           const medications =
             results[1].status === "fulfilled" ? results[1].value : [];
+          const vitals =
+            results[2].status === "fulfilled" ? results[2].value : null;
+          const sparklines =
+            results[3].status === "fulfilled"
+              ? results[3].value
+              : { heartRate: [], sleepHours: [], steps: [] };
 
           // Filter recent symptoms for display (last 30 days)
           const recentSymptoms = symptoms.filter(
@@ -495,6 +649,8 @@ export default function ProfileScreen() {
             healthScore: healthScoreResult.score,
             healthScoreResult,
           });
+          setLatestVitals(vitals);
+          setVitalsSparklines(sparklines);
 
           Sentry.setMeasurement(
             "profile.health_summary.symptoms_count",
@@ -519,6 +675,8 @@ export default function ProfileScreen() {
             healthScore: 85,
             healthScoreResult: null,
           });
+          setLatestVitals(null);
+          setVitalsSparklines({ heartRate: [], sleepHours: [], steps: [] });
         } finally {
           Sentry.setMeasurement(
             "profile.health_summary.load_duration",
@@ -585,6 +743,14 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleHealthOverviewPress = () => {
+    router.push("/health-summary");
+  };
+
+  const handleHealthInsightsPress = () => {
+    router.push("/profile/health-insights");
+  };
+
   const loadCalendarEvents = useCallback(
     async (isRefresh = false) => {
       if (!user) {
@@ -623,8 +789,8 @@ export default function ProfileScreen() {
         setCalendarEvents(userEvents);
       } catch (_error) {
         Alert.alert(
-          isRTL ? "خطأ" : "Error",
-          isRTL ? "فشل تحميل الأحداث" : "Failed to load events"
+          isRTL ? "Ø®Ø·Ø£" : "Error",
+          isRTL ? "ÙØ´Ù„ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ø£Ø­Ø¯Ø§Ø«" : "Failed to load events"
         );
       } finally {
         setCalendarLoading(false);
@@ -665,7 +831,7 @@ export default function ProfileScreen() {
 
   const getWeekDays = () => {
     const days = isRTL
-      ? ["ح", "ن", "ث", "ر", "خ", "ج", "س"]
+      ? ["Ø­", "Ù†", "Ø«", "Ø±", "Ø®", "Ø¬", "Ø³"]
       : ["S", "M", "T", "W", "T", "F", "S"];
     return days;
   };
@@ -704,13 +870,13 @@ export default function ProfileScreen() {
 
   const getEventTypeLabel = (type: CalendarEvent["type"]) => {
     const labels: Record<CalendarEvent["type"], { en: string; ar: string }> = {
-      appointment: { en: "Appointment", ar: "موعد" },
-      medication: { en: "Medication", ar: "دواء" },
-      symptom: { en: "Symptom", ar: "عرض" },
-      lab_result: { en: "Lab Result", ar: "نتيجة مختبر" },
-      vaccination: { en: "Vaccination", ar: "تطعيم" },
-      reminder: { en: "Reminder", ar: "تذكير" },
-      other: { en: "Other", ar: "أخرى" },
+      appointment: { en: "Appointment", ar: "Ù…ÙˆØ¹Ø¯" },
+      medication: { en: "Medication", ar: "Ø¯ÙˆØ§Ø¡" },
+      symptom: { en: "Symptom", ar: "Ø¹Ø±Ø¶" },
+      lab_result: { en: "Lab Result", ar: "Ù†ØªÙŠØ¬Ø© Ù…Ø®ØªØ¨Ø±" },
+      vaccination: { en: "Vaccination", ar: "ØªØ·Ø¹ÙŠÙ…" },
+      reminder: { en: "Reminder", ar: "ØªØ°ÙƒÙŠØ±" },
+      other: { en: "Other", ar: "Ø£Ø®Ø±Ù‰" },
     };
     return isRTL ? labels[type].ar : labels[type].en;
   };
@@ -731,16 +897,20 @@ export default function ProfileScreen() {
   const handleSaveEvent = async () => {
     if (!user?.id) {
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "يجب تسجيل الدخول أولاً" : "You must be logged in first"
+        isRTL ? "Ø®Ø·Ø£" : "Error",
+        isRTL
+          ? "ÙŠØ¬Ø¨ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ø£ÙˆÙ„Ø§Ù‹"
+          : "You must be logged in first"
       );
       return;
     }
 
     if (!eventTitle.trim()) {
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "يرجى إدخال عنوان الحدث" : "Please enter an event title"
+        isRTL ? "Ø®Ø·Ø£" : "Error",
+        isRTL
+          ? "ÙŠØ±Ø¬Ù‰ Ø¥Ø¯Ø®Ø§Ù„ Ø¹Ù†ÙˆØ§Ù† Ø§Ù„Ø­Ø¯Ø«"
+          : "Please enter an event title"
       );
       return;
     }
@@ -748,8 +918,10 @@ export default function ProfileScreen() {
     // Validate start date - ensure it's a valid Date object
     if (!eventStartDate || Number.isNaN(eventStartDate.getTime())) {
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "يرجى اختيار تاريخ البداية" : "Please select a start date"
+        isRTL ? "Ø®Ø·Ø£" : "Error",
+        isRTL
+          ? "ÙŠØ±Ø¬Ù‰ Ø§Ø®ØªÙŠØ§Ø± ØªØ§Ø±ÙŠØ® Ø§Ù„Ø¨Ø¯Ø§ÙŠØ©"
+          : "Please select a start date"
       );
       return;
     }
@@ -770,9 +942,9 @@ export default function ProfileScreen() {
       // Validate end date if set
       if (finalEndDate && Number.isNaN(finalEndDate.getTime())) {
         Alert.alert(
-          isRTL ? "خطأ" : "Error",
+          isRTL ? "Ø®Ø·Ø£" : "Error",
           isRTL
-            ? "يرجى اختيار تاريخ نهاية صحيح"
+            ? "ÙŠØ±Ø¬Ù‰ Ø§Ø®ØªÙŠØ§Ø± ØªØ§Ø±ÙŠØ® Ù†Ù‡Ø§ÙŠØ© ØµØ­ÙŠØ­"
             : "Please select a valid end date"
         );
         setSavingEvent(false);
@@ -811,11 +983,13 @@ export default function ProfileScreen() {
       );
 
       Alert.alert(
-        isRTL ? "نجح" : "Success",
-        isRTL ? "تم إضافة الحدث بنجاح" : "Event added successfully",
+        isRTL ? "Ù†Ø¬Ø­" : "Success",
+        isRTL
+          ? "ØªÙ… Ø¥Ø¶Ø§ÙØ© Ø§Ù„Ø­Ø¯Ø« Ø¨Ù†Ø¬Ø§Ø­"
+          : "Event added successfully",
         [
           {
-            text: isRTL ? "حسناً" : "OK",
+            text: isRTL ? "Ø­Ø³Ù†Ø§Ù‹" : "OK",
             onPress: () => {
               setShowAddEventModal(false);
               resetEventForm();
@@ -827,9 +1001,9 @@ export default function ProfileScreen() {
       );
     } catch (error: any) {
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
+        isRTL ? "Ø®Ø·Ø£" : "Error",
         isRTL
-          ? `فشل إضافة الحدث: ${error?.message || "خطأ غير معروف"}`
+          ? `ÙØ´Ù„ Ø¥Ø¶Ø§ÙØ© Ø§Ù„Ø­Ø¯Ø«: ${error?.message || "Ø®Ø·Ø£ ØºÙŠØ± Ù…Ø¹Ø±ÙˆÙ"}`
           : `Failed to add event: ${error?.message || "Unknown error"}`
       );
     } finally {
@@ -1123,36 +1297,212 @@ export default function ProfileScreen() {
     },
   ];
 
+  const fullName =
+    user?.firstName && user?.lastName
+      ? `${user.firstName} ${user.lastName}`
+      : user?.firstName || "User";
+  const roleLabel =
+    user?.role === "admin"
+      ? "Primary Caregiver"
+      : user?.role === "caregiver"
+        ? "Caregiver"
+        : "Member";
+  const activeMedications = healthData.medications.filter(
+    (med) => med.isActive
+  );
+  const quickStats = [
+    {
+      label: "Family Members",
+      value: user?.familyId ? Math.max(1, activeMedications.length) : 1,
+    },
+    {
+      label: "Active Tasks",
+      value: activeMedications.length + healthData.symptoms.length,
+    },
+    {
+      label: "This Week",
+      value: `${Math.min(100, Math.round(healthData.healthScore))}%`,
+    },
+  ];
+
+  const heartRateValue =
+    latestVitals?.heartRate ?? latestVitals?.restingHeartRate ?? null;
+  const sleepValue = latestVitals?.sleepHours ?? null;
+  const stepsValue = latestVitals?.steps ?? null;
+  const vitalsTimestamp = latestVitals?.timestamp;
+  const vitalsUpdatedLabel = vitalsTimestamp
+    ? `${isRTL ? "آخر تحديث" : "Updated"} ${safeFormatTime(
+        vitalsTimestamp,
+        isRTL ? "ar" : "en-US"
+      )}`
+    : isRTL
+      ? "لا توجد بيانات حديثة"
+      : "No recent data";
+
+  const vitalsOverview = [
+    {
+      icon: Heart,
+      label: "Heart Rate",
+      value:
+        heartRateValue !== null ? `${Math.round(heartRateValue)} bpm` : "N/A",
+      trend: vitalsUpdatedLabel,
+      sparkline: vitalsSparklines.heartRate,
+      color: "#EF4444",
+      onPress: handleHealthOverviewPress,
+    },
+    {
+      icon: Moon,
+      label: "Sleep",
+      value: sleepValue !== null ? `${sleepValue.toFixed(1)} hrs` : "N/A",
+      trend: vitalsUpdatedLabel,
+      sparkline: vitalsSparklines.sleepHours,
+      color: "#3B82F6",
+      onPress: handleHealthOverviewPress,
+    },
+    {
+      icon: Activity,
+      label: "Activity",
+      value:
+        stepsValue !== null
+          ? `${safeFormatNumber(Math.round(stepsValue))} steps`
+          : "N/A",
+      trend: vitalsUpdatedLabel,
+      sparkline: vitalsSparklines.steps,
+      color: "#10B981",
+      onPress: handleHealthOverviewPress,
+    },
+  ];
+
+  const healthOverviewCards = [
+    ...vitalsOverview,
+    {
+      icon: Brain,
+      label: t("healthInsights", "Health Insights"),
+      value: isRTL ? "ملخص ذكي" : "AI Summary",
+      trend: isRTL ? "اضغط للعرض" : "Tap to view",
+      sparkline: [2, 3, 2, 4, 3, 5, 4],
+      color: "#6366F1",
+      onPress: handleHealthInsightsPress,
+    },
+  ];
+  type AccountSectionItem = {
+    label: string;
+    icon: typeof User;
+    onPress: () => void;
+  };
+
+  const accountSections: { title: string; items: AccountSectionItem[] }[] = [
+    {
+      title: t("healthProfile", "Health Profile"),
+      items: [
+        {
+          label: t("healthReports", "Health Reports"),
+          icon: FileText,
+          onPress: handleHealthReports,
+        },
+        {
+          label: isRTL
+            ? t("calendar")
+            : t("calendar").charAt(0).toUpperCase() +
+              t("calendar").slice(1).toLowerCase(),
+          icon: Calendar,
+          onPress: () => {
+            setShowCalendarModal(true);
+            loadCalendarEvents();
+          },
+        },
+        {
+          label: t("healthResources", "Health Resources"),
+          icon: BookOpen,
+          onPress: () => router.push("/(tabs)/resources"),
+        },
+        {
+          label: t("connectedDevices", "Connected Devices"),
+          icon: Activity,
+          onPress: () => router.push("/profile/health-integrations"),
+        },
+        {
+          label: t("healthInsights", "Health Insights"),
+          icon: Brain,
+          onPress: () => router.push("/profile/health-insights"),
+        },
+      ],
+    },
+    {
+      title: t("accountManagement", "Account Management"),
+      items: [
+        {
+          label: t("personalInformation", "Personal Information"),
+          icon: User,
+          onPress: handlePersonalInfo,
+        },
+        {
+          label: t("changePassword", "Change Password"),
+          icon: Lock,
+          onPress: handleChangePassword,
+        },
+        ...(isAdmin
+          ? [
+              {
+                label: t("subscriptionAndMembers", "Subscription & Members"),
+                icon: CreditCard,
+                onPress: () => router.push("/profile/admin-settings"),
+              },
+            ]
+          : []),
+      ],
+    },
+    {
+      title: t("settings", "Settings"),
+      items: [
+        {
+          label: t("fallDetection", "Fall Detection"),
+          icon: Shield,
+          onPress: () => router.push("/profile/fall-detection" as any),
+        },
+        {
+          label: t("language", "Language"),
+          icon: Globe,
+          onPress: () => setLanguagePickerVisible(true),
+        },
+        {
+          label: t("syncData", "Sync Data"),
+          icon: RefreshCw,
+          onPress: handleSync,
+        },
+        {
+          label: t("notifications", "Notifications"),
+          icon: Bell,
+          onPress: () => router.push("/profile/notification-settings"),
+        },
+      ],
+    },
+    {
+      title: t("support", "Support"),
+      items: [
+        {
+          label: t("helpSupport", "Help & Support"),
+          icon: HelpCircle,
+          onPress: handleHelpSupport,
+        },
+        {
+          label: t("privacyPolicy", "Privacy & Security"),
+          icon: Shield,
+          onPress: handlePrivacyPolicy,
+        },
+      ],
+    },
+  ];
+
   return (
-    <SafeAreaView
+    <GradientScreen
       edges={["top"]}
+      gradientColors={["#F9FDFE", "#F9FDFE"]}
       pointerEvents="box-none"
       style={styles.container}
     >
-      <View style={[styles.header, isRTL && { flexDirection: "row-reverse" }]}>
-        <Text style={[styles.title, isRTL && { textAlign: "left" }]}>
-          {t("profile")}
-        </Text>
-        {isAdmin && (
-          <TouchableOpacity
-            activeOpacity={0.7}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            onPress={() => setShowSearch(true)}
-            style={{
-              backgroundColor: isDark ? "#1E293B" : "#F1F5F9",
-              borderRadius: 20,
-              padding: 10,
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <Text style={{ fontSize: 20 }}>🔍</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
       <ScrollView
-        contentContainerStyle={styles.contentInner}
+        contentContainerStyle={styles.figmaProfileContent}
         refreshControl={
           <RefreshControl
             onRefresh={() => loadHealthData(true)}
@@ -1161,243 +1511,115 @@ export default function ProfileScreen() {
           />
         }
         showsVerticalScrollIndicator={false}
-        style={styles.content}
       >
-        {/* User Profile Card */}
-        <View style={styles.profileCard}>
-          <View style={styles.avatarContainer}>
-            <Avatar
-              avatarType={user?.avatarType}
-              name={user?.firstName}
-              onPress={() => setAvatarCreatorVisible(true)}
-              size="xl"
-              style={{ width: 200, height: 200 }}
-            />
-          </View>
-
-          <View style={styles.userInfo}>
-            <Text style={[styles.userName, isRTL && { textAlign: "left" }]}>
-              {user?.firstName && user?.lastName
-                ? `${user.firstName} ${user.lastName}`
-                : user?.firstName || "User"}
-            </Text>
-            <Text style={[styles.userEmail, isRTL && { textAlign: "left" }]}>
-              {user?.email}
-            </Text>
-            <View style={styles.memberSince}>
-              <Text
-                style={[styles.memberSinceText, isRTL && { textAlign: "left" }]}
-              >
-                {t("memberSince")}{" "}
-                {new Date(user?.createdAt || new Date()).getFullYear()}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Improved Health Summary */}
-        <View style={styles.healthSummary}>
-          <Text style={[styles.healthTitle, isRTL && { textAlign: "left" }]}>
-            {t("healthSummary")}
-          </Text>
-
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator color="#2563EB" size="large" />
-            </View>
-          ) : (
-            <View style={styles.healthGrid}>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => setHealthScoreModalVisible(true)}
-                style={styles.healthCard}
-              >
-                <View style={styles.healthIconContainer}>
-                  <Activity color="#10B981" size={24} />
-                </View>
-                <Text
-                  style={[
-                    styles.healthCardValue,
-                    isRTL && { textAlign: "left" },
-                  ]}
-                >
-                  {healthData.healthScore}
-                </Text>
-                <Text
-                  numberOfLines={2}
-                  style={[
-                    styles.healthCardLabel,
-                    isRTL && { textAlign: "left" },
-                  ]}
-                >
-                  {t("healthScore")}
-                </Text>
-              </TouchableOpacity>
-
-              <View style={styles.healthCard}>
-                <View style={styles.healthIconContainer}>
-                  <Heart color="#EF4444" size={24} />
-                </View>
-                <Text
-                  style={[
-                    styles.healthCardValue,
-                    isRTL && { textAlign: "left" },
-                  ]}
-                >
-                  {healthData.symptoms.length}
-                </Text>
-                <Text
-                  numberOfLines={2}
-                  style={[
-                    styles.healthCardLabel,
-                    isRTL && { textAlign: "left" },
-                  ]}
-                >
-                  {t("symptomsThisMonth")}
-                </Text>
-              </View>
-
-              <View style={styles.healthCard}>
-                <View style={styles.healthIconContainer}>
-                  <Calendar color="#3B82F6" size={24} />
-                </View>
-                <Text
-                  style={[
-                    styles.healthCardValue,
-                    isRTL && { textAlign: "left" },
-                  ]}
-                >
-                  {healthData.medications.length}
-                </Text>
-                <Text
-                  numberOfLines={2}
-                  style={[
-                    styles.healthCardLabel,
-                    isRTL && { textAlign: "left" },
-                  ]}
-                >
-                  {t("activeMedications")}
-                </Text>
-              </View>
-            </View>
-          )}
-        </View>
-
-        {/* AI Insights Dashboard */}
-        <View style={styles.aiInsightsSection}>
-          <AIInsightsDashboard
-            compact={true}
-            onInsightPress={() => {
-              router.push("/profile/health-insights");
-            }}
+        <View style={styles.figmaProfileHeader}>
+          <TouchableOpacity
+            onPress={() => router.push("/profile/notification-settings")}
+            style={styles.figmaSettingsButton}
+          >
+            <Settings color="#1A1D1F" size={20} />
+          </TouchableOpacity>
+          <Avatar
+            avatarType={user?.avatarType}
+            name={user?.firstName}
+            onPress={() => setAvatarCreatorVisible(true)}
+            size="xl"
+            style={styles.figmaProfileAvatar}
           />
+          <Text style={styles.figmaProfileName}>{fullName}</Text>
+          <Text style={styles.figmaProfileRole}>{roleLabel}</Text>
         </View>
 
-        {/* Settings Sections */}
-        {profileSections.map((section, sectionIndex) => (
-          <View key={sectionIndex} style={styles.section}>
-            <Text
-              style={[styles.sectionTitle, isRTL && { textAlign: "right" }]}
-            >
-              {section.title}
-            </Text>
+        <View style={styles.figmaQuickStatsWrapper}>
+          <View style={styles.figmaQuickStatsCard}>
+            {quickStats.map((stat) => (
+              <View key={stat.label} style={styles.figmaQuickStatItem}>
+                <Text style={styles.figmaQuickStatValue}>{stat.value}</Text>
+                <Text style={styles.figmaQuickStatLabel}>{stat.label}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
 
-            <View style={styles.sectionItems}>
-              {section.items.map((item, itemIndex) => {
-                const IconComponent = item.icon;
+        <View style={styles.figmaQuickActions}>
+          <TouchableOpacity
+            onPress={() => router.push("/(tabs)/family?openEmergency=true")}
+            style={styles.figmaQuickActionButton}
+          >
+            <Phone color="#10B981" size={18} />
+            <Text style={styles.figmaQuickActionText}>Emergency Contact</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.push("/(tabs)/family")}
+            style={styles.figmaQuickActionButton}
+          >
+            <MessageSquare color="#3B82F6" size={18} />
+            <Text style={styles.figmaQuickActionText}>Care Team</Text>
+          </TouchableOpacity>
+        </View>
 
-                return (
-                  <TouchableOpacity
-                    disabled={
-                      !item.onPress ||
-                      (syncing && item.label === t("syncData", "Sync Data"))
-                    }
-                    key={itemIndex}
-                    onPress={item.onPress}
-                    style={[
-                      styles.sectionItem,
-                      isRTL && { flexDirection: "row-reverse" },
-                      itemIndex === section.items.length - 1 &&
-                        styles.lastSectionItem,
-                      syncing &&
-                        item.label === t("syncData", "Sync Data") && {
-                          opacity: 0.6,
-                        },
-                    ]}
-                  >
+        <View style={styles.figmaSection}>
+          <View style={styles.figmaSectionHeader}>
+            <Text style={styles.figmaSectionTitle}>Health Overview</Text>
+            <TouchableOpacity onPress={() => router.push("/health-summary")}>
+              <Text style={styles.figmaSectionLink}>View Details -&gt;</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.figmaCardStack}>
+            {healthOverviewCards.map((vital) => {
+              const Icon = vital.icon;
+              return (
+                <TouchableOpacity
+                  key={vital.label}
+                  onPress={vital.onPress}
+                  style={styles.figmaVitalCard}
+                >
+                  <View style={styles.figmaVitalLeft}>
                     <View
                       style={[
-                        styles.sectionItemLeft,
-                        isRTL && styles.sectionItemLeftRTL,
+                        styles.figmaVitalIcon,
+                        { backgroundColor: `${vital.color}1A` },
                       ]}
                     >
-                      <View style={styles.sectionItemIcon}>
-                        <IconComponent color="#64748B" size={20} />
-                      </View>
-                      <View
-                        style={{
-                          flex: 1,
-                          flexDirection: isRTL ? "row-reverse" : "row",
-                          alignItems: "center",
-                          gap: 8,
-                        }}
-                      >
-                        <Text
-                          numberOfLines={1}
-                          style={[
-                            styles.sectionItemLabel,
-                            isRTL && { textAlign: "right" },
-                          ]}
-                        >
-                          {item.label}
-                        </Text>
-                        {item.comingSoon && (
-                          <View style={styles.comingSoonBadge}>
-                            <Text style={styles.comingSoonText}>
-                              {t("comingSoon")}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
+                      <Icon color={vital.color} size={20} />
                     </View>
+                    <View style={styles.figmaVitalInfo}>
+                      <Text style={styles.figmaVitalLabel}>{vital.label}</Text>
+                      <Text style={styles.figmaVitalValue}>{vital.value}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.figmaVitalRight}>
+                    <Sparkline
+                      color={vital.color}
+                      data={vital.sparkline}
+                      height={32}
+                      width={64}
+                    />
+                    <Text style={styles.figmaVitalTrend}>{vital.trend}</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
 
-                    <View style={styles.sectionItemRight}>
-                      {item.hasSwitch ? (
-                        <Switch
-                          onValueChange={item.onSwitchChange}
-                          thumbColor="#FFFFFF"
-                          trackColor={{ false: "#E2E8F0", true: "#2563EB" }}
-                          value={item.switchValue}
-                        />
-                      ) : (exporting && item.label === t("healthReports")) ||
-                        (syncing &&
-                          item.label === t("syncData", "Sync Data")) ? (
-                        <ActivityIndicator color="#2563EB" size="small" />
-                      ) : (
-                        <>
-                          {item.value && (
-                            <Text
-                              numberOfLines={1}
-                              style={[
-                                styles.sectionItemValue,
-                                isRTL && { textAlign: "left" },
-                              ]}
-                            >
-                              {item.value}
-                            </Text>
-                          )}
-                          <ChevronRight
-                            color="#94A3B8"
-                            size={16}
-                            style={[
-                              isRTL && {
-                                transform: [{ rotate: "180deg" }],
-                              },
-                            ]}
-                          />
-                        </>
-                      )}
+        {accountSections.map((section) => (
+          <View key={section.title} style={styles.figmaSection}>
+            <Text style={styles.figmaSectionTitle}>{section.title}</Text>
+            <View style={styles.figmaListCard}>
+              {section.items.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <TouchableOpacity
+                    key={item.label}
+                    onPress={item.onPress}
+                    style={styles.figmaAccountRow}
+                  >
+                    <View style={styles.figmaAccountIcon}>
+                      <Icon color="#003543" size={18} />
                     </View>
+                    <Text style={styles.figmaAccountLabel}>{item.label}</Text>
+                    <ChevronRight color="#9CA3AF" size={18} />
                   </TouchableOpacity>
                 );
               })}
@@ -1405,19 +1627,18 @@ export default function ProfileScreen() {
           </View>
         ))}
 
-        {/* Sign Out Button */}
-        <TouchableOpacity onPress={handleLogout} style={styles.signOutButton}>
-          <LogOut color="#EF4444" size={20} />
-          <Text style={[styles.signOutText, isRTL && { textAlign: "right" }]}>
-            {t("signOut")}
+        <TouchableOpacity
+          onPress={handleLogout}
+          style={styles.figmaSignOutButton}
+        >
+          <LogOut color="#EF4444" size={18} />
+          <Text style={styles.figmaSignOutText}>
+            {t("signOut", "Sign Out")}
           </Text>
         </TouchableOpacity>
 
-        {/* App Version */}
-        <View style={styles.appVersion}>
-          <Text style={[styles.appVersionText, isRTL && { textAlign: "left" }]}>
-            Maak v1.0.0
-          </Text>
+        <View style={styles.figmaVersion}>
+          <Text style={styles.figmaVersionText}>Maak v1.0.0</Text>
         </View>
       </ScrollView>
 
@@ -1578,7 +1799,9 @@ export default function ProfileScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, isRTL && { textAlign: "left" }]}>
-                {isRTL ? "تفاصيل نقاط الصحة" : "Health Score Breakdown"}
+                {isRTL
+                  ? "ØªÙØ§ØµÙŠÙ„ Ù†Ù‚Ø§Ø· Ø§Ù„ØµØ­Ø©"
+                  : "Health Score Breakdown"}
               </Text>
               <TouchableOpacity
                 onPress={() => setHealthScoreModalVisible(false)}
@@ -1609,7 +1832,7 @@ export default function ProfileScreen() {
                           isRTL && { textAlign: "left" },
                         ]}
                       >
-                        {isRTL ? "من 100" : "out of 100"}
+                        {isRTL ? "Ù…Ù† 100" : "out of 100"}
                       </Text>
                       <View style={styles.ratingBadge}>
                         <Text
@@ -1619,15 +1842,15 @@ export default function ProfileScreen() {
                           ]}
                         >
                           {healthData.healthScoreResult.rating ===
-                            "excellent" && (isRTL ? "ممتاز" : "Excellent")}
+                            "excellent" && (isRTL ? "Ù…Ù…ØªØ§Ø²" : "Excellent")}
                           {healthData.healthScoreResult.rating === "good" &&
-                            (isRTL ? "جيد" : "Good")}
+                            (isRTL ? "Ø¬ÙŠØ¯" : "Good")}
                           {healthData.healthScoreResult.rating === "fair" &&
-                            (isRTL ? "مقبول" : "Fair")}
+                            (isRTL ? "Ù…Ù‚Ø¨ÙˆÙ„" : "Fair")}
                           {healthData.healthScoreResult.rating === "poor" &&
-                            (isRTL ? "ضعيف" : "Poor")}
+                            (isRTL ? "Ø¶Ø¹ÙŠÙ" : "Poor")}
                           {healthData.healthScoreResult.rating === "critical" &&
-                            (isRTL ? "حرج" : "Critical")}
+                            (isRTL ? "Ø­Ø±Ø¬" : "Critical")}
                         </Text>
                       </View>
                     </View>
@@ -1642,7 +1865,7 @@ export default function ProfileScreen() {
                       ]}
                     >
                       {isRTL
-                        ? "كيف تم حساب النقاط"
+                        ? "ÙƒÙŠÙ ØªÙ… Ø­Ø³Ø§Ø¨ Ø§Ù„Ù†Ù‚Ø§Ø·"
                         : "How Your Score Was Calculated"}
                     </Text>
 
@@ -1654,7 +1877,7 @@ export default function ProfileScreen() {
                           isRTL && { textAlign: "left" },
                         ]}
                       >
-                        {isRTL ? "النقاط الأساسية" : "Base Score"}
+                        {isRTL ? "Ø§Ù„Ù†Ù‚Ø§Ø· Ø§Ù„Ø£Ø³Ø§Ø³ÙŠØ©" : "Base Score"}
                       </Text>
                       <Text
                         style={[
@@ -1676,7 +1899,9 @@ export default function ProfileScreen() {
                             isRTL && { textAlign: "left" },
                           ]}
                         >
-                          {isRTL ? " خصم الأعراض الصحية" : "Symptom Penalty"}
+                          {isRTL
+                            ? " Ø®ØµÙ… Ø§Ù„Ø£Ø¹Ø±Ø§Ø¶ Ø§Ù„ØµØ­ÙŠØ©"
+                            : "Symptom Penalty"}
                         </Text>
                         <Text
                           style={[
@@ -1702,7 +1927,9 @@ export default function ProfileScreen() {
                             isRTL && { textAlign: "left" },
                           ]}
                         >
-                          {isRTL ? "مكافأة الأدوية" : "Medication Bonus"}
+                          {isRTL
+                            ? "Ù…ÙƒØ§ÙØ£Ø© Ø§Ù„Ø£Ø¯ÙˆÙŠØ©"
+                            : "Medication Bonus"}
                         </Text>
                         <Text
                           style={[
@@ -1733,7 +1960,9 @@ export default function ProfileScreen() {
                           isRTL && { textAlign: "left" },
                         ]}
                       >
-                        {isRTL ? "النقاط النهائية" : "Final Score"}
+                        {isRTL
+                          ? "Ø§Ù„Ù†Ù‚Ø§Ø· Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠØ©"
+                          : "Final Score"}
                       </Text>
                       <Text
                         style={[
@@ -1755,7 +1984,9 @@ export default function ProfileScreen() {
                         isRTL && { textAlign: "left" },
                       ]}
                     >
-                      {isRTL ? "العوامل المؤثرة" : "Contributing Factors"}
+                      {isRTL
+                        ? "Ø§Ù„Ø¹ÙˆØ§Ù…Ù„ Ø§Ù„Ù…Ø¤Ø«Ø±Ø©"
+                        : "Contributing Factors"}
                     </Text>
 
                     <View style={styles.factorRow}>
@@ -1766,7 +1997,7 @@ export default function ProfileScreen() {
                         ]}
                       >
                         {isRTL
-                          ? "الأعراض الصحية الأخيرة (7 أيام)"
+                          ? "Ø§Ù„Ø£Ø¹Ø±Ø§Ø¶ Ø§Ù„ØµØ­ÙŠØ© Ø§Ù„Ø£Ø®ÙŠØ±Ø© (7 Ø£ÙŠØ§Ù…)"
                           : "Recent Symptoms (7 days)"}
                       </Text>
                       <Text
@@ -1789,7 +2020,7 @@ export default function ProfileScreen() {
                           ]}
                         >
                           {isRTL
-                            ? "متوسط شدة الأعراض الصحية"
+                            ? "Ù…ØªÙˆØ³Ø· Ø´Ø¯Ø© Ø§Ù„Ø£Ø¹Ø±Ø§Ø¶ Ø§Ù„ØµØ­ÙŠØ©"
                             : "Average Symptom Severity"}
                         </Text>
                         <Text
@@ -1813,7 +2044,9 @@ export default function ProfileScreen() {
                           isRTL && { textAlign: "left" },
                         ]}
                       >
-                        {isRTL ? "الأدوية الفعالة" : "Active Medications"}
+                        {isRTL
+                          ? "Ø§Ù„Ø£Ø¯ÙˆÙŠØ© Ø§Ù„ÙØ¹Ø§Ù„Ø©"
+                          : "Active Medications"}
                       </Text>
                       <Text
                         style={[
@@ -1835,7 +2068,7 @@ export default function ProfileScreen() {
                           ]}
                         >
                           {isRTL
-                            ? "الالتزام بالأدوية"
+                            ? "Ø§Ù„Ø§Ù„ØªØ²Ø§Ù… Ø¨Ø§Ù„Ø£Ø¯ÙˆÙŠØ©"
                             : "Medication Compliance"}
                         </Text>
                         <Text
@@ -1864,7 +2097,7 @@ export default function ProfileScreen() {
                       ]}
                     >
                       {isRTL
-                        ? "يتم حساب نقاط الصحة بناءً على الأعراض الصحية الأخيرة (آخر 7 أيام) والالتزام بالأدوية. النقاط الأساسية هي 100، وتُخصم النقاط بسبب الأعراض وتُضاف المكافآت للالتزام الجيد بالأدوية."
+                        ? "ÙŠØªÙ… Ø­Ø³Ø§Ø¨ Ù†Ù‚Ø§Ø· Ø§Ù„ØµØ­Ø© Ø¨Ù†Ø§Ø¡Ù‹ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ø¹Ø±Ø§Ø¶ Ø§Ù„ØµØ­ÙŠØ© Ø§Ù„Ø£Ø®ÙŠØ±Ø© (Ø¢Ø®Ø± 7 Ø£ÙŠØ§Ù…) ÙˆØ§Ù„Ø§Ù„ØªØ²Ø§Ù… Ø¨Ø§Ù„Ø£Ø¯ÙˆÙŠØ©. Ø§Ù„Ù†Ù‚Ø§Ø· Ø§Ù„Ø£Ø³Ø§Ø³ÙŠØ© Ù‡ÙŠ 100ØŒ ÙˆØªÙØ®ØµÙ… Ø§Ù„Ù†Ù‚Ø§Ø· Ø¨Ø³Ø¨Ø¨ Ø§Ù„Ø£Ø¹Ø±Ø§Ø¶ ÙˆØªÙØ¶Ø§Ù Ø§Ù„Ù…ÙƒØ§ÙØ¢Øª Ù„Ù„Ø§Ù„ØªØ²Ø§Ù… Ø§Ù„Ø¬ÙŠØ¯ Ø¨Ø§Ù„Ø£Ø¯ÙˆÙŠØ©."
                         : "Your health score is calculated based on recent symptoms (last 7 days) and medication compliance. Base score is 100, with points deducted for symptoms and bonuses added for good medication adherence."}
                     </Text>
                   </View>
@@ -1875,7 +2108,9 @@ export default function ProfileScreen() {
                   <Text
                     style={[styles.loadingText, isRTL && { textAlign: "left" }]}
                   >
-                    {isRTL ? "جاري تحميل التفاصيل..." : "Loading details..."}
+                    {isRTL
+                      ? "Ø¬Ø§Ø±ÙŠ ØªØ­Ù…ÙŠÙ„ Ø§Ù„ØªÙØ§ØµÙŠÙ„..."
+                      : "Loading details..."}
                   </Text>
                 </View>
               )}
@@ -1919,7 +2154,7 @@ export default function ProfileScreen() {
             >
               <CalendarIcon color={theme.colors.primary.main} size={24} />
               <Heading level={4} style={{ fontSize: 20 }}>
-                {isRTL ? "التقويم الصحي" : "HEALTH CALENDAR"}
+                {isRTL ? "Ø§Ù„ØªÙ‚ÙˆÙŠÙ… Ø§Ù„ØµØ­ÙŠ" : "HEALTH CALENDAR"}
               </Heading>
             </View>
             <View
@@ -1973,7 +2208,7 @@ export default function ProfileScreen() {
                 flex: 1,
                 textAlign: "center",
                 fontSize: 16,
-                fontFamily: "Geist-SemiBold",
+                fontFamily: "Inter-SemiBold",
                 color: theme.colors.text.primary,
               }}
             >
@@ -1998,7 +2233,7 @@ export default function ProfileScreen() {
                   <Text
                     style={{
                       fontSize: 12,
-                      fontFamily: "Geist-Medium",
+                      fontFamily: "Inter-Medium",
                       color: theme.colors.text.secondary,
                     }}
                   >
@@ -2130,7 +2365,7 @@ export default function ProfileScreen() {
           >
             <Heading level={6} style={{ marginBottom: 16 }}>
               {isRTL
-                ? `الأحداث في ${safeFormatDate(calendarSelectedDate, "ar-u-ca-gregory", { day: "numeric", month: "long", year: "numeric" })}`
+                ? `Ø§Ù„Ø£Ø­Ø¯Ø§Ø« ÙÙŠ ${safeFormatDate(calendarSelectedDate, "ar-u-ca-gregory", { day: "numeric", month: "long", year: "numeric" })}`
                 : `Events on ${safeFormatDate(calendarSelectedDate, "en-US", { day: "numeric", month: "long", year: "numeric" })}`}
             </Heading>
 
@@ -2157,7 +2392,7 @@ export default function ProfileScreen() {
                   }}
                 >
                   {isRTL
-                    ? "لا توجد أحداث صحية في هذا التاريخ"
+                    ? "Ù„Ø§ ØªÙˆØ¬Ø¯ Ø£Ø­Ø¯Ø§Ø« ØµØ­ÙŠØ© ÙÙŠ Ù‡Ø°Ø§ Ø§Ù„ØªØ§Ø±ÙŠØ®"
                     : "No events on this date"}
                 </Text>
               </View>
@@ -2216,7 +2451,7 @@ export default function ProfileScreen() {
                     <Caption numberOfLines={1} style={{}}>
                       {event.allDay
                         ? isRTL
-                          ? "طوال اليوم"
+                          ? "Ø·ÙˆØ§Ù„ Ø§Ù„ÙŠÙˆÙ…"
                           : "All Day"
                         : formatTime(event.startDate)}
                     </Caption>
@@ -2270,7 +2505,7 @@ export default function ProfileScreen() {
               }}
             >
               <Text style={{ fontSize: 18, color: theme.colors.primary.main }}>
-                {isRTL ? "إغلاق" : "Close"}
+                {isRTL ? "Ø¥ØºÙ„Ø§Ù‚" : "Close"}
               </Text>
             </TouchableOpacity>
           </View>
@@ -2285,7 +2520,7 @@ export default function ProfileScreen() {
                 {selectedEvent.description && (
                   <View style={{ marginBottom: 16 }}>
                     <TypographyText style={{}} weight="semibold">
-                      {isRTL ? "الوصف" : "Description"}
+                      {isRTL ? "Ø§Ù„ÙˆØµÙ" : "Description"}
                     </TypographyText>
                     <Caption numberOfLines={10} style={{}}>
                       {selectedEvent.description}
@@ -2294,7 +2529,7 @@ export default function ProfileScreen() {
                 )}
                 <View style={{ marginBottom: 16 }}>
                   <TypographyText style={{}} weight="semibold">
-                    {isRTL ? "التاريخ والوقت" : "Date & Time"}
+                    {isRTL ? "Ø§Ù„ØªØ§Ø±ÙŠØ® ÙˆØ§Ù„ÙˆÙ‚Øª" : "Date & Time"}
                   </TypographyText>
                   <Caption numberOfLines={1} style={{}}>
                     {safeFormatDateTime(
@@ -2308,7 +2543,7 @@ export default function ProfileScreen() {
                 {selectedEvent.location && (
                   <View style={{ marginBottom: 16 }}>
                     <TypographyText style={{}} weight="semibold">
-                      {isRTL ? "الموقع" : "Location"}
+                      {isRTL ? "Ø§Ù„Ù…ÙˆÙ‚Ø¹" : "Location"}
                     </TypographyText>
                     <Caption numberOfLines={1} style={{}}>
                       {selectedEvent.location}
@@ -2318,7 +2553,9 @@ export default function ProfileScreen() {
                 {selectedEvent.familyId && (
                   <View style={{ marginBottom: 16 }}>
                     <TypographyText style={{}} weight="semibold">
-                      {isRTL ? "مشارك مع العائلة" : "Shared with Family"}
+                      {isRTL
+                        ? "Ù…Ø´Ø§Ø±Ùƒ Ù…Ø¹ Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©"
+                        : "Shared with Family"}
                     </TypographyText>
                   </View>
                 )}
@@ -2381,7 +2618,7 @@ export default function ProfileScreen() {
               }}
             >
               <Heading level={5} style={{ color: theme.colors.text.primary }}>
-                {isRTL ? "إضافة حدث" : "Add Event"}
+                {isRTL ? "Ø¥Ø¶Ø§ÙØ© Ø­Ø¯Ø«" : "Add Event"}
               </Heading>
               <TouchableOpacity
                 onPress={() => {
@@ -2408,11 +2645,11 @@ export default function ProfileScreen() {
                 <TypographyText
                   style={{ marginBottom: 8, color: theme.colors.text.primary }}
                 >
-                  {isRTL ? "العنوان" : "Title"} *
+                  {isRTL ? "Ø§Ù„Ø¹Ù†ÙˆØ§Ù†" : "Title"} *
                 </TypographyText>
                 <TextInput
                   onChangeText={setEventTitle}
-                  placeholder={isRTL ? "عنوان الحدث" : "Event title"}
+                  placeholder={isRTL ? "Ø¹Ù†ÙˆØ§Ù† Ø§Ù„Ø­Ø¯Ø«" : "Event title"}
                   placeholderTextColor={theme.colors.text.secondary}
                   style={{
                     borderWidth: 1,
@@ -2433,7 +2670,7 @@ export default function ProfileScreen() {
                 <TypographyText
                   style={{ marginBottom: 8, color: theme.colors.text.primary }}
                 >
-                  {isRTL ? "نوع الحدث" : "Event Type"} *
+                  {isRTL ? "Ù†ÙˆØ¹ Ø§Ù„Ø­Ø¯Ø«" : "Event Type"} *
                 </TypographyText>
                 <View
                   style={{
@@ -2445,23 +2682,26 @@ export default function ProfileScreen() {
                   {[
                     {
                       value: "appointment",
-                      label: isRTL ? "موعد" : "Appointment",
+                      label: isRTL ? "Ù…ÙˆØ¹Ø¯" : "Appointment",
                     },
                     {
                       value: "medication",
-                      label: isRTL ? "دواء" : "Medication",
+                      label: isRTL ? "Ø¯ÙˆØ§Ø¡" : "Medication",
                     },
-                    { value: "symptom", label: isRTL ? "عرض" : "Symptom" },
+                    { value: "symptom", label: isRTL ? "Ø¹Ø±Ø¶" : "Symptom" },
                     {
                       value: "lab_result",
-                      label: isRTL ? "نتيجة مختبر" : "Lab Result",
+                      label: isRTL ? "Ù†ØªÙŠØ¬Ø© Ù…Ø®ØªØ¨Ø±" : "Lab Result",
                     },
                     {
                       value: "vaccination",
-                      label: isRTL ? "تطعيم" : "Vaccination",
+                      label: isRTL ? "ØªØ·Ø¹ÙŠÙ…" : "Vaccination",
                     },
-                    { value: "reminder", label: isRTL ? "تذكير" : "Reminder" },
-                    { value: "other", label: isRTL ? "أخرى" : "Other" },
+                    {
+                      value: "reminder",
+                      label: isRTL ? "ØªØ°ÙƒÙŠØ±" : "Reminder",
+                    },
+                    { value: "other", label: isRTL ? "Ø£Ø®Ø±Ù‰" : "Other" },
                   ].map((eventTypeOption) => (
                     <TouchableOpacity
                       key={eventTypeOption.value}
@@ -2514,7 +2754,7 @@ export default function ProfileScreen() {
                 }}
               >
                 <TypographyText style={{ color: theme.colors.text.primary }}>
-                  {isRTL ? "طوال اليوم" : "All Day"}
+                  {isRTL ? "Ø·ÙˆØ§Ù„ Ø§Ù„ÙŠÙˆÙ…" : "All Day"}
                 </TypographyText>
                 <Switch
                   onValueChange={setEventAllDay}
@@ -2535,7 +2775,10 @@ export default function ProfileScreen() {
                 <TypographyText
                   style={{ marginBottom: 8, color: theme.colors.text.primary }}
                 >
-                  {isRTL ? "تاريخ ووقت البداية" : "Start Date & Time"} *
+                  {isRTL
+                    ? "ØªØ§Ø±ÙŠØ® ÙˆÙˆÙ‚Øª Ø§Ù„Ø¨Ø¯Ø§ÙŠØ©"
+                    : "Start Date & Time"}{" "}
+                  *
                 </TypographyText>
                 <View
                   style={{
@@ -2618,8 +2861,10 @@ export default function ProfileScreen() {
                       color: theme.colors.text.primary,
                     }}
                   >
-                    {isRTL ? "تاريخ ووقت النهاية" : "End Date & Time"} (
-                    {isRTL ? "اختياري" : "Optional"})
+                    {isRTL
+                      ? "ØªØ§Ø±ÙŠØ® ÙˆÙˆÙ‚Øª Ø§Ù„Ù†Ù‡Ø§ÙŠØ©"
+                      : "End Date & Time"}{" "}
+                    ({isRTL ? "Ø§Ø®ØªÙŠØ§Ø±ÙŠ" : "Optional"})
                   </TypographyText>
                   <View
                     style={{
@@ -2665,7 +2910,7 @@ export default function ProfileScreen() {
                               }
                             )
                           : isRTL
-                            ? "اختر التاريخ"
+                            ? "Ø§Ø®ØªØ± Ø§Ù„ØªØ§Ø±ÙŠØ®"
                             : "Select Date"}
                       </Text>
                     </TouchableOpacity>
@@ -2707,12 +2952,12 @@ export default function ProfileScreen() {
                 <TypographyText
                   style={{ marginBottom: 8, color: theme.colors.text.primary }}
                 >
-                  {isRTL ? "الموقع" : "Location"} (
-                  {isRTL ? "اختياري" : "Optional"})
+                  {isRTL ? "Ø§Ù„Ù…ÙˆÙ‚Ø¹" : "Location"} (
+                  {isRTL ? "Ø§Ø®ØªÙŠØ§Ø±ÙŠ" : "Optional"})
                 </TypographyText>
                 <TextInput
                   onChangeText={setEventLocation}
-                  placeholder={isRTL ? "موقع الحدث" : "Event location"}
+                  placeholder={isRTL ? "Ù…ÙˆÙ‚Ø¹ Ø§Ù„Ø­Ø¯Ø«" : "Event location"}
                   placeholderTextColor={theme.colors.text.secondary}
                   style={{
                     borderWidth: 1,
@@ -2733,14 +2978,16 @@ export default function ProfileScreen() {
                 <TypographyText
                   style={{ marginBottom: 8, color: theme.colors.text.primary }}
                 >
-                  {isRTL ? "الوصف" : "Description"} (
-                  {isRTL ? "اختياري" : "Optional"})
+                  {isRTL ? "Ø§Ù„ÙˆØµÙ" : "Description"} (
+                  {isRTL ? "Ø§Ø®ØªÙŠØ§Ø±ÙŠ" : "Optional"})
                 </TypographyText>
                 <TextInput
                   multiline
                   numberOfLines={4}
                   onChangeText={setEventDescription}
-                  placeholder={isRTL ? "وصف الحدث..." : "Event description..."}
+                  placeholder={
+                    isRTL ? "ÙˆØµÙ Ø§Ù„Ø­Ø¯Ø«..." : "Event description..."
+                  }
                   placeholderTextColor={theme.colors.text.secondary}
                   style={{
                     borderWidth: 1,
@@ -2769,7 +3016,9 @@ export default function ProfileScreen() {
                   }}
                 >
                   <TypographyText style={{ color: theme.colors.text.primary }}>
-                    {isRTL ? "مشاركة مع العائلة" : "Share with Family"}
+                    {isRTL
+                      ? "Ù…Ø´Ø§Ø±ÙƒØ© Ù…Ø¹ Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©"
+                      : "Share with Family"}
                   </TypographyText>
                   <Switch
                     onValueChange={setEventShareWithFamily}
@@ -2816,7 +3065,7 @@ export default function ProfileScreen() {
                 textStyle={{
                   color: theme.colors.primary.main,
                 }}
-                title={isRTL ? "إلغاء" : "Cancel"}
+                title={isRTL ? "Ø¥Ù„ØºØ§Ø¡" : "Cancel"}
                 variant="outline"
               />
               <Button
@@ -2835,10 +3084,10 @@ export default function ProfileScreen() {
                 title={
                   savingEvent
                     ? isRTL
-                      ? "جاري الحفظ..."
+                      ? "Ø¬Ø§Ø±ÙŠ Ø§Ù„Ø­ÙØ¸..."
                       : "Saving..."
                     : isRTL
-                      ? "حفظ"
+                      ? "Ø­ÙØ¸"
                       : "Save"
                 }
                 variant="primary"
@@ -2879,7 +3128,9 @@ export default function ProfileScreen() {
               }}
             >
               <Heading level={5} style={{}}>
-                {isRTL ? "اختر تاريخ البداية" : "Select Start Date"}
+                {isRTL
+                  ? "Ø§Ø®ØªØ± ØªØ§Ø±ÙŠØ® Ø§Ù„Ø¨Ø¯Ø§ÙŠØ©"
+                  : "Select Start Date"}
               </Heading>
               <TouchableOpacity onPress={() => setShowStartDatePicker(false)}>
                 <X color={theme.colors.text.primary} size={24} />
@@ -2966,7 +3217,7 @@ export default function ProfileScreen() {
               }}
             >
               <Heading level={5} style={{}}>
-                {isRTL ? "اختر وقت البداية" : "Select Start Time"}
+                {isRTL ? "Ø§Ø®ØªØ± ÙˆÙ‚Øª Ø§Ù„Ø¨Ø¯Ø§ÙŠØ©" : "Select Start Time"}
               </Heading>
               <TouchableOpacity onPress={() => setShowStartTimePicker(false)}>
                 <X color={theme.colors.text.primary} size={24} />
@@ -2981,7 +3232,7 @@ export default function ProfileScreen() {
             >
               <View style={{ flex: 1 }}>
                 <TypographyText style={{ marginBottom: 8 }}>
-                  {isRTL ? "ساعة" : "Hour"}
+                  {isRTL ? "Ø³Ø§Ø¹Ø©" : "Hour"}
                 </TypographyText>
                 <ScrollView style={{ maxHeight: 200 }}>
                   {Array.from({ length: 24 }, (_, i) => {
@@ -3021,7 +3272,7 @@ export default function ProfileScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <TypographyText style={{ marginBottom: 8 }}>
-                  {isRTL ? "دقيقة" : "Minute"}
+                  {isRTL ? "Ø¯Ù‚ÙŠÙ‚Ø©" : "Minute"}
                 </TypographyText>
                 <ScrollView style={{ maxHeight: 200 }}>
                   {Array.from({ length: 60 }, (_, i) => {
@@ -3062,7 +3313,7 @@ export default function ProfileScreen() {
             </View>
             <Button
               onPress={() => setShowStartTimePicker(false)}
-              title={isRTL ? "تم" : "Done"}
+              title={isRTL ? "ØªÙ…" : "Done"}
               variant="primary"
             />
           </View>
@@ -3100,7 +3351,9 @@ export default function ProfileScreen() {
               }}
             >
               <Heading level={5} style={{}}>
-                {isRTL ? "اختر تاريخ النهاية" : "Select End Date"}
+                {isRTL
+                  ? "Ø§Ø®ØªØ± ØªØ§Ø±ÙŠØ® Ø§Ù„Ù†Ù‡Ø§ÙŠØ©"
+                  : "Select End Date"}
               </Heading>
               <TouchableOpacity onPress={() => setShowEndDatePicker(false)}>
                 <X color={theme.colors.text.primary} size={24} />
@@ -3193,7 +3446,7 @@ export default function ProfileScreen() {
               }}
             >
               <Heading level={5} style={{}}>
-                {isRTL ? "اختر وقت النهاية" : "Select End Time"}
+                {isRTL ? "Ø§Ø®ØªØ± ÙˆÙ‚Øª Ø§Ù„Ù†Ù‡Ø§ÙŠØ©" : "Select End Time"}
               </Heading>
               <TouchableOpacity onPress={() => setShowEndTimePicker(false)}>
                 <X color={theme.colors.text.primary} size={24} />
@@ -3208,7 +3461,7 @@ export default function ProfileScreen() {
             >
               <View style={{ flex: 1 }}>
                 <TypographyText style={{ marginBottom: 8 }}>
-                  {isRTL ? "ساعة" : "Hour"}
+                  {isRTL ? "Ø³Ø§Ø¹Ø©" : "Hour"}
                 </TypographyText>
                 <ScrollView style={{ maxHeight: 200 }}>
                   {Array.from({ length: 24 }, (_, i) => {
@@ -3255,7 +3508,7 @@ export default function ProfileScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <TypographyText style={{ marginBottom: 8 }}>
-                  {isRTL ? "دقيقة" : "Minute"}
+                  {isRTL ? "Ø¯Ù‚ÙŠÙ‚Ø©" : "Minute"}
                 </TypographyText>
                 <ScrollView style={{ maxHeight: 200 }}>
                   {Array.from({ length: 60 }, (_, i) => {
@@ -3303,20 +3556,292 @@ export default function ProfileScreen() {
             </View>
             <Button
               onPress={() => setShowEndTimePicker(false)}
-              title={isRTL ? "تم" : "Done"}
+              title={isRTL ? "ØªÙ…" : "Done"}
               variant="primary"
             />
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </GradientScreen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "transparent",
+  },
+  figmaProfileContent: {
+    paddingBottom: 32,
+  },
+  figmaProfileHeader: {
+    backgroundColor: "#FFFFFF",
+    paddingTop: 32,
+    paddingBottom: 24,
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  figmaSettingsButton: {
+    position: "absolute",
+    top: 20,
+    right: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  figmaProfileAvatar: {
+    width: 96,
+    height: 96,
+    marginBottom: 12,
+  },
+  figmaProfileName: {
+    fontSize: 32,
+    fontFamily: "Inter-Bold",
+    color: "#1A1D1F",
+    marginBottom: 4,
+  },
+  figmaProfileRole: {
+    fontSize: 14,
+    fontFamily: "Inter-Regular",
+    color: "#6C7280",
+  },
+  figmaQuickStatsWrapper: {
+    paddingHorizontal: 24,
+    marginTop: -28,
+    marginBottom: 24,
+  },
+  figmaQuickStatsCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  figmaQuickStatItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  figmaQuickStatValue: {
+    fontSize: 22,
+    fontFamily: "Inter-Bold",
+    color: "#003543",
+  },
+  figmaQuickStatLabel: {
+    fontSize: 12,
+    fontFamily: "Inter-Regular",
+    color: "#6C7280",
+    marginTop: 4,
+  },
+  figmaQuickActions: {
+    paddingHorizontal: 24,
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 24,
+  },
+  figmaQuickActionButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  figmaQuickActionText: {
+    fontSize: 14,
+    fontFamily: "Inter-Medium",
+    color: "#1A1D1F",
+  },
+  figmaSection: {
+    paddingHorizontal: 24,
+    marginBottom: 24,
+  },
+  figmaSectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  figmaSectionTitle: {
+    fontSize: 18,
+    fontFamily: "Inter-Bold",
+    color: "#003543",
+  },
+  figmaSectionLink: {
+    fontSize: 14,
+    fontFamily: "Inter-Medium",
+    color: "#003543",
+  },
+  figmaCardStack: {
+    gap: 12,
+  },
+  figmaVitalCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  figmaVitalLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+  },
+  figmaVitalIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  figmaVitalInfo: {
+    flex: 1,
+  },
+  figmaVitalLabel: {
+    fontSize: 13,
+    fontFamily: "Inter-Regular",
+    color: "#6C7280",
+    marginBottom: 2,
+  },
+  figmaVitalValue: {
+    fontSize: 18,
+    fontFamily: "Inter-SemiBold",
+    color: "#1A1D1F",
+  },
+  figmaVitalRight: {
+    alignItems: "flex-end",
+  },
+  figmaVitalTrend: {
+    fontSize: 12,
+    fontFamily: "Inter-Medium",
+    color: "#10B981",
+    marginTop: 4,
+  },
+  figmaListCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    overflow: "hidden",
+  },
+  figmaMedicationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  figmaMedicationIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(16, 185, 129, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  figmaMedicationInfo: {
+    flex: 1,
+  },
+  figmaMedicationName: {
+    fontSize: 15,
+    fontFamily: "Inter-SemiBold",
+    color: "#1A1D1F",
+    marginBottom: 2,
+  },
+  figmaMedicationMeta: {
+    fontSize: 13,
+    fontFamily: "Inter-Regular",
+    color: "#6C7280",
+  },
+  figmaMedicationStatus: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#D1D5DB",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  figmaMedicationStatusTaken: {
+    backgroundColor: "#10B981",
+    borderColor: "#10B981",
+  },
+  figmaEmptyText: {
+    padding: 16,
+    textAlign: "center",
+    fontFamily: "Inter-Regular",
+    color: "#9CA3AF",
+  },
+  figmaAccountRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  figmaAccountIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "rgba(0, 53, 67, 0.06)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  figmaAccountLabel: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: "Inter-Medium",
+    color: "#1A1D1F",
+  },
+  figmaSignOutButton: {
+    marginHorizontal: 24,
+    marginTop: 8,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: "#FFF1F2",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  figmaSignOutText: {
+    fontSize: 14,
+    fontFamily: "Inter-Medium",
+    color: "#EF4444",
+  },
+  figmaVersion: {
+    alignItems: "center",
+    paddingVertical: 16,
+  },
+  figmaVersionText: {
+    fontSize: 12,
+    fontFamily: "Inter-Regular",
+    color: "#9CA3AF",
+  },
+  headerWrapper: {
+    marginHorizontal: -20,
+    marginTop: -20,
+    marginBottom: 16,
   },
   header: {
     flexDirection: "row",
@@ -3324,12 +3849,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 16,
+    paddingBottom: 20,
   },
   title: {
     fontSize: 28,
-    fontFamily: "Geist-Bold",
-    color: "#1E293B",
+    fontFamily: "Inter-Bold",
+    color: "#FFFFFF",
+  },
+  searchButton: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    borderRadius: 20,
+    padding: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  searchButtonIcon: {
+    fontSize: 20,
+    color: "#FFFFFF",
   },
   content: {
     flex: 1,
@@ -3365,7 +3901,7 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontSize: 24,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#FFFFFF",
   },
   userInfo: {
@@ -3374,13 +3910,13 @@ const styles = StyleSheet.create({
   },
   userName: {
     fontSize: 24,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#1E293B",
     marginBottom: 4,
   },
   userEmail: {
     fontSize: 16,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     marginBottom: 8,
   },
@@ -3392,7 +3928,7 @@ const styles = StyleSheet.create({
   },
   memberSinceText: {
     fontSize: 12,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
   },
   healthSummary: {
@@ -3408,7 +3944,7 @@ const styles = StyleSheet.create({
   },
   healthTitle: {
     fontSize: 18,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     marginBottom: 16,
   },
@@ -3440,13 +3976,13 @@ const styles = StyleSheet.create({
   },
   healthCardValue: {
     fontSize: 20,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#1E293B",
     marginBottom: 4,
   },
   healthCardLabel: {
     fontSize: 11,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
     textAlign: "center",
     lineHeight: 14,
@@ -3460,7 +3996,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     marginBottom: 8,
     marginStart: 4,
@@ -3515,7 +4051,7 @@ const styles = StyleSheet.create({
   },
   sectionItemLabel: {
     fontSize: 16,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#1E293B",
     flex: 1,
   },
@@ -3527,7 +4063,7 @@ const styles = StyleSheet.create({
   },
   sectionItemValue: {
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     maxWidth: 80,
   },
@@ -3539,7 +4075,7 @@ const styles = StyleSheet.create({
   },
   comingSoonText: {
     fontSize: 10,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#92400E",
   },
   signOutButton: {
@@ -3559,7 +4095,7 @@ const styles = StyleSheet.create({
   },
   signOutText: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#EF4444",
   },
   appVersion: {
@@ -3568,12 +4104,12 @@ const styles = StyleSheet.create({
   },
   appVersionText: {
     fontSize: 12,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#94A3B8",
   },
   rtlText: {
     textAlign: "right",
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
   },
   modalOverlay: {
     flex: 1,
@@ -3598,7 +4134,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     flex: 1,
   },
@@ -3627,12 +4163,12 @@ const styles = StyleSheet.create({
   },
   languageText: {
     fontSize: 16,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#1E293B",
   },
   selectedLanguageText: {
     color: "#2563EB",
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
   },
   cancelButton: {
     marginTop: 8,
@@ -3641,7 +4177,7 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     fontSize: 16,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
   },
   avatarGrid: {
@@ -3672,14 +4208,14 @@ const styles = StyleSheet.create({
   },
   avatarLabel: {
     fontSize: 12,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
     marginTop: 8,
     textAlign: "center",
   },
   avatarLabelSelected: {
     color: "#2563EB",
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
   },
   avatarCheck: {
     position: "absolute",
@@ -3708,7 +4244,7 @@ const styles = StyleSheet.create({
   },
   creatorModalTitle: {
     fontSize: 20,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
   },
   creatorCloseButton: {
@@ -3731,13 +4267,13 @@ const styles = StyleSheet.create({
   },
   scoreValue: {
     fontSize: 48,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#1E293B",
     marginBottom: 4,
   },
   scoreOutOf: {
     fontSize: 16,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     marginBottom: 12,
   },
@@ -3749,12 +4285,12 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#1E293B",
   },
   breakdownTitle: {
     fontSize: 18,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#1E293B",
     marginBottom: 16,
   },
@@ -3775,32 +4311,32 @@ const styles = StyleSheet.create({
   },
   breakdownLabel: {
     fontSize: 16,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#1E293B",
     flex: 1,
   },
   finalScoreLabel: {
     fontSize: 18,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
   },
   breakdownValue: {
     fontSize: 16,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#10B981",
   },
   breakdownValuePositive: {
     fontSize: 16,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#10B981",
   },
   breakdownValueNegative: {
     fontSize: 16,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#EF4444",
   },
   finalScoreValue: {
     fontSize: 20,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#2563EB",
   },
   factorRow: {
@@ -3813,13 +4349,13 @@ const styles = StyleSheet.create({
   },
   factorLabel: {
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     flex: 1,
   },
   factorValue: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#1E293B",
   },
   infoNote: {
@@ -3833,14 +4369,14 @@ const styles = StyleSheet.create({
   },
   infoNoteText: {
     fontSize: 12,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     flex: 1,
     lineHeight: 18,
   },
   loadingText: {
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     marginTop: 12,
   },

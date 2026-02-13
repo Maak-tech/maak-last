@@ -265,12 +265,12 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 28,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#2563EB",
   },
   headerSubtitle: {
     fontSize: 16,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     marginTop: 4,
   },
@@ -305,19 +305,19 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 12,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#92400E",
   },
   comingSoonTitle: {
     fontSize: 20,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#2563EB",
     textAlign: "center",
     marginBottom: 8,
   },
   comingSoonDescription: {
     fontSize: 16,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     textAlign: "center",
   },
@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
   },
   onelineText: {
     fontSize: 18,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#2563EB",
     fontStyle: "italic",
     textAlign: "center",
@@ -345,11 +345,11 @@ const styles = StyleSheet.create({
   },
   onelineSource: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#2563EB",
   },
   rtlText: {
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     textAlign: "right",
   },
 });

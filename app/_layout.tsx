@@ -8,6 +8,18 @@ import "@/lib/polyfills/pushNotificationIOS";
 // Initialize reanimated compatibility early to prevent createAnimatedComponent errors
 import "@/lib/utils/reanimatedSetup";
 
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  useFonts,
+} from "@expo-google-fonts/inter";
+import {
+  NotoSansArabic_400Regular,
+  NotoSansArabic_600SemiBold,
+  NotoSansArabic_700Bold,
+} from "@expo-google-fonts/noto-sans-arabic";
 import * as Notifications from "expo-notifications";
 import { Stack, useNavigationContainerRef } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -141,6 +153,15 @@ function RootLayout() {
   const [hasBeenActive, setHasBeenActive] = useState(
     AppState.currentState === "active"
   );
+  const [fontsLoaded, fontError] = useFonts({
+    "Inter-Regular": Inter_400Regular,
+    "Inter-Medium": Inter_500Medium,
+    "Inter-SemiBold": Inter_600SemiBold,
+    "Inter-Bold": Inter_700Bold,
+    "NotoSansArabic-Regular": NotoSansArabic_400Regular,
+    "NotoSansArabic-SemiBold": NotoSansArabic_600SemiBold,
+    "NotoSansArabic-Bold": NotoSansArabic_700Bold,
+  });
   const backgroundLaunchLoggedRef = useRef(false);
   const notificationHandlerConfiguredRef = useRef(false);
 
@@ -149,10 +170,10 @@ function RootLayout() {
   }, [navigationRef]);
 
   useEffect(() => {
-    if (hasBeenActive) {
+    if (hasBeenActive && (fontsLoaded || fontError)) {
       SplashScreen.hideAsync();
     }
-  }, [hasBeenActive]);
+  }, [hasBeenActive, fontsLoaded, fontError]);
 
   // Initialize Crashlytics as early as possible in app lifecycle.
   useEffect(() => {
@@ -266,7 +287,7 @@ function RootLayout() {
   }, [hasBeenActive, isAppActive]);
 
   // If the app launches in background, skip mounting UI until it becomes active.
-  if (!hasBeenActive) {
+  if (!(hasBeenActive && (fontsLoaded || fontError))) {
     return null;
   }
 

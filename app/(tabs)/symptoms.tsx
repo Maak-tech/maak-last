@@ -2,14 +2,15 @@
 /* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: this screen intentionally centralizes symptom workflows. */
 import { useFocusEffect, useRouter } from "expo-router";
 import {
+  Activity,
   ArrowLeft,
-  Edit,
-  MoreVertical,
+  ChevronRight,
+  Clock,
   Plus,
-  Trash2,
+  TrendingUp,
   X,
 } from "lucide-react-native";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
@@ -24,11 +25,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import FamilyDataFilter, {
   type FilterOption,
 } from "@/app/components/FamilyDataFilter";
+import HealthChart from "@/app/components/HealthChart";
 // Design System Components
-import { Button, Card, Input } from "@/components/design-system";
-import { Badge } from "@/components/design-system/AdditionalComponents";
-import { Caption, Heading, Text } from "@/components/design-system/Typography";
+import { Button, Input } from "@/components/design-system";
+import { Heading, Text } from "@/components/design-system/Typography";
+import GradientScreen from "@/components/figma/GradientScreen";
+import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
+import { chartsService } from "@/lib/services/chartsService";
 import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
 import { logger } from "@/lib/utils/logger";
@@ -69,6 +73,7 @@ export default function TrackScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const router = useRouter();
+  const params = useLocalSearchParams<{ returnTo?: string }>();
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedSymptom, setSelectedSymptom] = useState("");
   const [customSymptom, setCustomSymptom] = useState("");
@@ -95,6 +100,73 @@ export default function TrackScreen() {
   const isRTL = i18n.language === "ar";
   const isAdmin = user?.role === "admin";
   const hasFamily = Boolean(user?.familyId);
+  const recentSymptoms = symptoms.slice(0, 6);
+  const topSymptoms = stats.commonSymptoms.slice(0, 4);
+  const topSymptomsTotal =
+    topSymptoms.reduce((sum, symptom) => sum + symptom.count, 0) || 1;
+
+  const symptomsThisWeek = useMemo(() => {
+    const now = new Date();
+    const start = new Date();
+    start.setDate(now.getDate() - 7);
+    return symptoms.filter((symptom) => {
+      const date =
+        symptom.timestamp instanceof Date
+          ? symptom.timestamp
+          : new Date(symptom.timestamp);
+      return date >= start && date <= now;
+    }).length;
+  }, [symptoms]);
+
+  const avgSeverityThisWeek = useMemo(() => {
+    const now = new Date();
+    const start = new Date();
+    start.setDate(now.getDate() - 7);
+    const recent = symptoms.filter((symptom) => {
+      const date =
+        symptom.timestamp instanceof Date
+          ? symptom.timestamp
+          : new Date(symptom.timestamp);
+      return date >= start && date <= now;
+    });
+    if (recent.length === 0) {
+      return 0;
+    }
+    const total = recent.reduce((sum, item) => sum + item.severity, 0);
+    return total / recent.length;
+  }, [symptoms]);
+
+  const improvementPercent = useMemo(() => {
+    const now = new Date();
+    const startCurrent = new Date();
+    startCurrent.setDate(now.getDate() - 7);
+    const startPrevious = new Date();
+    startPrevious.setDate(now.getDate() - 14);
+    const prev = symptoms.filter((symptom) => {
+      const date =
+        symptom.timestamp instanceof Date
+          ? symptom.timestamp
+          : new Date(symptom.timestamp);
+      return date >= startPrevious && date < startCurrent;
+    });
+    const current = symptoms.filter((symptom) => {
+      const date =
+        symptom.timestamp instanceof Date
+          ? symptom.timestamp
+          : new Date(symptom.timestamp);
+      return date >= startCurrent && date <= now;
+    });
+    if (prev.length === 0) {
+      return 0;
+    }
+    const delta = prev.length - current.length;
+    return Math.max(0, Math.round((delta / prev.length) * 100));
+  }, [symptoms]);
+
+  const symptomTrendData = useMemo(
+    () => chartsService.prepareSymptomTimeSeries(symptoms, 7),
+    [symptoms]
+  );
 
   const loadSymptoms = useCallback(
     async (isRefresh = false) => {
@@ -566,7 +638,41 @@ export default function TrackScreen() {
     }
   };
 
-  const formatDate = (date: Date) => {
+  const formatSymptomLabel = (symptomType: string) => {
+    if (!symptomType) {
+      return "Symptom";
+    }
+    return symptomType
+      .replace(/([A-Z])/g, " $1")
+      .replace(/^./, (char) => char.toUpperCase());
+  };
+
+  const normalizeDate = (
+    value: Date | string | number | { toDate?: () => Date } | null | undefined
+  ) => {
+    if (!value) {
+      return null;
+    }
+    if (value instanceof Date) {
+      return value;
+    }
+    if (typeof value === "object" && typeof value.toDate === "function") {
+      return value.toDate();
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return null;
+    }
+    return parsed;
+  };
+
+  const formatDate = (
+    value: Date | string | number | { toDate?: () => Date } | null | undefined
+  ) => {
+    const date = normalizeDate(value);
+    if (!date) {
+      return "";
+    }
     const now = new Date();
     const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
 
@@ -639,51 +745,50 @@ export default function TrackScreen() {
   }
 
   return (
-    <SafeAreaView
+    <GradientScreen
       edges={["top"]}
       pointerEvents="box-none"
       style={styles.container}
     >
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={[styles.backButton, isRTL && styles.backButtonRTL]}
-        >
-          <ArrowLeft
-            color="#1E293B"
-            size={24}
-            style={[isRTL && { transform: [{ rotate: "180deg" }] }]}
-          />
-        </TouchableOpacity>
-
-        <Heading level={4} style={[styles.title, isRTL && styles.rtlText]}>
-          {t("symptoms")}
-        </Heading>
-
-        <TouchableOpacity
-          onPress={() => {
-            setSelectedTargetUser(user.id);
-            setShowAddModal(true);
-          }}
-          style={styles.addButton}
-        >
-          <Plus color="#FFFFFF" size={24} />
-        </TouchableOpacity>
+      <View style={styles.figmaSymptomHeaderWrap}>
+        <WavyBackground height={240} variant="teal">
+          <View style={styles.figmaSymptomHeaderContent}>
+            <View style={styles.figmaSymptomHeaderRow}>
+              <TouchableOpacity
+                onPress={() =>
+                  params.returnTo === "track"
+                    ? router.push("/(tabs)/track")
+                    : router.back()
+                }
+                style={styles.figmaSymptomBackButton}
+              >
+                <ArrowLeft color="#003543" size={20} />
+              </TouchableOpacity>
+              <View style={styles.figmaSymptomHeaderTitle}>
+                <View style={styles.figmaSymptomTitleRow}>
+                  <Activity color="#EB9C0C" size={20} />
+                  <Text style={styles.figmaSymptomTitle}>Tracked Symptoms</Text>
+                </View>
+                <Text style={styles.figmaSymptomSubtitle}>
+                  Monitor symptoms over time
+                </Text>
+              </View>
+            </View>
+          </View>
+        </WavyBackground>
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.contentInner}
+        contentContainerStyle={styles.figmaSymptomContent}
         refreshControl={
           <RefreshControl
             onRefresh={() => loadSymptoms(true)}
             refreshing={refreshing}
-            tintColor="#2563EB"
+            tintColor="#0F766E"
           />
         }
         showsVerticalScrollIndicator={false}
-        style={styles.content}
       >
-        {/* Enhanced Data Filter */}
         <FamilyDataFilter
           currentUserId={user.id}
           familyMembers={familyMembers}
@@ -693,219 +798,169 @@ export default function TrackScreen() {
           selectedFilter={selectedFilter}
         />
 
-        {/* Stats Section */}
-        <View style={styles.statsSection}>
-          <Heading
-            level={5}
-            style={[
-              styles.sectionTitle,
-              isRTL && styles.sectionTitleRTL,
-              isRTL && styles.rtlText,
-            ]}
-          >
-            {t("thisWeek")}
-          </Heading>
-          <View style={styles.statsGrid}>
-            <Card
-              contentStyle={undefined}
-              pressable={false}
-              style={styles.statCard}
-              variant="elevated"
-            >
+        <View style={styles.figmaSymptomStatsRow}>
+          <View style={styles.figmaSymptomStatCard}>
+            <Text style={styles.figmaSymptomStatValue}>{symptomsThisWeek}</Text>
+            <Text style={styles.figmaSymptomStatLabel}>This Week</Text>
+          </View>
+          <View style={styles.figmaSymptomStatCard}>
+            <Text style={[styles.figmaSymptomStatValue, { color: "#F97316" }]}>
+              {avgSeverityThisWeek.toFixed(1)}
+            </Text>
+            <Text style={styles.figmaSymptomStatLabel}>Avg Severity</Text>
+          </View>
+          <View style={styles.figmaSymptomStatCard}>
+            <View style={styles.figmaSymptomTrendRow}>
+              <TrendingUp color="#10B981" size={14} />
               <Text
-                size="large"
-                style={[styles.statValue, isRTL && styles.rtlText]}
-                weight="bold"
+                style={[styles.figmaSymptomStatValue, { color: "#10B981" }]}
               >
-                {stats.totalSymptoms}
+                {improvementPercent}%
               </Text>
-              <Caption
-                numberOfLines={undefined}
-                style={[styles.statLabel, isRTL && styles.rtlText]}
-              >
-                {selectedFilter.type === "family"
-                  ? isRTL
-                    ? "أعراض العائلة الصحية"
-                    : "Family Symptoms"
-                  : selectedFilter.type === "member"
-                    ? isRTL
-                      ? `أعراض ${selectedFilter.memberName} الصحية`
-                      : `${selectedFilter.memberName}'s Symptoms`
-                    : isRTL
-                      ? "إجمالي الأعراض الصحية"
-                      : "Total Symptoms"}
-              </Caption>
-            </Card>
-            <Card
-              contentStyle={undefined}
-              pressable={false}
-              style={styles.statCard}
-              variant="elevated"
-            >
-              <Text
-                size="large"
-                style={[styles.statValue, isRTL && styles.rtlText]}
-                weight="bold"
-              >
-                {stats.avgSeverity.toFixed(1)}
-              </Text>
-              <Caption
-                numberOfLines={undefined}
-                style={[styles.statLabel, isRTL && styles.rtlText]}
-              >
-                {t("avgSeverity", "Avg Severity")}
-              </Caption>
-            </Card>
+            </View>
+            <Text style={styles.figmaSymptomStatLabel}>Improving</Text>
           </View>
         </View>
 
-        {/* Symptoms List */}
-        <View style={styles.symptomsSection}>
-          <Heading
-            level={5}
-            style={[
-              styles.sectionTitle,
-              isRTL && styles.sectionTitleRTL,
-              isRTL && styles.rtlText,
-            ]}
-          >
-            {selectedFilter.type === "family"
-              ? t("recentFamilySymptoms", "Recent Family Symptoms")
-              : selectedFilter.type === "member"
-                ? t("memberRecentSymptoms", "{{name}}'s Recent Symptoms", {
-                    name: selectedFilter.memberName,
-                  })
-                : t("myRecentSymptoms", "My Recent Symptoms")}
-          </Heading>
+        <View style={styles.figmaSymptomSection}>
+          <View style={styles.figmaSymptomSectionHeader}>
+            <Text style={styles.figmaSymptomSectionTitle}>Severity Trend</Text>
+            <TouchableOpacity>
+              <Text style={styles.figmaSymptomSectionLink}>7 Days</Text>
+            </TouchableOpacity>
+          </View>
+          <HealthChart
+            data={symptomTrendData}
+            height={200}
+            showGrid={true}
+            showLegend={false}
+            title=""
+            yAxisSuffix=""
+          />
+          <View style={styles.figmaSymptomTrendFootnote}>
+            <Text style={styles.figmaSymptomTrendFootnoteText}>
+              1 = Minimal
+            </Text>
+            <Text style={styles.figmaSymptomTrendFootnoteText}>5 = Severe</Text>
+          </View>
+        </View>
 
+        <View style={styles.figmaSymptomSection}>
+          <Text style={styles.figmaSymptomSectionTitle}>Quick Add</Text>
+          <View style={styles.figmaSymptomQuickAddGrid}>
+            {["nausea", "headache", "fatigue", "dizziness"].map((key) => (
+              <TouchableOpacity
+                key={key}
+                onPress={() => {
+                  setSelectedSymptom(key);
+                  setSelectedTargetUser(user.id);
+                  setShowAddModal(true);
+                }}
+                style={styles.figmaSymptomQuickAddButton}
+              >
+                <Text style={styles.figmaSymptomQuickAddText}>+ {t(key)}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.figmaSymptomSection}>
+          <View style={styles.figmaSymptomSectionHeader}>
+            <Text style={styles.figmaSymptomSectionTitle}>Recent Entries</Text>
+            <TouchableOpacity>
+              <Text style={styles.figmaSymptomSectionLink}>View All</Text>
+            </TouchableOpacity>
+          </View>
           {loading ? (
-            <View style={styles.centerContainer}>
-              <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
-                {t("loading", "Loading...")}
+            <View style={styles.figmaSymptomEmptyState}>
+              <Text style={styles.figmaSymptomEmptyText}>
+                Loading symptoms...
               </Text>
             </View>
-          ) : symptoms.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-                {t("noSymptomsRecorded", "No symptoms recorded")}
+          ) : recentSymptoms.length === 0 ? (
+            <View style={styles.figmaSymptomEmptyState}>
+              <Text style={styles.figmaSymptomEmptyText}>
+                No symptoms recorded
               </Text>
             </View>
           ) : (
-            symptoms.map((symptom) => (
-              <Card
-                contentStyle={undefined}
-                key={symptom.id}
-                pressable={false}
-                style={styles.symptomCard}
-                variant="elevated"
-              >
-                <View style={styles.symptomHeader}>
-                  <View style={styles.symptomInfo}>
-                    <Text
-                      size="large"
-                      style={[styles.symptomType, isRTL && styles.rtlText]}
-                      weight="semibold"
+            <View style={styles.figmaSymptomList}>
+              {recentSymptoms.map((symptom) => (
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  key={symptom.id}
+                  onPress={() => handleEditSymptom(symptom)}
+                  style={styles.figmaSymptomCard}
+                >
+                  <View style={styles.figmaSymptomCardHeader}>
+                    <View
+                      style={[
+                        styles.figmaSymptomIconWrap,
+                        {
+                          backgroundColor: `${getSeverityColor(
+                            symptom.severity
+                          )}15`,
+                        },
+                      ]}
                     >
-                      {t(symptom.type)}
-                    </Text>
-                    <View style={styles.symptomMeta}>
-                      <Caption
-                        numberOfLines={undefined}
-                        style={[styles.symptomDate, isRTL && styles.rtlText]}
-                      >
-                        {formatDate(symptom.timestamp)}
-                      </Caption>
-                      {/* Show member name for family/admin views */}
-                      {(selectedFilter.type === "family" ||
-                        selectedFilter.type === "member") && (
-                        <View style={styles.memberBadge}>
-                          <Text style={styles.memberBadgeText}>
-                            {getMemberName(symptom.userId)}
+                      <Activity
+                        color={getSeverityColor(symptom.severity)}
+                        size={20}
+                      />
+                    </View>
+                    <View style={styles.figmaSymptomCardInfo}>
+                      <View style={styles.figmaSymptomCardTitleRow}>
+                        <Text style={styles.figmaSymptomCardTitle}>
+                          {t(symptom.type, formatSymptomLabel(symptom.type))}
+                        </Text>
+                        <View
+                          style={[
+                            styles.figmaSymptomSeverityBadge,
+                            {
+                              backgroundColor: `${getSeverityColor(
+                                symptom.severity
+                              )}15`,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.figmaSymptomSeverityText,
+                              { color: getSeverityColor(symptom.severity) },
+                            ]}
+                          >
+                            {getSeverityText(symptom.severity, t)}
                           </Text>
                         </View>
-                      )}
+                      </View>
+                      <Text style={styles.figmaSymptomCardMeta}>
+                        {symptom.description || "No notes"}
+                      </Text>
+                      <View style={styles.figmaSymptomCardTimeRow}>
+                        <Clock color="#6C7280" size={12} />
+                        <Text style={styles.figmaSymptomCardTime}>
+                          {formatDate(symptom.timestamp) || ""}
+                        </Text>
+                      </View>
                     </View>
+                    <ChevronRight color="#94A3B8" size={18} />
                   </View>
-                  <View style={styles.symptomActions}>
-                    <Badge
-                      size="small"
-                      style={[
-                        styles.severityBadge,
-                        { backgroundColor: getSeverityColor(symptom.severity) },
-                      ]}
-                      variant={
-                        symptom.severity <= 2
-                          ? "success"
-                          : symptom.severity <= 3
-                            ? "warning"
-                            : "error"
-                      }
-                    >
-                      {symptom.severity}
-                    </Badge>
-                    {/* Show action menu only for symptoms user can manage */}
-                    {(symptom.userId === user.id ||
-                      (isAdmin &&
-                        (selectedFilter.type === "family" ||
-                          selectedFilter.type === "member"))) && (
-                      <TouchableOpacity
-                        onPress={() =>
-                          setShowActionsMenu(
-                            showActionsMenu === symptom.id ? null : symptom.id
-                          )
-                        }
-                        style={styles.actionsButton}
-                      >
-                        <MoreVertical color="#64748B" size={16} />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-
-                {symptom.description ? (
-                  <Text
-                    style={[styles.symptomDescription, isRTL && styles.rtlText]}
-                  >
-                    {symptom.description}
-                  </Text>
-                ) : null}
-
-                {/* Actions Menu */}
-                {showActionsMenu === symptom.id && (
-                  <View style={styles.actionsMenu}>
-                    <TouchableOpacity
-                      onPress={() => handleEditSymptom(symptom)}
-                      style={styles.actionItem}
-                    >
-                      <Edit color="#64748B" size={16} />
-                      <Text
-                        style={[styles.actionText, isRTL && styles.rtlText]}
-                      >
-                        {t("edit", "Edit")}
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => handleDeleteSymptom(symptom)}
-                      style={styles.actionItem}
-                    >
-                      <Trash2 color="#EF4444" size={16} />
-                      <Text
-                        style={[
-                          styles.actionText,
-                          styles.deleteText,
-                          isRTL && styles.rtlText,
-                        ]}
-                      >
-                        {t("delete", "Delete")}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </Card>
-            ))
+                </TouchableOpacity>
+              ))}
+            </View>
           )}
         </View>
       </ScrollView>
+
+      <TouchableOpacity
+        onPress={() => {
+          setSelectedTargetUser(user.id);
+          setShowAddModal(true);
+        }}
+        style={styles.figmaSymptomFab}
+      >
+        <Plus color="#FFFFFF" size={22} />
+      </TouchableOpacity>
 
       {/* Add Symptom Modal */}
       <Modal
@@ -1109,7 +1164,7 @@ export default function TrackScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
-    </SafeAreaView>
+    </GradientScreen>
   );
 }
 
@@ -1117,6 +1172,325 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F8FAFC",
+  },
+  figmaSymptomHeaderWrap: {
+    marginHorizontal: -20,
+    marginTop: -20,
+    marginBottom: 12,
+  },
+  figmaSymptomHeaderContent: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 16,
+  },
+  figmaSymptomHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  figmaSymptomBackButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  figmaSymptomHeaderTitle: {
+    flex: 1,
+  },
+  figmaSymptomTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  figmaSymptomTitle: {
+    fontSize: 22,
+    fontFamily: "Inter-Bold",
+    color: "#FFFFFF",
+  },
+  figmaSymptomSubtitle: {
+    fontSize: 13,
+    fontFamily: "Inter-SemiBold",
+    color: "rgba(0, 53, 67, 0.85)",
+  },
+  figmaSymptomAddButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#003543",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  figmaSymptomContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 140,
+  },
+  figmaSymptomStatsRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 20,
+  },
+  figmaSymptomStatCard: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  figmaSymptomStatValue: {
+    fontSize: 20,
+    fontFamily: "Inter-Bold",
+    color: "#003543",
+    marginBottom: 4,
+  },
+  figmaSymptomStatLabel: {
+    fontSize: 11,
+    fontFamily: "Inter-SemiBold",
+    color: "#64748B",
+  },
+  figmaSymptomTrendRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  figmaSymptomSection: {
+    marginBottom: 20,
+  },
+  figmaSymptomSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  figmaSymptomSectionTitle: {
+    fontSize: 18,
+    fontFamily: "Inter-Bold",
+    color: "#0F172A",
+  },
+  figmaSymptomSectionLink: {
+    fontSize: 13,
+    fontFamily: "Inter-SemiBold",
+    color: "#003543",
+  },
+  figmaSymptomTrendFootnote: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 16,
+    marginTop: 10,
+  },
+  figmaSymptomTrendFootnoteText: {
+    fontSize: 11,
+    fontFamily: "Inter-Medium",
+    color: "#6B7280",
+  },
+  figmaSymptomQuickAddGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginTop: 12,
+  },
+  figmaSymptomQuickAddButton: {
+    width: "48%",
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "rgba(0, 53, 67, 0.25)",
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0, 53, 67, 0.04)",
+  },
+  figmaSymptomQuickAddText: {
+    fontSize: 13,
+    fontFamily: "Inter-SemiBold",
+    color: "#003543",
+  },
+  figmaSymptomDistributionList: {
+    gap: 10,
+  },
+  figmaSymptomDistributionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  figmaSymptomDistributionLabel: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    width: 120,
+  },
+  figmaSymptomDistributionText: {
+    fontSize: 12,
+    fontFamily: "Inter-SemiBold",
+    color: "#0F172A",
+  },
+  figmaSymptomDistributionBar: {
+    flex: 1,
+    height: 8,
+    backgroundColor: "#E2E8F0",
+    borderRadius: 999,
+    overflow: "hidden",
+  },
+  figmaSymptomDistributionFill: {
+    height: "100%",
+    borderRadius: 999,
+  },
+  figmaSymptomDistributionValue: {
+    fontSize: 11,
+    fontFamily: "Inter-SemiBold",
+    color: "#64748B",
+    width: 36,
+    textAlign: "right",
+  },
+  figmaSymptomList: {
+    gap: 12,
+  },
+  figmaSymptomCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 14,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  figmaSymptomCardHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  figmaSymptomIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(239, 68, 68, 0.12)",
+  },
+  figmaSymptomCardInfo: {
+    flex: 1,
+  },
+  figmaSymptomCardTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  figmaSymptomCardTitle: {
+    fontSize: 14,
+    fontFamily: "Inter-SemiBold",
+    color: "#0F172A",
+  },
+  figmaSymptomCardMeta: {
+    fontSize: 11,
+    fontFamily: "Inter-Medium",
+    color: "#64748B",
+    marginTop: 4,
+  },
+  figmaSymptomCardTimeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 6,
+  },
+  figmaSymptomCardTime: {
+    fontSize: 11,
+    fontFamily: "Inter-Medium",
+    color: "#6B7280",
+  },
+  figmaSymptomDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 999,
+  },
+  figmaSymptomCardActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  figmaSymptomSeverityBadge: {
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  figmaSymptomSeverityText: {
+    fontSize: 11,
+    fontFamily: "Inter-SemiBold",
+  },
+  figmaSymptomActionsButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F1F5F9",
+  },
+  figmaSymptomNotes: {
+    marginTop: 10,
+    fontSize: 12,
+    fontFamily: "Inter-Medium",
+    color: "#475569",
+    lineHeight: 18,
+  },
+  figmaSymptomActionsMenu: {
+    flexDirection: "row",
+    gap: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+    marginTop: 12,
+    paddingTop: 12,
+  },
+  figmaSymptomActionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  figmaSymptomActionText: {
+    fontSize: 12,
+    fontFamily: "Inter-SemiBold",
+    color: "#64748B",
+  },
+  figmaSymptomActionDelete: {
+    color: "#EF4444",
+  },
+  figmaSymptomEmptyState: {
+    paddingVertical: 16,
+    alignItems: "center",
+  },
+  figmaSymptomEmptyText: {
+    fontSize: 12,
+    fontFamily: "Inter-Medium",
+    color: "#64748B",
+    textAlign: "center",
+  },
+  figmaSymptomFab: {
+    position: "absolute",
+    right: 20,
+    bottom: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#D48A00",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 6,
   },
   header: {
     flexDirection: "row",
@@ -1140,11 +1514,11 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#1E293B",
   },
   rtlText: {
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     textAlign: "right",
   },
   addButton: {
@@ -1167,7 +1541,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     marginBottom: 12,
   },
@@ -1192,13 +1566,13 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 24,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#2563EB",
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
     textAlign: "center",
   },
@@ -1227,7 +1601,7 @@ const styles = StyleSheet.create({
   },
   symptomType: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     marginBottom: 4,
   },
@@ -1238,7 +1612,7 @@ const styles = StyleSheet.create({
   },
   symptomDate: {
     fontSize: 12,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
   },
   memberBadge: {
@@ -1250,7 +1624,7 @@ const styles = StyleSheet.create({
   },
   memberBadgeText: {
     fontSize: 12,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#4F46E5",
   },
   symptomActions: {
@@ -1267,7 +1641,7 @@ const styles = StyleSheet.create({
   },
   severityText: {
     fontSize: 12,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#FFFFFF",
   },
   actionsButton: {
@@ -1275,7 +1649,7 @@ const styles = StyleSheet.create({
   },
   symptomDescription: {
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#475569",
     lineHeight: 20,
   },
@@ -1295,7 +1669,7 @@ const styles = StyleSheet.create({
   },
   actionText: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
   },
   deleteText: {
@@ -1312,18 +1686,18 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
     textAlign: "center",
   },
   loadingText: {
     fontSize: 16,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
   },
   errorText: {
     fontSize: 16,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#EF4444",
     textAlign: "center",
   },
@@ -1344,7 +1718,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
   },
   closeButton: {
@@ -1359,7 +1733,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     marginBottom: 8,
   },
@@ -1382,7 +1756,7 @@ const styles = StyleSheet.create({
   },
   symptomOptionText: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
   },
   symptomOptionTextSelected: {
@@ -1396,11 +1770,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#1E293B",
   },
   rtlTextInput: {
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
   },
   textArea: {
     minHeight: 80,
@@ -1430,7 +1804,7 @@ const styles = StyleSheet.create({
   },
   severityButtonText: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#64748B",
   },
   severityButtonTextActive: {
@@ -1442,7 +1816,7 @@ const styles = StyleSheet.create({
   },
   severityLabel: {
     fontSize: 12,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
   },
   saveButton: {
@@ -1457,7 +1831,7 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#FFFFFF",
   },
   // Member selection styles
@@ -1483,7 +1857,7 @@ const styles = StyleSheet.create({
   },
   memberName: {
     fontSize: 16,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#1E293B",
   },
   memberNameSelected: {
@@ -1491,7 +1865,7 @@ const styles = StyleSheet.create({
   },
   memberRole: {
     fontSize: 12,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
     backgroundColor: "#F1F5F9",
     paddingHorizontal: 8,

@@ -1,0 +1,1 @@
+{"filePath":"/src/app/screens/HomeNew.tsx","snippetStartLine":41,"tagLine":42,"snippet":"<div className=\"w-10 h-10 rounded-full bg-[#EB9C0C] flex items-center justify-center shadow-lg\">\n                <span className=\"text-sm font-bold text-white\">54</span>\n              </div>","tagName":"div"}

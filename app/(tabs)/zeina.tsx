@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Zeina - AI Health Assistant Chat
  *
  * A text-based chat interface for health assistance powered by OpenAI.
@@ -9,10 +9,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useLocalSearchParams } from "expo-router";
 import {
-  Info,
+  AlertTriangle,
   Mic,
   MicOff,
+  Send,
   Settings,
+  Sparkles,
   Volume2,
   VolumeX,
 } from "lucide-react-native";
@@ -30,12 +32,14 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import GradientScreen from "@/components/figma/GradientScreen";
+import WavyBackground from "@/components/figma/WavyBackground";
+import { useTheme } from "@/contexts/ThemeContext";
+import { safeFormatTime } from "@/utils/dateFormat";
 import healthContextService from "../../lib/services/healthContextService";
 import openaiService, {
   AI_MODELS,
@@ -43,12 +47,12 @@ import openaiService, {
 } from "../../lib/services/openaiService";
 import { voiceService } from "../../lib/services/voiceService";
 import { autoLogHealthSignalsFromText } from "../../lib/services/zeinaChatAutoLogService";
-import ChatMessage from "../components/ChatMessage";
 import CoachMark from "../components/CoachMark";
 
 /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Screen orchestrates chat, voice IO, onboarding tips, and settings in one component. */
 export default function ZeinaScreen() {
   const { t } = useTranslation();
+  const { theme } = useTheme();
   const params = useLocalSearchParams<{ tour?: string }>();
   const scrollViewRef = useRef<ScrollView>(null);
   const inputRef = useRef<TextInput>(null);
@@ -73,6 +77,25 @@ export default function ZeinaScreen() {
   const [showHowTo, setShowHowTo] = useState(false);
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
+  const { width, height } = useWindowDimensions();
+  const isIphone16Pro =
+    Math.round(Math.min(width, height)) === 393 &&
+    Math.round(Math.max(width, height)) === 852;
+  const contentPadding = isIphone16Pro ? 24 : theme.spacing.lg;
+  const headerPadding = isIphone16Pro ? 28 : theme.spacing.xl;
+  const quickActions = [
+    "Medication reminders",
+    "Weekly health summary",
+    "Schedule appointment",
+    "Emergency contacts",
+  ];
+
+  const formatMessageTime = (timestamp?: Date) => {
+    if (!timestamp) {
+      return "";
+    }
+    return safeFormatTime(timestamp) ?? "";
+  };
 
   useEffect(
     () => () => {
@@ -328,7 +351,7 @@ export default function ZeinaScreen() {
           role: "assistant",
           content: t(
             "zeinaConfigurationHelp",
-            "I’m not fully configured on this build yet. Please check OpenAI key configuration and try again."
+            "I'm not fully configured on this build yet. Please check OpenAI key configuration and try again."
           ),
           timestamp: new Date(),
         },
@@ -525,43 +548,71 @@ export default function ZeinaScreen() {
   };
 
   return (
-    <SafeAreaView edges={["top"]} style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>{t("zeina", "Zeina")}</Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            onPress={handleNewChat}
-            style={[styles.headerButton, styles.newChatHeaderButton]}
+    <GradientScreen edges={["top"]} style={styles.container}>
+      <View style={styles.figmaOrbTop} />
+      <View style={styles.figmaOrbBottom} />
+
+      <View
+        style={[
+          styles.headerWrapper,
+          {
+            marginHorizontal: -contentPadding,
+            marginTop: -theme.spacing.base,
+            marginBottom: theme.spacing.lg,
+          },
+        ]}
+      >
+        <WavyBackground height={240} variant="teal">
+          <View
+            style={[
+              styles.figmaHeaderContent,
+              {
+                paddingHorizontal: headerPadding,
+                paddingTop: headerPadding,
+                paddingBottom: headerPadding,
+                minHeight: 230,
+              },
+            ]}
           >
-            <Ionicons color="#007AFF" name="add-circle" size={28} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setShowHowTo(true)}
-            style={[styles.headerButton, styles.helpHeaderButton]}
-          >
-            <Info color="#007AFF" size={22} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setShowSettings(true)}
-            style={styles.headerButton}
-          >
-            <Ionicons color="#666" name="settings-sharp" size={26} />
-          </TouchableOpacity>
-        </View>
+            <View style={styles.figmaHeaderRow}>
+              <View style={styles.figmaHeaderIcon}>
+                <Sparkles color="#FFFFFF" size={20} />
+              </View>
+              <View>
+                <Text
+                  style={[
+                    styles.figmaHeaderTitle,
+                    { color: theme.colors.neutral.white },
+                  ]}
+                >
+                  Zeina AI
+                </Text>
+                <Text
+                  style={[
+                    styles.figmaHeaderSubtitle,
+                    { color: "rgba(255, 255, 255, 0.85)" },
+                  ]}
+                >
+                  {t("zeinaSubtitle", "Your health assistant")}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </WavyBackground>
       </View>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={90}
-        style={styles.chatContainer}
+        style={styles.figmaChatContainer}
       >
         <ScrollView
-          contentContainerStyle={styles.messagesContent}
+          contentContainerStyle={styles.figmaMessagesContent}
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
           ref={scrollViewRef}
           showsVerticalScrollIndicator={false}
-          style={styles.messagesContainer}
+          style={styles.figmaMessagesContainer}
         >
           {isLoading ? (
             <View style={styles.loadingContainer}>
@@ -571,88 +622,144 @@ export default function ZeinaScreen() {
               </Text>
             </View>
           ) : (
-            messages
-              .filter((m) => m.role !== "system")
-              .map((message) => (
-                <ChatMessage
-                  content={message.content}
-                  isStreaming={
-                    isStreaming && message.id === messages.at(-1)?.id
-                  }
-                  key={message.id}
-                  role={message.role as "user" | "assistant"}
-                  timestamp={message.timestamp}
-                />
-              ))
+            <>
+              {messages
+                .filter((m) => m.role !== "system")
+                .map((message) => {
+                  const isUser = message.role === "user";
+                  return (
+                    <View
+                      key={message.id}
+                      style={[
+                        styles.figmaMessageRow,
+                        isUser && styles.figmaMessageRowUser,
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.figmaMessageBubble,
+                          isUser
+                            ? styles.figmaMessageBubbleUser
+                            : styles.figmaMessageBubbleAssistant,
+                        ]}
+                      >
+                        {!isUser && (
+                          <View style={styles.figmaMessageHeader}>
+                            <Sparkles color="#EB9C0C" size={14} />
+                            <Text style={styles.figmaMessageSender}>Zeina</Text>
+                          </View>
+                        )}
+                        <Text
+                          style={[
+                            styles.figmaMessageText,
+                            isUser
+                              ? styles.figmaMessageTextUser
+                              : styles.figmaMessageTextAssistant,
+                          ]}
+                        >
+                          {message.content}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.figmaMessageTime,
+                            isUser
+                              ? styles.figmaMessageTimeUser
+                              : styles.figmaMessageTimeAssistant,
+                          ]}
+                        >
+                          {formatMessageTime(message.timestamp)}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
+
+              <View style={styles.figmaQuickActionsSection}>
+                <Text style={styles.figmaQuickActionsTitle}>Quick actions</Text>
+                <View style={styles.figmaQuickActionsGrid}>
+                  {quickActions.map((action) => (
+                    <TouchableOpacity
+                      key={action}
+                      style={styles.figmaQuickActionCard}
+                    >
+                      <Text style={styles.figmaQuickActionText}>{action}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </>
           )}
         </ScrollView>
 
+        <View style={styles.figmaDisclaimer}>
+          <AlertTriangle color="#F59E0B" size={14} />
+          <Text style={styles.figmaDisclaimerText}>
+            {t(
+              "zeina.disclaimer",
+              "Zeina provides general wellness guidance and is not a substitute for professional medical advice."
+            )}
+          </Text>
+        </View>
+
         <View
           style={[
-            styles.inputContainer,
+            styles.figmaInputContainer,
             {
               paddingBottom: Math.max(insets.bottom, 12),
               marginBottom: tabBarHeight,
             },
           ]}
         >
-          {Boolean(voiceEnabled) && (
-            <TouchableOpacity
-              onPress={toggleVoiceOutput}
-              style={[
-                styles.voiceButton,
-                voiceOutputEnabled && styles.voiceButtonActive,
-              ]}
+          <View style={styles.figmaInputRow}>
+            <View
+              collapsable={false}
+              ref={inputFieldRef}
+              style={styles.figmaInputField}
             >
-              {getVoiceOutputIcon()}
-            </TouchableOpacity>
-          )}
-          {Boolean(recognitionAvailable) && (
-            <TouchableOpacity
-              onPress={handleVoiceInput}
-              style={[
-                styles.voiceButton,
-                isListening && styles.voiceButtonActive,
-              ]}
-            >
-              {isListening ? (
-                <MicOff color="white" size={20} />
-              ) : (
-                <Mic color="#666" size={20} />
-              )}
-            </TouchableOpacity>
-          )}
-          <View collapsable={false} ref={inputFieldRef} style={{ flex: 1 }}>
-            <TextInput
-              editable={!isStreaming}
-              multiline
-              onChangeText={setInputText}
-              placeholder={t(
-                "askZeina",
-                "Ask Zeina about your health, medications, symptoms..."
-              )}
-              placeholderTextColor="#999"
-              ref={inputRef}
-              scrollEnabled
-              style={styles.textInput}
-              textAlignVertical="top"
-              value={inputText}
-            />
-          </View>
-          <TouchableOpacity
-            disabled={!inputText.trim() || isStreaming}
-            onPress={handleSend}
-            style={[
-              styles.sendButton,
-              (!inputText.trim() || isStreaming) && styles.sendButtonDisabled,
-            ]}
-          >
-            {isStreaming ? (
-              <ActivityIndicator color="white" size="small" />
-            ) : (
-              <Ionicons color="white" name="send" size={20} />
+              <TextInput
+                editable={!isStreaming}
+                multiline
+                onChangeText={setInputText}
+                placeholder={t(
+                  "zeina.ask.placeholder",
+                  "Ask Zeina about your health..."
+                )}
+                placeholderTextColor="#999"
+                ref={inputRef}
+                scrollEnabled
+                style={styles.figmaTextInput}
+                textAlignVertical="top"
+                value={inputText}
+              />
+            </View>
+            {Boolean(recognitionAvailable) && (
+              <TouchableOpacity
+                onPress={handleVoiceInput}
+                style={styles.figmaIconButton}
+              >
+                {isListening ? (
+                  <MicOff color="#FFFFFF" size={18} />
+                ) : (
+                  <Mic color="#4E5661" size={18} />
+                )}
+              </TouchableOpacity>
             )}
-          </TouchableOpacity>
+            <TouchableOpacity
+              disabled={!inputText.trim() || isStreaming}
+              onPress={handleSend}
+              style={[
+                styles.figmaSendButton,
+                (!inputText.trim() || isStreaming) &&
+                  styles.figmaSendButtonDisabled,
+              ]}
+            >
+              {isStreaming ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <Send color="#FFFFFF" size={18} />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </KeyboardAvoidingView>
 
@@ -821,7 +928,7 @@ export default function ZeinaScreen() {
                     <Text style={styles.languageButtonText}>
                       {voiceLanguage === "en-US"
                         ? t("english", "English")
-                        : t("arabic", "العربية")}
+                        : t("arabic", "Ø§Ù„Ø¹Ø±Ø¨ÙŠØ©")}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -839,7 +946,7 @@ export default function ZeinaScreen() {
 
             <View style={styles.helpSection}>
               <Text style={styles.helpTitle}>
-                {t("quotaExceededHelpTitle", "⚠️ Quota Exceeded?")}
+                {t("quotaExceededHelpTitle", "Quota Exceeded?")}
               </Text>
               <Text style={styles.helpText}>
                 {t(
@@ -851,28 +958,237 @@ export default function ZeinaScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </GradientScreen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "transparent",
+  },
+  figmaOrbTop: {
+    position: "absolute",
+    top: -120,
+    right: -120,
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: "rgba(0, 53, 67, 0.08)",
+  },
+  figmaOrbBottom: {
+    position: "absolute",
+    bottom: -140,
+    left: -140,
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: "rgba(235, 156, 12, 0.08)",
+  },
+  figmaHeaderContent: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 16,
+  },
+  figmaHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  figmaHeaderIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#EB9C0C",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  figmaHeaderTitle: {
+    fontSize: 22,
+    fontFamily: "Inter-Bold",
+    color: "#003543",
+  },
+  figmaHeaderSubtitle: {
+    fontSize: 13,
+    fontFamily: "Inter-SemiBold",
+    color: "rgba(0, 53, 67, 0.7)",
+    marginTop: 2,
+  },
+  figmaChatContainer: {
+    flex: 1,
+  },
+  figmaMessagesContainer: {
+    flex: 1,
+  },
+  figmaMessagesContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+    paddingTop: 8,
+  },
+  figmaMessageRow: {
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    marginBottom: 16,
+  },
+  figmaMessageRowUser: {
+    justifyContent: "flex-end",
+  },
+  figmaMessageBubble: {
+    maxWidth: "80%",
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  figmaMessageBubbleUser: {
+    backgroundColor: "#003543",
+    borderBottomRightRadius: 6,
+  },
+  figmaMessageBubbleAssistant: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderBottomLeftRadius: 6,
+  },
+  figmaMessageHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 6,
+  },
+  figmaMessageSender: {
+    fontSize: 12,
+    fontFamily: "Inter-Medium",
+    color: "#6C7280",
+  },
+  figmaMessageText: {
+    fontSize: 14,
+    fontFamily: "Inter-Regular",
+    lineHeight: 20,
+  },
+  figmaMessageTextUser: {
+    color: "#FFFFFF",
+  },
+  figmaMessageTextAssistant: {
+    color: "#1A1D1F",
+  },
+  figmaMessageTime: {
+    fontSize: 11,
+    fontFamily: "Inter-Regular",
+    marginTop: 6,
+  },
+  figmaMessageTimeUser: {
+    color: "rgba(255, 255, 255, 0.6)",
+    textAlign: "right",
+  },
+  figmaMessageTimeAssistant: {
+    color: "#9CA3AF",
+  },
+  figmaQuickActionsSection: {
+    paddingTop: 8,
+  },
+  figmaQuickActionsTitle: {
+    fontSize: 12,
+    fontFamily: "Inter-Medium",
+    color: "#9CA3AF",
+    marginBottom: 8,
+  },
+  figmaQuickActionsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  figmaQuickActionCard: {
+    width: "48%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+  },
+  figmaQuickActionText: {
+    fontSize: 13,
+    fontFamily: "Inter-Medium",
+    color: "#1A1D1F",
+  },
+  figmaDisclaimer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    backgroundColor: "#FEF3C7",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(245, 158, 11, 0.2)",
+  },
+  figmaDisclaimerText: {
+    flex: 1,
+    fontSize: 11,
+    fontFamily: "Inter-Regular",
+    color: "#92400E",
+    lineHeight: 16,
+  },
+  figmaInputContainer: {
+    backgroundColor: "#FFFFFF",
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+    paddingHorizontal: 24,
+    paddingTop: 12,
+  },
+  figmaInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  figmaInputField: {
+    flex: 1,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  figmaTextInput: {
+    fontSize: 14,
+    fontFamily: "Inter-Regular",
+    color: "#1A1D1F",
+    minHeight: 24,
+  },
+  figmaIconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  figmaSendButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#EB9C0C",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  figmaSendButtonDisabled: {
+    opacity: 0.5,
+  },
+  headerWrapper: {
+    marginHorizontal: -16,
+    marginTop: -16,
+    marginBottom: 12,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E0E0E0",
+    paddingTop: 16,
+    paddingBottom: 16,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: "#FFFFFF",
     flex: 1,
   },
   headerActions: {
@@ -880,8 +1196,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   headerButton: {
-    padding: 4,
+    padding: 6,
     marginStart: 8,
+    borderRadius: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
   newChatHeaderButton: {
     marginStart: 0,

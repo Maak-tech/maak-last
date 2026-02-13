@@ -24,31 +24,14 @@ import * as Sharing from "expo-sharing";
 import {
   Activity,
   AlertTriangle,
+  Bell,
   Calendar,
-  Check,
+  ChevronRight,
   Clock,
-  Droplet,
-  Edit,
   FileText,
-  Gauge,
-  Grid3x3,
-  Heart,
-  Info,
-  List,
-  Minus,
-  Phone,
-  Pill,
   Plus,
-  Settings,
-  Share2,
-  Shield,
-  Thermometer,
-  Trash2,
   TrendingDown,
   TrendingUp,
-  User as UserIcon,
-  UserPlus,
-  Users,
   X,
 } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -69,15 +52,12 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import AlertsCard from "@/app/components/AlertsCard";
 import CoachMark from "@/app/components/CoachMark";
-import FamilyDataFilter, {
-  type FilterOption,
-} from "@/app/components/FamilyDataFilter";
-import Avatar from "@/components/Avatar";
+import type { FilterOption } from "@/app/components/FamilyDataFilter";
 import { Button, Card } from "@/components/design-system";
 import { Badge } from "@/components/design-system/AdditionalComponents";
 import {
@@ -85,6 +65,10 @@ import {
   Heading,
   Text as TypographyText,
 } from "@/components/design-system/Typography";
+import GradientScreen from "@/components/figma/GradientScreen";
+import Sparkline from "@/components/figma/Sparkline";
+import StatusBadge from "@/components/figma/StatusBadge";
+import WavyBackground from "@/components/figma/WavyBackground";
 import { RevenueCatPaywall } from "@/components/RevenueCatPaywall";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
@@ -119,7 +103,6 @@ import { setClipboardString } from "@/lib/utils/clipboard";
 import { logger } from "@/lib/utils/logger";
 import type { Allergy, User } from "@/types";
 import { safeFormatDate, safeFormatTime } from "@/utils/dateFormat";
-import { getTextStyle } from "@/utils/styles";
 import {
   acknowledgeHealthEvent,
   escalateHealthEvent,
@@ -132,13 +115,17 @@ import {
 import type { HealthEvent } from "../../src/health/events/types";
 
 const RELATIONS = [
-  { key: "father", labelEn: "Father", labelAr: "الأب" },
-  { key: "mother", labelEn: "Mother", labelAr: "الأم" },
-  { key: "spouse", labelEn: "Spouse", labelAr: "الزوج/الزوجة" },
-  { key: "child", labelEn: "Child", labelAr: "الطفل" },
-  { key: "sibling", labelEn: "Sibling", labelAr: "الأخ/الأخت" },
-  { key: "grandparent", labelEn: "Grandparent", labelAr: "الجد/الجدة" },
-  { key: "other", labelEn: "Other", labelAr: "آخر" },
+  { key: "father", labelEn: "Father", labelAr: "Ø§Ù„Ø£Ø¨" },
+  { key: "mother", labelEn: "Mother", labelAr: "Ø§Ù„Ø£Ù…" },
+  { key: "spouse", labelEn: "Spouse", labelAr: "Ø§Ù„Ø²ÙˆØ¬/Ø§Ù„Ø²ÙˆØ¬Ø©" },
+  { key: "child", labelEn: "Child", labelAr: "Ø§Ù„Ø·ÙÙ„" },
+  { key: "sibling", labelEn: "Sibling", labelAr: "Ø§Ù„Ø£Ø®/Ø§Ù„Ø£Ø®Øª" },
+  {
+    key: "grandparent",
+    labelEn: "Grandparent",
+    labelAr: "Ø§Ù„Ø¬Ø¯/Ø§Ù„Ø¬Ø¯Ø©",
+  },
+  { key: "other", labelEn: "Other", labelAr: "Ø¢Ø®Ø±" },
 ];
 
 // Allergy keys mapping to translation keys
@@ -166,12 +153,13 @@ const ALLERGY_KEYS = [
 interface FamilyMemberMetrics {
   id: string;
   user: User;
-  healthScore: number;
-  symptomsThisWeek: number;
-  activeMedications: number;
-  alertsCount: number;
+  healthScore: number | null;
+  symptomsThisWeek: number | null;
+  activeMedications: number | null;
+  alertsCount: number | null;
   vitals: VitalSigns | null;
-  allergies: Allergy[];
+  allergies: Allergy[] | null;
+  lastCheckIn: Date | null;
 }
 
 type FamilyMembersCache = {
@@ -187,11 +175,20 @@ export default function FamilyScreen() {
   const { t, i18n } = useTranslation();
   const { user, updateUser } = useAuth();
   const { theme } = useTheme();
+  const { width, height } = useWindowDimensions();
+  const isIphone16Pro =
+    Math.round(Math.min(width, height)) === 393 &&
+    Math.round(Math.max(width, height)) === 852;
+  const contentPadding = isIphone16Pro ? 24 : theme.spacing.lg;
+  const headerPadding = isIphone16Pro ? 28 : theme.spacing.xl;
   const isFocused = useIsFocused();
   const { trendAlertEvent, familyUpdateEvent, setFamilyMemberIds } =
     useRealtimeHealthContext();
   const router = useRouter();
-  const params = useLocalSearchParams<{ tour?: string }>();
+  const params = useLocalSearchParams<{
+    openEmergency?: string;
+    tour?: string;
+  }>();
   const {
     isPremium,
     isFamilyPlan,
@@ -280,6 +277,10 @@ export default function FamilyScreen() {
     useState(false);
   const [events, setEvents] = useState<HealthEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
+  const [activeAlerts, setActiveAlerts] = useState<
+    Array<{ alert: import("@/types").EmergencyAlert; memberName: string }>
+  >([]);
+  const [loadingAlerts, setLoadingAlerts] = useState(false);
   const [medicationScheduleViewMode, setMedicationScheduleViewMode] = useState<
     "today" | "upcoming" | "all"
   >("today");
@@ -296,6 +297,12 @@ export default function FamilyScreen() {
       setShowHowTo(true);
     }
   }, [params.tour]);
+
+  useEffect(() => {
+    if (params.openEmergency === "true") {
+      setShowEmergencyModal(true);
+    }
+  }, [params.openEmergency]);
   useEffect(() => {
     if (user?.preferences?.emergencyContacts) {
       setEmergencyContacts(user.preferences.emergencyContacts);
@@ -529,9 +536,9 @@ export default function FamilyScreen() {
         // Only show alert if it's not a timeout (to avoid spam)
         if (error instanceof Error && !error.message.includes("timeout")) {
           Alert.alert(
-            isRTL ? "خطأ" : "Error",
+            isRTL ? "Ø®Ø·Ø£" : "Error",
             isRTL
-              ? "فشل في تحميل أعضاء العائلة"
+              ? "ÙØ´Ù„ ÙÙŠ ØªØ­Ù…ÙŠÙ„ Ø£Ø¹Ø¶Ø§Ø¡ Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©"
               : "Failed to load family members"
           );
         }
@@ -648,6 +655,76 @@ export default function FamilyScreen() {
     [user?.id, user?.familyId, isAdmin]
   );
 
+  const loadActiveAlerts = useCallback(
+    async (isRefresh = false, membersOverride?: typeof familyMembers) => {
+      if (!user?.id) return;
+
+      try {
+        setLoadingAlerts(true);
+
+        const membersToUse = membersOverride ?? familyMembersRef.current;
+        const alertsWithMembers: Array<{
+          alert: import("@/types").EmergencyAlert;
+          memberName: string;
+        }> = [];
+
+        if (isAdmin && user.familyId && membersToUse.length > 0) {
+          // Load alerts for all family members
+          const alertPromises = membersToUse.map(async (member) => {
+            try {
+              const alerts = await alertService.getActiveAlerts(member.id);
+              const fullName =
+                member.firstName && member.lastName
+                  ? `${member.firstName} ${member.lastName}`
+                  : member.firstName || "Member";
+              return alerts.map((alert) => ({
+                alert,
+                memberName: fullName,
+              }));
+            } catch {
+              return [];
+            }
+          });
+
+          const results = await Promise.allSettled(alertPromises);
+          results.forEach((result) => {
+            if (result.status === "fulfilled") {
+              alertsWithMembers.push(...result.value);
+            }
+          });
+        } else {
+          // Load alerts for current user only
+          try {
+            const alerts = await alertService.getActiveAlerts(user.id);
+            alertsWithMembers.push(
+              ...alerts.map((alert) => ({
+                alert,
+                memberName:
+                  user.firstName && user.lastName
+                    ? `${user.firstName} ${user.lastName}`
+                    : user.firstName || "You",
+              }))
+            );
+          } catch {
+            // Error loading alerts
+          }
+        }
+
+        // Sort by timestamp (newest first)
+        alertsWithMembers.sort(
+          (a, b) => b.alert.timestamp.getTime() - a.alert.timestamp.getTime()
+        );
+
+        setActiveAlerts(alertsWithMembers);
+      } catch (error) {
+        logger.error("Failed to load active alerts", error, "FamilyScreen");
+      } finally {
+        setLoadingAlerts(false);
+      }
+    },
+    [user?.id, user?.familyId, isAdmin]
+  );
+
   const handleAcknowledgeEvent = async (eventId: string) => {
     if (!user?.id) return;
 
@@ -679,16 +756,18 @@ export default function FamilyScreen() {
       );
 
       Alert.alert(
-        isRTL ? "تم" : "Success",
-        isRTL ? "تم تأكيد الحدث" : "Event acknowledged"
+        isRTL ? "ØªÙ…" : "Success",
+        isRTL ? "ØªÙ… ØªØ£ÙƒÙŠØ¯ Ø§Ù„Ø­Ø¯Ø«" : "Event acknowledged"
       );
     } catch (error) {
       const _durationMs = Date.now() - startTime;
       logger.error("Failed to acknowledge health event", error, "FamilyScreen");
 
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "فشل في تأكيد الحدث" : "Failed to acknowledge event"
+        isRTL ? "Ø®Ø·Ø£" : "Error",
+        isRTL
+          ? "ÙØ´Ù„ ÙÙŠ ØªØ£ÙƒÙŠØ¯ Ø§Ù„Ø­Ø¯Ø«"
+          : "Failed to acknowledge event"
       );
     }
   };
@@ -724,16 +803,16 @@ export default function FamilyScreen() {
       );
 
       Alert.alert(
-        isRTL ? "تم" : "Success",
-        isRTL ? "تم حل الحدث" : "Event resolved"
+        isRTL ? "ØªÙ…" : "Success",
+        isRTL ? "ØªÙ… Ø­Ù„ Ø§Ù„Ø­Ø¯Ø«" : "Event resolved"
       );
     } catch (error) {
       const _durationMs = Date.now() - startTime;
       logger.error("Failed to resolve health event", error, "FamilyScreen");
 
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "فشل في حل الحدث" : "Failed to resolve event"
+        isRTL ? "Ø®Ø·Ø£" : "Error",
+        isRTL ? "ÙØ´Ù„ ÙÙŠ Ø­Ù„ Ø§Ù„Ø­Ø¯Ø«" : "Failed to resolve event"
       );
     }
   };
@@ -742,12 +821,14 @@ export default function FamilyScreen() {
     if (!user?.id) return;
 
     Alert.prompt(
-      isRTL ? "تصعيد الحدث" : "Escalate Event",
-      isRTL ? "أدخل سبب التصعيد:" : "Enter reason for escalation:",
+      isRTL ? "ØªØµØ¹ÙŠØ¯ Ø§Ù„Ø­Ø¯Ø«" : "Escalate Event",
+      isRTL
+        ? "Ø£Ø¯Ø®Ù„ Ø³Ø¨Ø¨ Ø§Ù„ØªØµØ¹ÙŠØ¯:"
+        : "Enter reason for escalation:",
       [
-        { text: isRTL ? "إلغاء" : "Cancel", style: "cancel" },
+        { text: isRTL ? "Ø¥Ù„ØºØ§Ø¡" : "Cancel", style: "cancel" },
         {
-          text: isRTL ? "تصعيد" : "Escalate",
+          text: isRTL ? "ØªØµØ¹ÙŠØ¯" : "Escalate",
           onPress: async (reason?: string) => {
             const startTime = Date.now();
 
@@ -778,8 +859,8 @@ export default function FamilyScreen() {
               );
 
               Alert.alert(
-                isRTL ? "تم" : "Success",
-                isRTL ? "تم تصعيد الحدث" : "Event escalated"
+                isRTL ? "ØªÙ…" : "Success",
+                isRTL ? "ØªÙ… ØªØµØ¹ÙŠØ¯ Ø§Ù„Ø­Ø¯Ø«" : "Event escalated"
               );
             } catch (error) {
               const _durationMs = Date.now() - startTime;
@@ -790,8 +871,10 @@ export default function FamilyScreen() {
               );
 
               Alert.alert(
-                isRTL ? "خطأ" : "Error",
-                isRTL ? "فشل في تصعيد الحدث" : "Failed to escalate event"
+                isRTL ? "Ø®Ø·Ø£" : "Error",
+                isRTL
+                  ? "ÙØ´Ù„ ÙÙŠ ØªØµØ¹ÙŠØ¯ Ø§Ù„Ø­Ø¯Ø«"
+                  : "Failed to escalate event"
               );
             }
           },
@@ -860,124 +943,138 @@ export default function FamilyScreen() {
 
         // Use Promise.allSettled to prevent one slow member from blocking others
         // This allows partial results to be displayed while others are still loading
-        const metricsPromises = members.map(async (member) => {
-          try {
-            // Fetch only essential data for faster loading
-            // Use Promise.allSettled to handle partial failures gracefully
-            const results = await Promise.allSettled([
-              // Only fetch recent symptoms (last 7 days) - limit to 5 for count
-              symptomService
-                .getUserSymptoms(member.id, 5)
-                .catch(() => []),
-              // Only fetch active medications for count
-              medicationService
-                .getUserMedications(member.id)
-                .catch(() => []),
-              // Alerts count is lightweight
-              alertService
-                .getActiveAlertsCount(member.id)
-                .catch(() => 0),
-              // Limit allergies to 10 for display
-              allergyService
-                .getUserAllergies(member.id, 10)
-                .catch(() => []),
-              // Health context (vitals) - only if dashboard view needs it
-              viewMode === "dashboard"
-                ? healthContextService
-                    .getUserHealthContext(member.id)
-                    .catch(() => null)
-                : Promise.resolve(null),
-            ]);
+        const metricsPromises = members.map(
+          async (member): Promise<FamilyMemberMetrics | null> => {
+            try {
+              // Fetch only essential data for faster loading
+              // Use Promise.allSettled to handle partial failures gracefully
+              const results = await Promise.allSettled([
+                // Only fetch recent symptoms (last 7 days) - limit to 5 for count
+                symptomService.getUserSymptoms(member.id, 5),
+                // Only fetch active medications for count
+                medicationService.getUserMedications(member.id),
+                // Alerts count is lightweight
+                alertService.getActiveAlertsCount(member.id),
+                // Limit allergies to 10 for display
+                allergyService.getUserAllergies(member.id, 10),
+                // Health context (vitals) - only if dashboard view needs it
+                viewMode === "dashboard"
+                  ? healthContextService.getUserHealthContext(member.id)
+                  : Promise.resolve(null),
+              ]);
 
-            const [
-              symptomsResult,
-              medicationsResult,
-              alertsResult,
-              allergiesResult,
-              healthContextResult,
-            ] = results;
+              const [
+                symptomsResult,
+                medicationsResult,
+                alertsResult,
+                allergiesResult,
+                healthContextResult,
+              ] = results;
 
-            const symptoms =
-              symptomsResult.status === "fulfilled" ? symptomsResult.value : [];
-            const medications =
-              medicationsResult.status === "fulfilled"
-                ? medicationsResult.value
-                : [];
-            const alertsCount =
-              alertsResult.status === "fulfilled" ? alertsResult.value : 0;
-            const allergies =
-              allergiesResult.status === "fulfilled"
-                ? allergiesResult.value
-                : [];
-            const healthContext =
-              healthContextResult.status === "fulfilled"
-                ? healthContextResult.value
+              const symptoms =
+                symptomsResult.status === "fulfilled"
+                  ? symptomsResult.value
+                  : null;
+              const medications =
+                medicationsResult.status === "fulfilled"
+                  ? medicationsResult.value
+                  : null;
+              const alertsCount =
+                alertsResult.status === "fulfilled" ? alertsResult.value : null;
+              const allergies =
+                allergiesResult.status === "fulfilled"
+                  ? allergiesResult.value
+                  : null;
+              const healthContext =
+                healthContextResult.status === "fulfilled"
+                  ? healthContextResult.value
+                  : null;
+
+              const healthScore =
+                symptoms && medications
+                  ? healthScoreService.calculateHealthScoreFromData(
+                      symptoms,
+                      medications
+                    ).score
+                  : null;
+              const activeMedications = medications
+                ? medications.filter((m: { isActive: boolean }) => m.isActive)
                 : null;
 
-            // Calculate health score using the centralized service
-            const healthScoreResult =
-              healthScoreService.calculateHealthScoreFromData(
-                symptoms,
-                medications
-              );
-            const healthScore = healthScoreResult.score;
-            const activeMedications = medications.filter(
-              (m: { isActive: boolean }) => m.isActive
-            );
+              // Count symptoms this week (already limited to recent by getUserSymptoms)
+              const symptomsThisWeek = symptoms ? symptoms.length : null;
 
-            // Count symptoms this week (already limited to recent by getUserSymptoms)
-            const symptomsThisWeek = symptoms.length;
+              // Extract vitals from health context (only if dashboard view)
+              let vitals: VitalSigns | null = null;
+              if (viewMode === "dashboard" && healthContext?.vitalSigns) {
+                const vs = healthContext.vitalSigns;
+                vitals = {
+                  heartRate: vs.heartRate,
+                  bloodPressure: vs.bloodPressure
+                    ? (() => {
+                        const bp = vs.bloodPressure.split("/");
+                        if (bp.length === 2) {
+                          return {
+                            systolic: Number.parseFloat(bp[0]),
+                            diastolic: Number.parseFloat(bp[1]),
+                          };
+                        }
+                        return;
+                      })()
+                    : undefined,
+                  bodyTemperature: vs.temperature,
+                  oxygenSaturation: vs.oxygenLevel,
+                  bloodGlucose: vs.glucoseLevel,
+                  weight: vs.weight,
+                  timestamp: vs.lastUpdated || new Date(),
+                };
+              }
 
-            // Extract vitals from health context (only if dashboard view)
-            let vitals: VitalSigns | null = null;
-            if (viewMode === "dashboard" && healthContext?.vitalSigns) {
-              const vs = healthContext.vitalSigns;
-              vitals = {
-                heartRate: vs.heartRate,
-                bloodPressure: vs.bloodPressure
-                  ? (() => {
-                      const bp = vs.bloodPressure.split("/");
-                      if (bp.length === 2) {
-                        return {
-                          systolic: Number.parseFloat(bp[0]),
-                          diastolic: Number.parseFloat(bp[1]),
-                        };
-                      }
-                      return;
-                    })()
-                  : undefined,
-                bodyTemperature: vs.temperature,
-                oxygenSaturation: vs.oxygenLevel,
-                bloodGlucose: vs.glucoseLevel,
-                weight: vs.weight,
-                timestamp: vs.lastUpdated || new Date(),
+              const symptomTimestamp =
+                symptoms && symptoms.length > 0 ? symptoms[0].timestamp : null;
+              const symptomDate =
+                symptomTimestamp instanceof Date
+                  ? symptomTimestamp
+                  : symptomTimestamp
+                    ? new Date(symptomTimestamp)
+                    : null;
+              const validSymptomDate =
+                symptomDate && !Number.isNaN(symptomDate.getTime())
+                  ? symptomDate
+                  : null;
+              const vitalsTimestamp =
+                vitals?.timestamp && !Number.isNaN(vitals.timestamp.getTime())
+                  ? vitals.timestamp
+                  : null;
+              let lastCheckIn: Date | null = null;
+              if (vitalsTimestamp && validSymptomDate) {
+                lastCheckIn =
+                  vitalsTimestamp.getTime() >= validSymptomDate.getTime()
+                    ? vitalsTimestamp
+                    : validSymptomDate;
+              } else {
+                lastCheckIn = vitalsTimestamp ?? validSymptomDate;
+              }
+
+              return {
+                id: member.id,
+                user: member,
+                healthScore,
+                symptomsThisWeek,
+                activeMedications: activeMedications
+                  ? activeMedications.length
+                  : null,
+                alertsCount,
+                vitals: vitals ?? null,
+                allergies,
+                lastCheckIn,
               };
+            } catch (_error) {
+              // Don't return mock values if data fetch fails.
+              return null;
             }
-
-            return {
-              id: member.id,
-              user: member,
-              healthScore,
-              symptomsThisWeek,
-              activeMedications: activeMedications.length,
-              alertsCount,
-              vitals: vitals ?? null,
-              allergies: allergies || [],
-            };
-          } catch (_error) {
-            // Return default metrics if error - don't block other members
-            return {
-              id: member.id,
-              user: member,
-              healthScore: 100,
-              symptomsThisWeek: 0,
-              activeMedications: 0,
-              alertsCount: 0,
-              vitals: null,
-              allergies: [],
-            };
           }
-        });
+        );
 
         // Use allSettled to get partial results even if some fail
         const results = await Promise.allSettled(metricsPromises);
@@ -1135,10 +1232,10 @@ export default function FamilyScreen() {
 
   const _getHealthStatusText = (status: string) => {
     const statusMap = {
-      excellent: isRTL ? "ممتاز" : "Excellent",
-      good: isRTL ? "جيد" : "Good",
-      attention: isRTL ? "يحتاج انتباه" : "Needs Attention",
-      critical: isRTL ? "حرج" : "Critical",
+      excellent: isRTL ? "Ù…Ù…ØªØ§Ø²" : "Excellent",
+      good: isRTL ? "Ø¬ÙŠØ¯" : "Good",
+      attention: isRTL ? "ÙŠØ­ØªØ§Ø¬ Ø§Ù†ØªØ¨Ø§Ù‡" : "Needs Attention",
+      critical: isRTL ? "Ø­Ø±Ø¬" : "Critical",
     };
     return statusMap[status as keyof typeof statusMap] || status;
   };
@@ -1178,9 +1275,9 @@ export default function FamilyScreen() {
 
     if (!canManage && user.id !== entry.member.id) {
       Alert.alert(
-        isRTL ? "غير مسموح" : "Not Permitted",
+        isRTL ? "ØºÙŠØ± Ù…Ø³Ù…ÙˆØ­" : "Not Permitted",
         isRTL
-          ? "ليس لديك صلاحية لإدارة أدوية هذا العضو"
+          ? "Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ ØµÙ„Ø§Ø­ÙŠØ© Ù„Ø¥Ø¯Ø§Ø±Ø© Ø£Ø¯ÙˆÙŠØ© Ù‡Ø°Ø§ Ø§Ù„Ø¹Ø¶Ùˆ"
           : "You don't have permission to manage this member's medications"
       );
       return;
@@ -1196,17 +1293,19 @@ export default function FamilyScreen() {
       );
 
       Alert.alert(
-        isRTL ? "نجح" : "Success",
+        isRTL ? "Ù†Ø¬Ø­" : "Success",
         isRTL
-          ? `تم تسجيل تناول ${entry.medication.name}`
+          ? `ØªÙ… ØªØ³Ø¬ÙŠÙ„ ØªÙ†Ø§ÙˆÙ„ ${entry.medication.name}`
           : `Marked ${entry.medication.name} as taken`
       );
 
       await loadMedicationSchedule(true);
     } catch (_error) {
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "فشل تسجيل تناول الدواء" : "Failed to mark medication as taken"
+        isRTL ? "Ø®Ø·Ø£" : "Error",
+        isRTL
+          ? "ÙØ´Ù„ ØªØ³Ø¬ÙŠÙ„ ØªÙ†Ø§ÙˆÙ„ Ø§Ù„Ø¯ÙˆØ§Ø¡"
+          : "Failed to mark medication as taken"
       );
     } finally {
       setMarkingTaken(null);
@@ -1245,16 +1344,18 @@ export default function FamilyScreen() {
   const handleInviteMember = async () => {
     if (!(inviteForm.name && inviteForm.relation)) {
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "يرجى ملء البيانات المطلوبة" : "Please fill in required fields"
+        isRTL ? "Ø®Ø·Ø£" : "Error",
+        isRTL
+          ? "ÙŠØ±Ø¬Ù‰ Ù…Ù„Ø¡ Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ù…Ø·Ù„ÙˆØ¨Ø©"
+          : "Please fill in required fields"
       );
       return;
     }
 
     if (!user?.familyId) {
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "لا توجد عائلة متصلة" : "No family found"
+        isRTL ? "Ø®Ø·Ø£" : "Error",
+        isRTL ? "Ù„Ø§ ØªÙˆØ¬Ø¯ Ø¹Ø§Ø¦Ù„Ø© Ù…ØªØµÙ„Ø©" : "No family found"
       );
       return;
     }
@@ -1272,18 +1373,20 @@ export default function FamilyScreen() {
         // Close invite modal first
         setShowInviteModal(false);
         Alert.alert(
-          isRTL ? "تم الوصول للحد الأقصى" : "Member Limit Reached",
           isRTL
-            ? `لقد وصلت إلى الحد الأقصى لعدد الأعضاء في الاشتراك العائلي الخاص بك (${maxMembers} عضو). قم بالترقية إلى الاشتراك العائلي لإضافة المزيد من الأعضاء.`
+            ? "ØªÙ… Ø§Ù„ÙˆØµÙˆÙ„ Ù„Ù„Ø­Ø¯ Ø§Ù„Ø£Ù‚ØµÙ‰"
+            : "Member Limit Reached",
+          isRTL
+            ? `Ù„Ù‚Ø¯ ÙˆØµÙ„Øª Ø¥Ù„Ù‰ Ø§Ù„Ø­Ø¯ Ø§Ù„Ø£Ù‚ØµÙ‰ Ù„Ø¹Ø¯Ø¯ Ø§Ù„Ø£Ø¹Ø¶Ø§Ø¡ ÙÙŠ Ø§Ù„Ø§Ø´ØªØ±Ø§Ùƒ Ø§Ù„Ø¹Ø§Ø¦Ù„ÙŠ Ø§Ù„Ø®Ø§Øµ Ø¨Ùƒ (${maxMembers} Ø¹Ø¶Ùˆ). Ù‚Ù… Ø¨Ø§Ù„ØªØ±Ù‚ÙŠØ© Ø¥Ù„Ù‰ Ø§Ù„Ø§Ø´ØªØ±Ø§Ùƒ Ø§Ù„Ø¹Ø§Ø¦Ù„ÙŠ Ù„Ø¥Ø¶Ø§ÙØ© Ø§Ù„Ù…Ø²ÙŠØ¯ Ù…Ù† Ø§Ù„Ø£Ø¹Ø¶Ø§Ø¡.`
             : `You've reached the maximum number of members for your plan (${maxMembers} members). Upgrade to Family Plan to add more members.`,
           [
             {
-              text: isRTL ? "إلغاء" : "Cancel",
+              text: isRTL ? "Ø¥Ù„ØºØ§Ø¡" : "Cancel",
               style: "cancel",
             },
             {
               text: isRTL
-                ? "ترقية إلى الاشتراك العائلي"
+                ? "ØªØ±Ù‚ÙŠØ© Ø¥Ù„Ù‰ Ø§Ù„Ø§Ø´ØªØ±Ø§Ùƒ Ø§Ù„Ø¹Ø§Ø¦Ù„ÙŠ"
                 : "Upgrade to Family Plan",
               onPress: () => {
                 setShowPaywall(true);
@@ -1297,17 +1400,19 @@ export default function FamilyScreen() {
       // Close invite modal first
       setShowInviteModal(false);
       Alert.alert(
-        isRTL ? "خطأ" : "Premium Required",
+        isRTL ? "Ø®Ø·Ø£" : "Premium Required",
         isRTL
-          ? "يجب الاشتراك بالاشتراك العائلي لإضافة أعضاء إضافيين إلى العائلة"
+          ? "ÙŠØ¬Ø¨ Ø§Ù„Ø§Ø´ØªØ±Ø§Ùƒ Ø¨Ø§Ù„Ø§Ø´ØªØ±Ø§Ùƒ Ø§Ù„Ø¹Ø§Ø¦Ù„ÙŠ Ù„Ø¥Ø¶Ø§ÙØ© Ø£Ø¹Ø¶Ø§Ø¡ Ø¥Ø¶Ø§ÙÙŠÙŠÙ† Ø¥Ù„Ù‰ Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©"
           : "A premium subscription is required to add additional family members",
         [
           {
-            text: isRTL ? "إلغاء" : "Cancel",
+            text: isRTL ? "Ø¥Ù„ØºØ§Ø¡" : "Cancel",
             style: "cancel",
           },
           {
-            text: isRTL ? "عرض الاشتراكات العائلية" : "View Family Plans",
+            text: isRTL
+              ? "Ø¹Ø±Ø¶ Ø§Ù„Ø§Ø´ØªØ±Ø§ÙƒØ§Øª Ø§Ù„Ø¹Ø§Ø¦Ù„ÙŠØ©"
+              : "View Family Plans",
             onPress: () => {
               setShowPaywall(true);
             },
@@ -1320,9 +1425,9 @@ export default function FamilyScreen() {
     // Validate user authentication and permissions
     if (!user?.id) {
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
+        isRTL ? "Ø®Ø·Ø£" : "Error",
         isRTL
-          ? "يجب تسجيل الدخول أولاً"
+          ? "ÙŠØ¬Ø¨ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ø£ÙˆÙ„Ø§Ù‹"
           : "You must be logged in to invite members"
       );
       return;
@@ -1330,9 +1435,9 @@ export default function FamilyScreen() {
 
     if (!user.familyId) {
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
+        isRTL ? "Ø®Ø·Ø£" : "Error",
         isRTL
-          ? "يجب أن تكون جزءاً من عائلة لدعوة أعضاء"
+          ? "ÙŠØ¬Ø¨ Ø£Ù† ØªÙƒÙˆÙ† Ø¬Ø²Ø¡Ø§Ù‹ Ù…Ù† Ø¹Ø§Ø¦Ù„Ø© Ù„Ø¯Ø¹ÙˆØ© Ø£Ø¹Ø¶Ø§Ø¡"
           : "You must be part of a family to invite members"
       );
       return;
@@ -1340,9 +1445,9 @@ export default function FamilyScreen() {
 
     if (user.role !== "admin") {
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
+        isRTL ? "Ø®Ø·Ø£" : "Error",
         isRTL
-          ? "يجب أن تكون مديراً للعائلة لدعوة أعضاء جدد"
+          ? "ÙŠØ¬Ø¨ Ø£Ù† ØªÙƒÙˆÙ† Ù…Ø¯ÙŠØ±Ø§Ù‹ Ù„Ù„Ø¹Ø§Ø¦Ù„Ø© Ù„Ø¯Ø¹ÙˆØ© Ø£Ø¹Ø¶Ø§Ø¡ Ø¬Ø¯Ø¯"
           : "You must be a family admin to invite new members"
       );
       return;
@@ -1367,60 +1472,66 @@ export default function FamilyScreen() {
 
       // Prepare sharing message
       const shareMessage = isRTL
-        ? `مرحباً ${memberName}! تم دعوتك للانضمام إلى مجموعة العائلة الصحية على تطبيق معك.\n\nرمز الدعوة: ${code}\n\n1. حمل تطبيق معك\n2. سجل دخولك أو أنشئ حساب جديد\n3. استخدم رمز الدعوة: ${code}\n\nهذا الرمز صالح لمدة 7 أيام.`
+        ? `Ù…Ø±Ø­Ø¨Ø§Ù‹ ${memberName}! ØªÙ… Ø¯Ø¹ÙˆØªÙƒ Ù„Ù„Ø§Ù†Ø¶Ù…Ø§Ù… Ø¥Ù„Ù‰ Ù…Ø¬Ù…ÙˆØ¹Ø© Ø§Ù„Ø¹Ø§Ø¦Ù„Ø© Ø§Ù„ØµØ­ÙŠØ© Ø¹Ù„Ù‰ ØªØ·Ø¨ÙŠÙ‚ Ù…Ø¹Ùƒ.\n\nØ±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ©: ${code}\n\n1. Ø­Ù…Ù„ ØªØ·Ø¨ÙŠÙ‚ Ù…Ø¹Ùƒ\n2. Ø³Ø¬Ù„ Ø¯Ø®ÙˆÙ„Ùƒ Ø£Ùˆ Ø£Ù†Ø´Ø¦ Ø­Ø³Ø§Ø¨ Ø¬Ø¯ÙŠØ¯\n3. Ø§Ø³ØªØ®Ø¯Ù… Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ©: ${code}\n\nÙ‡Ø°Ø§ Ø§Ù„Ø±Ù…Ø² ØµØ§Ù„Ø­ Ù„Ù…Ø¯Ø© 7 Ø£ÙŠØ§Ù….`
         : `Hi ${memberName}! You've been invited to join our family health group on Maak app.\n\nInvitation Code: ${code}\n\n1. Download the Maak app\n2. Sign in or create a new account\n3. Use invitation code: ${code}\n\nThis code expires in 7 days.`;
 
       // Show options to share or copy with clearer labels
       Alert.alert(
-        isRTL ? "تم إنشاء الدعوة" : "Invitation Created",
+        isRTL ? "ØªÙ… Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø¯Ø¹ÙˆØ©" : "Invitation Created",
         isRTL
-          ? `تم إنشاء رمز الدعوة لـ ${memberName}: ${code}\n\nما الذي تريد فعله؟`
+          ? `ØªÙ… Ø¥Ù†Ø´Ø§Ø¡ Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ© Ù„Ù€ ${memberName}: ${code}\n\nÙ…Ø§ Ø§Ù„Ø°ÙŠ ØªØ±ÙŠØ¯ ÙØ¹Ù„Ù‡ØŸ`
           : `Invitation code created for ${memberName}: ${code}\n\nWhat would you like to do?`,
         [
           {
-            text: isRTL ? "مشاركة عبر التطبيقات" : "Share via Apps",
+            text: isRTL
+              ? "Ù…Ø´Ø§Ø±ÙƒØ© Ø¹Ø¨Ø± Ø§Ù„ØªØ·Ø¨ÙŠÙ‚Ø§Øª"
+              : "Share via Apps",
             onPress: async () => {
               try {
                 await Share.share({
                   message: shareMessage,
                   title: isRTL
-                    ? "دعوة للانضمام إلى معك"
+                    ? "Ø¯Ø¹ÙˆØ© Ù„Ù„Ø§Ù†Ø¶Ù…Ø§Ù… Ø¥Ù„Ù‰ Ù…Ø¹Ùƒ"
                     : "Invitation to join Maak",
                 });
               } catch (_error) {
                 // Fallback to copying to clipboard
                 await setClipboardString(shareMessage);
                 Alert.alert(
-                  isRTL ? "تم النسخ" : "Copied",
+                  isRTL ? "ØªÙ… Ø§Ù„Ù†Ø³Ø®" : "Copied",
                   isRTL
-                    ? "تم نسخ رسالة الدعوة إلى الحافظة"
+                    ? "ØªÙ… Ù†Ø³Ø® Ø±Ø³Ø§Ù„Ø© Ø§Ù„Ø¯Ø¹ÙˆØ© Ø¥Ù„Ù‰ Ø§Ù„Ø­Ø§ÙØ¸Ø©"
                     : "Invitation message copied to clipboard"
                 );
               }
             },
           },
           {
-            text: isRTL ? "نسخ رمز الدعوة فقط" : "Copy Invitation Code Only",
+            text: isRTL
+              ? "Ù†Ø³Ø® Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ© ÙÙ‚Ø·"
+              : "Copy Invitation Code Only",
             onPress: async () => {
               await setClipboardString(code);
               Alert.alert(
-                isRTL ? "تم النسخ" : "Copied",
+                isRTL ? "ØªÙ… Ø§Ù„Ù†Ø³Ø®" : "Copied",
                 isRTL
-                  ? `تم نسخ رمز الدعوة: ${code}`
+                  ? `ØªÙ… Ù†Ø³Ø® Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ©: ${code}`
                   : `Invitation code copied: ${code}`
               );
             },
           },
           {
-            text: isRTL ? "إلغاء" : "Cancel",
+            text: isRTL ? "Ø¥Ù„ØºØ§Ø¡" : "Cancel",
             style: "cancel",
           },
         ]
       );
     } catch (_error) {
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "فشل في إنشاء رمز الدعوة" : "Failed to generate invite code"
+        isRTL ? "Ø®Ø·Ø£" : "Error",
+        isRTL
+          ? "ÙØ´Ù„ ÙÙŠ Ø¥Ù†Ø´Ø§Ø¡ Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ©"
+          : "Failed to generate invite code"
       );
     } finally {
       setInviteLoading(false);
@@ -1436,9 +1547,9 @@ export default function FamilyScreen() {
 
     if (!canEdit) {
       Alert.alert(
-        isRTL ? "غير مسموح" : "Not Permitted",
+        isRTL ? "ØºÙŠØ± Ù…Ø³Ù…ÙˆØ­" : "Not Permitted",
         isRTL
-          ? "ليس لديك صلاحية لتعديل هذا العضو"
+          ? "Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ ØµÙ„Ø§Ø­ÙŠØ© Ù„ØªØ¹Ø¯ÙŠÙ„ Ù‡Ø°Ø§ Ø§Ù„Ø¹Ø¶Ùˆ"
           : "You do not have permission to edit this member"
       );
       return;
@@ -1457,8 +1568,10 @@ export default function FamilyScreen() {
   const handleSaveEditMember = async () => {
     if (!editMemberForm.firstName.trim()) {
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "يرجى إدخال الاسم الأول" : "Please enter a first name"
+        isRTL ? "Ø®Ø·Ø£" : "Error",
+        isRTL
+          ? "ÙŠØ±Ø¬Ù‰ Ø¥Ø¯Ø®Ø§Ù„ Ø§Ù„Ø§Ø³Ù… Ø§Ù„Ø£ÙˆÙ„"
+          : "Please enter a first name"
       );
       return;
     }
@@ -1484,8 +1597,10 @@ export default function FamilyScreen() {
           editMemberForm.role !== "caregiver"
         ) {
           Alert.alert(
-            isRTL ? "خطأ" : "Error",
-            isRTL ? "يرجى اختيار دور صحيح" : "Please select a valid role"
+            isRTL ? "Ø®Ø·Ø£" : "Error",
+            isRTL
+              ? "ÙŠØ±Ø¬Ù‰ Ø§Ø®ØªÙŠØ§Ø± Ø¯ÙˆØ± ØµØ­ÙŠØ­"
+              : "Please select a valid role"
           );
           return;
         }
@@ -1507,13 +1622,17 @@ export default function FamilyScreen() {
       });
 
       Alert.alert(
-        isRTL ? "تم الحفظ" : "Saved",
-        isRTL ? "تم تحديث بيانات العضو بنجاح" : "Member updated successfully"
+        isRTL ? "ØªÙ… Ø§Ù„Ø­ÙØ¸" : "Saved",
+        isRTL
+          ? "ØªÙ… ØªØ­Ø¯ÙŠØ« Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø¹Ø¶Ùˆ Ø¨Ù†Ø¬Ø§Ø­"
+          : "Member updated successfully"
       );
     } catch (_error) {
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "فشل في تحديث بيانات العضو" : "Failed to update member"
+        isRTL ? "Ø®Ø·Ø£" : "Error",
+        isRTL
+          ? "ÙØ´Ù„ ÙÙŠ ØªØ­Ø¯ÙŠØ« Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø¹Ø¶Ùˆ"
+          : "Failed to update member"
       );
     } finally {
       setEditLoading(false);
@@ -1524,9 +1643,9 @@ export default function FamilyScreen() {
     // Check permissions: only admins can delete members, and members can't delete themselves
     if (user?.role !== "admin") {
       Alert.alert(
-        isRTL ? "غير مسموح" : "Not Permitted",
+        isRTL ? "ØºÙŠØ± Ù…Ø³Ù…ÙˆØ­" : "Not Permitted",
         isRTL
-          ? "ليس لديك صلاحية لحذف أعضاء العائلة"
+          ? "Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ ØµÙ„Ø§Ø­ÙŠØ© Ù„Ø­Ø°Ù Ø£Ø¹Ø¶Ø§Ø¡ Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©"
           : "You do not have permission to remove family members"
       );
       return;
@@ -1535,26 +1654,26 @@ export default function FamilyScreen() {
     // Prevent deleting yourself
     if (member.id === user?.id) {
       Alert.alert(
-        isRTL ? "غير مسموح" : "Not Permitted",
+        isRTL ? "ØºÙŠØ± Ù…Ø³Ù…ÙˆØ­" : "Not Permitted",
         isRTL
-          ? "لا يمكنك حذف نفسك من العائلة"
+          ? "Ù„Ø§ ÙŠÙ…ÙƒÙ†Ùƒ Ø­Ø°Ù Ù†ÙØ³Ùƒ Ù…Ù† Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©"
           : "You cannot remove yourself from the family"
       );
       return;
     }
 
     Alert.alert(
-      isRTL ? "حذف العضو" : "Remove Member",
+      isRTL ? "Ø­Ø°Ù Ø§Ù„Ø¹Ø¶Ùˆ" : "Remove Member",
       isRTL
-        ? `هل أنت متأكد من رغبتك في إزالة ${member.firstName && member.lastName ? `${member.firstName} ${member.lastName}` : member.firstName || "User"} من العائلة؟`
+        ? `Ù‡Ù„ Ø£Ù†Øª Ù…ØªØ£ÙƒØ¯ Ù…Ù† Ø±ØºØ¨ØªÙƒ ÙÙŠ Ø¥Ø²Ø§Ù„Ø© ${member.firstName && member.lastName ? `${member.firstName} ${member.lastName}` : member.firstName || "User"} Ù…Ù† Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©ØŸ`
         : `Are you sure you want to remove ${member.firstName && member.lastName ? `${member.firstName} ${member.lastName}` : member.firstName || "User"} from the family?`,
       [
         {
-          text: isRTL ? "إلغاء" : "Cancel",
+          text: isRTL ? "Ø¥Ù„ØºØ§Ø¡" : "Cancel",
           style: "cancel",
         },
         {
-          text: isRTL ? "إزالة" : "Remove",
+          text: isRTL ? "Ø¥Ø²Ø§Ù„Ø©" : "Remove",
           style: "destructive",
           onPress: async () => {
             try {
@@ -1570,15 +1689,17 @@ export default function FamilyScreen() {
               await loadFamilyMembers();
 
               Alert.alert(
-                isRTL ? "تم الإزالة" : "Removed",
+                isRTL ? "ØªÙ… Ø§Ù„Ø¥Ø²Ø§Ù„Ø©" : "Removed",
                 isRTL
-                  ? "تم إزالة العضو من العائلة بنجاح"
+                  ? "ØªÙ… Ø¥Ø²Ø§Ù„Ø© Ø§Ù„Ø¹Ø¶Ùˆ Ù…Ù† Ø§Ù„Ø¹Ø§Ø¦Ù„Ø© Ø¨Ù†Ø¬Ø§Ø­"
                   : "Member removed from family successfully"
               );
             } catch (_error) {
               Alert.alert(
-                isRTL ? "خطأ" : "Error",
-                isRTL ? "فشل في إزالة العضو" : "Failed to remove member"
+                isRTL ? "Ø®Ø·Ø£" : "Error",
+                isRTL
+                  ? "ÙØ´Ù„ ÙÙŠ Ø¥Ø²Ø§Ù„Ø© Ø§Ù„Ø¹Ø¶Ùˆ"
+                  : "Failed to remove member"
               );
             } finally {
               setLoading(false);
@@ -1602,8 +1723,10 @@ export default function FamilyScreen() {
       );
     } catch (_error) {
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "فشل في تحديث الإعدادات" : "Failed to update settings"
+        isRTL ? "Ø®Ø·Ø£" : "Error",
+        isRTL
+          ? "ÙØ´Ù„ ÙÙŠ ØªØ­Ø¯ÙŠØ« Ø§Ù„Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª"
+          : "Failed to update settings"
       );
     }
   };
@@ -1618,11 +1741,11 @@ export default function FamilyScreen() {
       if (!(nameValue && phoneValue)) {
         setTimeout(() => {
           Alert.alert(
-            isRTL ? "خطأ" : "Error",
+            isRTL ? "Ø®Ø·Ø£" : "Error",
             isRTL
-              ? "يرجى ملء جميع البيانات المطلوبة"
+              ? "ÙŠØ±Ø¬Ù‰ Ù…Ù„Ø¡ Ø¬Ù…ÙŠØ¹ Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ù…Ø·Ù„ÙˆØ¨Ø©"
               : "Please fill in all fields",
-            [{ text: isRTL ? "حسناً" : "OK" }],
+            [{ text: isRTL ? "Ø­Ø³Ù†Ø§Ù‹" : "OK" }],
             { cancelable: true }
           );
         }, 100);
@@ -1633,11 +1756,11 @@ export default function FamilyScreen() {
       if (!phoneRegex.test(phoneValue)) {
         setTimeout(() => {
           Alert.alert(
-            isRTL ? "خطأ" : "Error",
+            isRTL ? "Ø®Ø·Ø£" : "Error",
             isRTL
-              ? "يرجى إدخال رقم هاتف صحيح"
+              ? "ÙŠØ±Ø¬Ù‰ Ø¥Ø¯Ø®Ø§Ù„ Ø±Ù‚Ù… Ù‡Ø§ØªÙ ØµØ­ÙŠØ­"
               : "Please enter a valid phone number",
-            [{ text: isRTL ? "حسناً" : "OK" }],
+            [{ text: isRTL ? "Ø­Ø³Ù†Ø§Ù‹" : "OK" }],
             { cancelable: true }
           );
         }, 100);
@@ -1661,11 +1784,11 @@ export default function FamilyScreen() {
 
       setTimeout(() => {
         Alert.alert(
-          isRTL ? "تم الحفظ" : "Saved",
+          isRTL ? "ØªÙ… Ø§Ù„Ø­ÙØ¸" : "Saved",
           isRTL
-            ? "تم إضافة جهة الاتصال بنجاح"
+            ? "ØªÙ… Ø¥Ø¶Ø§ÙØ© Ø¬Ù‡Ø© Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ù†Ø¬Ø§Ø­"
             : "Emergency contact added successfully",
-          [{ text: isRTL ? "حسناً" : "OK" }],
+          [{ text: isRTL ? "Ø­Ø³Ù†Ø§Ù‹" : "OK" }],
           { cancelable: true }
         );
       }, 200);
@@ -1673,11 +1796,11 @@ export default function FamilyScreen() {
       Keyboard.dismiss();
       setTimeout(() => {
         Alert.alert(
-          isRTL ? "خطأ" : "Error",
+          isRTL ? "Ø®Ø·Ø£" : "Error",
           isRTL
-            ? "حدث خطأ أثناء إضافة جهة الاتصال"
+            ? "Ø­Ø¯Ø« Ø®Ø·Ø£ Ø£Ø«Ù†Ø§Ø¡ Ø¥Ø¶Ø§ÙØ© Ø¬Ù‡Ø© Ø§Ù„Ø§ØªØµØ§Ù„"
             : "An error occurred while adding the contact",
-          [{ text: isRTL ? "حسناً" : "OK" }],
+          [{ text: isRTL ? "Ø­Ø³Ù†Ø§Ù‹" : "OK" }],
           { cancelable: true }
         );
       }, 100);
@@ -1686,17 +1809,17 @@ export default function FamilyScreen() {
 
   const handleDeleteEmergencyContact = (contactId: string) => {
     Alert.alert(
-      isRTL ? "حذف جهة الاتصال" : "Delete Contact",
+      isRTL ? "Ø­Ø°Ù Ø¬Ù‡Ø© Ø§Ù„Ø§ØªØµØ§Ù„" : "Delete Contact",
       isRTL
-        ? "هل أنت متأكد من حذف جهة الاتصال هذه؟"
+        ? "Ù‡Ù„ Ø£Ù†Øª Ù…ØªØ£ÙƒØ¯ Ù…Ù† Ø­Ø°Ù Ø¬Ù‡Ø© Ø§Ù„Ø§ØªØµØ§Ù„ Ù‡Ø°Ù‡ØŸ"
         : "Are you sure you want to delete this contact?",
       [
         {
-          text: isRTL ? "إلغاء" : "Cancel",
+          text: isRTL ? "Ø¥Ù„ØºØ§Ø¡" : "Cancel",
           style: "cancel",
         },
         {
-          text: isRTL ? "حذف" : "Delete",
+          text: isRTL ? "Ø­Ø°Ù" : "Delete",
           style: "destructive",
           onPress: async () => {
             try {
@@ -1710,16 +1833,16 @@ export default function FamilyScreen() {
                 });
               }
               Alert.alert(
-                isRTL ? "تم الحذف" : "Deleted",
+                isRTL ? "ØªÙ… Ø§Ù„Ø­Ø°Ù" : "Deleted",
                 isRTL
-                  ? "تم حذف جهة الاتصال بنجاح"
+                  ? "ØªÙ… Ø­Ø°Ù Ø¬Ù‡Ø© Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ù†Ø¬Ø§Ø­"
                   : "Emergency contact deleted successfully"
               );
             } catch (_error) {
               Alert.alert(
-                isRTL ? "خطأ" : "Error",
+                isRTL ? "Ø®Ø·Ø£" : "Error",
                 isRTL
-                  ? "فشل في تحديث جهة الاتصال"
+                  ? "ÙØ´Ù„ ÙÙŠ ØªØ­Ø¯ÙŠØ« Ø¬Ù‡Ø© Ø§Ù„Ø§ØªØµØ§Ù„"
                   : "Failed to update emergency contact"
               );
             }
@@ -1746,8 +1869,8 @@ export default function FamilyScreen() {
       setShowPrivacyModal(false);
     } catch (_error) {
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "فشل إنشاء التقرير" : "Failed to generate report"
+        isRTL ? "Ø®Ø·Ø£" : "Error",
+        isRTL ? "ÙØ´Ù„ Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„ØªÙ‚Ø±ÙŠØ±" : "Failed to generate report"
       );
     } finally {
       setGeneratingReport(false);
@@ -1775,15 +1898,17 @@ export default function FamilyScreen() {
         await Sharing.shareAsync(uri);
       } else {
         Alert.alert(
-          isRTL ? "خطأ" : "Error",
-          isRTL ? "مشاركة الملف غير متاحة" : "File sharing not available"
+          isRTL ? "Ø®Ø·Ø£" : "Error",
+          isRTL
+            ? "Ù…Ø´Ø§Ø±ÙƒØ© Ø§Ù„Ù…Ù„Ù ØºÙŠØ± Ù…ØªØ§Ø­Ø©"
+            : "File sharing not available"
         );
       }
     } catch (error) {
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
+        isRTL ? "Ø®Ø·Ø£" : "Error",
         isRTL
-          ? `فشل تصدير التقرير: ${error instanceof Error ? error.message : "خطأ غير معروف"}`
+          ? `ÙØ´Ù„ ØªØµØ¯ÙŠØ± Ø§Ù„ØªÙ‚Ø±ÙŠØ±: ${error instanceof Error ? error.message : "Ø®Ø·Ø£ ØºÙŠØ± Ù…Ø¹Ø±ÙˆÙ"}`
           : `Failed to export report: ${error instanceof Error ? error.message : "Unknown error"}`
       );
     }
@@ -1827,8 +1952,8 @@ export default function FamilyScreen() {
         setElderlyDashboardData(data);
       } catch (_error) {
         Alert.alert(
-          isRTL ? "خطأ" : "Error",
-          isRTL ? "فشل تحميل البيانات" : "Failed to load data"
+          isRTL ? "Ø®Ø·Ø£" : "Error",
+          isRTL ? "ÙØ´Ù„ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª" : "Failed to load data"
         );
       } finally {
         setLoadingElderlyDashboard(false);
@@ -1902,6 +2027,7 @@ export default function FamilyScreen() {
           if (user?.id) {
             // Pass members directly to avoid stale state issue
             promises.push(loadEvents(false, members));
+            promises.push(loadActiveAlerts(false, members));
           }
 
           if (viewMode === "dashboard" && isAdmin) {
@@ -2061,35 +2187,39 @@ export default function FamilyScreen() {
 
   const handleElderlyEmergency = async () => {
     Alert.alert(
-      isRTL ? "تنبيه طارئ" : "Emergency Alert",
+      isRTL ? "ØªÙ†Ø¨ÙŠÙ‡ Ø·Ø§Ø±Ø¦" : "Emergency Alert",
       isRTL
-        ? "هل تريد إرسال تنبيه طارئ لمقدمي الرعاية؟"
+        ? "Ù‡Ù„ ØªØ±ÙŠØ¯ Ø¥Ø±Ø³Ø§Ù„ ØªÙ†Ø¨ÙŠÙ‡ Ø·Ø§Ø±Ø¦ Ù„Ù…Ù‚Ø¯Ù…ÙŠ Ø§Ù„Ø±Ø¹Ø§ÙŠØ©ØŸ"
         : "Do you want to send an emergency alert to caregivers?",
       [
         {
-          text: isRTL ? "إلغاء" : "Cancel",
+          text: isRTL ? "Ø¥Ù„ØºØ§Ø¡" : "Cancel",
           style: "cancel",
         },
         {
-          text: isRTL ? "إرسال" : "Send",
+          text: isRTL ? "Ø¥Ø±Ø³Ø§Ù„" : "Send",
           style: "destructive",
           onPress: async () => {
             try {
               await caregiverDashboardService.sendEmergencyAlert(
                 user!.id,
                 "medical",
-                isRTL ? "تنبيه طارئ من المستخدم" : "Emergency alert from user"
+                isRTL
+                  ? "ØªÙ†Ø¨ÙŠÙ‡ Ø·Ø§Ø±Ø¦ Ù…Ù† Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…"
+                  : "Emergency alert from user"
               );
               Alert.alert(
-                isRTL ? "تم الإرسال" : "Sent",
+                isRTL ? "ØªÙ… Ø§Ù„Ø¥Ø±Ø³Ø§Ù„" : "Sent",
                 isRTL
-                  ? "تم إرسال التنبيه لمقدمي الرعاية"
+                  ? "ØªÙ… Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„ØªÙ†Ø¨ÙŠÙ‡ Ù„Ù…Ù‚Ø¯Ù…ÙŠ Ø§Ù„Ø±Ø¹Ø§ÙŠØ©"
                   : "Alert sent to caregivers"
               );
             } catch (_error) {
               Alert.alert(
-                isRTL ? "خطأ" : "Error",
-                isRTL ? "فشل إرسال التنبيه" : "Failed to send alert"
+                isRTL ? "Ø®Ø·Ø£" : "Error",
+                isRTL
+                  ? "ÙØ´Ù„ Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„ØªÙ†Ø¨ÙŠÙ‡"
+                  : "Failed to send alert"
               );
             }
           },
@@ -2112,9 +2242,9 @@ export default function FamilyScreen() {
     // Validate user authentication and permissions
     if (!user?.id) {
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
+        isRTL ? "Ø®Ø·Ø£" : "Error",
         isRTL
-          ? "يجب تسجيل الدخول أولاً"
+          ? "ÙŠØ¬Ø¨ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ø£ÙˆÙ„Ø§Ù‹"
           : "You must be logged in to generate invite codes"
       );
       return;
@@ -2122,17 +2252,17 @@ export default function FamilyScreen() {
 
     if (!user.familyId) {
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "لا توجد عائلة متصلة بك" : "No family found"
+        isRTL ? "Ø®Ø·Ø£" : "Error",
+        isRTL ? "Ù„Ø§ ØªÙˆØ¬Ø¯ Ø¹Ø§Ø¦Ù„Ø© Ù…ØªØµÙ„Ø© Ø¨Ùƒ" : "No family found"
       );
       return;
     }
 
     if (user.role !== "admin") {
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
+        isRTL ? "Ø®Ø·Ø£" : "Error",
         isRTL
-          ? "يجب أن تكون مديراً للعائلة لإنشاء رموز الدعوة"
+          ? "ÙŠØ¬Ø¨ Ø£Ù† ØªÙƒÙˆÙ† Ù…Ø¯ÙŠØ±Ø§Ù‹ Ù„Ù„Ø¹Ø§Ø¦Ù„Ø© Ù„Ø¥Ù†Ø´Ø§Ø¡ Ø±Ù…ÙˆØ² Ø§Ù„Ø¯Ø¹ÙˆØ©"
           : "You must be a family admin to generate invite codes"
       );
       return;
@@ -2141,17 +2271,17 @@ export default function FamilyScreen() {
     // Check if user has premium subscription
     if (!isPremium) {
       Alert.alert(
-        isRTL ? "اشتراك مطلوب" : "Premium Required",
+        isRTL ? "Ø§Ø´ØªØ±Ø§Ùƒ Ù…Ø·Ù„ÙˆØ¨" : "Premium Required",
         isRTL
-          ? "يجب أن يكون لديك اشتراك مميز لإنشاء رموز الدعوة"
+          ? "ÙŠØ¬Ø¨ Ø£Ù† ÙŠÙƒÙˆÙ† Ù„Ø¯ÙŠÙƒ Ø§Ø´ØªØ±Ø§Ùƒ Ù…Ù…ÙŠØ² Ù„Ø¥Ù†Ø´Ø§Ø¡ Ø±Ù…ÙˆØ² Ø§Ù„Ø¯Ø¹ÙˆØ©"
           : "You need a premium subscription to generate invite codes",
         [
           {
-            text: isRTL ? "إلغاء" : "Cancel",
+            text: isRTL ? "Ø¥Ù„ØºØ§Ø¡" : "Cancel",
             style: "cancel",
           },
           {
-            text: isRTL ? "عرض الخطط" : "View Plans",
+            text: isRTL ? "Ø¹Ø±Ø¶ Ø§Ù„Ø®Ø·Ø·" : "View Plans",
             onPress: () => setShowPaywall(true),
           },
         ]
@@ -2169,60 +2299,66 @@ export default function FamilyScreen() {
       );
 
       const shareMessage = isRTL
-        ? `مرحباً! تم دعوتك للانضمام إلى مجموعة العائلة الصحية على تطبيق معك.\n\nرمز الدعوة: ${code}\n\n1. حمل تطبيق معك\n2. سجل دخولك أو أنشئ حساب جديد\n3. استخدم رمز الدعوة: ${code}\n\nهذا الرمز صالح لمدة 7 أيام.`
+        ? `Ù…Ø±Ø­Ø¨Ø§Ù‹! ØªÙ… Ø¯Ø¹ÙˆØªÙƒ Ù„Ù„Ø§Ù†Ø¶Ù…Ø§Ù… Ø¥Ù„Ù‰ Ù…Ø¬Ù…ÙˆØ¹Ø© Ø§Ù„Ø¹Ø§Ø¦Ù„Ø© Ø§Ù„ØµØ­ÙŠØ© Ø¹Ù„Ù‰ ØªØ·Ø¨ÙŠÙ‚ Ù…Ø¹Ùƒ.\n\nØ±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ©: ${code}\n\n1. Ø­Ù…Ù„ ØªØ·Ø¨ÙŠÙ‚ Ù…Ø¹Ùƒ\n2. Ø³Ø¬Ù„ Ø¯Ø®ÙˆÙ„Ùƒ Ø£Ùˆ Ø£Ù†Ø´Ø¦ Ø­Ø³Ø§Ø¨ Ø¬Ø¯ÙŠØ¯\n3. Ø§Ø³ØªØ®Ø¯Ù… Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ©: ${code}\n\nÙ‡Ø°Ø§ Ø§Ù„Ø±Ù…Ø² ØµØ§Ù„Ø­ Ù„Ù…Ø¯Ø© 7 Ø£ÙŠØ§Ù….`
         : `Hi! You've been invited to join our family health group on Maak app.\n\nInvitation Code: ${code}\n\n1. Download the Maak app\n2. Sign in or create a new account\n3. Use invitation code: ${code}\n\nThis code expires in 7 days.`;
 
       // Show options to share or copy with clearer labels
       Alert.alert(
-        isRTL ? "رمز الدعوة جاهز" : "Invitation Code Ready",
+        isRTL ? "Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ© Ø¬Ø§Ù‡Ø²" : "Invitation Code Ready",
         isRTL
-          ? `رمز الدعوة: ${code}\n\nاختر طريقة المشاركة:`
+          ? `Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ©: ${code}\n\nØ§Ø®ØªØ± Ø·Ø±ÙŠÙ‚Ø© Ø§Ù„Ù…Ø´Ø§Ø±ÙƒØ©:`
           : `Invitation Code: ${code}\n\nChoose how to share:`,
         [
           {
-            text: isRTL ? "مشاركة عبر التطبيقات" : "Share via Apps",
+            text: isRTL
+              ? "Ù…Ø´Ø§Ø±ÙƒØ© Ø¹Ø¨Ø± Ø§Ù„ØªØ·Ø¨ÙŠÙ‚Ø§Øª"
+              : "Share via Apps",
             onPress: async () => {
               try {
                 await Share.share({
                   message: shareMessage,
                   title: isRTL
-                    ? "دعوة للانضمام إلى معك"
+                    ? "Ø¯Ø¹ÙˆØ© Ù„Ù„Ø§Ù†Ø¶Ù…Ø§Ù… Ø¥Ù„Ù‰ Ù…Ø¹Ùƒ"
                     : "Invitation to join Maak",
                 });
               } catch (_error) {
                 // Fallback to copying to clipboard
                 await setClipboardString(shareMessage);
                 Alert.alert(
-                  isRTL ? "تم النسخ" : "Copied",
+                  isRTL ? "ØªÙ… Ø§Ù„Ù†Ø³Ø®" : "Copied",
                   isRTL
-                    ? "تم نسخ رسالة الدعوة إلى الحافظة"
+                    ? "ØªÙ… Ù†Ø³Ø® Ø±Ø³Ø§Ù„Ø© Ø§Ù„Ø¯Ø¹ÙˆØ© Ø¥Ù„Ù‰ Ø§Ù„Ø­Ø§ÙØ¸Ø©"
                     : "Invitation message copied to clipboard"
                 );
               }
             },
           },
           {
-            text: isRTL ? "نسخ رمز الدعوة فقط" : "Copy Invitation Code Only",
+            text: isRTL
+              ? "Ù†Ø³Ø® Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ© ÙÙ‚Ø·"
+              : "Copy Invitation Code Only",
             onPress: async () => {
               await setClipboardString(code);
               Alert.alert(
-                isRTL ? "تم النسخ" : "Copied",
+                isRTL ? "ØªÙ… Ø§Ù„Ù†Ø³Ø®" : "Copied",
                 isRTL
-                  ? `تم نسخ رمز الدعوة: ${code}`
+                  ? `ØªÙ… Ù†Ø³Ø® Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ©: ${code}`
                   : `Invitation code copied: ${code}`
               );
             },
           },
           {
-            text: isRTL ? "إلغاء" : "Cancel",
+            text: isRTL ? "Ø¥Ù„ØºØ§Ø¡" : "Cancel",
             style: "cancel",
           },
         ]
       );
     } catch (_error) {
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "فشل في إنشاء رمز الدعوة" : "Failed to generate invitation code"
+        isRTL ? "Ø®Ø·Ø£" : "Error",
+        isRTL
+          ? "ÙØ´Ù„ ÙÙŠ Ø¥Ù†Ø´Ø§Ø¡ Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ©"
+          : "Failed to generate invitation code"
       );
     }
   };
@@ -2230,16 +2366,20 @@ export default function FamilyScreen() {
   const handleJoinFamily = async () => {
     if (!joinFamilyCode.trim()) {
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "يرجى إدخال رمز الدعوة" : "Please enter the invitation code"
+        isRTL ? "Ø®Ø·Ø£" : "Error",
+        isRTL
+          ? "ÙŠØ±Ø¬Ù‰ Ø¥Ø¯Ø®Ø§Ù„ Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ©"
+          : "Please enter the invitation code"
       );
       return;
     }
 
     if (!user) {
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "يجب تسجيل الدخول أولاً" : "You must be logged in first"
+        isRTL ? "Ø®Ø·Ø£" : "Error",
+        isRTL
+          ? "ÙŠØ¬Ø¨ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ø£ÙˆÙ„Ø§Ù‹"
+          : "You must be logged in first"
       );
       return;
     }
@@ -2265,8 +2405,10 @@ export default function FamilyScreen() {
 
         if (!adminUser) {
           Alert.alert(
-            isRTL ? "خطأ" : "Error",
-            isRTL ? "لم يتم العثور على مدير العائلة" : "Family admin not found"
+            isRTL ? "Ø®Ø·Ø£" : "Error",
+            isRTL
+              ? "Ù„Ù… ÙŠØªÙ… Ø§Ù„Ø¹Ø«ÙˆØ± Ø¹Ù„Ù‰ Ù…Ø¯ÙŠØ± Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©"
+              : "Family admin not found"
           );
           setJoinLoading(false);
           return;
@@ -2300,13 +2442,15 @@ export default function FamilyScreen() {
 
         if (currentMemberCount >= adminMaxMembers) {
           Alert.alert(
-            isRTL ? "تم الوصول للحد الأقصى" : "Family at Capacity",
             isRTL
-              ? `لقد وصلت هذه العائلة إلى الحد الأقصى لعدد الأعضاء في الاشتراك العائلي الخاص بالمدير (${adminMaxMembers} عضو).`
+              ? "ØªÙ… Ø§Ù„ÙˆØµÙˆÙ„ Ù„Ù„Ø­Ø¯ Ø§Ù„Ø£Ù‚ØµÙ‰"
+              : "Family at Capacity",
+            isRTL
+              ? `Ù„Ù‚Ø¯ ÙˆØµÙ„Øª Ù‡Ø°Ù‡ Ø§Ù„Ø¹Ø§Ø¦Ù„Ø© Ø¥Ù„Ù‰ Ø§Ù„Ø­Ø¯ Ø§Ù„Ø£Ù‚ØµÙ‰ Ù„Ø¹Ø¯Ø¯ Ø§Ù„Ø£Ø¹Ø¶Ø§Ø¡ ÙÙŠ Ø§Ù„Ø§Ø´ØªØ±Ø§Ùƒ Ø§Ù„Ø¹Ø§Ø¦Ù„ÙŠ Ø§Ù„Ø®Ø§Øµ Ø¨Ø§Ù„Ù…Ø¯ÙŠØ± (${adminMaxMembers} Ø¹Ø¶Ùˆ).`
               : `This family has reached the maximum number of members allowed by the admin's plan (${adminMaxMembers} members).`,
             [
               {
-                text: isRTL ? "موافق" : "OK",
+                text: isRTL ? "Ù…ÙˆØ§ÙÙ‚" : "OK",
                 style: "cancel",
               },
             ]
@@ -2321,17 +2465,17 @@ export default function FamilyScreen() {
 
         if (!hasPremium && currentMemberCount >= 1) {
           Alert.alert(
-            isRTL ? "خطأ" : "Premium Required",
+            isRTL ? "Ø®Ø·Ø£" : "Premium Required",
             isRTL
-              ? "يجب الاشتراك بالاشتراك العائلي للانضمام إلى عائلة تحتوي على أعضاء"
+              ? "ÙŠØ¬Ø¨ Ø§Ù„Ø§Ø´ØªØ±Ø§Ùƒ Ø¨Ø§Ù„Ø§Ø´ØªØ±Ø§Ùƒ Ø§Ù„Ø¹Ø§Ø¦Ù„ÙŠ Ù„Ù„Ø§Ù†Ø¶Ù…Ø§Ù… Ø¥Ù„Ù‰ Ø¹Ø§Ø¦Ù„Ø© ØªØ­ØªÙˆÙŠ Ø¹Ù„Ù‰ Ø£Ø¹Ø¶Ø§Ø¡"
               : "A premium subscription is required to join a family that already has members",
             [
               {
-                text: isRTL ? "إلغاء" : "Cancel",
+                text: isRTL ? "Ø¥Ù„ØºØ§Ø¡" : "Cancel",
                 style: "cancel",
               },
               {
-                text: isRTL ? "عرض الخطط" : "View Plans",
+                text: isRTL ? "Ø¹Ø±Ø¶ Ø§Ù„Ø®Ø·Ø·" : "View Plans",
                 onPress: () => setShowPaywall(true),
               },
             ]
@@ -2350,9 +2494,11 @@ export default function FamilyScreen() {
         setShowJoinFamilyModal(false);
 
         Alert.alert(
-          isRTL ? "مرحباً بك في العائلة!" : "Welcome to the Family!",
           isRTL
-            ? "تم انضمامك بنجاح! يمكنك الآن رؤية أعضاء عائلتك الجدد في الأسفل."
+            ? "Ù…Ø±Ø­Ø¨Ø§Ù‹ Ø¨Ùƒ ÙÙŠ Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©!"
+            : "Welcome to the Family!",
+          isRTL
+            ? "ØªÙ… Ø§Ù†Ø¶Ù…Ø§Ù…Ùƒ Ø¨Ù†Ø¬Ø§Ø­! ÙŠÙ…ÙƒÙ†Ùƒ Ø§Ù„Ø¢Ù† Ø±Ø¤ÙŠØ© Ø£Ø¹Ø¶Ø§Ø¡ Ø¹Ø§Ø¦Ù„ØªÙƒ Ø§Ù„Ø¬Ø¯Ø¯ ÙÙŠ Ø§Ù„Ø£Ø³ÙÙ„."
             : "You have successfully joined! You can now see your new family members below."
         );
 
@@ -2361,12 +2507,17 @@ export default function FamilyScreen() {
           await loadFamilyMembers();
         }, 1000);
       } else {
-        Alert.alert(isRTL ? "رمز غير صحيح" : "Invalid Code", result.message);
+        Alert.alert(
+          isRTL ? "Ø±Ù…Ø² ØºÙŠØ± ØµØ­ÙŠØ­" : "Invalid Code",
+          result.message
+        );
       }
     } catch (_error) {
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "فشل في الانضمام للعائلة" : "Failed to join family"
+        isRTL ? "Ø®Ø·Ø£" : "Error",
+        isRTL
+          ? "ÙØ´Ù„ ÙÙŠ Ø§Ù„Ø§Ù†Ø¶Ù…Ø§Ù… Ù„Ù„Ø¹Ø§Ø¦Ù„Ø©"
+          : "Failed to join family"
       );
     } finally {
       setJoinLoading(false);
@@ -2427,16 +2578,30 @@ export default function FamilyScreen() {
             style={styles.dashboardCard}
           >
             <View style={styles.dashboardCardHeader}>
-              <Avatar
-                avatarType={member.avatarType}
-                name={fullName}
-                size="lg"
-                source={member.avatar ? { uri: member.avatar } : undefined}
-              />
+              <View
+                style={[styles.familyAvatarRing, { borderColor: "#10B981" }]}
+              >
+                <View style={styles.familyAvatarInner}>
+                  {member.avatar ? (
+                    <Image
+                      source={
+                        typeof member.avatar === "string"
+                          ? { uri: member.avatar }
+                          : member.avatar
+                      }
+                      style={styles.familyAvatarImage}
+                    />
+                  ) : (
+                    <Text style={styles.familyAvatarText}>
+                      {getAvatarInitials(fullName)}
+                    </Text>
+                  )}
+                </View>
+              </View>
               {isCurrentUser && (
                 <View style={styles.currentUserBadge}>
                   <Text style={styles.currentUserBadgeText}>
-                    {isRTL ? "أنت" : "You"}
+                    {isRTL ? "Ø£Ù†Øª" : "You"}
                   </Text>
                 </View>
               )}
@@ -2455,7 +2620,9 @@ export default function FamilyScreen() {
                 <Text
                   style={[styles.dashboardMetricLabel, isRTL && styles.rtlText]}
                 >
-                  {isRTL ? "جاري تحميل البيانات..." : "Loading health data..."}
+                  {isRTL
+                    ? "Ø¬Ø§Ø±ÙŠ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª..."
+                    : "Loading health data..."}
                 </Text>
               </View>
             </View>
@@ -2472,18 +2639,22 @@ export default function FamilyScreen() {
 
     // Calculate total alerts from filtered member metrics
     const totalAlerts = metricsToUse.reduce(
-      (sum, member) => sum + member.alertsCount,
+      (sum, member) =>
+        sum + (typeof member.alertsCount === "number" ? member.alertsCount : 0),
       0
     );
 
     // Calculate average health score from filtered member metrics
+    const healthScores = metricsToUse
+      .map((member) => member.healthScore)
+      .filter((score): score is number => typeof score === "number");
     const avgHealthScore =
-      metricsToUse.length > 0
+      healthScores.length > 0
         ? Math.round(
-            metricsToUse.reduce((sum, member) => sum + member.healthScore, 0) /
-              metricsToUse.length
+            healthScores.reduce((sum, score) => sum + score, 0) /
+              healthScores.length
           )
-        : 100; // Default to 100 if no members
+        : 0;
 
     return { totalMembers, activeMembers, totalAlerts, avgHealthScore };
   };
@@ -2514,7 +2685,7 @@ export default function FamilyScreen() {
       return true;
     }
 
-    // Check body temperature (normal: 36.1-37.2°C or 97-99°F)
+    // Check body temperature (normal: 36.1-37.2Â°C or 97-99Â°F)
     if (
       vitals.bodyTemperature !== undefined &&
       (vitals.bodyTemperature < 36.1 || vitals.bodyTemperature > 37.2)
@@ -2566,7 +2737,7 @@ export default function FamilyScreen() {
           memberId: metric.user.id,
           memberName: fullName,
           reason: isRTL
-            ? `نقاط الصحة منخفضة (${metric.healthScore})`
+            ? `Ù†Ù‚Ø§Ø· Ø§Ù„ØµØ­Ø© Ù…Ù†Ø®ÙØ¶Ø© (${metric.healthScore})`
             : `Low health score (${metric.healthScore})`,
           severity: "high",
           icon: "health",
@@ -2577,7 +2748,7 @@ export default function FamilyScreen() {
           memberId: metric.user.id,
           memberName: fullName,
           reason: isRTL
-            ? `نقاط الصحة تحتاج انتباه (${metric.healthScore})`
+            ? `Ù†Ù‚Ø§Ø· Ø§Ù„ØµØ­Ø© ØªØ­ØªØ§Ø¬ Ø§Ù†ØªØ¨Ø§Ù‡ (${metric.healthScore})`
             : `Health score needs attention (${metric.healthScore})`,
           severity: "medium",
           icon: "health",
@@ -2591,7 +2762,7 @@ export default function FamilyScreen() {
           memberId: metric.user.id,
           memberName: fullName,
           reason: isRTL
-            ? `${metric.alertsCount} ${metric.alertsCount === 1 ? "تنبيه نشط" : "تنبيهات نشطة"}`
+            ? `${metric.alertsCount} ${metric.alertsCount === 1 ? "ØªÙ†Ø¨ÙŠÙ‡ Ù†Ø´Ø·" : "ØªÙ†Ø¨ÙŠÙ‡Ø§Øª Ù†Ø´Ø·Ø©"}`
             : `${metric.alertsCount} active ${metric.alertsCount === 1 ? "alert" : "alerts"}`,
           severity: metric.alertsCount > 2 ? "high" : "medium",
           icon: "alert",
@@ -2605,7 +2776,7 @@ export default function FamilyScreen() {
           memberId: metric.user.id,
           memberName: fullName,
           reason: isRTL
-            ? `${metric.symptomsThisWeek} ${metric.symptomsThisWeek === 1 ? "عرض صحي هذا الأسبوع" : "أعراض الصحية هذا الأسبوع"}`
+            ? `${metric.symptomsThisWeek} ${metric.symptomsThisWeek === 1 ? "Ø¹Ø±Ø¶ ØµØ­ÙŠ Ù‡Ø°Ø§ Ø§Ù„Ø£Ø³Ø¨ÙˆØ¹" : "Ø£Ø¹Ø±Ø§Ø¶ Ø§Ù„ØµØ­ÙŠØ© Ù‡Ø°Ø§ Ø§Ù„Ø£Ø³Ø¨ÙˆØ¹"}`
             : `${metric.symptomsThisWeek} ${metric.symptomsThisWeek === 1 ? "symptom" : "symptoms"} this week`,
           severity: metric.symptomsThisWeek > 5 ? "high" : "medium",
           icon: "symptom",
@@ -2618,7 +2789,9 @@ export default function FamilyScreen() {
         attentionItems.push({
           memberId: metric.user.id,
           memberName: fullName,
-          reason: isRTL ? "علامات حيوية غير طبيعية" : "Abnormal vital signs",
+          reason: isRTL
+            ? "Ø¹Ù„Ø§Ù…Ø§Øª Ø­ÙŠÙˆÙŠØ© ØºÙŠØ± Ø·Ø¨ÙŠØ¹ÙŠØ©"
+            : "Abnormal vital signs",
           severity: "high",
           icon: "vitals",
           trend: "down", // Abnormal vitals = trending down
@@ -2634,2375 +2807,563 @@ export default function FamilyScreen() {
   };
 
   const attentionItems = getItemsNeedingAttention();
+  const displayMembers = useMemo(() => {
+    if (familyMembers.length > 0) {
+      return familyMembers;
+    }
+    if (user) {
+      return [user];
+    }
+    return [];
+  }, [familyMembers, user]);
+
+  const metricsById = useMemo(() => {
+    const map = new Map<string, FamilyMemberMetrics>();
+    memberMetrics.forEach((metric) => {
+      map.set(metric.user.id, metric);
+    });
+    return map;
+  }, [memberMetrics]);
+
+  const caregiverById = useMemo(() => {
+    const map = new Map<string, CaregiverOverview["members"][number]>();
+    caregiverOverview?.members.forEach((member) => {
+      map.set(member.member.id, member);
+    });
+    return map;
+  }, [caregiverOverview]);
+
+  const formatRelativeTime = useCallback(
+    (date?: Date) => {
+      if (!date) {
+        return isRTL ? "غير متوفر" : "Unknown";
+      }
+
+      const diffMs = Date.now() - date.getTime();
+      const diffMinutes = Math.max(0, Math.floor(diffMs / 60_000));
+      if (diffMinutes < 2) {
+        return isRTL ? "الآن" : "Just now";
+      }
+      if (diffMinutes < 60) {
+        return isRTL
+          ? `منذ ${diffMinutes} دقيقة`
+          : `${diffMinutes} minutes ago`;
+      }
+      const diffHours = Math.floor(diffMinutes / 60);
+      if (diffHours < 24) {
+        return isRTL ? `منذ ${diffHours} ساعة` : `${diffHours} hours ago`;
+      }
+      const diffDays = Math.floor(diffHours / 24);
+      return isRTL ? `منذ ${diffDays} يوم` : `${diffDays} days ago`;
+    },
+    [isRTL]
+  );
+
+  const getMemberStatus = useCallback((metric?: FamilyMemberMetrics) => {
+    if (!metric) {
+      return "unknown";
+    }
+    if (metric.alertsCount > 1 || metric.healthScore < 60) {
+      return "critical";
+    }
+    if (metric.alertsCount > 0 || metric.healthScore < 75) {
+      return "monitor";
+    }
+    return "stable";
+  }, []);
+
+  const getSparklineData = useCallback((metric?: FamilyMemberMetrics) => {
+    if (!metric?.vitals?.heartRate) {
+      return [];
+    }
+    return [];
+  }, []);
+
+  const getAvatarInitials = (fullName: string) => {
+    const parts = fullName.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) {
+      return "?";
+    }
+    if (parts.length === 1) {
+      return parts[0].slice(0, 2).toUpperCase();
+    }
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  };
 
   const handleFilterChange = (filter: FilterOption) => {
     setSelectedFilter(filter);
   };
 
   return (
-    <SafeAreaView
+    <GradientScreen
       edges={["top"]}
       pointerEvents="box-none"
       style={styles.container}
     >
-      <View style={styles.header}>
-        <Text style={[styles.title, isRTL && styles.rtlText]}>
-          {t("family")}
-        </Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            onPress={() =>
-              setViewMode(viewMode === "list" ? "dashboard" : "list")
-            }
-            style={styles.viewToggleButton}
+      <View
+        style={[
+          styles.headerWrapper,
+          {
+            marginHorizontal: -contentPadding,
+            marginTop: -theme.spacing.base,
+            marginBottom: theme.spacing.lg,
+          },
+        ]}
+      >
+        <WavyBackground height={240} variant="teal">
+          <View
+            style={[
+              styles.familyHeader,
+              {
+                paddingHorizontal: headerPadding,
+                paddingTop: headerPadding,
+                paddingBottom: headerPadding,
+                minHeight: 230,
+              },
+            ]}
           >
-            {viewMode === "list" ? (
-              <Grid3x3 color="#FFFFFF" size={20} />
-            ) : (
-              <List color="#FFFFFF" size={20} />
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setShowHowTo(true)}
-            style={styles.helpButton}
-          >
-            <Info color="#FFFFFF" size={20} />
-          </TouchableOpacity>
-          <View collapsable={false} ref={addMemberButtonRef}>
-            <TouchableOpacity
-              onPress={() => setShowInviteModal(true)}
-              style={styles.addButton}
+            <Text
+              style={[
+                styles.familyTitle,
+                isRTL && styles.rtlText,
+                { color: theme.colors.neutral.white },
+              ]}
             >
-              <UserPlus color="#FFFFFF" size={24} />
-            </TouchableOpacity>
+              Family Circle
+            </Text>
+            <Text
+              style={[
+                styles.familySubtitle,
+                isRTL && styles.rtlText,
+                { color: "rgba(255, 255, 255, 0.85)" },
+              ]}
+            >
+              Manage your family circle
+            </Text>
           </View>
-        </View>
+        </WavyBackground>
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.contentInner}
+        contentContainerStyle={styles.familyContent}
         refreshControl={
           <RefreshControl
-            onRefresh={() => loadFamilyMembers(true)}
+            onRefresh={async () => {
+              await loadFamilyMembers(true);
+              if (user?.id) {
+                await Promise.all([loadEvents(true), loadActiveAlerts(true)]);
+              }
+            }}
             refreshing={refreshing}
             tintColor="#2563EB"
           />
         }
         showsVerticalScrollIndicator={false}
-        style={styles.content}
       >
         {loading ? (
           <View style={styles.inlineLoadingContainer}>
             <ActivityIndicator color="#2563EB" size="small" />
             <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
-              {isRTL ? "جاري التحميل..." : "Loading..."}
+              Loading...
             </Text>
           </View>
         ) : null}
-        {/* View Data Filter */}
-        <FamilyDataFilter
-          currentUserId={user?.id || ""}
-          familyMembers={familyMembers}
-          hasFamily={hasFamily}
-          isAdmin={isAdmin}
-          onFilterChange={handleFilterChange}
-          selectedFilter={selectedFilter}
-        />
-
-        {/* Family Overview */}
-        <View style={styles.overviewCard}>
-          <Text style={[styles.overviewTitle, isRTL && styles.rtlText]}>
-            {selectedFilter.type === "personal"
-              ? isRTL
-                ? "نظرة عامة"
-                : "My Overview"
-              : isRTL
-                ? "نظرة عامة على العائلة"
-                : "Family Overview"}
-          </Text>
-
-          <View style={styles.statsGrid}>
-            <View style={styles.statItem}>
-              <Users color="#2563EB" size={20} />
-              <Text style={[styles.statValue, isRTL && styles.rtlText]}>
-                {totalMembers}
-              </Text>
-              <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "أفراد" : "Members"}
-              </Text>
-            </View>
-
-            <View style={styles.statItem}>
-              <Heart color="#10B981" size={20} />
-              <Text style={[styles.statValue, isRTL && styles.rtlText]}>
-                {avgHealthScore || 0}
-              </Text>
-              <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "نقاط الصحة" : "Health Score"}
-              </Text>
-            </View>
-
-            <View style={styles.statItem}>
-              <AlertTriangle color="#F59E0B" size={20} />
-              <Text style={[styles.statValue, isRTL && styles.rtlText]}>
-                {totalAlerts}
-              </Text>
-              <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "تنبيهات" : "Alerts"}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Active Alerts */}
-        <AlertsCard familyMembers={familyMembers} />
-
-        {/* Needs Attention */}
-        <View style={styles.section}>
-          <View
-            style={[
-              styles.attentionHeader,
-              isRTL && { flexDirection: "row-reverse" },
-            ]}
-          >
-            <AlertTriangle color="#F59E0B" size={20} />
-            <Text
-              style={[
-                styles.sectionTitle,
-                isRTL && styles.sectionTitleRTL,
-                isRTL && styles.rtlText,
-              ]}
-            >
-              {isRTL ? "يحتاج انتباه" : "Needs Attention"}
+        {!loading && displayMembers.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
+              No family members yet
             </Text>
           </View>
-          {attentionItems.length > 0 ? (
-            <View style={styles.attentionCard}>
-              {attentionItems.map((item, index) => {
-                const severityColors = {
-                  high: { bg: "#FEF2F2", border: "#FECACA", text: "#DC2626" },
-                  medium: { bg: "#FFFBEB", border: "#FDE68A", text: "#D97706" },
-                  low: { bg: "#F0F9FF", border: "#BAE6FD", text: "#0284C7" },
-                };
-                const colors = severityColors[item.severity];
+        ) : (
+          displayMembers.map((member) => {
+            const metric = metricsById.get(member.id);
+            const caregiverData = caregiverById.get(member.id);
+            const fullName =
+              member.firstName && member.lastName
+                ? `${member.firstName} ${member.lastName}`
+                : member.firstName || "Member";
+            const relationship =
+              (member as { relationship?: string }).relationship ||
+              (member.role === "admin" ? "Admin" : "Member");
+            const lastCheckIn = formatRelativeTime(
+              metric?.vitals?.timestamp ??
+                caregiverData?.recentSymptoms[0]?.timestamp
+            );
+            const status = getMemberStatus(metric);
+            const medications =
+              metric?.activeMedications ??
+              caregiverData?.medicationCompliance?.missedDoses ??
+              0;
+            const nextAppointment =
+              caregiverData?.medicationCompliance?.nextDose;
+            const appointmentLabel = nextAppointment
+              ? safeFormatDate(nextAppointment)
+              : "Not scheduled";
 
-                return (
-                  <TouchableOpacity
-                    key={`${item.memberId}-${index}`}
-                    onPress={() => {
-                      router.push(`/family/${item.memberId}`);
-                    }}
-                    style={[
-                      styles.attentionItem,
-                      {
-                        backgroundColor: colors.bg,
-                        borderStartColor: colors.border,
-                      },
-                    ]}
-                  >
-                    <View style={styles.attentionItemContent}>
-                      <View style={styles.attentionItemLeft}>
-                        {item.icon === "health" && (
-                          <Heart color={colors.text} size={18} />
-                        )}
-                        {item.icon === "alert" && (
-                          <AlertTriangle color={colors.text} size={18} />
-                        )}
-                        {item.icon === "symptom" && (
-                          <Activity color={colors.text} size={18} />
-                        )}
-                        {item.icon === "vitals" && (
-                          <Gauge color={colors.text} size={18} />
-                        )}
-                        <View style={styles.attentionItemText}>
-                          <Text
-                            style={[
-                              styles.attentionItemMember,
-                              { color: colors.text },
-                              isRTL && styles.rtlText,
-                            ]}
-                          >
-                            {item.memberName}
-                          </Text>
-                          <View style={styles.attentionItemReasonRow}>
-                            <Text
-                              style={[
-                                styles.attentionItemReason,
-                                isRTL && styles.rtlText,
-                              ]}
-                            >
-                              {item.reason}
-                            </Text>
-                            {item.trend && (
-                              <View style={styles.trendContainer}>
-                                {item.trend === "up" && (
-                                  <TrendingUp
-                                    color={colors.text}
-                                    size={14}
-                                    style={styles.trendIcon}
-                                  />
-                                )}
-                                {item.trend === "down" && (
-                                  <TrendingDown
-                                    color={colors.text}
-                                    size={14}
-                                    style={styles.trendIcon}
-                                  />
-                                )}
-                                {item.trend === "stable" && (
-                                  <Minus
-                                    color={colors.text}
-                                    size={14}
-                                    style={styles.trendIcon}
-                                  />
-                                )}
-                              </View>
-                            )}
-                          </View>
-                        </View>
-                      </View>
-                      <View
-                        style={[
-                          styles.severityBadge,
-                          {
-                            backgroundColor: colors.border,
-                          },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.severityBadgeText,
-                            { color: colors.text },
-                          ]}
-                        >
-                          {item.severity === "high"
-                            ? isRTL
-                              ? "عالي"
-                              : "High"
-                            : item.severity === "medium"
-                              ? isRTL
-                                ? "متوسط"
-                                : "Medium"
-                              : isRTL
-                                ? "منخفض"
-                                : "Low"}
-                        </Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          ) : (
-            <View style={styles.emptyAttentionCard}>
-              <Text
-                style={[styles.emptyAttentionText, isRTL && styles.rtlText]}
+            return (
+              <TouchableOpacity
+                activeOpacity={0.9}
+                key={member.id}
+                onPress={() => router.push(`/family/${member.id}`)}
+                style={styles.familyMemberCard}
               >
-                {isRTL
-                  ? "لا توجد عناصر تحتاج انتباه في الوقت الحالي"
-                  : "No items need attention at this time"}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Family Members */}
-        <View style={styles.section}>
-          <Text
-            style={[
-              styles.sectionTitle,
-              isRTL && styles.sectionTitleRTL,
-              isRTL && styles.rtlText,
-            ]}
-          >
-            {t("familyMembers")}
-          </Text>
-
-          {viewMode === "dashboard" ? (
-            // Dashboard View - Show caregiver dashboard for admins, regular dashboard for members
-            isAdmin ? (
-              // Caregiver Dashboard View
-              loadingCaregiverDashboard ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator color="#2563EB" size="large" />
-                </View>
-              ) : caregiverOverview ? (
-                <View>
-                  {/* Calculate filtered stats */}
-                  {(() => {
-                    const filteredMembers = caregiverOverview.members.filter(
-                      (memberData) => {
-                        if (selectedFilter.type === "personal") {
-                          return memberData.member.id === user?.id;
-                        }
-                        if (
-                          selectedFilter.type === "member" &&
-                          selectedFilter.memberId
-                        ) {
-                          return (
-                            memberData.member.id === selectedFilter.memberId
-                          );
-                        }
-                        if (selectedFilter.type === "family") {
-                          return true;
-                        }
-                        return memberData.member.id === user?.id;
-                      }
-                    );
-
-                    const filteredTotalMembers = filteredMembers.length;
-                    const filteredMembersNeedingAttention =
-                      filteredMembers.filter((m) => m.needsAttention).length;
-                    const filteredTotalActiveAlerts = filteredMembers.reduce(
-                      (sum, m) =>
-                        sum + m.recentAlerts.filter((a) => !a.resolved).length,
-                      0
-                    );
-                    const filteredAverageHealthScore =
-                      filteredMembers.length > 0
-                        ? Math.round(
-                            filteredMembers.reduce(
-                              (sum, m) => sum + m.healthScore,
-                              0
-                            ) / filteredMembers.length
-                          )
-                        : 0;
-
-                    return (
-                      <Card
-                        contentStyle={undefined}
-                        pressable={false}
-                        style={{ marginBottom: theme.spacing.base }}
-                        variant="elevated"
-                      >
-                        <Heading
-                          level={6}
-                          style={[
-                            isRTL ? styles.rtlText : {},
-                            { marginBottom: theme.spacing.base },
-                          ]}
-                        >
-                          {isRTL ? "الملخص" : "Overview"}
-                        </Heading>
-                        <View
-                          style={{
-                            flexDirection: isRTL ? "row-reverse" : "row",
-                            flexWrap: "wrap",
-                            gap: theme.spacing.base,
-                          }}
-                        >
-                          <View
-                            style={{
-                              flex: 1,
-                              minWidth: "45%",
-                              padding: theme.spacing.base,
-                              backgroundColor:
-                                theme.colors.background.secondary,
-                              borderRadius: theme.borderRadius.md,
-                              alignItems: "center",
-                              overflow: "visible",
-                            }}
-                          >
-                            <Users
-                              color={theme.colors.primary.main}
-                              size={32}
-                            />
-                            <Text
-                              adjustsFontSizeToFit={true}
-                              minimumFontScale={0.7}
-                              numberOfLines={1}
-                              style={[
-                                getTextStyle(
-                                  theme,
-                                  "heading",
-                                  "bold",
-                                  theme.colors.text.primary
-                                ),
-                                {
-                                  fontSize: 32,
-                                  marginTop: theme.spacing.xs,
-                                  width: "100%",
-                                  textAlign: "center",
-                                },
-                              ]}
-                            >
-                              {filteredTotalMembers}
-                            </Text>
-                            <Text
-                              style={[
-                                getTextStyle(
-                                  theme,
-                                  "caption",
-                                  "regular",
-                                  theme.colors.text.secondary
-                                ),
-                                {
-                                  textAlign: "center",
-                                  marginTop: theme.spacing.xs,
-                                },
-                              ]}
-                            >
-                              {isRTL ? "جميع أعضاء العائلة" : "Total Members"}
-                            </Text>
-                          </View>
-                          <View
-                            style={{
-                              flex: 1,
-                              minWidth: "45%",
-                              padding: theme.spacing.base,
-                              backgroundColor:
-                                theme.colors.background.secondary,
-                              borderRadius: theme.borderRadius.md,
-                              alignItems: "center",
-                              overflow: "visible",
-                            }}
-                          >
-                            <AlertTriangle
-                              color={theme.colors.accent.error}
-                              size={32}
-                            />
-                            <Text
-                              adjustsFontSizeToFit={true}
-                              minimumFontScale={0.7}
-                              numberOfLines={1}
-                              style={[
-                                getTextStyle(
-                                  theme,
-                                  "heading",
-                                  "bold",
-                                  theme.colors.accent.error
-                                ),
-                                {
-                                  fontSize: 32,
-                                  marginTop: theme.spacing.xs,
-                                  width: "100%",
-                                  textAlign: "center",
-                                },
-                              ]}
-                            >
-                              {filteredMembersNeedingAttention}
-                            </Text>
-                            <Text
-                              style={[
-                                getTextStyle(
-                                  theme,
-                                  "caption",
-                                  "regular",
-                                  theme.colors.text.secondary
-                                ),
-                                {
-                                  textAlign: "center",
-                                  marginTop: theme.spacing.xs,
-                                },
-                              ]}
-                            >
-                              {isRTL ? "يحتاجون انتباه" : "Need Attention"}
-                            </Text>
-                          </View>
-                          <View
-                            style={{
-                              flex: 1,
-                              minWidth: "45%",
-                              padding: theme.spacing.base,
-                              backgroundColor:
-                                theme.colors.background.secondary,
-                              borderRadius: theme.borderRadius.md,
-                              alignItems: "center",
-                              overflow: "visible",
-                            }}
-                          >
-                            <AlertTriangle
-                              color={theme.colors.accent.warning}
-                              size={32}
-                            />
-                            <Text
-                              adjustsFontSizeToFit={true}
-                              minimumFontScale={0.7}
-                              numberOfLines={1}
-                              style={[
-                                getTextStyle(
-                                  theme,
-                                  "heading",
-                                  "bold",
-                                  theme.colors.accent.warning
-                                ),
-                                {
-                                  fontSize: 32,
-                                  marginTop: theme.spacing.xs,
-                                  width: "100%",
-                                  textAlign: "center",
-                                },
-                              ]}
-                            >
-                              {filteredTotalActiveAlerts}
-                            </Text>
-                            <Text
-                              style={[
-                                getTextStyle(
-                                  theme,
-                                  "caption",
-                                  "regular",
-                                  theme.colors.text.secondary
-                                ),
-                                {
-                                  textAlign: "center",
-                                  marginTop: theme.spacing.xs,
-                                },
-                              ]}
-                            >
-                              {isRTL ? "تنبيهات فعالة" : "Active Alerts"}
-                            </Text>
-                          </View>
-                          <View
-                            style={{
-                              flex: 1,
-                              minWidth: "45%",
-                              padding: theme.spacing.base,
-                              backgroundColor:
-                                theme.colors.background.secondary,
-                              borderRadius: theme.borderRadius.md,
-                              alignItems: "center",
-                              overflow: "visible",
-                            }}
-                          >
-                            <Heart
-                              color={
-                                filteredAverageHealthScore >= 80
-                                  ? "#10B981"
-                                  : filteredAverageHealthScore >= 60
-                                    ? "#F59E0B"
-                                    : "#EF4444"
-                              }
-                              size={32}
-                            />
-                            <Text
-                              adjustsFontSizeToFit={true}
-                              minimumFontScale={0.7}
-                              numberOfLines={1}
-                              style={[
-                                getTextStyle(
-                                  theme,
-                                  "heading",
-                                  "bold",
-                                  filteredAverageHealthScore >= 80
-                                    ? "#10B981"
-                                    : filteredAverageHealthScore >= 60
-                                      ? "#F59E0B"
-                                      : "#EF4444"
-                                ),
-                                {
-                                  fontSize: 32,
-                                  marginTop: theme.spacing.sm,
-                                  width: "100%",
-                                  textAlign: "center",
-                                },
-                              ]}
-                            >
-                              {filteredAverageHealthScore}
-                            </Text>
-                            <Text
-                              style={[
-                                getTextStyle(
-                                  theme,
-                                  "caption",
-                                  "regular",
-                                  theme.colors.text.secondary
-                                ),
-                                {
-                                  textAlign: "center",
-                                  marginTop: theme.spacing.xs,
-                                },
-                              ]}
-                            >
-                              {isRTL ? "متوسط النقاط" : "Avg Health Score"}
-                            </Text>
-                          </View>
-                        </View>
-                      </Card>
-                    );
-                  })()}
-
-                  {/* Member Details */}
-                  <Heading
-                    level={6}
+                <View style={styles.familyMemberCardHeader}>
+                  <View
                     style={[
-                      isRTL ? styles.rtlText : {},
+                      styles.familyAvatarRing,
                       {
-                        marginBottom: theme.spacing.base,
-                        marginTop: theme.spacing.base,
+                        borderColor:
+                          status === "critical"
+                            ? "#EF4444"
+                            : status === "monitor"
+                              ? "#F59E0B"
+                              : "#10B981",
                       },
                     ]}
                   >
-                    {isRTL ? "تفاصيل أعضاء العائلة" : "Member Details"}
-                  </Heading>
-                  {caregiverOverview.members
-                    .filter((memberData) => {
-                      if (selectedFilter.type === "personal") {
-                        return memberData.member.id === user?.id;
-                      }
-                      if (
-                        selectedFilter.type === "member" &&
-                        selectedFilter.memberId
-                      ) {
-                        return memberData.member.id === selectedFilter.memberId;
-                      }
-                      if (selectedFilter.type === "family") {
-                        return true;
-                      }
-                      return memberData.member.id === user?.id;
-                    })
-                    .map((memberData) => (
-                      <Card
-                        contentStyle={undefined}
-                        key={memberData.member.id}
-                        onPress={() =>
-                          router.push(`/family/${memberData.member.id}`)
-                        }
-                        pressable={true}
-                        style={{
-                          marginBottom: theme.spacing.base,
-                          backgroundColor: memberData.needsAttention
-                            ? `${theme.colors.accent.error}10`
-                            : undefined,
-                          borderColor: memberData.needsAttention
-                            ? theme.colors.accent.error
-                            : undefined,
-                        }}
-                        variant="elevated"
-                      >
-                        <View
-                          style={{
-                            flexDirection: isRTL ? "row-reverse" : "row",
-                            alignItems: "center",
-                            gap: theme.spacing.base,
-                            marginBottom: theme.spacing.base,
-                          }}
-                        >
-                          <Avatar
-                            avatarType={memberData.member.avatarType}
-                            name={memberData.member.firstName}
-                            size="md"
-                          />
-                          <View style={{ flex: 1 }}>
-                            <Heading
-                              level={6}
-                              style={[
-                                isRTL ? styles.rtlText : {},
-                                { marginBottom: theme.spacing.xs },
-                              ]}
-                            >
-                              {memberData.member.firstName}{" "}
-                              {memberData.member.lastName}
-                            </Heading>
-                            <Badge
-                              size="small"
-                              style={{
-                                backgroundColor: `${
-                                  memberData.healthScore >= 80
-                                    ? "#10B981"
-                                    : memberData.healthScore >= 60
-                                      ? "#F59E0B"
-                                      : "#EF4444"
-                                }20`,
-                                borderColor:
-                                  memberData.healthScore >= 80
-                                    ? "#10B981"
-                                    : memberData.healthScore >= 60
-                                      ? "#F59E0B"
-                                      : "#EF4444",
-                                marginTop: theme.spacing.xs,
-                              }}
-                              variant="outline"
-                            >
-                              <Caption
-                                numberOfLines={1}
-                                style={{
-                                  color:
-                                    memberData.healthScore >= 80
-                                      ? "#10B981"
-                                      : memberData.healthScore >= 60
-                                        ? "#F59E0B"
-                                        : "#EF4444",
-                                }}
-                              >
-                                {isRTL ? "النقاط" : "Score"}:{" "}
-                                {memberData.healthScore}
-                              </Caption>
-                            </Badge>
-                            {memberData.needsAttention && (
-                              <Badge
-                                size="small"
-                                style={{
-                                  backgroundColor: `${theme.colors.accent.error}20`,
-                                  borderColor: theme.colors.accent.error,
-                                  marginTop: theme.spacing.xs,
-                                }}
-                                variant="outline"
-                              >
-                                <Caption
-                                  numberOfLines={1}
-                                  style={{ color: theme.colors.accent.error }}
-                                >
-                                  {isRTL ? "يحتاج انتباه" : "Needs Attention"}
-                                </Caption>
-                              </Badge>
-                            )}
-                          </View>
-                        </View>
-
-                        {/* Metrics */}
-                        <View
-                          style={{
-                            flexDirection: isRTL ? "row-reverse" : "row",
-                            gap: theme.spacing.base,
-                            marginTop: theme.spacing.sm,
-                          }}
-                        >
-                          <View
-                            style={{
-                              flex: 1,
-                              padding: theme.spacing.sm,
-                              backgroundColor:
-                                theme.colors.background.secondary,
-                              borderRadius: theme.borderRadius.md,
-                              alignItems: "center",
-                            }}
-                          >
-                            <Pill color={theme.colors.primary.main} size={20} />
-                            <Text
-                              style={[
-                                getTextStyle(
-                                  theme,
-                                  "subheading",
-                                  "bold",
-                                  theme.colors.text.primary
-                                ),
-                                { fontSize: 20, marginTop: theme.spacing.xs },
-                              ]}
-                            >
-                              {memberData.medicationCompliance.rate}%
-                            </Text>
-                            <Text
-                              style={[
-                                getTextStyle(
-                                  theme,
-                                  "caption",
-                                  "regular",
-                                  theme.colors.text.secondary
-                                ),
-                                {
-                                  marginTop: theme.spacing.xs,
-                                  textAlign: "center",
-                                },
-                              ]}
-                            >
-                              {isRTL ? "الالتزام بالأدوية" : "Compliance"}
-                            </Text>
-                          </View>
-                          <View
-                            style={{
-                              flex: 1,
-                              padding: theme.spacing.sm,
-                              backgroundColor:
-                                theme.colors.background.secondary,
-                              borderRadius: theme.borderRadius.md,
-                              alignItems: "center",
-                            }}
-                          >
-                            <AlertTriangle
-                              color={theme.colors.accent.error}
-                              size={20}
-                            />
-                            <Text
-                              style={[
-                                getTextStyle(
-                                  theme,
-                                  "subheading",
-                                  "bold",
-                                  theme.colors.accent.error
-                                ),
-                                { fontSize: 20, marginTop: theme.spacing.xs },
-                              ]}
-                            >
-                              {memberData.medicationCompliance.missedDoses}
-                            </Text>
-                            <Text
-                              style={[
-                                getTextStyle(
-                                  theme,
-                                  "caption",
-                                  "regular",
-                                  theme.colors.text.secondary
-                                ),
-                                {
-                                  marginTop: theme.spacing.xs,
-                                  textAlign: "center",
-                                },
-                              ]}
-                            >
-                              {isRTL ? "جرعات مفقودة" : "Missed Doses"}
-                            </Text>
-                          </View>
-                          <View
-                            style={{
-                              flex: 1,
-                              padding: theme.spacing.sm,
-                              backgroundColor:
-                                theme.colors.background.secondary,
-                              borderRadius: theme.borderRadius.md,
-                              alignItems: "center",
-                            }}
-                          >
-                            <AlertTriangle
-                              color={theme.colors.accent.warning}
-                              size={20}
-                            />
-                            <Text
-                              style={[
-                                getTextStyle(
-                                  theme,
-                                  "subheading",
-                                  "bold",
-                                  theme.colors.accent.warning
-                                ),
-                                { fontSize: 20, marginTop: theme.spacing.xs },
-                              ]}
-                            >
-                              {
-                                memberData.recentAlerts.filter(
-                                  (a) => !a.resolved
-                                ).length
-                              }
-                            </Text>
-                            <Text
-                              style={[
-                                getTextStyle(
-                                  theme,
-                                  "caption",
-                                  "regular",
-                                  theme.colors.text.secondary
-                                ),
-                                {
-                                  marginTop: theme.spacing.xs,
-                                  textAlign: "center",
-                                },
-                              ]}
-                            >
-                              {isRTL ? "تنبيهات" : "Alerts"}
-                            </Text>
-                          </View>
-                        </View>
-
-                        {/* Attention Reasons */}
-                        {memberData.attentionReasons.length > 0 && (
-                          <View style={{ marginTop: theme.spacing.sm }}>
-                            <Caption
-                              numberOfLines={1}
-                              style={[
-                                isRTL ? styles.rtlText : {},
-                                { marginBottom: theme.spacing.xs },
-                              ]}
-                            >
-                              {isRTL ? "أسباب الانتباه" : "Attention Reasons"}:
-                            </Caption>
-                            <View
-                              style={{
-                                flexDirection: isRTL ? "row-reverse" : "row",
-                                flexWrap: "wrap",
-                              }}
-                            >
-                              {memberData.attentionReasons.map(
-                                (reason, index) => (
-                                  <Badge
-                                    key={index}
-                                    size="small"
-                                    style={{
-                                      marginTop: theme.spacing.xs,
-                                      marginRight: theme.spacing.xs,
-                                      alignSelf: "flex-start",
-                                    }}
-                                    variant="outline"
-                                  >
-                                    <Caption numberOfLines={1} style={{}}>
-                                      {translateAttentionReason(reason)}
-                                    </Caption>
-                                  </Badge>
-                                )
-                              )}
-                            </View>
-                          </View>
-                        )}
-
-                        {/* Emergency Contacts */}
-                        {memberData.emergencyContacts.length > 0 && (
-                          <View style={{ marginTop: theme.spacing.sm }}>
-                            <Caption
-                              numberOfLines={1}
-                              style={[
-                                isRTL ? styles.rtlText : {},
-                                { marginBottom: theme.spacing.xs },
-                              ]}
-                            >
-                              {isRTL
-                                ? "جهات الاتصال الطارئة"
-                                : "Emergency Contacts"}
-                              :
-                            </Caption>
-                            {memberData.emergencyContacts.map(
-                              (contact, index) => (
-                                <TouchableOpacity
-                                  key={index}
-                                  onPress={() =>
-                                    Linking.openURL(`tel:${contact.phone}`)
-                                  }
-                                  style={{
-                                    flexDirection: isRTL
-                                      ? "row-reverse"
-                                      : "row",
-                                    alignItems: "center",
-                                    gap: theme.spacing.xs,
-                                    marginTop: theme.spacing.xs,
-                                  }}
-                                >
-                                  <Phone
-                                    color={theme.colors.primary.main}
-                                    size={16}
-                                  />
-                                  <Caption numberOfLines={1} style={{}}>
-                                    {contact.name}
-                                  </Caption>
-                                </TouchableOpacity>
-                              )
-                            )}
-                          </View>
-                        )}
-                      </Card>
-                    ))}
-                </View>
-              ) : filteredFamilyMembers.length > 0 ? (
-                renderDashboardFallbackCards()
-              ) : (
-                <View style={styles.emptyContainer}>
-                  <Users color={theme.colors.text.secondary} size={64} />
-                  <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-                    {isRTL ? "لا توجد بيانات" : "No data available"}
-                  </Text>
-                </View>
-              )
-            ) : // Regular Dashboard View for non-admins
-            loadingMetrics &&
-              filteredMemberMetrics.length === 0 &&
-              filteredFamilyMembers.length === 0 ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator color="#2563EB" size="large" />
-              </View>
-            ) : filteredMemberMetrics.length > 0 ? (
-              <View style={styles.dashboardGrid}>
-                {filteredMemberMetrics.map((metric) => {
-                  const fullName =
-                    metric.user.firstName && metric.user.lastName
-                      ? `${metric.user.firstName} ${metric.user.lastName}`
-                      : metric.user.firstName || "User";
-                  const isCurrentUser = metric.user.id === user?.id;
-
-                  return (
-                    <TouchableOpacity
-                      key={metric.id}
-                      onPress={() => router.push(`/family/${metric.user.id}`)}
-                      style={styles.dashboardCard}
-                    >
-                      <View style={styles.dashboardCardHeader}>
-                        <Avatar
-                          avatarType={metric.user.avatarType}
-                          name={fullName}
-                          size="lg"
+                    <View style={styles.familyAvatarInner}>
+                      {member.avatar ? (
+                        <Image
                           source={
-                            metric.user.avatar
-                              ? { uri: metric.user.avatar }
-                              : undefined
+                            typeof member.avatar === "string"
+                              ? { uri: member.avatar }
+                              : member.avatar
                           }
+                          style={styles.familyAvatarImage}
                         />
-                        {isCurrentUser && (
-                          <View style={styles.currentUserBadge}>
-                            <Text style={styles.currentUserBadgeText}>
-                              {isRTL ? "أنت" : "You"}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-
-                      <Text
-                        numberOfLines={1}
-                        style={[
-                          styles.dashboardCardName,
-                          isRTL && styles.rtlText,
-                        ]}
-                      >
-                        {fullName}
-                      </Text>
-
-                      <View style={styles.dashboardMetrics}>
-                        <View style={styles.dashboardMetric}>
-                          <Heart
-                            color={
-                              metric.healthScore >= 80
-                                ? "#10B981"
-                                : metric.healthScore >= 60
-                                  ? "#F59E0B"
-                                  : "#EF4444"
-                            }
-                            size={16}
-                          />
-                          <Text
-                            style={[
-                              styles.dashboardMetricValue,
-                              isRTL && styles.rtlText,
-                            ]}
-                          >
-                            {metric.healthScore}
-                          </Text>
-                          <Text
-                            style={[
-                              styles.dashboardMetricLabel,
-                              isRTL && styles.rtlText,
-                            ]}
-                          >
-                            {isRTL ? "صحة" : "Health"}
-                          </Text>
-                        </View>
-
-                        <View style={styles.dashboardMetric}>
-                          <AlertTriangle color="#F59E0B" size={16} />
-                          <Text
-                            style={[
-                              styles.dashboardMetricValue,
-                              isRTL && styles.rtlText,
-                            ]}
-                          >
-                            {metric.symptomsThisWeek}
-                          </Text>
-                          <Text
-                            style={[
-                              styles.dashboardMetricLabel,
-                              isRTL && styles.rtlText,
-                            ]}
-                          >
-                            {isRTL ? "أعراض صحية" : "Symptoms"}
-                          </Text>
-                        </View>
-
-                        <View style={styles.dashboardMetric}>
-                          <Heart color="#2563EB" size={16} />
-                          <Text
-                            style={[
-                              styles.dashboardMetricValue,
-                              isRTL && styles.rtlText,
-                            ]}
-                          >
-                            {metric.activeMedications}
-                          </Text>
-                          <Text
-                            style={[
-                              styles.dashboardMetricLabel,
-                              isRTL && styles.rtlText,
-                            ]}
-                          >
-                            {isRTL ? "أدوية" : "Meds"}
-                          </Text>
-                        </View>
-
-                        {metric.alertsCount > 0 && (
-                          <View style={styles.dashboardMetric}>
-                            <AlertTriangle color="#EF4444" size={16} />
-                            <Text
-                              style={[
-                                styles.dashboardMetricValue,
-                                styles.alertValue,
-                                isRTL && styles.rtlText,
-                              ]}
-                            >
-                              {metric.alertsCount}
-                            </Text>
-                            <Text
-                              style={[
-                                styles.dashboardMetricLabel,
-                                isRTL && styles.rtlText,
-                              ]}
-                            >
-                              {isRTL ? "تنبيهات" : "Alerts"}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-
-                      {/* Vitals Section */}
-                      {metric.vitals && (
-                        <View style={styles.vitalsSection}>
-                          <Text
-                            style={[
-                              styles.vitalsTitle,
-                              isRTL && styles.rtlText,
-                            ]}
-                          >
-                            {isRTL ? "العلامات الحيوية" : "Vitals"}
-                          </Text>
-                          <View style={styles.vitalsGrid}>
-                            {metric.vitals.heartRate !== undefined && (
-                              <View style={styles.vitalItem}>
-                                <Heart color="#EF4444" size={14} />
-                                <Text
-                                  style={[
-                                    styles.vitalValue,
-                                    isRTL && styles.rtlText,
-                                  ]}
-                                >
-                                  {Math.round(metric.vitals.heartRate)}
-                                </Text>
-                                <Text
-                                  style={[
-                                    styles.vitalLabel,
-                                    isRTL && styles.rtlText,
-                                  ]}
-                                >
-                                  BPM
-                                </Text>
-                              </View>
-                            )}
-                            {metric.vitals.bloodPressure && (
-                              <View style={styles.vitalItem}>
-                                <Gauge color="#F59E0B" size={14} />
-                                <Text
-                                  style={[
-                                    styles.vitalValue,
-                                    isRTL && styles.rtlText,
-                                  ]}
-                                >
-                                  {metric.vitals.bloodPressure.systolic}/
-                                  {metric.vitals.bloodPressure.diastolic}
-                                </Text>
-                                <Text
-                                  style={[
-                                    styles.vitalLabel,
-                                    isRTL && styles.rtlText,
-                                  ]}
-                                >
-                                  BP
-                                </Text>
-                              </View>
-                            )}
-                            {metric.vitals.steps !== undefined && (
-                              <View style={styles.vitalItem}>
-                                <Activity color="#2563EB" size={14} />
-                                <Text
-                                  style={[
-                                    styles.vitalValue,
-                                    isRTL && styles.rtlText,
-                                  ]}
-                                >
-                                  {metric.vitals.steps > 1000
-                                    ? `${(metric.vitals.steps / 1000).toFixed(1)}k`
-                                    : metric.vitals.steps}
-                                </Text>
-                                <Text
-                                  style={[
-                                    styles.vitalLabel,
-                                    isRTL && styles.rtlText,
-                                  ]}
-                                >
-                                  {isRTL ? " خطوات" : "Steps"}
-                                </Text>
-                              </View>
-                            )}
-                            {metric.vitals.bodyTemperature !== undefined && (
-                              <View style={styles.vitalItem}>
-                                <Thermometer color="#EF4444" size={14} />
-                                <Text
-                                  style={[
-                                    styles.vitalValue,
-                                    isRTL && styles.rtlText,
-                                  ]}
-                                >
-                                  {metric.vitals.bodyTemperature.toFixed(1)}
-                                </Text>
-                                <Text
-                                  style={[
-                                    styles.vitalLabel,
-                                    isRTL && styles.rtlText,
-                                  ]}
-                                >
-                                  °C
-                                </Text>
-                              </View>
-                            )}
-                            {metric.vitals.oxygenSaturation !== undefined && (
-                              <View style={styles.vitalItem}>
-                                <Droplet color="#3B82F6" size={14} />
-                                <Text
-                                  style={[
-                                    styles.vitalValue,
-                                    isRTL && styles.rtlText,
-                                  ]}
-                                >
-                                  {Math.round(metric.vitals.oxygenSaturation)}
-                                </Text>
-                                <Text
-                                  style={[
-                                    styles.vitalLabel,
-                                    isRTL && styles.rtlText,
-                                  ]}
-                                >
-                                  SpO2
-                                </Text>
-                              </View>
-                            )}
-                            {metric.vitals.weight !== undefined && (
-                              <View style={styles.vitalItem}>
-                                <Activity color="#10B981" size={14} />
-                                <Text
-                                  style={[
-                                    styles.vitalValue,
-                                    isRTL && styles.rtlText,
-                                  ]}
-                                >
-                                  {metric.vitals.weight.toFixed(1)}
-                                </Text>
-                                <Text
-                                  style={[
-                                    styles.vitalLabel,
-                                    isRTL && styles.rtlText,
-                                  ]}
-                                >
-                                  kg
-                                </Text>
-                              </View>
-                            )}
-                          </View>
-                        </View>
+                      ) : (
+                        <Text style={styles.familyAvatarText}>
+                          {getAvatarInitials(fullName)}
+                        </Text>
                       )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            ) : filteredFamilyMembers.length > 0 ? (
-              renderDashboardFallbackCards()
-            ) : (
-              <View style={styles.emptyContainer}>
-                <Users color={theme.colors.text.secondary} size={64} />
-                <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-                  {isRTL ? "لا توجد بيانات" : "No data available"}
-                </Text>
-              </View>
-            )
-          ) : (
-            // List View
-            <View style={styles.membersList}>
-              {familyMembers.map((member) => {
-                const metrics = memberMetrics.find((m) => m.id === member.id);
-                const allergies = metrics?.allergies || [];
-                return (
-                  <View key={member.id} style={styles.memberItem}>
-                    <TouchableOpacity
-                      activeOpacity={0.7}
-                      onPress={() => router.push(`/family/${member.id}`)}
-                      style={styles.memberLeft}
-                    >
-                      <View style={styles.avatarContainer}>
-                        <Avatar
-                          avatarType={member.avatarType}
-                          badgeColor="#10B981"
-                          name={
-                            member.firstName && member.lastName
-                              ? `${member.firstName} ${member.lastName}`
-                              : member.firstName || "User"
-                          }
-                          showBadge={member.id === user?.id}
-                          size="md"
-                          source={
-                            member.avatar ? { uri: member.avatar } : undefined
-                          }
-                        />
-                      </View>
-
-                      <View style={styles.memberInfo}>
-                        <Text
-                          style={[styles.memberName, isRTL && styles.rtlText]}
-                        >
-                          {member.firstName && member.lastName
-                            ? `${member.firstName} ${member.lastName}`
-                            : member.firstName || "User"}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.memberRelation,
-                            isRTL && styles.rtlText,
-                          ]}
-                        >
-                          {member.role === "admin"
-                            ? isRTL
-                              ? "مدير"
-                              : "Admin"
-                            : isRTL
-                              ? "فرد عائلي"
-                              : "Member"}
-                        </Text>
-                        {allergies.length > 0 && (
-                          <View style={styles.allergiesContainer}>
-                            <Text
-                              style={[
-                                styles.allergiesLabel,
-                                isRTL && styles.rtlText,
-                              ]}
-                            >
-                              {isRTL ? "الحساسية: " : "Allergies: "}
-                            </Text>
-                            <Text
-                              numberOfLines={1}
-                              style={[
-                                styles.allergiesText,
-                                isRTL && styles.rtlText,
-                              ]}
-                            >
-                              {allergies
-                                .slice(0, 3)
-                                .map((allergy) =>
-                                  getTranslatedAllergyName(allergy.name)
-                                )
-                                .join(", ")}
-                              {allergies.length > 3 &&
-                                ` ${isRTL ? "+" : "+"}${allergies.length - 3}`}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                    </TouchableOpacity>
-
-                    <View style={styles.memberRight}>
-                      <View style={styles.memberStats}>
-                        <View
-                          style={[
-                            styles.statusIndicator,
-                            {
-                              backgroundColor: "#10B981",
-                            },
-                          ]}
-                        >
-                          <Text style={styles.statusText}>
-                            {isRTL ? "فعال" : "Active"}
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View style={styles.memberActions}>
-                        <TouchableOpacity
-                          onPress={() => handleEditMember(member)}
-                          style={styles.actionButton}
-                        >
-                          <Edit color="#64748B" size={16} />
-                        </TouchableOpacity>
-                        {member.id !== user?.id && (
-                          <TouchableOpacity
-                            onPress={() => handleDeleteMember(member)}
-                            style={[styles.actionButton, styles.deleteButton]}
-                          >
-                            <Trash2 color="#EF4444" size={16} />
-                          </TouchableOpacity>
-                        )}
-                      </View>
                     </View>
                   </View>
-                );
-              })}
-            </View>
-          )}
-        </View>
-
-        {/* Elderly Dashboard Section - for non-admin users */}
-        {!isAdmin && viewMode === "dashboard" && (
-          <View style={styles.section}>
-            <Text
-              style={[
-                styles.sectionTitle,
-                isRTL && styles.sectionTitleRTL,
-                isRTL && styles.rtlText,
-              ]}
-            >
-              {isRTL ? "لوحة التحكم" : "My Dashboard"}
-            </Text>
-
-            {loadingElderlyDashboard ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator color="#2563EB" size="large" />
-              </View>
-            ) : elderlyDashboardData ? (
-              <View>
-                {/* Next Medication */}
-                {elderlyDashboardData.nextMedication && (
-                  <Card
-                    contentStyle={undefined}
-                    pressable={false}
-                    style={{
-                      backgroundColor: `${theme.colors.primary.main}10`,
-                      borderColor: theme.colors.primary.main,
-                      borderWidth: 2,
-                      padding: 24,
-                      borderRadius: 16,
-                      marginBottom: theme.spacing.base,
-                    }}
-                    variant="elevated"
-                  >
-                    <View
-                      style={{
-                        flexDirection: isRTL ? "row-reverse" : "row",
-                        alignItems: "center",
-                        gap: 16,
-                        marginBottom: 16,
-                      }}
-                    >
-                      <Pill color={theme.colors.primary.main} size={32} />
-                      <Heading level={1} style={{ fontSize: 24 }}>
-                        {isRTL ? "الدواء التالي" : "Next Medication"}
-                      </Heading>
-                    </View>
+                  <View style={styles.familyMemberInfo}>
                     <Text
-                      style={{
-                        fontSize: 32,
-                        fontFamily: "Geist-Bold",
-                        color: theme.colors.primary.main,
-                        marginBottom: 8,
-                      }}
+                      style={[styles.familyMemberName, isRTL && styles.rtlText]}
                     >
-                      {elderlyDashboardData.nextMedication.time}
+                      {fullName}
                     </Text>
-                    <Heading
-                      level={2}
-                      style={{ fontSize: 20, marginBottom: 4 }}
+                    <Text
+                      style={[styles.familyMemberMeta, isRTL && styles.rtlText]}
                     >
-                      {elderlyDashboardData.nextMedication.name}
-                    </Heading>
-                    <Caption numberOfLines={1} style={{ fontSize: 18 }}>
-                      {isRTL ? "الجرعة" : "Dosage"}:{" "}
-                      {elderlyDashboardData.nextMedication.dosage}
-                    </Caption>
-                  </Card>
-                )}
-
-                {/* Health Score */}
-                <Card
-                  contentStyle={undefined}
-                  pressable={false}
-                  style={{
-                    alignItems: "center",
-                    padding: 24,
-                    borderRadius: 16,
-                    marginBottom: theme.spacing.base,
-                    backgroundColor: `${getElderlyHealthScoreColor(
-                      elderlyDashboardData.healthScore
-                    )}10`,
-                  }}
-                  variant="elevated"
-                >
-                  <Heart
-                    color={getElderlyHealthScoreColor(
-                      elderlyDashboardData.healthScore
-                    )}
-                    size={48}
-                  />
-                  <Text
-                    style={{
-                      fontSize: 64,
-                      fontFamily: "Geist-Bold",
-                      color: getElderlyHealthScoreColor(
-                        elderlyDashboardData.healthScore
-                      ),
-                      marginBottom: 8,
-                    }}
-                  >
-                    {elderlyDashboardData.healthScore}
-                  </Text>
-                  <Text style={{ fontSize: 20, color: "#6B7280" }}>
-                    {isRTL ? "النقاط الصحية" : "Health Score"}
-                  </Text>
-                </Card>
-
-                {/* Alerts */}
-                {elderlyDashboardData.hasAlerts && (
-                  <Card
-                    contentStyle={undefined}
-                    pressable={false}
-                    style={{
-                      backgroundColor: "#FEE2E2",
-                      borderColor: "#EF4444",
-                      borderWidth: 2,
-                      padding: 24,
-                      borderRadius: 16,
-                      marginBottom: theme.spacing.base,
-                    }}
-                    variant="elevated"
-                  >
-                    <View
-                      style={{
-                        flexDirection: isRTL ? "row-reverse" : "row",
-                        alignItems: "center",
-                        gap: 16,
-                      }}
-                    >
-                      <AlertTriangle color="#EF4444" size={32} />
-                      <Heading level={1} style={{ fontSize: 24 }}>
-                        {isRTL ? "تنبيهات فعالة" : "Active Alerts"}
-                      </Heading>
-                    </View>
-                    <TypographyText style={{ fontSize: 18, marginTop: 8 }}>
-                      {isRTL
-                        ? "لديك تنبيهات تحتاج إلى مراجعة"
-                        : "You have alerts that need attention"}
-                    </TypographyText>
-                  </Card>
-                )}
-
-                {/* Emergency Button */}
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={handleElderlyEmergency}
-                  style={{
-                    backgroundColor: "#EF4444",
-                    height: 80,
-                    borderRadius: 12,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    flexDirection: isRTL ? "row-reverse" : "row",
-                    gap: 16,
-                    marginBottom: theme.spacing.base,
-                  }}
-                >
-                  <Shield color="#FFFFFF" size={32} />
-                  <Text
-                    style={{
-                      fontSize: 24,
-                      fontFamily: "Geist-Bold",
-                      color: "#FFFFFF",
-                    }}
-                  >
-                    {isRTL ? "تنبيه طارئ" : "Emergency Alert"}
-                  </Text>
-                </TouchableOpacity>
-
-                {/* Emergency Contacts */}
-                {elderlyDashboardData.emergencyContacts.length > 0 && (
-                  <View>
-                    <Heading
-                      level={2}
-                      style={{ fontSize: 20, marginBottom: theme.spacing.base }}
-                    >
-                      {isRTL ? "جهات الاتصال الطارئة" : "Emergency Contacts"}
-                    </Heading>
-                    {elderlyDashboardData.emergencyContacts.map(
-                      (contact, index) => (
-                        <TouchableOpacity
-                          activeOpacity={0.7}
-                          key={index}
-                          onPress={() => handleElderlyCall(contact.phone)}
-                          style={{
-                            backgroundColor: "#F3F4F6",
-                            padding: 16,
-                            borderRadius: 8,
-                            flexDirection: isRTL ? "row-reverse" : "row",
-                            alignItems: "center",
-                            gap: 16,
-                            marginBottom: 12,
-                          }}
-                        >
-                          <Phone color={theme.colors.primary.main} size={24} />
-                          <Text
-                            style={{
-                              fontSize: 18,
-                              fontFamily: "Geist-Bold",
-                              color: "#111827",
-                            }}
-                          >
-                            {contact.name}
-                          </Text>
-                        </TouchableOpacity>
-                      )
-                    )}
+                      {relationship} - Last check-in {lastCheckIn}
+                    </Text>
+                    <StatusBadge status={status} />
                   </View>
-                )}
-              </View>
-            ) : (
-              <View style={styles.emptyContainer}>
-                <Heart color={theme.colors.text.secondary} size={64} />
-                <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-                  {isRTL ? "لا توجد بيانات" : "No data available"}
-                </Text>
-              </View>
-            )}
-          </View>
+                  <View style={styles.familySparklineContainer}>
+                    <Sparkline
+                      color={status === "critical" ? "#EF4444" : "#10B981"}
+                      data={getSparklineData(metric)}
+                      height={32}
+                      width={64}
+                    />
+                    <Text style={styles.familySparklineLabel}>Heart rate</Text>
+                  </View>
+                </View>
+
+                <View style={styles.familyMemberStatsRow}>
+                  <View style={styles.familyMemberStat}>
+                    <View
+                      style={[
+                        styles.familyStatIconWrap,
+                        styles.familyStatIconGreen,
+                      ]}
+                    >
+                      <Calendar color="#10B981" size={16} />
+                    </View>
+                    <View>
+                      <Text style={styles.familyStatLabel}>
+                        Next Appointment
+                      </Text>
+                      <Text style={styles.familyStatValue}>
+                        {appointmentLabel}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.familyMemberStat}>
+                    <View
+                      style={[
+                        styles.familyStatIconWrap,
+                        styles.familyStatIconGold,
+                      ]}
+                    >
+                      <TrendingUp color="#EB9C0C" size={16} />
+                    </View>
+                    <View>
+                      <Text style={styles.familyStatLabel}>Medications</Text>
+                      <Text style={styles.familyStatValue}>
+                        {medications} daily
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })
         )}
 
-        {/* Medication Schedule */}
+        {/* Active Alerts Section */}
         <View style={styles.section}>
-          <View
-            style={{
-              flexDirection: isRTL ? "row-reverse" : "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: theme.spacing.base,
-            }}
-          >
-            <Text
-              style={[
-                styles.sectionTitle,
-                isRTL && styles.sectionTitleRTL,
-                isRTL && styles.rtlText,
-              ]}
-            >
-              {isRTL
-                ? "جدول الأدوية المشترك للعائلة"
-                : "Shared Medication Schedule"}
-            </Text>
-            <View
-              style={{
-                flexDirection: isRTL ? "row-reverse" : "row",
-                gap: theme.spacing.xs,
-              }}
-            >
-              {[
-                { value: "today", label: isRTL ? "اليوم" : "Today" },
-                { value: "upcoming", label: isRTL ? "القادم" : "Upcoming" },
-                { value: "all", label: isRTL ? "الكل" : "All" },
-              ].map((mode) => (
-                <TouchableOpacity
-                  key={mode.value}
-                  onPress={() =>
-                    setMedicationScheduleViewMode(mode.value as any)
-                  }
-                  style={{
-                    paddingHorizontal: theme.spacing.sm,
-                    paddingVertical: theme.spacing.xs / 2,
-                    borderRadius: theme.borderRadius.full,
-                    borderWidth: 1,
-                    borderColor:
-                      medicationScheduleViewMode === mode.value
-                        ? theme.colors.primary.main
-                        : typeof theme.colors.border === "string"
-                          ? theme.colors.border
-                          : theme.colors.border.light,
-                    backgroundColor:
-                      medicationScheduleViewMode === mode.value
-                        ? theme.colors.primary.main
-                        : theme.colors.background.secondary,
-                  }}
-                >
-                  <Text
-                    style={[
-                      getTextStyle(
-                        theme,
-                        "caption",
-                        "medium",
-                        medicationScheduleViewMode === mode.value
-                          ? theme.colors.neutral.white
-                          : theme.colors.text.secondary
-                      ),
-                      { fontSize: 11 },
-                    ]}
-                  >
-                    {mode.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {loadingMedicationSchedule ? (
-            <View style={{ padding: theme.spacing.xl, alignItems: "center" }}>
-              <ActivityIndicator
-                color={theme.colors.primary.main}
-                size="small"
-              />
-            </View>
-          ) : getFilteredMedicationEntries().length === 0 ? (
-            <View style={{ padding: theme.spacing.xl, alignItems: "center" }}>
-              <Pill color={theme.colors.text.secondary} size={48} />
-              <Text
-                style={[
-                  getTextStyle(
-                    theme,
-                    "body",
-                    "regular",
-                    theme.colors.text.secondary
-                  ),
-                  { textAlign: "center", marginTop: theme.spacing.base },
-                ]}
-              >
-                {isRTL
-                  ? "لا توجد أدوية في هذا الجدول المشترك للعائلة"
-                  : "No medications in this schedule"}
-              </Text>
-            </View>
-          ) : (
-            <View>
-              {medicationScheduleViewMode === "today" && todaySchedule && (
-                <View style={{ marginBottom: theme.spacing.base }}>
-                  <View
-                    style={{
-                      flexDirection: isRTL ? "row-reverse" : "row",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      marginBottom: theme.spacing.sm,
-                      paddingBottom: theme.spacing.sm,
-                      borderBottomWidth: 1,
-                      borderBottomColor: theme.colors.border.light,
-                    }}
-                  >
-                    <Heading level={6} style={[isRTL ? styles.rtlText : {}]}>
-                      {formatMedicationDate(todaySchedule.date)}
-                    </Heading>
-                    <Badge size="small" style={{}} variant="outline">
-                      {todaySchedule.entries.length}
-                    </Badge>
-                  </View>
-
-                  {todaySchedule.entries.map((entry) => (
-                    <Card
-                      contentStyle={undefined}
-                      key={`${entry.medication.id}-${entry.member.id}`}
-                      pressable={false}
-                      style={{ marginBottom: theme.spacing.base }}
-                      variant="elevated"
-                    >
-                      <View
-                        style={{
-                          flexDirection: isRTL ? "row-reverse" : "row",
-                          justifyContent: "space-between",
-                          alignItems: "flex-start",
-                          marginBottom: theme.spacing.xs,
-                        }}
-                      >
-                        <View
-                          style={{
-                            flexDirection: isRTL ? "row-reverse" : "row",
-                            alignItems: "center",
-                            gap: theme.spacing.sm,
-                            flex: 1,
-                          }}
-                        >
-                          <Pill color={theme.colors.primary.main} size={24} />
-                          <View style={{ flex: 1 }}>
-                            <Heading
-                              level={6}
-                              style={[
-                                isRTL ? styles.rtlText : {},
-                                { marginBottom: 2 },
-                              ]}
-                            >
-                              {entry.medication.name}
-                            </Heading>
-                            <Caption
-                              numberOfLines={1}
-                              style={[isRTL ? styles.rtlText : {}]}
-                            >
-                              {entry.medication.dosage} •{" "}
-                              {entry.medication.frequency}
-                            </Caption>
-                            <View
-                              style={{
-                                flexDirection: isRTL ? "row-reverse" : "row",
-                                alignItems: "center",
-                                gap: theme.spacing.xs,
-                                marginTop: theme.spacing.xs,
-                              }}
-                            >
-                              <UserIcon
-                                color={theme.colors.text.secondary}
-                                size={12}
-                              />
-                              <Caption numberOfLines={1} style={{}}>
-                                {entry.member.firstName} {entry.member.lastName}
-                              </Caption>
-                            </View>
-                          </View>
-                        </View>
-                      </View>
-
-                      {entry.nextDose && (
-                        <View
-                          style={{
-                            flexDirection: isRTL ? "row-reverse" : "row",
-                            alignItems: "center",
-                            gap: theme.spacing.xs,
-                            marginTop: theme.spacing.xs,
-                          }}
-                        >
-                          <Clock
-                            color={theme.colors.text.secondary}
-                            size={14}
-                          />
-                          <Caption numberOfLines={1} style={{}}>
-                            {isRTL ? "الجرعة التالية" : "Next dose"}:{" "}
-                            {formatMedicationTime(entry.nextDose)}
-                          </Caption>
-                        </View>
-                      )}
-
-                      {entry.complianceRate !== undefined && (
-                        <View
-                          style={{
-                            marginTop: theme.spacing.xs,
-                            alignSelf: "flex-start",
-                          }}
-                        >
-                          <Badge
-                            size="small"
-                            style={{
-                              borderColor: getComplianceColor(
-                                entry.complianceRate
-                              ),
-                            }}
-                            variant="outline"
-                          >
-                            <View
-                              style={{
-                                flexDirection: isRTL ? "row-reverse" : "row",
-                                alignItems: "center",
-                                gap: 4,
-                              }}
-                            >
-                              {entry.complianceRate >= 90 ? (
-                                <TrendingUp
-                                  color={getComplianceColor(
-                                    entry.complianceRate
-                                  )}
-                                  size={12}
-                                />
-                              ) : (
-                                <TrendingDown
-                                  color={getComplianceColor(
-                                    entry.complianceRate
-                                  )}
-                                  size={12}
-                                />
-                              )}
-                              <Caption
-                                numberOfLines={1}
-                                style={{
-                                  color: getComplianceColor(
-                                    entry.complianceRate
-                                  ),
-                                }}
-                              >
-                                {isRTL ? "الالتزام بالأدوية" : "Compliance"}:{" "}
-                                {entry.complianceRate}%
-                              </Caption>
-                            </View>
-                          </Badge>
-                        </View>
-                      )}
-
-                      {entry.missedDoses !== undefined &&
-                        entry.missedDoses > 0 && (
-                          <Badge
-                            size="small"
-                            style={{
-                              marginTop: theme.spacing.xs,
-                              alignSelf: "flex-start",
-                              borderColor: theme.colors.accent.error,
-                            }}
-                            variant="outline"
-                          >
-                            <Caption
-                              numberOfLines={1}
-                              style={{ color: theme.colors.accent.error }}
-                            >
-                              {isRTL ? "جرعات مفقودة" : "Missed"}:{" "}
-                              {entry.missedDoses}
-                            </Caption>
-                          </Badge>
-                        )}
-
-                      <TouchableOpacity
-                        disabled={markingTaken === entry.medication.id}
-                        onPress={() => handleMarkMedicationAsTaken(entry)}
-                        style={{
-                          flexDirection: isRTL ? "row-reverse" : "row",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          backgroundColor:
-                            markingTaken === entry.medication.id
-                              ? typeof theme.colors.border === "string"
-                                ? theme.colors.border
-                                : theme.colors.border.light
-                              : theme.colors.primary.main,
-                          paddingVertical: theme.spacing.sm,
-                          paddingHorizontal: theme.spacing.base,
-                          borderRadius: theme.borderRadius.md,
-                          gap: theme.spacing.xs,
-                          marginTop: theme.spacing.sm,
-                          opacity:
-                            markingTaken === entry.medication.id ? 0.5 : 1,
-                        }}
-                      >
-                        <Check color={theme.colors.neutral.white} size={16} />
-                        <TypographyText
-                          style={[
-                            getTextStyle(
-                              theme,
-                              "body",
-                              "semibold",
-                              theme.colors.neutral.white
-                            ),
-                          ]}
-                        >
-                          {isRTL ? "تم التناول" : "Mark as Taken"}
-                        </TypographyText>
-                      </TouchableOpacity>
-                    </Card>
-                  ))}
-                </View>
-              )}
-
-              {medicationScheduleViewMode === "upcoming" &&
-                upcomingSchedule.map((day) => (
-                  <View
-                    key={day.date.toISOString()}
-                    style={{ marginBottom: theme.spacing.base }}
-                  >
-                    <View
-                      style={{
-                        flexDirection: isRTL ? "row-reverse" : "row",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        marginBottom: theme.spacing.sm,
-                        paddingBottom: theme.spacing.sm,
-                        borderBottomWidth: 1,
-                        borderBottomColor: theme.colors.border.light,
-                      }}
-                    >
-                      <Heading level={6} style={[isRTL ? styles.rtlText : {}]}>
-                        {formatMedicationDate(day.date)}
-                      </Heading>
-                      <Badge size="small" style={{}} variant="outline">
-                        {day.entries.length}
-                      </Badge>
-                    </View>
-
-                    {day.entries.map((entry) => (
-                      <Card
-                        contentStyle={undefined}
-                        key={`${entry.medication.id}-${entry.member.id}`}
-                        pressable={false}
-                        style={{ marginBottom: theme.spacing.base }}
-                        variant="elevated"
-                      >
-                        <View
-                          style={{
-                            flexDirection: isRTL ? "row-reverse" : "row",
-                            justifyContent: "space-between",
-                            alignItems: "flex-start",
-                            marginBottom: theme.spacing.xs,
-                          }}
-                        >
-                          <View
-                            style={{
-                              flexDirection: isRTL ? "row-reverse" : "row",
-                              alignItems: "center",
-                              gap: theme.spacing.sm,
-                              flex: 1,
-                            }}
-                          >
-                            <Pill color={theme.colors.primary.main} size={24} />
-                            <View style={{ flex: 1 }}>
-                              <Heading
-                                level={6}
-                                style={[
-                                  isRTL ? styles.rtlText : {},
-                                  { marginBottom: 2 },
-                                ]}
-                              >
-                                {entry.medication.name}
-                              </Heading>
-                              <Caption
-                                numberOfLines={1}
-                                style={[isRTL ? styles.rtlText : {}]}
-                              >
-                                {entry.medication.dosage} •{" "}
-                                {entry.medication.frequency}
-                              </Caption>
-                              <View
-                                style={{
-                                  flexDirection: isRTL ? "row-reverse" : "row",
-                                  alignItems: "center",
-                                  gap: theme.spacing.xs,
-                                  marginTop: theme.spacing.xs,
-                                }}
-                              >
-                                <UserIcon
-                                  color={theme.colors.text.secondary}
-                                  size={12}
-                                />
-                                <Caption numberOfLines={1} style={{}}>
-                                  {entry.member.firstName}{" "}
-                                  {entry.member.lastName}
-                                </Caption>
-                              </View>
-                            </View>
-                          </View>
-                        </View>
-
-                        {entry.nextDose && (
-                          <View
-                            style={{
-                              flexDirection: isRTL ? "row-reverse" : "row",
-                              alignItems: "center",
-                              gap: theme.spacing.xs,
-                              marginTop: theme.spacing.xs,
-                            }}
-                          >
-                            <Clock
-                              color={theme.colors.text.secondary}
-                              size={14}
-                            />
-                            <Caption numberOfLines={1} style={{}}>
-                              {isRTL ? "الجرعة التالية" : "Next dose"}:{" "}
-                              {formatMedicationTime(entry.nextDose)}
-                            </Caption>
-                          </View>
-                        )}
-                      </Card>
-                    ))}
-                  </View>
-                ))}
-
-              {medicationScheduleViewMode === "all" &&
-                medicationScheduleEntries.map((entry) => (
-                  <Card
-                    contentStyle={undefined}
-                    key={`${entry.medication.id}-${entry.member.id}`}
-                    pressable={false}
-                    style={{ marginBottom: theme.spacing.base }}
-                    variant="elevated"
-                  >
-                    <View
-                      style={{
-                        flexDirection: isRTL ? "row-reverse" : "row",
-                        justifyContent: "space-between",
-                        alignItems: "flex-start",
-                        marginBottom: theme.spacing.xs,
-                      }}
-                    >
-                      <View
-                        style={{
-                          flexDirection: isRTL ? "row-reverse" : "row",
-                          alignItems: "center",
-                          gap: theme.spacing.sm,
-                          flex: 1,
-                        }}
-                      >
-                        <Pill color={theme.colors.primary.main} size={24} />
-                        <View style={{ flex: 1 }}>
-                          <Heading
-                            level={6}
-                            style={[
-                              isRTL ? styles.rtlText : {},
-                              { marginBottom: 2 },
-                            ]}
-                          >
-                            {entry.medication.name}
-                          </Heading>
-                          <Caption
-                            numberOfLines={1}
-                            style={[isRTL ? styles.rtlText : {}]}
-                          >
-                            {entry.medication.dosage} •{" "}
-                            {entry.medication.frequency}
-                          </Caption>
-                          <View
-                            style={{
-                              flexDirection: isRTL ? "row-reverse" : "row",
-                              alignItems: "center",
-                              gap: theme.spacing.xs,
-                              marginTop: theme.spacing.xs,
-                            }}
-                          >
-                            <UserIcon
-                              color={theme.colors.text.secondary}
-                              size={12}
-                            />
-                            <Caption numberOfLines={1} style={{}}>
-                              {entry.member.firstName} {entry.member.lastName}
-                            </Caption>
-                          </View>
-                        </View>
-                      </View>
-                    </View>
-
-                    {entry.nextDose && (
-                      <View
-                        style={{
-                          flexDirection: isRTL ? "row-reverse" : "row",
-                          alignItems: "center",
-                          gap: theme.spacing.xs,
-                          marginTop: theme.spacing.xs,
-                        }}
-                      >
-                        <Clock color={theme.colors.text.secondary} size={14} />
-                        <Caption numberOfLines={1} style={{}}>
-                          {isRTL ? "الجرعة التالية" : "Next dose"}:{" "}
-                          {formatMedicationTime(entry.nextDose)}
-                        </Caption>
-                      </View>
-                    )}
-                  </Card>
-                ))}
-            </View>
-          )}
-        </View>
-
-        {/* Health Events Section */}
-        {isAdmin && (
-          <View style={styles.section}>
-            <View
-              style={[
-                styles.sectionHeader,
-                isRTL && { flexDirection: "row-reverse" },
-              ]}
-            >
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionHeaderLeft}>
               <AlertTriangle color="#EF4444" size={20} />
               <Text
-                style={[
-                  styles.sectionTitle,
-                  isRTL && styles.sectionTitleRTL,
-                  isRTL && styles.rtlText,
-                ]}
+                style={[styles.sectionTitle, isRTL && styles.sectionTitleRTL]}
               >
-                {isRTL ? "الأحداث الصحية" : "Health Events"}
+                {isRTL ? "التنبيهات النشطة" : "Active Alerts"}
               </Text>
-              <Text style={[styles.sectionCount, isRTL && styles.rtlText]}>
-                ({events.length})
-              </Text>
-            </View>
-            {loadingEvents ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator
-                  color={theme.colors.primary.main}
-                  size="small"
+              {activeAlerts.length > 0 && (
+                <Badge
+                  count={activeAlerts.length}
+                  style={styles.sectionCount}
                 />
+              )}
+            </View>
+          </View>
+          <Card style={styles.eventsCard}>
+            {loadingAlerts ? (
+              <View style={[styles.emptyState, { gap: 8 }]}>
+                <ActivityIndicator color="#2563EB" size="small" />
+                <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
+                  {isRTL ? "جاري التحميل..." : "Loading alerts..."}
+                </Text>
               </View>
-            ) : events.length > 0 ? (
-              <View style={styles.eventsList}>
-                {events.map((event) => {
-                  // Find the family member this event belongs to
-                  const eventMember = familyMembers.find(
-                    (m) => m.id === event.userId
-                  );
-                  const memberName = eventMember
-                    ? `${eventMember.firstName || ""} ${eventMember.lastName || ""}`.trim() ||
-                      eventMember.email
-                    : "Unknown Member";
-
+            ) : activeAlerts.length > 0 ? (
+              <>
+                {activeAlerts.slice(0, 5).map((item) => {
+                  const severityColor =
+                    item.alert.severity === "critical"
+                      ? "#EF4444"
+                      : item.alert.severity === "high"
+                        ? "#F59E0B"
+                        : item.alert.severity === "medium"
+                          ? "#3B82F6"
+                          : "#10B981";
                   return (
-                    <View key={event.id} style={styles.eventCard}>
-                      <View style={styles.eventHeader}>
-                        <View style={{ flex: 1 }}>
-                          <Text
-                            style={[styles.eventType, isRTL && styles.rtlText]}
-                          >
-                            {event.type === "VITAL_ALERT"
-                              ? isRTL
-                                ? "تنبيه حيوي"
-                                : "Vital Alert"
-                              : event.type}
-                          </Text>
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      key={item.alert.id}
+                      style={styles.eventItem}
+                    >
+                      <View style={styles.eventItemLeft}>
+                        <View
+                          style={[
+                            styles.eventStatusIndicator,
+                            { backgroundColor: severityColor },
+                          ]}
+                        />
+                        <View style={styles.eventContent}>
                           <Text
                             style={[
                               styles.eventMemberName,
                               isRTL && styles.rtlText,
                             ]}
                           >
-                            {isRTL
-                              ? `للعضو: ${memberName}`
-                              : `For: ${memberName}`}
+                            {item.memberName}
                           </Text>
-                        </View>
-                        <View style={styles.eventStatus}>
-                          <View
-                            style={[
-                              styles.statusBadge,
-                              {
-                                backgroundColor: getEventStatusColor(
-                                  event.status
-                                ),
-                              },
-                            ]}
-                          >
-                            <Text style={styles.statusBadgeText}>
-                              {getEventStatusText(event.status)}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-
-                      <View style={styles.eventReasons}>
-                        {event.reasons.map((reason, index) => (
                           <Text
-                            key={index}
-                            style={[styles.reasonItem, isRTL && styles.rtlText]}
-                          >
-                            • {reason}
-                          </Text>
-                        ))}
-                      </View>
-
-                      <View style={styles.eventFooter}>
-                        <Text
-                          style={[styles.eventTime, isRTL && styles.rtlText]}
-                        >
-                          {formatEventTime(event.createdAt)}
-                        </Text>
-
-                        {event.status === "OPEN" && (
-                          <View style={styles.actionButtons}>
-                            <TouchableOpacity
-                              onPress={() => handleAcknowledgeEvent(event.id!)}
-                              style={[
-                                styles.eventActionButton,
-                                styles.acknowledgeButton,
-                              ]}
-                            >
-                              <Text style={styles.actionButtonText}>
-                                {t("acknowledge", "Ack")}
-                              </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              onPress={() => handleEscalateEvent(event.id!)}
-                              style={[
-                                styles.eventActionButton,
-                                styles.escalateButton,
-                              ]}
-                            >
-                              <Text style={styles.actionButtonText}>
-                                {t("escalate", "Esc")}
-                              </Text>
-                            </TouchableOpacity>
-                          </View>
-                        )}
-
-                        {(event.status === "OPEN" ||
-                          event.status === "ACKED") && (
-                          <TouchableOpacity
-                            onPress={() => handleResolveEvent(event.id!)}
+                            numberOfLines={2}
                             style={[
-                              styles.eventActionButton,
-                              styles.resolveButton,
+                              styles.eventMessage,
+                              isRTL && styles.rtlText,
                             ]}
                           >
-                            <Text style={styles.actionButtonText}>
-                              {t("resolve", "Resolve")}
+                            {item.alert.message}
+                          </Text>
+                          <View style={styles.eventMeta}>
+                            <Clock color="#94A3B8" size={12} />
+                            <Text style={styles.eventTime}>
+                              {formatEventTime(item.alert.timestamp)}
                             </Text>
-                          </TouchableOpacity>
-                        )}
+                          </View>
+                        </View>
                       </View>
-                    </View>
+                      <ChevronRight color="#94A3B8" size={16} />
+                    </TouchableOpacity>
                   );
                 })}
-              </View>
+                {activeAlerts.length > 5 && (
+                  <Text style={[styles.moreItemsText, isRTL && styles.rtlText]}>
+                    {isRTL
+                      ? `و ${activeAlerts.length - 5} تنبيهات أخرى`
+                      : `and ${activeAlerts.length - 5} more alerts`}
+                  </Text>
+                )}
+              </>
             ) : (
-              <View style={styles.emptyState}>
+              <View style={[styles.emptyState, { gap: 8 }]}>
+                <Bell color="#94A3B8" size={24} />
                 <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-                  {isRTL ? "لا توجد أحداث صحية" : "No health events"}
+                  {isRTL ? "لا توجد تنبيهات نشطة" : "No active alerts"}
                 </Text>
               </View>
             )}
-          </View>
-        )}
-
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text
-            style={[
-              styles.sectionTitle,
-              isRTL && styles.sectionTitleRTL,
-              isRTL && styles.rtlText,
-            ]}
-          >
-            {isRTL ? "إجراءات سريعة" : "Quick Actions"}
-          </Text>
-
-          <View
-            style={[
-              styles.quickActions,
-              isRTL && { flexDirection: "row-reverse" },
-            ]}
-          >
-            {user?.role === "admin" && (
-              <TouchableOpacity
-                onPress={copyInviteCode}
-                style={styles.quickActionButton}
-              >
-                <Share2 color="#2563EB" size={24} />
-                <Text style={[styles.quickActionText, isRTL && styles.rtlText]}>
-                  {isRTL ? "دعوة عضو عائلة" : "Invite a Family Member"}
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity
-              onPress={() => router.push("/(tabs)/profile?openCalendar=true")}
-              style={styles.quickActionButton}
-            >
-              <Calendar color="#10B981" size={24} />
-              <Text style={[styles.quickActionText, isRTL && styles.rtlText]}>
-                {isRTL ? "التقويم الصحي" : "Health Calendar"}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setShowHealthReportsModal(true)}
-              style={styles.quickActionButton}
-            >
-              <FileText color="#8B5CF6" size={24} />
-              <Text style={[styles.quickActionText, isRTL && styles.rtlText]}>
-                {isRTL ? "التقارير الصحية" : "Health Reports"}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={handleEmergencySettings}
-              style={styles.quickActionButton}
-            >
-              <Settings color="#F59E0B" size={24} />
-              <Text style={[styles.quickActionText, isRTL && styles.rtlText]}>
-                {isRTL ? "إعدادات الطوارئ" : "Emergency Settings"}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {!user?.familyId && (
-            <TouchableOpacity
-              onPress={() => setShowJoinFamilyModal(true)}
-              style={styles.joinFamilyButton}
-            >
-              <Users color="#FFFFFF" size={24} />
-              <Text
-                style={[styles.joinFamilyButtonText, isRTL && styles.rtlText]}
-              >
-                {isRTL ? "الانضمام إلى عائلة" : "Join a Family"}
-              </Text>
-            </TouchableOpacity>
-          )}
+          </Card>
         </View>
+
+        {/* Recent Events Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionHeaderLeft}>
+              <Activity color="#2563EB" size={20} />
+              <Text
+                style={[styles.sectionTitle, isRTL && styles.sectionTitleRTL]}
+              >
+                {isRTL ? "الأحداث الأخيرة" : "Recent Events"}
+              </Text>
+              {events.length > 0 && (
+                <Badge count={events.length} style={styles.sectionCount} />
+              )}
+            </View>
+          </View>
+          <Card style={styles.eventsCard}>
+            {loadingEvents ? (
+              <View style={[styles.emptyState, { gap: 8 }]}>
+                <ActivityIndicator color="#2563EB" size="small" />
+                <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
+                  {isRTL ? "جاري التحميل..." : "Loading events..."}
+                </Text>
+              </View>
+            ) : events.length > 0 ? (
+              <>
+                {events.slice(0, 5).map((event) => {
+                  const statusColor = getEventStatusColor(event.status);
+                  const member = familyMembers.find(
+                    (m) => m.id === event.userId
+                  );
+                  const memberName =
+                    member && member.firstName && member.lastName
+                      ? `${member.firstName} ${member.lastName}`
+                      : member?.firstName || "Unknown";
+                  return (
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      key={event.id}
+                      onPress={() => {
+                        Alert.alert(
+                          isRTL ? "تفاصيل الحدث" : "Event Details",
+                          `${isRTL ? "الحالة" : "Status"}: ${getEventStatusText(event.status)}\n${isRTL ? "النوع" : "Type"}: ${event.type}\n${isRTL ? "الأسباب" : "Reasons"}: ${event.reasons.join(", ") || "N/A"}`,
+                          [
+                            {
+                              text: isRTL ? "إلغاء" : "Cancel",
+                              style: "cancel",
+                            },
+                            event.status === "OPEN" && {
+                              text: isRTL ? "تأكيد" : "Acknowledge",
+                              onPress: () => handleAcknowledgeEvent(event.id),
+                            },
+                            event.status !== "RESOLVED" && {
+                              text: isRTL ? "حل" : "Resolve",
+                              onPress: () => handleResolveEvent(event.id),
+                            },
+                            event.status === "OPEN" && {
+                              text: isRTL ? "تصعيد" : "Escalate",
+                              onPress: () => handleEscalateEvent(event.id),
+                            },
+                          ].filter(Boolean)
+                        );
+                      }}
+                      style={styles.eventItem}
+                    >
+                      <View style={styles.eventItemLeft}>
+                        <View
+                          style={[
+                            styles.eventStatusIndicator,
+                            { backgroundColor: statusColor },
+                          ]}
+                        />
+                        <View style={styles.eventContent}>
+                          <Text
+                            style={[
+                              styles.eventMemberName,
+                              isRTL && styles.rtlText,
+                            ]}
+                          >
+                            {memberName}
+                          </Text>
+                          <Text
+                            numberOfLines={2}
+                            style={[
+                              styles.eventMessage,
+                              isRTL && styles.rtlText,
+                            ]}
+                          >
+                            {event.reasons.join(", ") || event.type}
+                          </Text>
+                          <View style={styles.eventMeta}>
+                            <Clock color="#94A3B8" size={12} />
+                            <Text style={styles.eventTime}>
+                              {formatEventTime(event.createdAt)}
+                            </Text>
+                            <View
+                              style={[
+                                styles.eventStatusBadge,
+                                { backgroundColor: statusColor + "20" },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.eventStatusText,
+                                  { color: statusColor },
+                                ]}
+                              >
+                                {getEventStatusText(event.status)}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      </View>
+                      <ChevronRight color="#94A3B8" size={16} />
+                    </TouchableOpacity>
+                  );
+                })}
+                {events.length > 5 && (
+                  <Text style={[styles.moreItemsText, isRTL && styles.rtlText]}>
+                    {isRTL
+                      ? `و ${events.length - 5} أحداث أخرى`
+                      : `and ${events.length - 5} more events`}
+                  </Text>
+                )}
+              </>
+            ) : (
+              <View style={[styles.emptyState, { gap: 8 }]}>
+                <Calendar color="#94A3B8" size={24} />
+                <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
+                  {isRTL ? "لا توجد أحداث حديثة" : "No recent events"}
+                </Text>
+              </View>
+            )}
+          </Card>
+        </View>
+
+        {isAdmin && (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            collapsable={false}
+            onPress={() => setShowInviteModal(true)}
+            ref={addMemberButtonRef}
+            style={styles.addMemberCard}
+          >
+            <View style={styles.addMemberIcon}>
+              <Plus color="#003543" size={28} />
+            </View>
+            <Text style={styles.addMemberTitle}>Add Family Member</Text>
+            <Text style={styles.addMemberSubtitle}>
+              Invite someone to your care circle
+            </Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
       <CoachMark
-        body={
-          isRTL
-            ? "اضغط هنا لإضافة أفراد العائلة ومتابعة صحتهم في لوحة العائلة."
-            : "Tap here to add family members and track their health."
-        }
+        body="Tap here to add family members and track their health."
         isRTL={isRTL}
         onClose={() => setShowHowTo(false)}
         onPrimaryAction={() => setShowInviteModal(true)}
-        primaryActionLabel={isRTL ? "دعوة عضو" : "Invite member"}
-        secondaryActionLabel={isRTL ? "تم" : "Got it"}
+        primaryActionLabel="Invite member"
+        secondaryActionLabel="Got it"
         targetRef={addMemberButtonRef}
-        title={isRTL ? "تتبع صحة العائلة" : "Track family health"}
+        title="Track family health"
         visible={showHowTo}
       />
 
@@ -5015,7 +3376,9 @@ export default function FamilyScreen() {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
-              {isRTL ? "دعوة  فرد عائلة جديد" : "Invite New Member"}
+              {isRTL
+                ? "Ø¯Ø¹ÙˆØ©  ÙØ±Ø¯ Ø¹Ø§Ø¦Ù„Ø© Ø¬Ø¯ÙŠØ¯"
+                : "Invite New Member"}
             </Text>
             <TouchableOpacity
               onPress={() => {
@@ -5035,13 +3398,15 @@ export default function FamilyScreen() {
             {/* Name */}
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "الاسم الكامل" : "Full Name"} *
+                {isRTL ? "Ø§Ù„Ø§Ø³Ù… Ø§Ù„ÙƒØ§Ù…Ù„" : "Full Name"} *
               </Text>
               <TextInput
                 onChangeText={(text) =>
                   setInviteForm({ ...inviteForm, name: text })
                 }
-                placeholder={isRTL ? "ادخل الاسم الكامل" : "Enter full name"}
+                placeholder={
+                  isRTL ? "Ø§Ø¯Ø®Ù„ Ø§Ù„Ø§Ø³Ù… Ø§Ù„ÙƒØ§Ù…Ù„" : "Enter full name"
+                }
                 style={[styles.textInput, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={inviteForm.name}
@@ -5051,7 +3416,7 @@ export default function FamilyScreen() {
             {/* Relation */}
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "صلة القرابة" : "Relationship"} *
+                {isRTL ? "ØµÙ„Ø© Ø§Ù„Ù‚Ø±Ø§Ø¨Ø©" : "Relationship"} *
               </Text>
               <View style={styles.relationOptions}>
                 {RELATIONS.map((relation) => (
@@ -5097,10 +3462,10 @@ export default function FamilyScreen() {
               <Text style={styles.inviteButtonText}>
                 {inviteLoading
                   ? isRTL
-                    ? "جاري الإرسال..."
+                    ? "Ø¬Ø§Ø±ÙŠ Ø§Ù„Ø¥Ø±Ø³Ø§Ù„..."
                     : "Sending..."
                   : isRTL
-                    ? "إرسال الدعوة للعائلة"
+                    ? "Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„Ø¯Ø¹ÙˆØ© Ù„Ù„Ø¹Ø§Ø¦Ù„Ø©"
                     : "Send Invitation"}
               </Text>
             </TouchableOpacity>
@@ -5108,7 +3473,7 @@ export default function FamilyScreen() {
             {generatedCode && (
               <View style={styles.codeContainer}>
                 <Text style={[styles.codeLabel, isRTL && styles.rtlText]}>
-                  {isRTL ? "رمز الدعوة للعائلة" : "Invite Code"}
+                  {isRTL ? "Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ© Ù„Ù„Ø¹Ø§Ø¦Ù„Ø©" : "Invite Code"}
                 </Text>
                 <Text style={[styles.codeValue, isRTL && styles.rtlText]}>
                   {generatedCode}
@@ -5134,7 +3499,7 @@ export default function FamilyScreen() {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
-              {isRTL ? "إعدادات الطوارئ" : "Emergency Settings"}
+              {isRTL ? "Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ø·ÙˆØ§Ø±Ø¦" : "Emergency Settings"}
             </Text>
             <TouchableOpacity
               onPress={() => setShowEmergencyModal(false)}
@@ -5147,13 +3512,15 @@ export default function FamilyScreen() {
           <ScrollView style={styles.modalContent}>
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "جهات الاتصال في حالات الطوارئ" : "Emergency Contacts"}
+                {isRTL
+                  ? "Ø¬Ù‡Ø§Øª Ø§Ù„Ø§ØªØµØ§Ù„ ÙÙŠ Ø­Ø§Ù„Ø§Øª Ø§Ù„Ø·ÙˆØ§Ø±Ø¦"
+                  : "Emergency Contacts"}
               </Text>
               <Text
                 style={[styles.emergencyDescription, isRTL && styles.rtlText]}
               >
                 {isRTL
-                  ? "سيتم إشعار جهات الاتصال هذه في حالة الطوارئ"
+                  ? "Ø³ÙŠØªÙ… Ø¥Ø´Ø¹Ø§Ø± Ø¬Ù‡Ø§Øª Ø§Ù„Ø§ØªØµØ§Ù„ Ù‡Ø°Ù‡ ÙÙŠ Ø­Ø§Ù„Ø© Ø§Ù„Ø·ÙˆØ§Ø±Ø¦"
                   : "These contacts will be notified in case of emergency"}
               </Text>
 
@@ -5182,7 +3549,9 @@ export default function FamilyScreen() {
               {/* Add New Contact Form */}
               <View style={styles.addContactForm}>
                 <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                  {isRTL ? "إضافة جهة اتصال جديدة" : "Add New Contact"}
+                  {isRTL
+                    ? "Ø¥Ø¶Ø§ÙØ© Ø¬Ù‡Ø© Ø§ØªØµØ§Ù„ Ø¬Ø¯ÙŠØ¯Ø©"
+                    : "Add New Contact"}
                 </Text>
 
                 <TextInput
@@ -5190,7 +3559,9 @@ export default function FamilyScreen() {
                     setNewContact((prev) => ({ ...prev, name: text }))
                   }
                   placeholder={
-                    isRTL ? "اسم جهة اتصال في حالة الطوارئ" : "Contact Name"
+                    isRTL
+                      ? "Ø§Ø³Ù… Ø¬Ù‡Ø© Ø§ØªØµØ§Ù„ ÙÙŠ Ø­Ø§Ù„Ø© Ø§Ù„Ø·ÙˆØ§Ø±Ø¦"
+                      : "Contact Name"
                   }
                   style={[styles.textInput, isRTL && styles.rtlInput]}
                   textAlign={isRTL ? "right" : "left"}
@@ -5202,7 +3573,7 @@ export default function FamilyScreen() {
                   onChangeText={(text) =>
                     setNewContact((prev) => ({ ...prev, phone: text }))
                   }
-                  placeholder={isRTL ? "رقم الهاتف" : "Phone Number"}
+                  placeholder={isRTL ? "Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ" : "Phone Number"}
                   style={[
                     styles.textInput,
                     isRTL && styles.rtlInput,
@@ -5227,7 +3598,7 @@ export default function FamilyScreen() {
                         style={[styles.addContactText, isRTL && styles.rtlText]}
                       >
                         {isRTL
-                          ? "إضافة جهة اتصال في حالة الطوارئ"
+                          ? "Ø¥Ø¶Ø§ÙØ© Ø¬Ù‡Ø© Ø§ØªØµØ§Ù„ ÙÙŠ Ø­Ø§Ù„Ø© Ø§Ù„Ø·ÙˆØ§Ø±Ø¦"
                           : "Add Contact"}
                       </Text>
                     </>
@@ -5238,12 +3609,14 @@ export default function FamilyScreen() {
 
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "كشف السقوط التلقائي" : "Fall Detection"}
+                {isRTL
+                  ? "ÙƒØ´Ù Ø§Ù„Ø³Ù‚ÙˆØ· Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠ"
+                  : "Fall Detection"}
               </Text>
               <View style={styles.settingToggle}>
                 <Text style={[styles.settingText, isRTL && styles.rtlText]}>
                   {isRTL
-                    ? "تفعيل كشف السقوط التلقائي للعائلة"
+                    ? "ØªÙØ¹ÙŠÙ„ ÙƒØ´Ù Ø§Ù„Ø³Ù‚ÙˆØ· Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠ Ù„Ù„Ø¹Ø§Ø¦Ù„Ø©"
                     : "Enable automatic fall detection"}
                 </Text>
                 <Switch
@@ -5257,12 +3630,12 @@ export default function FamilyScreen() {
 
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "تنبيهات الأدوية" : "Medication Alerts"}
+                {isRTL ? "ØªÙ†Ø¨ÙŠÙ‡Ø§Øª Ø§Ù„Ø£Ø¯ÙˆÙŠØ©" : "Medication Alerts"}
               </Text>
               <View style={styles.settingToggle}>
                 <Text style={[styles.settingText, isRTL && styles.rtlText]}>
                   {isRTL
-                    ? "إرسال تنبيهات الأدوية الفائتة للعائلة"
+                    ? "Ø¥Ø±Ø³Ø§Ù„ ØªÙ†Ø¨ÙŠÙ‡Ø§Øª Ø§Ù„Ø£Ø¯ÙˆÙŠØ© Ø§Ù„ÙØ§Ø¦ØªØ© Ù„Ù„Ø¹Ø§Ø¦Ù„Ø©"
                     : "Send missed medication alerts"}
                 </Text>
                 <Switch
@@ -5286,7 +3659,7 @@ export default function FamilyScreen() {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
-              {isRTL ? "الانضمام إلى عائلة" : "Join a Family"}
+              {isRTL ? "Ø§Ù„Ø§Ù†Ø¶Ù…Ø§Ù… Ø¥Ù„Ù‰ Ø¹Ø§Ø¦Ù„Ø©" : "Join a Family"}
             </Text>
             <TouchableOpacity
               onPress={() => {
@@ -5302,7 +3675,7 @@ export default function FamilyScreen() {
           <ScrollView style={styles.modalContent}>
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "رمز الدعوة" : "Invitation Code"}
+                {isRTL ? "Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ©" : "Invitation Code"}
               </Text>
               <TextInput
                 keyboardType="numeric"
@@ -5310,7 +3683,7 @@ export default function FamilyScreen() {
                 onChangeText={setJoinFamilyCode}
                 placeholder={
                   isRTL
-                    ? "أدخل رمز الدعوة (6 أرقام)"
+                    ? "Ø£Ø¯Ø®Ù„ Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ© (6 Ø£Ø±Ù‚Ø§Ù…)"
                     : "Enter invitation code (6 digits)"
                 }
                 style={[styles.textInput, isRTL && styles.rtlInput]}
@@ -5321,7 +3694,7 @@ export default function FamilyScreen() {
                 style={[styles.emergencyDescription, isRTL && styles.rtlText]}
               >
                 {isRTL
-                  ? "أدخل رمز الدعوة المرسل إليك من أحد أفراد العائلة للانضمام إلى مجموعتهم الصحية"
+                  ? "Ø£Ø¯Ø®Ù„ Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ© Ø§Ù„Ù…Ø±Ø³Ù„ Ø¥Ù„ÙŠÙƒ Ù…Ù† Ø£Ø­Ø¯ Ø£ÙØ±Ø§Ø¯ Ø§Ù„Ø¹Ø§Ø¦Ù„Ø© Ù„Ù„Ø§Ù†Ø¶Ù…Ø§Ù… Ø¥Ù„Ù‰ Ù…Ø¬Ù…ÙˆØ¹ØªÙ‡Ù… Ø§Ù„ØµØ­ÙŠØ©"
                   : "Enter the invitation code sent to you by a family member to join their health group"}
               </Text>
             </View>
@@ -5337,10 +3710,10 @@ export default function FamilyScreen() {
               <Text style={styles.inviteButtonText}>
                 {joinLoading
                   ? isRTL
-                    ? "جاري الانضمام..."
+                    ? "Ø¬Ø§Ø±ÙŠ Ø§Ù„Ø§Ù†Ø¶Ù…Ø§Ù…..."
                     : "Joining..."
                   : isRTL
-                    ? "انضم للعائلة"
+                    ? "Ø§Ù†Ø¶Ù… Ù„Ù„Ø¹Ø§Ø¦Ù„Ø©"
                     : "Join Family"}
               </Text>
             </TouchableOpacity>
@@ -5363,7 +3736,7 @@ export default function FamilyScreen() {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
-              {isRTL ? "تعديل فرد العائلة" : "Edit Member"}
+              {isRTL ? "ØªØ¹Ø¯ÙŠÙ„ ÙØ±Ø¯ Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©" : "Edit Member"}
             </Text>
             <TouchableOpacity
               onPress={() => {
@@ -5386,13 +3759,15 @@ export default function FamilyScreen() {
             {/* First Name */}
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "الاسم الأول" : "First Name"} *
+                {isRTL ? "Ø§Ù„Ø§Ø³Ù… Ø§Ù„Ø£ÙˆÙ„" : "First Name"} *
               </Text>
               <TextInput
                 onChangeText={(text) =>
                   setEditMemberForm({ ...editMemberForm, firstName: text })
                 }
-                placeholder={isRTL ? "ادخل الاسم الأول" : "Enter first name"}
+                placeholder={
+                  isRTL ? "Ø§Ø¯Ø®Ù„ Ø§Ù„Ø§Ø³Ù… Ø§Ù„Ø£ÙˆÙ„" : "Enter first name"
+                }
                 style={[styles.textInput, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={editMemberForm.firstName}
@@ -5402,13 +3777,15 @@ export default function FamilyScreen() {
             {/* Last Name */}
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "اسم العائلة" : "Last Name"}
+                {isRTL ? "Ø§Ø³Ù… Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©" : "Last Name"}
               </Text>
               <TextInput
                 onChangeText={(text) =>
                   setEditMemberForm({ ...editMemberForm, lastName: text })
                 }
-                placeholder={isRTL ? "ادخل اسم العائلة" : "Enter last name"}
+                placeholder={
+                  isRTL ? "Ø§Ø¯Ø®Ù„ Ø§Ø³Ù… Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©" : "Enter last name"
+                }
                 style={[styles.textInput, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={editMemberForm.lastName}
@@ -5418,14 +3795,18 @@ export default function FamilyScreen() {
             {/* Email */}
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "البريد الإلكتروني" : "Email"} *
+                {isRTL ? "Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ" : "Email"} *
               </Text>
               <TextInput
                 keyboardType="email-address"
                 onChangeText={(text) =>
                   setEditMemberForm({ ...editMemberForm, email: text })
                 }
-                placeholder={isRTL ? "ادخل البريد الإلكتروني" : "Enter email"}
+                placeholder={
+                  isRTL
+                    ? "Ø§Ø¯Ø®Ù„ Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ"
+                    : "Enter email"
+                }
                 style={[styles.textInput, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={editMemberForm.email}
@@ -5437,7 +3818,7 @@ export default function FamilyScreen() {
             {user?.role === "admin" && user.id !== editMemberForm.id && (
               <View style={styles.fieldContainer}>
                 <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                  {isRTL ? "الدور" : "Role"} *
+                  {isRTL ? "Ø§Ù„Ø¯ÙˆØ±" : "Role"} *
                 </Text>
                 <View style={styles.roleOptions}>
                   {["admin", "member"].map((role) => (
@@ -5465,10 +3846,10 @@ export default function FamilyScreen() {
                       >
                         {role === "admin"
                           ? isRTL
-                            ? "مدير"
+                            ? "Ù…Ø¯ÙŠØ±"
                             : "Admin"
                           : isRTL
-                            ? "عضو"
+                            ? "Ø¹Ø¶Ùˆ"
                             : "Member"}
                       </Text>
                     </TouchableOpacity>
@@ -5482,7 +3863,7 @@ export default function FamilyScreen() {
               style={styles.saveButton}
             >
               <Text style={styles.saveButtonText}>
-                {isRTL ? "حفظ" : "Save"}
+                {isRTL ? "Ø­ÙØ¸" : "Save"}
               </Text>
             </TouchableOpacity>
 
@@ -5505,7 +3886,9 @@ export default function FamilyScreen() {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
-              {isRTL ? " الانضمام إلى الاشتراك العائلي " : "Upgrade to Premium"}
+              {isRTL
+                ? " Ø§Ù„Ø§Ù†Ø¶Ù…Ø§Ù… Ø¥Ù„Ù‰ Ø§Ù„Ø§Ø´ØªØ±Ø§Ùƒ Ø§Ù„Ø¹Ø§Ø¦Ù„ÙŠ "
+                : "Upgrade to Premium"}
             </Text>
             <TouchableOpacity
               onPress={() => setShowPaywall(false)}
@@ -5557,7 +3940,9 @@ export default function FamilyScreen() {
                 { color: theme.colors.text.primary },
               ]}
             >
-              {isRTL ? "تقارير الصحة العائلية" : "Family Health Reports"}
+              {isRTL
+                ? "ØªÙ‚Ø§Ø±ÙŠØ± Ø§Ù„ØµØ­Ø© Ø§Ù„Ø¹Ø§Ø¦Ù„ÙŠØ©"
+                : "Family Health Reports"}
             </Text>
             <TouchableOpacity
               onPress={() => {
@@ -5590,14 +3975,16 @@ export default function FamilyScreen() {
                 level={6}
                 style={{ marginBottom: 12, color: theme.colors.text.primary }}
               >
-                {isRTL ? "إنشاء تقرير صحي جديد" : "Generate New Report"}
+                {isRTL
+                  ? "Ø¥Ù†Ø´Ø§Ø¡ ØªÙ‚Ø±ÙŠØ± ØµØ­ÙŠ Ø¬Ø¯ÙŠØ¯"
+                  : "Generate New Report"}
               </Heading>
               <Caption
                 numberOfLines={2}
                 style={{ marginBottom: 16, color: theme.colors.text.secondary }}
               >
                 {isRTL
-                  ? "اختر إعدادات الخصوصية والفترة الزمنية لإنشاء تقرير شامل عن صحة العائلة"
+                  ? "Ø§Ø®ØªØ± Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ø®ØµÙˆØµÙŠØ© ÙˆØ§Ù„ÙØªØ±Ø© Ø§Ù„Ø²Ù…Ù†ÙŠØ© Ù„Ø¥Ù†Ø´Ø§Ø¡ ØªÙ‚Ø±ÙŠØ± Ø´Ø§Ù…Ù„ Ø¹Ù† ØµØ­Ø© Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©"
                   : "Select privacy settings and time period to generate a comprehensive family health report"}
               </Caption>
               <View
@@ -5611,7 +3998,9 @@ export default function FamilyScreen() {
                   style={{ flex: 1 }}
                   textStyle={{}}
                   title={
-                    isRTL ? "إعدادات الخصوصية لتقرير صحي" : "Privacy Settings"
+                    isRTL
+                      ? "Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ø®ØµÙˆØµÙŠØ© Ù„ØªÙ‚Ø±ÙŠØ± ØµØ­ÙŠ"
+                      : "Privacy Settings"
                   }
                   variant="outline"
                 />
@@ -5621,7 +4010,11 @@ export default function FamilyScreen() {
                   onPress={handleGenerateHealthReport}
                   style={{ flex: 1 }}
                   textStyle={{}}
-                  title={isRTL ? "إنشاء التقرير الصحي" : "Generate Report"}
+                  title={
+                    isRTL
+                      ? "Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„ØªÙ‚Ø±ÙŠØ± Ø§Ù„ØµØ­ÙŠ"
+                      : "Generate Report"
+                  }
                   variant="primary"
                 />
               </View>
@@ -5639,7 +4032,7 @@ export default function FamilyScreen() {
                       color: theme.colors.text.primary,
                     }}
                   >
-                    {isRTL ? "الملخص" : "Summary"}
+                    {isRTL ? "Ø§Ù„Ù…Ù„Ø®Øµ" : "Summary"}
                   </Heading>
                   <View
                     style={{
@@ -5667,7 +4060,9 @@ export default function FamilyScreen() {
                           color: theme.colors.text.secondary,
                         }}
                       >
-                        {isRTL ? "إجمالي أعضاء العائلة" : "Total Members"}
+                        {isRTL
+                          ? "Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø£Ø¹Ø¶Ø§Ø¡ Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©"
+                          : "Total Members"}
                       </Caption>
                       <Text
                         style={{
@@ -5697,7 +4092,9 @@ export default function FamilyScreen() {
                           color: theme.colors.text.secondary,
                         }}
                       >
-                        {isRTL ? "متوسط النقاط الصحية" : "Avg Health Score"}
+                        {isRTL
+                          ? "Ù…ØªÙˆØ³Ø· Ø§Ù„Ù†Ù‚Ø§Ø· Ø§Ù„ØµØ­ÙŠØ©"
+                          : "Avg Health Score"}
                       </Caption>
                       <Text
                         style={{
@@ -5730,7 +4127,7 @@ export default function FamilyScreen() {
                         }}
                       >
                         {isRTL
-                          ? "الأدوية الفعالة للعائلة"
+                          ? "Ø§Ù„Ø£Ø¯ÙˆÙŠØ© Ø§Ù„ÙØ¹Ø§Ù„Ø© Ù„Ù„Ø¹Ø§Ø¦Ù„Ø©"
                           : "Active Medications"}
                       </Caption>
                       <Text
@@ -5762,7 +4159,7 @@ export default function FamilyScreen() {
                         }}
                       >
                         {isRTL
-                          ? " إجمالي الأعراض الصحية للعائلة"
+                          ? " Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ø£Ø¹Ø±Ø§Ø¶ Ø§Ù„ØµØ­ÙŠØ© Ù„Ù„Ø¹Ø§Ø¦Ù„Ø©"
                           : "Total Symptoms"}
                       </Caption>
                       <Text
@@ -5787,7 +4184,9 @@ export default function FamilyScreen() {
                           color: theme.colors.text.primary,
                         }}
                       >
-                        {isRTL ? "التنبيهات الصحية للعائلة" : "Alerts"}
+                        {isRTL
+                          ? "Ø§Ù„ØªÙ†Ø¨ÙŠÙ‡Ø§Øª Ø§Ù„ØµØ­ÙŠØ© Ù„Ù„Ø¹Ø§Ø¦Ù„Ø©"
+                          : "Alerts"}
                       </Heading>
                       {healthReport.summary.alerts.map((alert, index) => (
                         <Card
@@ -5827,7 +4226,7 @@ export default function FamilyScreen() {
                       textStyle={{}}
                       title={
                         isRTL
-                          ? "تصدير التقرير الصحي كـ PDF"
+                          ? "ØªØµØ¯ÙŠØ± Ø§Ù„ØªÙ‚Ø±ÙŠØ± Ø§Ù„ØµØ­ÙŠ ÙƒÙ€ PDF"
                           : "Export Report as PDF"
                       }
                       variant="outline"
@@ -5844,7 +4243,9 @@ export default function FamilyScreen() {
                       color: theme.colors.text.primary,
                     }}
                   >
-                    {isRTL ? "تفاصيل أفراد العائلة" : "Member Details"}
+                    {isRTL
+                      ? "ØªÙØ§ØµÙŠÙ„ Ø£ÙØ±Ø§Ø¯ Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©"
+                      : "Member Details"}
                   </Heading>
                   {healthReport.members.map((memberReport) => (
                     <Card
@@ -5894,7 +4295,7 @@ export default function FamilyScreen() {
                               ),
                             }}
                           >
-                            {isRTL ? "النقاط" : "Score"}:{" "}
+                            {isRTL ? "Ø§Ù„Ù†Ù‚Ø§Ø·" : "Score"}:{" "}
                             {memberReport.healthScore}
                           </Caption>
                         </Badge>
@@ -5905,15 +4306,17 @@ export default function FamilyScreen() {
                           numberOfLines={1}
                           style={{ color: theme.colors.text.secondary }}
                         >
-                          {isRTL ? "الأعراض الصحية " : "Symptoms"}:{" "}
+                          {isRTL ? "Ø§Ù„Ø£Ø¹Ø±Ø§Ø¶ Ø§Ù„ØµØ­ÙŠØ© " : "Symptoms"}:{" "}
                           {memberReport.symptoms.total}
                         </Caption>
                         <Caption
                           numberOfLines={1}
                           style={{ color: theme.colors.text.secondary }}
                         >
-                          {isRTL ? "الأدوية الفعالة" : "Active Medications"}:{" "}
-                          {memberReport.medications.active}
+                          {isRTL
+                            ? "Ø§Ù„Ø£Ø¯ÙˆÙŠØ© Ø§Ù„ÙØ¹Ø§Ù„Ø©"
+                            : "Active Medications"}
+                          : {memberReport.medications.active}
                         </Caption>
                         {memberReport.medications.complianceRate !==
                           undefined && (
@@ -5921,8 +4324,10 @@ export default function FamilyScreen() {
                             numberOfLines={1}
                             style={{ color: theme.colors.text.secondary }}
                           >
-                            {isRTL ? "الالتزام بالأدوية" : "Compliance"}:{" "}
-                            {memberReport.medications.complianceRate}%
+                            {isRTL
+                              ? "Ø§Ù„Ø§Ù„ØªØ²Ø§Ù… Ø¨Ø§Ù„Ø£Ø¯ÙˆÙŠØ©"
+                              : "Compliance"}
+                            : {memberReport.medications.complianceRate}%
                           </Caption>
                         )}
                       </View>
@@ -5940,13 +4345,16 @@ export default function FamilyScreen() {
                           numberOfLines={1}
                           style={{ color: theme.colors.text.secondary }}
                         >
-                          {isRTL ? "اتجاه الأعراض الصحية" : "Symptom Trend"}:{" "}
+                          {isRTL
+                            ? "Ø§ØªØ¬Ø§Ù‡ Ø§Ù„Ø£Ø¹Ø±Ø§Ø¶ Ø§Ù„ØµØ­ÙŠØ©"
+                            : "Symptom Trend"}
+                          :{" "}
                           {isRTL
                             ? memberReport.trends.symptomTrend === "improving"
-                              ? "يتحسن"
+                              ? "ÙŠØªØ­Ø³Ù†"
                               : memberReport.trends.symptomTrend === "worsening"
-                                ? "يتدهور"
-                                : "مستقر"
+                                ? "ÙŠØªØ¯Ù‡ÙˆØ±"
+                                : "Ù…Ø³ØªÙ‚Ø±"
                             : memberReport.trends.symptomTrend}
                         </Caption>
                       </View>
@@ -5974,7 +4382,7 @@ export default function FamilyScreen() {
                   }}
                 >
                   {isRTL
-                    ? "قم بإنشاء تقرير صحي للعائلة لعرض الملخص والإحصائيات"
+                    ? "Ù‚Ù… Ø¨Ø¥Ù†Ø´Ø§Ø¡ ØªÙ‚Ø±ÙŠØ± ØµØ­ÙŠ Ù„Ù„Ø¹Ø§Ø¦Ù„Ø© Ù„Ø¹Ø±Ø¶ Ø§Ù„Ù…Ù„Ø®Øµ ÙˆØ§Ù„Ø¥Ø­ØµØ§Ø¦ÙŠØ§Øª"
                     : "Generate a family health report to view summary and statistics"}
                 </Text>
               </View>
@@ -5991,13 +4399,15 @@ export default function FamilyScreen() {
             <SafeAreaView style={styles.modalContainer}>
               <View style={styles.modalHeader}>
                 <Heading level={5} style={{ color: theme.colors.text.primary }}>
-                  {isRTL ? "إعدادات الخصوصية" : "Privacy Settings"}
+                  {isRTL
+                    ? "Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ø®ØµÙˆØµÙŠØ©"
+                    : "Privacy Settings"}
                 </Heading>
                 <TouchableOpacity onPress={() => setShowPrivacyModal(false)}>
                   <Text
                     style={{ fontSize: 18, color: theme.colors.primary.main }}
                   >
-                    {isRTL ? "إغلاق" : "Close"}
+                    {isRTL ? "Ø¥ØºÙ„Ø§Ù‚" : "Close"}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -6006,45 +4416,49 @@ export default function FamilyScreen() {
                   {
                     key: "includeSymptoms",
                     label: isRTL
-                      ? "ضم أعراض الصحة في التقرير"
+                      ? "Ø¶Ù… Ø£Ø¹Ø±Ø§Ø¶ Ø§Ù„ØµØ­Ø© ÙÙŠ Ø§Ù„ØªÙ‚Ø±ÙŠØ±"
                       : "Include Symptoms",
                   },
                   {
                     key: "includeMedications",
                     label: isRTL
-                      ? "ضم أدوية العائلة في التقرير"
+                      ? "Ø¶Ù… Ø£Ø¯ÙˆÙŠØ© Ø§Ù„Ø¹Ø§Ø¦Ù„Ø© ÙÙŠ Ø§Ù„ØªÙ‚Ø±ÙŠØ±"
                       : "Include Medications",
                   },
                   {
                     key: "includeMoods",
                     label: isRTL
-                      ? "ضم حالات نفسية في التقرير"
+                      ? "Ø¶Ù… Ø­Ø§Ù„Ø§Øª Ù†ÙØ³ÙŠØ© ÙÙŠ Ø§Ù„ØªÙ‚Ø±ÙŠØ±"
                       : "Include Moods",
                   },
                   {
                     key: "includeAllergies",
-                    label: isRTL ? "ضم الحساسية" : "Include Allergies",
+                    label: isRTL
+                      ? "Ø¶Ù… Ø§Ù„Ø­Ø³Ø§Ø³ÙŠØ©"
+                      : "Include Allergies",
                   },
                   {
                     key: "includeMedicalHistory",
                     label: isRTL
-                      ? "ضم التاريخ الطبي في التقرير"
+                      ? "Ø¶Ù… Ø§Ù„ØªØ§Ø±ÙŠØ® Ø§Ù„Ø·Ø¨ÙŠ ÙÙŠ Ø§Ù„ØªÙ‚Ø±ÙŠØ±"
                       : "Include Medical History",
                   },
                   {
                     key: "includeLabResults",
-                    label: isRTL ? "ضم نتائج المختبر" : "Include Lab Results",
+                    label: isRTL
+                      ? "Ø¶Ù… Ù†ØªØ§Ø¦Ø¬ Ø§Ù„Ù…Ø®ØªØ¨Ø±"
+                      : "Include Lab Results",
                   },
                   {
                     key: "includeVitals",
                     label: isRTL
-                      ? "ضم المؤشرات الحيوية في التقرير"
+                      ? "Ø¶Ù… Ø§Ù„Ù…Ø¤Ø´Ø±Ø§Øª Ø§Ù„Ø­ÙŠÙˆÙŠØ© ÙÙŠ Ø§Ù„ØªÙ‚Ø±ÙŠØ±"
                       : "Include Vitals",
                   },
                   {
                     key: "includeComplianceData",
                     label: isRTL
-                      ? "ضم بيانات التزام بالأدوية في التقرير"
+                      ? "Ø¶Ù… Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„ØªØ²Ø§Ù… Ø¨Ø§Ù„Ø£Ø¯ÙˆÙŠØ© ÙÙŠ Ø§Ù„ØªÙ‚Ø±ÙŠØ±"
                       : "Include Compliance Data",
                   },
                 ].map((option) => (
@@ -6087,27 +4501,190 @@ export default function FamilyScreen() {
           </Modal>
         </SafeAreaView>
       </Modal>
-    </SafeAreaView>
+    </GradientScreen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "transparent",
+  },
+  headerWrapper: {
+    marginHorizontal: -20,
+    marginTop: -20,
+    marginBottom: 20,
+  },
+  familyHeader: {
+    paddingHorizontal: 24,
+    paddingTop: 48,
+    paddingBottom: 12,
+  },
+  familyTitle: {
+    fontSize: 28,
+    fontFamily: "Inter-Bold",
+    color: "#003543",
+    marginBottom: 6,
+  },
+  familySubtitle: {
+    fontSize: 14,
+    fontFamily: "Inter-SemiBold",
+    color: "rgba(0, 53, 67, 0.7)",
+  },
+  familyContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 32,
+  },
+  familyMemberCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+  familyMemberCardHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    marginBottom: 16,
+  },
+  familyAvatarRing: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 4,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  familyAvatarInner: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#003543",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  familyAvatarImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+  },
+  familyAvatarText: {
+    fontSize: 20,
+    fontFamily: "Inter-Bold",
+    color: "#FFFFFF",
+    letterSpacing: 1,
+  },
+  familyMemberInfo: {
+    flex: 1,
+  },
+  familyMemberName: {
+    fontSize: 18,
+    fontFamily: "Inter-SemiBold",
+    color: "#1A1D1F",
+    marginBottom: 4,
+  },
+  familyMemberMeta: {
+    fontSize: 13,
+    fontFamily: "Inter-Regular",
+    color: "#6C7280",
+    marginBottom: 6,
+  },
+  familySparklineContainer: {
+    alignItems: "flex-end",
+    gap: 4,
+  },
+  familySparklineLabel: {
+    fontSize: 11,
+    fontFamily: "Inter-Regular",
+    color: "#9CA3AF",
+  },
+  familyMemberStatsRow: {
+    flexDirection: "row",
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+    paddingTop: 12,
+    marginBottom: 16,
+  },
+  familyMemberStat: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  familyStatIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  familyStatIconGreen: {
+    backgroundColor: "rgba(16, 185, 129, 0.12)",
+  },
+  familyStatIconGold: {
+    backgroundColor: "rgba(235, 156, 12, 0.12)",
+  },
+  familyStatLabel: {
+    fontSize: 12,
+    fontFamily: "Inter-Regular",
+    color: "#6C7280",
+  },
+  familyStatValue: {
+    fontSize: 14,
+    fontFamily: "Inter-SemiBold",
+    color: "#1A1D1F",
+  },
+  addMemberCard: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 20,
+    padding: 24,
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#D1D5DB",
+    borderStyle: "dashed",
+  },
+  addMemberIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "rgba(0, 53, 67, 0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  addMemberTitle: {
+    fontSize: 16,
+    fontFamily: "Inter-SemiBold",
+    color: "#1A1D1F",
+    marginBottom: 4,
+  },
+  addMemberSubtitle: {
+    fontSize: 13,
+    fontFamily: "Inter-Regular",
+    color: "#6C7280",
+    textAlign: "center",
+  },
+  headerContent: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 20,
+    minHeight: 160,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 16,
-    backgroundColor: "#2563EB",
   },
   title: {
     fontSize: 28,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#FFFFFF",
   },
   headerActions: {
@@ -6135,7 +4712,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#EB9C0C",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -6159,7 +4736,7 @@ const styles = StyleSheet.create({
   },
   overviewTitle: {
     fontSize: 18,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     marginBottom: 16,
   },
@@ -6172,14 +4749,14 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 24,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#1E293B",
     marginTop: 8,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
   },
   section: {
@@ -6187,7 +4764,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     marginBottom: 12,
   },
@@ -6228,12 +4805,12 @@ const styles = StyleSheet.create({
   },
   currentUserBadgeText: {
     fontSize: 10,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#FFFFFF",
   },
   dashboardCardName: {
     fontSize: 14,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     textAlign: "center",
     marginBottom: 12,
@@ -6251,7 +4828,7 @@ const styles = StyleSheet.create({
   },
   dashboardMetricValue: {
     fontSize: 18,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#1E293B",
     marginTop: 4,
   },
@@ -6260,7 +4837,7 @@ const styles = StyleSheet.create({
   },
   dashboardMetricLabel: {
     fontSize: 10,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     marginTop: 2,
   },
@@ -6272,7 +4849,7 @@ const styles = StyleSheet.create({
   },
   vitalsTitle: {
     fontSize: 12,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#64748B",
     marginBottom: 8,
   },
@@ -6288,13 +4865,13 @@ const styles = StyleSheet.create({
   },
   vitalValue: {
     fontSize: 14,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#1E293B",
     marginTop: 4,
   },
   vitalLabel: {
     fontSize: 9,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#94A3B8",
     marginTop: 2,
   },
@@ -6336,7 +4913,7 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#FFFFFF",
   },
   memberInfo: {
@@ -6344,13 +4921,13 @@ const styles = StyleSheet.create({
   },
   memberName: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     marginBottom: 2,
   },
   memberRelation: {
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     marginBottom: 2,
   },
@@ -6362,19 +4939,19 @@ const styles = StyleSheet.create({
   },
   allergiesLabel: {
     fontSize: 12,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
     marginEnd: 4,
   },
   allergiesText: {
     fontSize: 12,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#DC2626",
     flex: 1,
   },
   memberLastActive: {
     fontSize: 12,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#94A3B8",
   },
   memberRight: {
@@ -6382,7 +4959,7 @@ const styles = StyleSheet.create({
   },
   healthScore: {
     fontSize: 20,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#1E293B",
     marginBottom: 4,
   },
@@ -6393,7 +4970,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 10,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#FFFFFF",
   },
   pendingIndicator: {
@@ -6404,7 +4981,7 @@ const styles = StyleSheet.create({
   },
   pendingText: {
     fontSize: 12,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
   },
   quickActions: {
@@ -6428,7 +5005,7 @@ const styles = StyleSheet.create({
   },
   quickActionText: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#1E293B",
     marginTop: 8,
     textAlign: "center",
@@ -6449,7 +5026,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
   },
   closeButton: {
@@ -6467,7 +5044,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 16,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#374151",
     marginBottom: 8,
   },
@@ -6478,11 +5055,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     backgroundColor: "#FFFFFF",
   },
   rtlInput: {
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
   },
   relationOptions: {
     flexDirection: "row",
@@ -6503,7 +5080,7 @@ const styles = StyleSheet.create({
   },
   relationOptionText: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
   },
   relationOptionTextSelected: {
@@ -6522,7 +5099,7 @@ const styles = StyleSheet.create({
   },
   inviteButtonText: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#FFFFFF",
   },
   codeContainer: {
@@ -6538,13 +5115,13 @@ const styles = StyleSheet.create({
   },
   codeLabel: {
     fontSize: 16,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#374151",
     marginBottom: 8,
   },
   codeValue: {
     fontSize: 20,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#1E293B",
   },
   loadingContainer: {
@@ -6559,13 +5136,13 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
     marginTop: 16,
   },
   rtlText: {
     textAlign: "right",
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
   },
   memberStats: {
     alignItems: "flex-end",
@@ -6588,7 +5165,7 @@ const styles = StyleSheet.create({
   },
   emergencyDescription: {
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     marginBottom: 16,
   },
@@ -6605,7 +5182,7 @@ const styles = StyleSheet.create({
   },
   addContactText: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#2563EB",
     marginStart: 8,
   },
@@ -6621,7 +5198,7 @@ const styles = StyleSheet.create({
   },
   settingText: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#1E293B",
   },
   toggle: {
@@ -6649,7 +5226,7 @@ const styles = StyleSheet.create({
   },
   joinFamilyButtonText: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#FFFFFF",
     marginStart: 8,
   },
@@ -6672,7 +5249,7 @@ const styles = StyleSheet.create({
   },
   roleOptionText: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
   },
   roleOptionTextSelected: {
@@ -6688,7 +5265,7 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#FFFFFF",
   },
   contactItem: {
@@ -6707,13 +5284,13 @@ const styles = StyleSheet.create({
   },
   contactName: {
     fontSize: 14,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     marginBottom: 2,
   },
   contactPhone: {
     fontSize: 12,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
   },
   deleteContactButton: {
@@ -6767,12 +5344,12 @@ const styles = StyleSheet.create({
   },
   attentionItemMember: {
     fontSize: 14,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     marginBottom: 4,
   },
   attentionItemReason: {
     fontSize: 12,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     flex: 1,
   },
@@ -6795,7 +5372,7 @@ const styles = StyleSheet.create({
   },
   severityBadgeText: {
     fontSize: 10,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
   },
   emptyAttentionCard: {
     backgroundColor: "#FFFFFF",
@@ -6810,7 +5387,7 @@ const styles = StyleSheet.create({
   },
   emptyAttentionText: {
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     textAlign: "center",
   },
@@ -6822,7 +5399,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
     textAlign: "center",
     marginTop: 16,
@@ -6830,13 +5407,86 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    justifyContent: "space-between",
     marginBottom: 12,
+  },
+  sectionHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   sectionCount: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
+  },
+  eventsCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 0,
+    overflow: "hidden",
+  },
+  eventItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  eventItemLeft: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    flex: 1,
+    gap: 12,
+  },
+  eventStatusIndicator: {
+    width: 4,
+    height: "100%",
+    borderRadius: 2,
+    marginTop: 2,
+  },
+  eventContent: {
+    flex: 1,
+  },
+  eventMemberName: {
+    fontSize: 14,
+    fontFamily: "Inter-SemiBold",
+    color: "#1E293B",
+    marginBottom: 4,
+  },
+  eventMessage: {
+    fontSize: 13,
+    fontFamily: "Inter-Regular",
+    color: "#64748B",
+    marginBottom: 8,
+  },
+  eventMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  eventTime: {
+    fontSize: 12,
+    fontFamily: "Inter-Regular",
+    color: "#94A3B8",
+  },
+  eventStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 8,
+  },
+  eventStatusText: {
+    fontSize: 10,
+    fontFamily: "Inter-SemiBold",
+  },
+  moreItemsText: {
+    fontSize: 12,
+    fontFamily: "Inter-Regular",
+    color: "#94A3B8",
+    textAlign: "center",
+    padding: 12,
   },
   emptyState: {
     backgroundColor: "#FFFFFF",
@@ -6872,12 +5522,12 @@ const styles = StyleSheet.create({
   },
   eventType: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
   },
   eventMemberName: {
     fontSize: 13,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
     marginTop: 2,
   },
@@ -6892,7 +5542,7 @@ const styles = StyleSheet.create({
   },
   statusBadgeText: {
     fontSize: 10,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#FFFFFF",
   },
   eventReasons: {
@@ -6900,7 +5550,7 @@ const styles = StyleSheet.create({
   },
   reasonItem: {
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     marginBottom: 4,
   },
@@ -6911,7 +5561,7 @@ const styles = StyleSheet.create({
   },
   eventTime: {
     fontSize: 12,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#94A3B8",
   },
   actionButtons: {
@@ -6934,7 +5584,7 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     fontSize: 12,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#FFFFFF",
   },
   viewAllButton: {
@@ -6946,7 +5596,7 @@ const styles = StyleSheet.create({
   },
   viewAllText: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#2563EB",
   },
 });

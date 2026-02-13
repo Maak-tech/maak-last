@@ -321,11 +321,11 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
   },
   headerTitleRTL: {
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
   },
   expandButton: {
     padding: 4,
@@ -379,14 +379,14 @@ const styles = StyleSheet.create({
   },
   filterText: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
   },
   filterTextSelected: {
     color: "#FFFFFF",
   },
   filterTextRTL: {
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
   },
   memberAvatar: {
     width: 20,
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
   },
   memberAvatarText: {
     fontSize: 10,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#64748B",
   },
   memberAvatarTextSelected: {
@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
   },
   memberBadgeText: {
     fontSize: 10,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#6366F1",
   },
   memberBadgeTextSelected: {
@@ -441,11 +441,11 @@ const styles = StyleSheet.create({
   },
   selectedIndicatorText: {
     fontSize: 12,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
   },
   selectedIndicatorTextRTL: {
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
   },
 });
 

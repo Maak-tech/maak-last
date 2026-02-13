@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     flex: 1,
     textAlign: "center",
@@ -547,7 +547,7 @@ const styles = StyleSheet.create({
   },
   rtlText: {
     textAlign: "right",
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
   },
   introSection: {
     padding: 24,
@@ -555,7 +555,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     marginTop: 16,
     marginBottom: 8,
     textAlign: "center",

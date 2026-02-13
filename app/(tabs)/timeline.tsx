@@ -20,7 +20,7 @@ import {
   Modal,
   RefreshControl,
   ScrollView,
-  type StyleProp,
+  StyleSheet,
   Text,
   TextInput,
   type TextStyle,
@@ -29,15 +29,9 @@ import {
   type ViewStyle,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Card } from "@/components/design-system";
-import { Badge } from "@/components/design-system/AdditionalComponents";
-import {
-  Caption,
-  Heading,
-  Text as TypographyText,
-} from "@/components/design-system/Typography";
+import GradientScreen from "@/components/figma/GradientScreen";
+import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
-import { useTheme } from "@/contexts/ThemeContext";
 import {
   type TimelineEvent,
   timelineService,
@@ -47,7 +41,6 @@ import {
   safeFormatDateTime,
   safeFormatTime,
 } from "@/utils/dateFormat";
-import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 type ViewMode = "day" | "week" | "month" | "year";
 type FilterType = TimelineEvent["type"] | "all";
@@ -56,8 +49,8 @@ type FilterType = TimelineEvent["type"] | "all";
 export default function TimelineScreen() {
   const { i18n } = useTranslation();
   const { user } = useAuth();
-  const { theme } = useTheme();
   const timelineRouter = useRouter();
+  const params = useLocalSearchParams<{ returnTo?: string }>();
   const isRTL = i18n.language === "ar";
 
   const [events, setEvents] = useState<TimelineEvent[]>([]);
@@ -74,205 +67,295 @@ export default function TimelineScreen() {
   );
   const [showEventModal, setShowEventModal] = useState(false);
 
-  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: large style map for timeline states and RTL variants.
-  // biome-ignore lint/nursery/noShadow: style callback parameter name follows theming utility convention.
-  const styles = createThemedStyles((theme) => ({
+  const styles = StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.background.primary,
+      backgroundColor: "transparent",
     },
-    header: {
-      flexDirection: isRTL ? "row-reverse" : "row",
-      justifyContent: "space-between",
+    headerWrap: {
+      marginHorizontal: -20,
+      marginTop: -20,
+      marginBottom: 12,
+    },
+    headerContent: {
+      paddingHorizontal: 24,
+      paddingTop: 20,
+      paddingBottom: 16,
+    },
+    headerRow: {
+      flexDirection: "row",
       alignItems: "center",
-      paddingHorizontal: theme.spacing.base,
-      paddingVertical: theme.spacing.base,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border.light,
+      gap: 12,
     },
     backButton: {
       width: 40,
       height: 40,
-      borderRadius: 20,
+      borderRadius: 12,
+      backgroundColor: "rgba(255, 255, 255, 0.5)",
+      alignItems: "center",
       justifyContent: "center",
-      alignItems: "center",
     },
-    backButtonRTL: {
-      // RTL adjustments if needed
+    headerTitleWrap: {
+      flex: 1,
     },
-    headerLeft: {
-      flexDirection: isRTL ? "row-reverse" : "row",
+    headerTitleRow: {
+      flexDirection: "row",
       alignItems: "center",
-      gap: theme.spacing.base,
+      gap: 8,
+      marginBottom: 4,
     },
     headerTitle: {
-      ...getTextStyle(theme, "heading", "bold", theme.colors.text.primary),
-      fontSize: 24,
+      fontSize: 22,
+      fontFamily: "Inter-Bold",
+      color: "#FFFFFF",
+    },
+    headerSubtitle: {
+      fontSize: 13,
+      fontFamily: "Inter-SemiBold",
+      color: "rgba(0, 53, 67, 0.85)",
     },
     searchContainer: {
-      flexDirection: isRTL ? "row-reverse" : "row",
-      paddingHorizontal: theme.spacing.base,
-      paddingVertical: theme.spacing.sm,
-      gap: theme.spacing.xs,
+      flexDirection: "row",
+      gap: 10,
+      paddingHorizontal: 20,
+      marginBottom: 12,
     },
     searchInput: {
       flex: 1,
-      ...getTextStyle(theme, "body", "regular", theme.colors.text.primary),
       borderWidth: 1,
-      borderColor: theme.colors.border.light,
-      borderRadius: theme.borderRadius.md,
-      padding: theme.spacing.sm,
-      backgroundColor: theme.colors.background.secondary,
+      borderColor: "#E2E8F0",
+      borderRadius: 14,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      backgroundColor: "#FFFFFF",
+      fontSize: 12,
+      fontFamily: "Inter-SemiBold",
+      color: "#0F172A",
     },
     filterButton: {
-      padding: theme.spacing.sm,
-      borderRadius: theme.borderRadius.md,
+      width: 44,
+      height: 44,
+      borderRadius: 14,
       borderWidth: 1,
-      borderColor: theme.colors.border.light,
-      backgroundColor: theme.colors.background.secondary,
+      borderColor: "#E2E8F0",
+      backgroundColor: "#FFFFFF",
+      alignItems: "center",
+      justifyContent: "center",
     },
     viewModeSelector: {
-      flexDirection: isRTL ? "row-reverse" : "row",
-      paddingHorizontal: theme.spacing.base,
-      paddingVertical: theme.spacing.sm,
-      gap: theme.spacing.xs,
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+      paddingHorizontal: 20,
+      marginBottom: 12,
     },
     viewModeButton: {
-      paddingHorizontal: theme.spacing.base,
-      paddingVertical: theme.spacing.xs,
-      borderRadius: theme.borderRadius.full,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 999,
       borderWidth: 1,
-      borderColor: theme.colors.border.light,
-      backgroundColor: theme.colors.background.secondary,
+      borderColor: "#E2E8F0",
+      backgroundColor: "rgba(255, 255, 255, 0.9)",
     },
     viewModeButtonActive: {
-      backgroundColor: theme.colors.primary.main,
-      borderColor: theme.colors.primary.main,
+      backgroundColor: "#003543",
+      borderColor: "#003543",
     },
     viewModeButtonText: {
-      ...getTextStyle(theme, "caption", "medium", theme.colors.text.secondary),
       fontSize: 12,
+      fontFamily: "Inter-SemiBold",
+      color: "#0F172A",
     },
     viewModeButtonTextActive: {
-      color: theme.colors.neutral.white,
+      color: "#FFFFFF",
     },
     dateNavigation: {
-      flexDirection: isRTL ? "row-reverse" : "row",
+      flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
-      paddingHorizontal: theme.spacing.base,
-      paddingVertical: theme.spacing.sm,
+      paddingHorizontal: 20,
+      marginBottom: 12,
+    },
+    dateNavButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: "#E2E8F0",
+      backgroundColor: "#FFFFFF",
+      alignItems: "center",
+      justifyContent: "center",
     },
     dateText: {
-      ...getTextStyle(
-        theme,
-        "subheading",
-        "semibold",
-        theme.colors.text.primary
-      ),
       flex: 1,
       textAlign: "center",
+      fontSize: 13,
+      fontFamily: "Inter-SemiBold",
+      color: "#0F172A",
     },
     timelineContainer: {
-      padding: theme.spacing.base,
+      paddingHorizontal: 20,
+      paddingBottom: 140,
     },
     timelineDateGroup: {
-      marginBottom: theme.spacing.xl,
+      marginBottom: 20,
     },
     dateHeader: {
-      flexDirection: isRTL ? "row-reverse" : "row",
+      flexDirection: "row",
       alignItems: "center",
-      marginBottom: theme.spacing.base,
-      paddingBottom: theme.spacing.xs,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border.light,
+      justifyContent: "space-between",
+      marginBottom: 12,
     },
     dateHeaderText: {
-      ...getTextStyle(theme, "subheading", "bold", theme.colors.text.primary),
-      marginLeft: isRTL ? 0 : theme.spacing.sm,
-      marginRight: isRTL ? theme.spacing.sm : 0,
+      fontSize: 14,
+      fontFamily: "Inter-Bold",
+      color: "#0F172A",
     },
-    eventCount: {
-      ...getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
+    badge: {
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 999,
+      backgroundColor: "#E2E8F0",
+    },
+    badgeText: {
+      fontSize: 11,
+      fontFamily: "Inter-SemiBold",
+      color: "#0F172A",
     },
     timelineLine: {
       width: 2,
-      backgroundColor: theme.colors.border.light,
-      marginLeft: isRTL ? 0 : theme.spacing.base + 15,
-      marginRight: isRTL ? theme.spacing.base + 15 : 0,
-      minHeight: 20,
+      backgroundColor: "#E2E8F0",
+      alignSelf: "stretch",
+      marginLeft: 14,
     },
     eventItem: {
-      flexDirection: isRTL ? "row-reverse" : "row",
-      alignItems: "center",
-      marginBottom: theme.spacing.base,
+      flexDirection: "row",
+      alignItems: "flex-start",
+      marginBottom: 16,
     },
     eventDot: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      width: 30,
+      height: 30,
+      borderRadius: 15,
       borderWidth: 3,
-      borderColor: theme.colors.background.primary,
-      marginLeft: isRTL ? 0 : theme.spacing.base,
-      marginRight: isRTL ? theme.spacing.base : 0,
+      borderColor: "#F8FAFC",
       justifyContent: "center",
       alignItems: "center",
     },
     eventContent: {
       flex: 1,
-      marginLeft: isRTL ? 0 : theme.spacing.base,
-      marginRight: isRTL ? theme.spacing.base : 0,
     },
     eventCard: {
-      marginBottom: theme.spacing.sm,
+      backgroundColor: "#FFFFFF",
+      borderRadius: 16,
+      padding: 14,
+      shadowColor: "#0F172A",
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      elevation: 4,
     },
     eventHeader: {
-      flexDirection: isRTL ? "row-reverse" : "row",
+      flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "flex-start",
-      marginBottom: theme.spacing.xs,
+      gap: 10,
     },
     eventTitle: {
-      ...getTextStyle(theme, "subheading", "bold", theme.colors.text.primary),
+      fontSize: 14,
+      fontFamily: "Inter-Bold",
+      color: "#0F172A",
       flex: 1,
     },
     eventTime: {
-      ...getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
+      fontSize: 11,
+      fontFamily: "Inter-SemiBold",
+      color: "#64748B",
     },
     eventDescription: {
-      ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
-      marginTop: theme.spacing.xs,
+      fontSize: 12,
+      fontFamily: "Inter-SemiBold",
+      color: "#475569",
+      marginTop: 6,
+    },
+    eventTypeChip: {
+      alignSelf: "flex-start",
+      marginTop: 6,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 999,
+      backgroundColor: "#E2E8F0",
+    },
+    eventTypeText: {
+      fontSize: 11,
+      fontFamily: "Inter-SemiBold",
+      color: "#0F172A",
     },
     filterModal: {
-      backgroundColor: theme.colors.background.primary,
-      borderTopLeftRadius: 20,
-      borderTopRightRadius: 20,
-      padding: theme.spacing.base,
+      backgroundColor: "#FFFFFF",
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 20,
       maxHeight: "80%",
     },
     filterOption: {
-      flexDirection: isRTL ? "row-reverse" : "row",
+      flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
-      paddingVertical: theme.spacing.base,
+      paddingVertical: 12,
       borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border.light,
+      borderBottomColor: "#E2E8F0",
     },
     emptyContainer: {
       flex: 1,
       justifyContent: "center",
       alignItems: "center",
-      padding: theme.spacing.xl,
+      padding: 24,
     },
     emptyText: {
-      ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
+      fontSize: 13,
+      fontFamily: "Inter-SemiBold",
+      color: "#64748B",
       textAlign: "center",
-      marginTop: theme.spacing.base,
+      marginTop: 8,
     },
     rtlText: {
-      textAlign: isRTL ? "right" : "left",
+      textAlign: "right",
     },
-  }))(theme);
+    modalHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: "#E2E8F0",
+    },
+    modalContent: {
+      padding: 20,
+    },
+    modalTitle: {
+      fontSize: 16,
+      fontFamily: "Inter-Bold",
+      color: "#0F172A",
+    },
+    modalClose: {
+      fontSize: 14,
+      fontFamily: "Inter-SemiBold",
+      color: "#0F766E",
+    },
+    modalLabel: {
+      fontSize: 12,
+      fontFamily: "Inter-SemiBold",
+      color: "#64748B",
+      marginBottom: 4,
+    },
+    modalValue: {
+      fontSize: 13,
+      fontFamily: "Inter-SemiBold",
+      color: "#0F172A",
+    },
+  });
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: applyFilters is declared later in the component; adding it here would cause a TDZ access.
   const loadTimeline = useCallback(
@@ -499,62 +582,88 @@ export default function TimelineScreen() {
 
   if (!user) {
     return (
-      <SafeAreaView
+      <GradientScreen
         edges={["top"]}
         pointerEvents="box-none"
         style={styles.container as ViewStyle}
       >
         <View style={styles.emptyContainer as ViewStyle}>
-          <Text style={styles.emptyText as TextStyle}>
+          <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
             {isRTL ? "يجب تسجيل الدخول" : "Please log in"}
           </Text>
         </View>
-      </SafeAreaView>
+      </GradientScreen>
     );
   }
 
   return (
-    <SafeAreaView
+    <GradientScreen
       edges={["top"]}
       pointerEvents="box-none"
       style={styles.container as ViewStyle}
     >
-      <View style={styles.header as ViewStyle}>
-        <TouchableOpacity
-          onPress={() => timelineRouter.back()}
-          style={[
-            styles.backButton as ViewStyle,
-            isRTL && (styles.backButtonRTL as ViewStyle),
-          ]}
-        >
-          <ArrowLeft
-            color={theme.colors.text.primary}
-            size={24}
-            style={[isRTL && { transform: [{ rotate: "180deg" }] }]}
-          />
-        </TouchableOpacity>
-
-        <View style={styles.headerLeft as ViewStyle}>
-          <Heading
-            level={4}
-            style={
-              [
-                styles.headerTitle as TextStyle,
-                isRTL && (styles.rtlText as TextStyle),
-              ] as StyleProp<TextStyle>
-            }
-          >
-            {isRTL ? "السجل الزمني الصحي" : "Health Timeline"}
-          </Heading>
-        </View>
+      <View style={styles.headerWrap as ViewStyle}>
+        <WavyBackground height={180} variant="teal">
+          <View style={styles.headerContent as ViewStyle}>
+            <View
+              style={[
+                styles.headerRow,
+                isRTL && { flexDirection: "row-reverse" as const },
+              ]}
+            >
+              <TouchableOpacity
+                onPress={() =>
+                  params.returnTo === "track"
+                    ? timelineRouter.push("/(tabs)/track")
+                    : timelineRouter.back()
+                }
+                style={styles.backButton as ViewStyle}
+              >
+                <ArrowLeft
+                  color="#003543"
+                  size={20}
+                  style={
+                    isRTL ? { transform: [{ rotate: "180deg" }] } : undefined
+                  }
+                />
+              </TouchableOpacity>
+              <View style={styles.headerTitleWrap as ViewStyle}>
+                <View
+                  style={[
+                    styles.headerTitleRow,
+                    isRTL && { flexDirection: "row-reverse" as const },
+                  ]}
+                >
+                  <Calendar color="#EB9C0C" size={20} />
+                  <Text style={styles.headerTitle as TextStyle}>
+                    {isRTL ? "السجل الزمني الصحي" : "Health Timeline"}
+                  </Text>
+                </View>
+                <Text
+                  style={[
+                    styles.headerSubtitle as TextStyle,
+                    isRTL && styles.rtlText,
+                  ]}
+                >
+                  Track health events
+                </Text>
+              </View>
+            </View>
+          </View>
+        </WavyBackground>
       </View>
 
       {/* Search */}
-      <View style={styles.searchContainer as ViewStyle}>
+      <View
+        style={[
+          styles.searchContainer as ViewStyle,
+          isRTL && { flexDirection: "row-reverse" as const },
+        ]}
+      >
         <TextInput
           onChangeText={setSearchQuery}
           placeholder={isRTL ? "بحث..." : "Search..."}
-          placeholderTextColor={theme.colors.text.secondary}
+          placeholderTextColor="#94A3B8"
           style={[
             styles.searchInput as TextStyle,
             isRTL && (styles.rtlText as TextStyle),
@@ -565,12 +674,17 @@ export default function TimelineScreen() {
           onPress={() => setShowFilters(true)}
           style={styles.filterButton as ViewStyle}
         >
-          <Filter color={theme.colors.text.primary} size={20} />
+          <Filter color="#003543" size={20} />
         </TouchableOpacity>
       </View>
 
       {/* View Mode Selector */}
-      <View style={styles.viewModeSelector as ViewStyle}>
+      <View
+        style={[
+          styles.viewModeSelector as ViewStyle,
+          isRTL && { flexDirection: "row-reverse" as const },
+        ]}
+      >
         {/* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: compact map for mode-specific chips and labels. */}
         {(["day", "week", "month", "year"] as ViewMode[]).map((mode) => (
           <TouchableOpacity
@@ -603,9 +717,17 @@ export default function TimelineScreen() {
       </View>
 
       {/* Date Navigation */}
-      <View style={styles.dateNavigation as ViewStyle}>
-        <TouchableOpacity onPress={() => navigateDate("prev")}>
-          <ChevronLeft color={theme.colors.text.primary} size={24} />
+      <View
+        style={[
+          styles.dateNavigation as ViewStyle,
+          isRTL && { flexDirection: "row-reverse" as const },
+        ]}
+      >
+        <TouchableOpacity
+          onPress={() => navigateDate("prev")}
+          style={styles.dateNavButton as ViewStyle}
+        >
+          <ChevronLeft color="#003543" size={20} />
         </TouchableOpacity>
         <Text
           style={[
@@ -615,15 +737,18 @@ export default function TimelineScreen() {
         >
           {formatDateRange()}
         </Text>
-        <TouchableOpacity onPress={() => navigateDate("next")}>
-          <ChevronRight color={theme.colors.text.primary} size={24} />
+        <TouchableOpacity
+          onPress={() => navigateDate("next")}
+          style={styles.dateNavButton as ViewStyle}
+        >
+          <ChevronRight color="#003543" size={20} />
         </TouchableOpacity>
       </View>
 
       {/* Timeline */}
       {loading ? (
         <View style={styles.emptyContainer as ViewStyle}>
-          <ActivityIndicator color={theme.colors.primary.main} size="large" />
+          <ActivityIndicator color="#0F766E" size="large" />
         </View>
       ) : filteredEvents.length === 0 ? (
         <ScrollView
@@ -632,10 +757,11 @@ export default function TimelineScreen() {
             <RefreshControl
               onRefresh={() => loadTimeline(true)}
               refreshing={refreshing}
+              tintColor="#0F766E"
             />
           }
         >
-          <FileText color={theme.colors.text.secondary} size={64} />
+          <FileText color="#94A3B8" size={64} />
           <Text
             style={[
               styles.emptyText as TextStyle,
@@ -649,13 +775,15 @@ export default function TimelineScreen() {
         </ScrollView>
       ) : (
         <ScrollView
+          contentContainerStyle={styles.timelineContainer as ViewStyle}
           refreshControl={
             <RefreshControl
               onRefresh={() => loadTimeline(true)}
               refreshing={refreshing}
+              tintColor="#0F766E"
             />
           }
-          style={styles.timelineContainer as ViewStyle}
+          showsVerticalScrollIndicator={false}
         >
           {sortedDates.map((dateKey, _dateIndex) => {
             const dateEvents = groupedEvents.get(dateKey) || [];
@@ -663,15 +791,17 @@ export default function TimelineScreen() {
 
             return (
               <View key={dateKey} style={styles.timelineDateGroup as ViewStyle}>
-                <View style={styles.dateHeader as ViewStyle}>
-                  <TypographyText
-                    style={
-                      [
-                        styles.dateHeaderText as TextStyle,
-                        isRTL && (styles.rtlText as TextStyle),
-                      ] as StyleProp<TextStyle>
-                    }
-                    weight="bold"
+                <View
+                  style={[
+                    styles.dateHeader as ViewStyle,
+                    isRTL && { flexDirection: "row-reverse" as const },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.dateHeaderText as TextStyle,
+                      isRTL && (styles.rtlText as TextStyle),
+                    ]}
                   >
                     {safeFormatDate(date, isRTL ? "ar-u-ca-gregory" : "en-US", {
                       weekday: "long",
@@ -679,10 +809,12 @@ export default function TimelineScreen() {
                       month: "long",
                       day: "numeric",
                     })}
-                  </TypographyText>
-                  <Badge size="small" style={{}} variant="outline">
-                    {dateEvents.length}
-                  </Badge>
+                  </Text>
+                  <View style={styles.badge as ViewStyle}>
+                    <Text style={styles.badgeText as TextStyle}>
+                      {dateEvents.length}
+                    </Text>
+                  </View>
                 </View>
 
                 {dateEvents.map((event, eventIndex) => {
@@ -690,61 +822,69 @@ export default function TimelineScreen() {
                   const isLast = eventIndex === dateEvents.length - 1;
 
                   return (
-                    <View key={event.id} style={styles.eventItem as ViewStyle}>
-                      <View>
+                    <View
+                      key={event.id}
+                      style={[
+                        styles.eventItem as ViewStyle,
+                        isRTL && { flexDirection: "row-reverse" as const },
+                      ]}
+                    >
+                      <View style={{ alignItems: "center" }}>
                         <View
                           style={[
                             styles.eventDot as ViewStyle,
-                            { backgroundColor: event.color },
+                            {
+                              backgroundColor: event.color,
+                              marginRight: isRTL ? 0 : 12,
+                              marginLeft: isRTL ? 12 : 0,
+                            },
                           ]}
                         >
-                          <IconComponent
-                            color={theme.colors.neutral.white}
-                            size={18}
-                          />
+                          <IconComponent color="#FFFFFF" size={18} />
                         </View>
                         {!isLast && (
-                          <View style={styles.timelineLine as ViewStyle} />
+                          <View
+                            style={[
+                              styles.timelineLine as ViewStyle,
+                              {
+                                marginRight: isRTL ? 12 : 0,
+                                marginLeft: isRTL ? 0 : 12,
+                              },
+                            ]}
+                          />
                         )}
                       </View>
-                      <View style={styles.eventContent as ViewStyle}>
-                        <Card
-                          contentStyle={{}}
+                      <View
+                        style={[
+                          styles.eventContent as ViewStyle,
+                          isRTL ? { marginRight: 12 } : { marginLeft: 12 },
+                        ]}
+                      >
+                        <TouchableOpacity
+                          activeOpacity={0.9}
                           onPress={() => {
                             setSelectedEvent(event);
                             setShowEventModal(true);
                           }}
                           style={styles.eventCard as ViewStyle}
-                          variant="elevated"
                         >
                           <View style={styles.eventHeader as ViewStyle}>
                             <View style={{ flex: 1 }}>
-                              <TypographyText
-                                style={
-                                  [
-                                    styles.eventTitle as TextStyle,
-                                    isRTL && (styles.rtlText as TextStyle),
-                                  ] as StyleProp<TextStyle>
-                                }
-                                weight="bold"
+                              <Text
+                                style={[
+                                  styles.eventTitle as TextStyle,
+                                  isRTL && (styles.rtlText as TextStyle),
+                                ]}
                               >
                                 {event.title}
-                              </TypographyText>
-                              <Badge
-                                size="small"
-                                style={{
-                                  marginTop: 4,
-                                  alignSelf: "flex-start",
-                                }}
-                                variant="outline"
-                              >
-                                {getEventTypeLabel(event.type)}
-                              </Badge>
+                              </Text>
+                              <View style={styles.eventTypeChip as ViewStyle}>
+                                <Text style={styles.eventTypeText as TextStyle}>
+                                  {getEventTypeLabel(event.type)}
+                                </Text>
+                              </View>
                             </View>
-                            <Caption
-                              numberOfLines={1}
-                              style={styles.eventTime as TextStyle}
-                            >
+                            <Text style={styles.eventTime as TextStyle}>
                               {safeFormatTime(
                                 event.timestamp,
                                 isRTL ? "ar" : "en-US",
@@ -753,21 +893,19 @@ export default function TimelineScreen() {
                                   minute: "2-digit",
                                 }
                               )}
-                            </Caption>
+                            </Text>
                           </View>
                           {event.description ? (
-                            <TypographyText
-                              style={
-                                [
-                                  styles.eventDescription as TextStyle,
-                                  isRTL && (styles.rtlText as TextStyle),
-                                ] as StyleProp<TextStyle>
-                              }
+                            <Text
+                              style={[
+                                styles.eventDescription as TextStyle,
+                                isRTL && (styles.rtlText as TextStyle),
+                              ]}
                             >
                               {event.description}
-                            </TypographyText>
+                            </Text>
                           ) : null}
-                        </Card>
+                        </TouchableOpacity>
                       </View>
                     </View>
                   );
@@ -794,23 +932,16 @@ export default function TimelineScreen() {
         >
           <View style={styles.filterModal as ViewStyle}>
             <View
-              style={{
-                flexDirection: isRTL ? "row-reverse" : "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: theme.spacing.base,
-              }}
+              style={[
+                styles.modalHeader as ViewStyle,
+                isRTL && { flexDirection: "row-reverse" as const },
+              ]}
             >
-              <Heading
-                level={6}
-                style={[styles.rtlText as TextStyle] as StyleProp<TextStyle>}
-              >
+              <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
                 {isRTL ? "تصفية الأحداث الصحية" : "Filter"}
-              </Heading>
+              </Text>
               <TouchableOpacity onPress={() => setShowFilters(false)}>
-                <Text
-                  style={{ fontSize: 18, color: theme.colors.primary.main }}
-                >
+                <Text style={styles.modalClose as TextStyle}>
                   {isRTL ? "إغلاق" : "Close"}
                 </Text>
               </TouchableOpacity>
@@ -822,22 +953,23 @@ export default function TimelineScreen() {
                   setSelectedFilter(option.value);
                   setShowFilters(false);
                 }}
-                style={styles.filterOption as ViewStyle}
+                style={[
+                  styles.filterOption as ViewStyle,
+                  isRTL && { flexDirection: "row-reverse" as const },
+                ]}
               >
-                <TypographyText
-                  style={[styles.rtlText as TextStyle] as StyleProp<TextStyle>}
-                >
+                <Text style={[styles.modalValue, isRTL && styles.rtlText]}>
                   {option.label}
-                </TypographyText>
+                </Text>
                 {selectedFilter === option.value && (
                   <View
                     style={{
                       width: 20,
                       height: 20,
                       borderRadius: 10,
-                      backgroundColor: theme.colors.primary.main,
+                      backgroundColor: "#0F766E",
                       borderWidth: 4,
-                      borderColor: theme.colors.background.primary,
+                      borderColor: "#FFFFFF",
                     }}
                   />
                 )}
@@ -858,76 +990,80 @@ export default function TimelineScreen() {
         visible={showEventModal && !!selectedEvent}
       >
         <SafeAreaView style={styles.container as ViewStyle}>
-          <View style={styles.header as ViewStyle}>
-            <Heading
-              level={5}
-              style={
-                [
-                  styles.headerTitle as TextStyle,
-                  isRTL && (styles.rtlText as TextStyle),
-                ] as StyleProp<TextStyle>
-              }
+          <View
+            style={[
+              styles.modalHeader as ViewStyle,
+              isRTL && { flexDirection: "row-reverse" as const },
+            ]}
+          >
+            <Text
+              style={[
+                styles.modalTitle as TextStyle,
+                isRTL && (styles.rtlText as TextStyle),
+              ]}
             >
               {selectedEvent?.title}
-            </Heading>
+            </Text>
             <TouchableOpacity
               onPress={() => {
                 setShowEventModal(false);
                 setSelectedEvent(null);
               }}
             >
-              <Text style={{ fontSize: 18, color: theme.colors.primary.main }}>
+              <Text style={styles.modalClose as TextStyle}>
                 {isRTL ? "إغلاق" : "Close"}
               </Text>
             </TouchableOpacity>
           </View>
-          <ScrollView style={{ padding: theme.spacing.base }}>
+          <ScrollView contentContainerStyle={styles.modalContent as ViewStyle}>
             {selectedEvent ? (
               <>
-                <View style={{ marginBottom: theme.spacing.base }}>
-                  <Badge size="small" style={{}} variant="outline">
-                    {getEventTypeLabel(selectedEvent.type)}
-                  </Badge>
+                <View style={{ marginBottom: 16 }}>
+                  <View style={styles.eventTypeChip as ViewStyle}>
+                    <Text style={styles.eventTypeText as TextStyle}>
+                      {getEventTypeLabel(selectedEvent.type)}
+                    </Text>
+                  </View>
                 </View>
-                <View style={{ marginBottom: theme.spacing.base }}>
-                  <TypographyText
-                    style={
-                      [styles.rtlText as TextStyle] as StyleProp<TextStyle>
-                    }
-                    weight="semibold"
+                <View style={{ marginBottom: 16 }}>
+                  <Text
+                    style={[
+                      styles.modalLabel as TextStyle,
+                      isRTL && (styles.rtlText as TextStyle),
+                    ]}
                   >
                     {isRTL ? "التاريخ والوقت" : "Date & Time"}
-                  </TypographyText>
-                  <Caption
-                    numberOfLines={1}
-                    style={
-                      [styles.rtlText as TextStyle] as StyleProp<TextStyle>
-                    }
+                  </Text>
+                  <Text
+                    style={[
+                      styles.modalValue as TextStyle,
+                      isRTL && (styles.rtlText as TextStyle),
+                    ]}
                   >
                     {safeFormatDateTime(
                       selectedEvent.timestamp,
                       isRTL ? "ar" : "en-US"
                     )}
-                  </Caption>
+                  </Text>
                 </View>
                 {selectedEvent.description ? (
-                  <View style={{ marginBottom: theme.spacing.base }}>
-                    <TypographyText
-                      style={
-                        [styles.rtlText as TextStyle] as StyleProp<TextStyle>
-                      }
-                      weight="semibold"
+                  <View style={{ marginBottom: 16 }}>
+                    <Text
+                      style={[
+                        styles.modalLabel as TextStyle,
+                        isRTL && (styles.rtlText as TextStyle),
+                      ]}
                     >
                       {isRTL ? "الوصف الصحي" : "Description"}
-                    </TypographyText>
-                    <Caption
-                      numberOfLines={10}
-                      style={
-                        [styles.rtlText as TextStyle] as StyleProp<TextStyle>
-                      }
+                    </Text>
+                    <Text
+                      style={[
+                        styles.modalValue as TextStyle,
+                        isRTL && (styles.rtlText as TextStyle),
+                      ]}
                     >
                       {selectedEvent.description}
-                    </Caption>
+                    </Text>
                   </View>
                 ) : null}
               </>
@@ -935,6 +1071,6 @@ export default function TimelineScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
-    </SafeAreaView>
+    </GradientScreen>
   );
 }

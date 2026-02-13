@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 14,
     color: "#64748B",
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
   },
   upgradeContainer: {
     backgroundColor: "#FFFFFF",
@@ -260,18 +260,18 @@ const styles = StyleSheet.create({
   },
   upgradeTitle: {
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     marginBottom: 4,
   },
   upgradeDescription: {
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
   },
   upgradeButton: {
     fontSize: 14,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#2563EB",
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -279,6 +279,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   rtlText: {
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
   },
 });

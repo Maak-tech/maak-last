@@ -541,7 +541,7 @@ const styles = StyleSheet.create({
   },
   languageText: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#475569",
   },
   logoContainer: {
@@ -563,13 +563,13 @@ const styles = StyleSheet.create({
   },
   appName: {
     fontSize: 32,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#1E293B",
     marginBottom: 8,
   },
   tagline: {
     fontSize: 16,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     textAlign: "center",
   },
@@ -579,7 +579,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: "Geist-Bold",
+    fontFamily: "Inter-Bold",
     color: "#1E293B",
     marginBottom: 32,
     textAlign: "center",
@@ -598,14 +598,14 @@ const styles = StyleSheet.create({
   errorText: {
     color: "#DC2626",
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
   },
   inputContainer: {
     marginBottom: 20,
   },
   label: {
     fontSize: 16,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#374151",
     marginBottom: 8,
   },
@@ -619,7 +619,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     backgroundColor: "#FFFFFF",
   },
   inputError: {
@@ -628,11 +628,11 @@ const styles = StyleSheet.create({
   fieldErrorText: {
     color: "#DC2626",
     fontSize: 12,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     marginTop: 4,
   },
   rtlInput: {
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
   },
   registerButton: {
     backgroundColor: "#2563EB",
@@ -648,7 +648,7 @@ const styles = StyleSheet.create({
   registerButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
   },
   loginContainer: {
     flexDirection: "row",
@@ -657,17 +657,17 @@ const styles = StyleSheet.create({
   },
   loginText: {
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
   },
   loginLink: {
     fontSize: 14,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#2563EB",
   },
   rtlText: {
     textAlign: "right",
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
   },
   avatarContainer: {
     alignItems: "center",
@@ -679,7 +679,7 @@ const styles = StyleSheet.create({
   },
   avatarHint: {
     fontSize: 14,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     marginTop: 8,
   },
@@ -714,7 +714,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
     color: "#1E293B",
     textAlign: "center",
     marginBottom: 20,
@@ -746,12 +746,12 @@ const styles = StyleSheet.create({
   },
   avatarLabel: {
     fontSize: 12,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
   },
   avatarLabelSelected: {
     color: "#2563EB",
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
   },
   avatarCheck: {
     position: "absolute",
@@ -783,18 +783,18 @@ const styles = StyleSheet.create({
   },
   familyToggleText: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#2563EB",
     flex: 1,
   },
   optionalText: {
     fontSize: 12,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
   },
   helperText: {
     fontSize: 12,
-    fontFamily: "Geist-Regular",
+    fontFamily: "Inter-Regular",
     color: "#64748B",
     marginTop: 4,
     lineHeight: 16,
@@ -823,12 +823,12 @@ const styles = StyleSheet.create({
   },
   methodToggleText: {
     fontSize: 14,
-    fontFamily: "Geist-Medium",
+    fontFamily: "Inter-Medium",
     color: "#64748B",
   },
   methodToggleTextActive: {
     color: "#2563EB",
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
   },
   verifyButton: {
     backgroundColor: "#2563EB",
@@ -840,7 +840,7 @@ const styles = StyleSheet.create({
   verifyButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
   },
   resendButton: {
     borderRadius: 12,
@@ -855,6 +855,6 @@ const styles = StyleSheet.create({
   resendButtonText: {
     color: "#2563EB",
     fontSize: 14,
-    fontFamily: "Geist-SemiBold",
+    fontFamily: "Inter-SemiBold",
   },
 });

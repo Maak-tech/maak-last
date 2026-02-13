@@ -2,7 +2,9 @@
 /* biome-ignore-all lint/style/noNestedTernary: Existing localized copy and UI branching retained in this patch. */
 /* biome-ignore-all lint/correctness/useExhaustiveDependencies: Intentional hook dependency omissions retained to avoid behavior changes. */
 /* biome-ignore-all lint/nursery/noShadow: Legacy style factory callback naming retained with current structure. */
-import { Brain } from "lucide-react-native";
+
+import { useRouter } from "expo-router";
+import { ArrowLeft, Brain } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -10,39 +12,33 @@ import {
   InteractionManager,
   RefreshControl,
   ScrollView,
+  StyleSheet,
   Text,
   type TextStyle,
   TouchableOpacity,
   View,
   type ViewStyle,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { AIInsightsDashboard } from "@/app/components/AIInsightsDashboard";
 import CorrelationChart from "@/app/components/CorrelationChart";
 import HealthChart from "@/app/components/HealthChart";
 import TrendPredictionChart from "@/app/components/TrendPredictionChart";
-import { Button, Card } from "@/components/design-system";
-import {
-  Caption,
-  Heading,
-  Text as TypographyText,
-} from "@/components/design-system/Typography";
+import GradientScreen from "@/components/figma/GradientScreen";
+import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
-import { useTheme } from "@/contexts/ThemeContext";
 import { useAIInsights } from "@/hooks/useAIInsights";
 import { chartsService } from "@/lib/services/chartsService";
 import { healthDataService } from "@/lib/services/healthDataService";
 import { medicationService } from "@/lib/services/medicationService";
 import { symptomService } from "@/lib/services/symptomService";
 import type { Medication, Symptom, VitalSign } from "@/types";
-import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 type DateRange = "7d" | "30d" | "90d" | "custom";
 
 export default function AnalyticsScreen() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
-  const { theme } = useTheme();
+  const router = useRouter();
   const isRTL = i18n.language === "ar";
 
   const [loading, setLoading] = useState(true);
@@ -65,104 +61,210 @@ export default function AnalyticsScreen() {
 
   const styles = useMemo(
     () =>
-      createThemedStyles((theme) => ({
+      StyleSheet.create({
         container: {
           flex: 1,
-          backgroundColor: theme.colors.background.primary,
-        } as ViewStyle,
-        header: {
-          paddingHorizontal: theme.spacing.base,
-          paddingVertical: theme.spacing.base,
-          borderBottomWidth: 1,
-          borderBottomColor: theme.colors.border.light,
-        } as ViewStyle,
+          backgroundColor: "transparent",
+        },
+        headerWrap: {
+          marginHorizontal: -20,
+          marginTop: -20,
+          marginBottom: 12,
+        },
+        headerContent: {
+          paddingHorizontal: 24,
+          paddingTop: 20,
+          paddingBottom: 16,
+        },
+        headerRow: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 12,
+        },
+        backButton: {
+          width: 40,
+          height: 40,
+          borderRadius: 12,
+          backgroundColor: "rgba(255, 255, 255, 0.5)",
+          alignItems: "center",
+          justifyContent: "center",
+        },
         headerTitle: {
-          ...getTextStyle(theme, "heading", "bold", theme.colors.text.primary),
-          fontSize: 24,
-        } as TextStyle,
-        dateRangeSelector: {
-          flexDirection: (isRTL
-            ? "row-reverse"
-            : "row") as ViewStyle["flexDirection"],
-          gap: theme.spacing.xs,
-          flexWrap: "wrap" as ViewStyle["flexWrap"],
-        } as ViewStyle,
-        dateRangeButton: {
-          paddingHorizontal: theme.spacing.base,
-          paddingVertical: theme.spacing.xs,
-          borderRadius: theme.borderRadius.full,
-          borderWidth: 1,
-          borderColor:
-            typeof theme.colors.border === "string"
-              ? theme.colors.border
-              : theme.colors.border.light,
-          backgroundColor: theme.colors.background.secondary,
-        } as ViewStyle,
-        dateRangeButtonActive: {
-          backgroundColor: theme.colors.primary.main,
-          borderColor: theme.colors.primary.main,
-        } as ViewStyle,
-        dateRangeButtonText: {
-          ...getTextStyle(
-            theme,
-            "caption",
-            "medium",
-            theme.colors.text.secondary
-          ),
-          fontSize: 12,
-        } as TextStyle,
-        dateRangeButtonTextActive: {
-          color: theme.colors.neutral.white,
-        } as TextStyle,
+          flex: 1,
+        },
+        headerTitleRow: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 4,
+        },
+        headerTitleText: {
+          fontSize: 22,
+          fontFamily: "Inter-Bold",
+          color: "#FFFFFF",
+        },
+        headerSubtitle: {
+          fontSize: 13,
+          fontFamily: "Inter-SemiBold",
+          color: "rgba(0, 53, 67, 0.85)",
+        },
         content: {
-          paddingBottom: theme.spacing.xl,
-        } as ViewStyle,
+          paddingHorizontal: 20,
+          paddingBottom: 140,
+        },
+        rangeRow: {
+          flexDirection: "row",
+          flexWrap: "wrap",
+          gap: 8,
+          marginBottom: 16,
+        },
+        rangeChip: {
+          paddingHorizontal: 12,
+          paddingVertical: 6,
+          borderRadius: 999,
+          borderWidth: 1,
+          borderColor: "#E2E8F0",
+          backgroundColor: "rgba(255, 255, 255, 0.9)",
+        },
+        rangeChipActive: {
+          backgroundColor: "#003543",
+          borderColor: "#003543",
+        },
+        rangeText: {
+          fontSize: 12,
+          fontFamily: "Inter-SemiBold",
+          color: "#0F172A",
+        },
+        rangeTextActive: {
+          color: "#FFFFFF",
+        },
         section: {
-          marginVertical: theme.spacing.base,
-        } as ViewStyle,
+          marginBottom: 20,
+        },
         sectionHeader: {
-          flexDirection: (isRTL
-            ? "row-reverse"
-            : "row") as ViewStyle["flexDirection"],
-          justifyContent: "space-between" as ViewStyle["justifyContent"],
-          alignItems: "center" as ViewStyle["alignItems"],
-          paddingHorizontal: theme.spacing.base,
-          marginBottom: theme.spacing.sm,
-        } as ViewStyle,
-        comparisonToggle: {
-          flexDirection: (isRTL
-            ? "row-reverse"
-            : "row") as ViewStyle["flexDirection"],
-          alignItems: "center" as ViewStyle["alignItems"],
-          gap: theme.spacing.xs,
-        } as ViewStyle,
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 12,
+        },
+        sectionTitle: {
+          fontSize: 16,
+          fontFamily: "Inter-Bold",
+          color: "#0F172A",
+        },
+        sectionAction: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 6,
+        },
+        sectionActionText: {
+          fontSize: 12,
+          fontFamily: "Inter-SemiBold",
+          color: "#0F766E",
+        },
+        chartStack: {
+          gap: 12,
+        },
+        chartCard: {
+          backgroundColor: "#FFFFFF",
+          borderRadius: 16,
+          padding: 12,
+          shadowColor: "#0F172A",
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.08,
+          shadowRadius: 12,
+          elevation: 4,
+        },
+        comparisonNote: {
+          paddingHorizontal: 4,
+        },
+        comparisonText: {
+          fontSize: 12,
+          fontFamily: "Inter-SemiBold",
+        },
+        aiCard: {
+          backgroundColor: "#FFFFFF",
+          borderRadius: 16,
+          padding: 16,
+          shadowColor: "#0F172A",
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.08,
+          shadowRadius: 12,
+          elevation: 4,
+        },
+        aiState: {
+          alignItems: "center",
+          paddingVertical: 12,
+        },
+        aiStateText: {
+          fontSize: 12,
+          fontFamily: "Inter-SemiBold",
+          color: "#0F172A",
+          marginTop: 6,
+          textAlign: "center",
+        },
+        errorText: {
+          fontSize: 12,
+          fontFamily: "Inter-SemiBold",
+          color: "#EF4444",
+        },
+        primaryButton: {
+          marginTop: 10,
+          alignSelf: "flex-start",
+          backgroundColor: "#003543",
+          paddingHorizontal: 12,
+          paddingVertical: 6,
+          borderRadius: 10,
+        },
+        primaryButtonText: {
+          fontSize: 12,
+          fontFamily: "Inter-SemiBold",
+          color: "#FFFFFF",
+        },
+        summaryGrid: {
+          flexDirection: "row",
+          gap: 12,
+        },
+        summaryCard: {
+          flex: 1,
+          backgroundColor: "#FFFFFF",
+          borderRadius: 16,
+          padding: 16,
+          shadowColor: "#0F172A",
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.08,
+          shadowRadius: 12,
+          elevation: 4,
+        },
+        summaryLabel: {
+          fontSize: 12,
+          fontFamily: "Inter-SemiBold",
+          color: "#64748B",
+          marginBottom: 6,
+        },
+        summaryValue: {
+          fontSize: 20,
+          fontFamily: "Inter-Bold",
+          color: "#0F172A",
+        },
         emptyContainer: {
           flex: 1,
-          justifyContent: "center" as ViewStyle["justifyContent"],
-          alignItems: "center" as ViewStyle["alignItems"],
-          padding: theme.spacing.xl,
-        } as ViewStyle,
+          justifyContent: "center",
+          alignItems: "center",
+          padding: 24,
+        },
         emptyText: {
-          ...getTextStyle(
-            theme,
-            "body",
-            "regular",
-            theme.colors.text.secondary
-          ),
-          textAlign: "center" as TextStyle["textAlign"],
-          marginTop: theme.spacing.base,
-        } as TextStyle & ViewStyle,
+          fontSize: 13,
+          fontFamily: "Inter-SemiBold",
+          color: "#64748B",
+          textAlign: "center",
+          marginTop: 8,
+        },
         rtlText: {
-          textAlign: (isRTL ? "right" : "left") as TextStyle["textAlign"],
-        } as TextStyle,
-        text: {
-          ...getTextStyle(theme, "body", "regular", theme.colors.text.primary),
-        } as TextStyle,
-        mt2: {
-          marginTop: theme.spacing.xs,
-        } as TextStyle,
-      }))(theme),
-    [theme, isRTL]
+          textAlign: "right",
+        },
+      }),
+    []
   );
 
   const getDaysFromRange = useCallback((range: DateRange): number => {
@@ -323,99 +425,132 @@ export default function AnalyticsScreen() {
 
   if (!user) {
     return (
-      <SafeAreaView
+      <GradientScreen
         edges={["top"]}
         pointerEvents="box-none"
         style={styles.container as ViewStyle}
       >
         <View style={styles.emptyContainer as ViewStyle}>
-          <Text style={styles.emptyText as TextStyle}>
+          <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
             {isRTL ? "يجب تسجيل الدخول" : "Please log in"}
           </Text>
         </View>
-      </SafeAreaView>
+      </GradientScreen>
     );
   }
 
   return (
-    <SafeAreaView
+    <GradientScreen
       edges={["top"]}
       pointerEvents="box-none"
       style={styles.container as ViewStyle}
     >
-      <View style={styles.header as ViewStyle}>
-        <View style={{ marginBottom: theme.spacing.base }}>
-          <Heading
-            level={4}
-            style={[styles.headerTitle, isRTL && styles.rtlText]}
-          >
-            {isRTL ? "التحليلات الصحية والاتجاهات" : "Analytics & Trends"}
-          </Heading>
-        </View>
-
-        {/* Date Range Selector */}
-        <View style={styles.dateRangeSelector as ViewStyle}>
-          {dateRanges.map((range) => (
-            <TouchableOpacity
-              key={range.value}
-              onPress={() => setDateRange(range.value)}
+      <View style={styles.headerWrap as ViewStyle}>
+        <WavyBackground height={180} variant="teal">
+          <View style={styles.headerContent as ViewStyle}>
+            <View
               style={[
-                styles.dateRangeButton,
-                dateRange === range.value
-                  ? styles.dateRangeButtonActive
-                  : undefined,
+                styles.headerRow,
+                isRTL && { flexDirection: "row-reverse" as const },
               ]}
             >
-              <Text
-                style={[
-                  styles.dateRangeButtonText,
-                  dateRange === range.value
-                    ? styles.dateRangeButtonTextActive
-                    : undefined,
-                ]}
+              <TouchableOpacity
+                onPress={() => router.back()}
+                style={styles.backButton as ViewStyle}
               >
-                {range.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+                <ArrowLeft
+                  color="#003543"
+                  size={20}
+                  style={
+                    isRTL ? { transform: [{ rotate: "180deg" }] } : undefined
+                  }
+                />
+              </TouchableOpacity>
+              <View style={styles.headerTitle as ViewStyle}>
+                <View
+                  style={[
+                    styles.headerTitleRow,
+                    isRTL && { flexDirection: "row-reverse" as const },
+                  ]}
+                >
+                  <Brain color="#EB9C0C" size={20} />
+                  <Text style={styles.headerTitleText as TextStyle}>
+                    {isRTL ? "التحليلات الصحية والاتجاهات" : "Analytics"}
+                  </Text>
+                </View>
+                <Text
+                  style={[
+                    styles.headerSubtitle as TextStyle,
+                    isRTL && styles.rtlText,
+                  ]}
+                >
+                  {t("trendsAndInsights", "Trends and insights")}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </WavyBackground>
       </View>
 
       {loading ? (
         <View style={styles.emptyContainer as ViewStyle}>
-          <ActivityIndicator color={theme.colors.primary.main} size="large" />
+          <ActivityIndicator color="#0F766E" size="large" />
         </View>
       ) : (
         <ScrollView
+          contentContainerStyle={styles.content as ViewStyle}
           refreshControl={
             <RefreshControl
               onRefresh={() => loadAnalyticsData(true)}
               refreshing={refreshing}
+              tintColor="#0F766E"
             />
           }
-          style={styles.content as ViewStyle}
+          showsVerticalScrollIndicator={false}
         >
+          <View
+            style={[
+              styles.rangeRow as ViewStyle,
+              isRTL && { flexDirection: "row-reverse" as const },
+            ]}
+          >
+            {dateRanges.map((range) => (
+              <TouchableOpacity
+                key={range.value}
+                onPress={() => setDateRange(range.value)}
+                style={[
+                  styles.rangeChip,
+                  dateRange === range.value
+                    ? styles.rangeChipActive
+                    : undefined,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.rangeText,
+                    dateRange === range.value
+                      ? styles.rangeTextActive
+                      : undefined,
+                  ]}
+                >
+                  {range.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
           {/* Symptom Trends */}
           {symptoms.length > 0 && (
             <View style={styles.section as ViewStyle}>
               <View style={styles.sectionHeader as ViewStyle}>
-                <Heading
-                  level={6}
-                  style={[
-                    styles.rtlText,
-                    isRTL && { textAlign: "right" as const },
-                  ]}
-                >
+                <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
                   {isRTL ? "اتجاهات الأعراض الصحية" : "Symptom Trends"}
-                </Heading>
+                </Text>
                 <TouchableOpacity
                   onPress={() => {
                     if (showComparison) {
                       setShowComparison(false);
                       setComparisonRange(null);
                     } else {
-                      // Set comparison range to previous period
-                      const _currentDays = getDaysFromRange(dateRange);
                       if (dateRange === "7d") {
                         setComparisonRange("7d");
                       } else if (dateRange === "30d") {
@@ -426,15 +561,16 @@ export default function AnalyticsScreen() {
                       setShowComparison(true);
                     }
                   }}
-                  style={styles.comparisonToggle as ViewStyle}
+                  style={[
+                    styles.sectionAction,
+                    isRTL && { flexDirection: "row-reverse" as const },
+                  ]}
                 >
                   <Text
-                    style={{
-                      fontSize: 12,
-                      color: showComparison
-                        ? theme.colors.primary.main
-                        : theme.colors.text.secondary,
-                    }}
+                    style={[
+                      styles.sectionActionText,
+                      { color: showComparison ? "#0F766E" : "#94A3B8" },
+                    ]}
                   >
                     {isRTL
                       ? showComparison
@@ -446,47 +582,56 @@ export default function AnalyticsScreen() {
                   </Text>
                 </TouchableOpacity>
               </View>
-              {showComparison && symptomComparisonData ? (
-                <View>
-                  <HealthChart
-                    data={symptomComparisonData.current}
-                    title={isRTL ? "الفترة الحالية" : "Current Period"}
-                    yAxisLabel="Severity"
-                    yAxisSuffix=""
-                  />
-                  <HealthChart
-                    data={symptomComparisonData.previous}
-                    title={isRTL ? "الفترة السابقة" : "Previous Period"}
-                    yAxisLabel="Severity"
-                    yAxisSuffix=""
-                  />
-                  <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
-                    <Text
-                      style={{
-                        fontSize: 14,
-                        fontWeight: "600",
-                        color:
-                          symptomComparisonData.change > 0
-                            ? theme.colors.accent.error
-                            : symptomComparisonData.change < 0
-                              ? theme.colors.accent.success
-                              : theme.colors.text.secondary,
-                      }}
-                    >
-                      {isRTL
-                        ? `التغير المتوقع: ${symptomComparisonData.change > 0 ? "+" : ""}${symptomComparisonData.change.toFixed(1)}%`
-                        : `Change: ${symptomComparisonData.change > 0 ? "+" : ""}${symptomComparisonData.change.toFixed(1)}%`}
-                    </Text>
+              <View style={styles.chartStack as ViewStyle}>
+                {showComparison && symptomComparisonData ? (
+                  <>
+                    <View style={styles.chartCard as ViewStyle}>
+                      <HealthChart
+                        data={symptomComparisonData.current}
+                        title={isRTL ? "الفترة الحالية" : "Current Period"}
+                        yAxisLabel="Severity"
+                        yAxisSuffix=""
+                      />
+                    </View>
+                    <View style={styles.chartCard as ViewStyle}>
+                      <HealthChart
+                        data={symptomComparisonData.previous}
+                        title={isRTL ? "الفترة السابقة" : "Previous Period"}
+                        yAxisLabel="Severity"
+                        yAxisSuffix=""
+                      />
+                    </View>
+                    <View style={styles.comparisonNote as ViewStyle}>
+                      <Text
+                        style={[
+                          styles.comparisonText,
+                          {
+                            color:
+                              symptomComparisonData.change > 0
+                                ? "#EF4444"
+                                : symptomComparisonData.change < 0
+                                  ? "#10B981"
+                                  : "#94A3B8",
+                          },
+                        ]}
+                      >
+                        {isRTL
+                          ? `التغير المتوقع: ${symptomComparisonData.change > 0 ? "+" : ""}${symptomComparisonData.change.toFixed(1)}%`
+                          : `Change: ${symptomComparisonData.change > 0 ? "+" : ""}${symptomComparisonData.change.toFixed(1)}%`}
+                      </Text>
+                    </View>
+                  </>
+                ) : (
+                  <View style={styles.chartCard as ViewStyle}>
+                    <HealthChart
+                      data={symptomChartData}
+                      title=""
+                      yAxisLabel="Severity"
+                      yAxisSuffix=""
+                    />
                   </View>
-                </View>
-              ) : (
-                <HealthChart
-                  data={symptomChartData}
-                  title=""
-                  yAxisLabel="Severity"
-                  yAxisSuffix=""
-                />
-              )}
+                )}
+              </View>
             </View>
           )}
 
@@ -494,21 +639,17 @@ export default function AnalyticsScreen() {
           {symptoms.length > 7 && (
             <View style={styles.section as ViewStyle}>
               <View style={styles.sectionHeader as ViewStyle}>
-                <Heading
-                  level={6}
-                  style={[
-                    styles.rtlText,
-                    isRTL && { textAlign: "right" as const },
-                  ]}
-                >
+                <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
                   {isRTL ? "التنبؤ باتجاه الأعراض الصحية" : "Trend Prediction"}
-                </Heading>
+                </Text>
               </View>
-              <TrendPredictionChart
-                prediction={symptomTrend}
-                title=""
-                yAxisLabel="Severity"
-              />
+              <View style={styles.chartCard as ViewStyle}>
+                <TrendPredictionChart
+                  prediction={symptomTrend}
+                  title=""
+                  yAxisLabel="Severity"
+                />
+              </View>
             </View>
           )}
 
@@ -516,22 +657,18 @@ export default function AnalyticsScreen() {
           {medications.length > 0 && (
             <View style={styles.section as ViewStyle}>
               <View style={styles.sectionHeader as ViewStyle}>
-                <Heading
-                  level={6}
-                  style={[
-                    styles.rtlText,
-                    isRTL && { textAlign: "right" as const },
-                  ]}
-                >
+                <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
                   {isRTL ? "الالتزام بالأدوية" : "Medication Compliance"}
-                </Heading>
+                </Text>
               </View>
-              <HealthChart
-                data={medicationComplianceData}
-                title=""
-                yAxisLabel=""
-                yAxisSuffix="%"
-              />
+              <View style={styles.chartCard as ViewStyle}>
+                <HealthChart
+                  data={medicationComplianceData}
+                  title=""
+                  yAxisLabel=""
+                  yAxisSuffix="%"
+                />
+              </View>
             </View>
           )}
 
@@ -539,30 +676,21 @@ export default function AnalyticsScreen() {
           {symptoms.length > 0 && medications.length > 0 && (
             <View style={styles.section as ViewStyle}>
               <View style={styles.sectionHeader as ViewStyle}>
-                <Heading
-                  level={6}
-                  style={[
-                    styles.rtlText,
-                    isRTL && { textAlign: "right" as const },
-                  ]}
-                >
+                <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
                   {isRTL
                     ? "تحليل الارتباط بين الأعراض الصحية والأدوية"
                     : "Correlation Analysis"}
-                </Heading>
+                </Text>
               </View>
-              <CorrelationChart data={correlationData} title="" />
-              <Card
-                contentStyle={undefined}
-                pressable={false}
-                style={{ marginHorizontal: 16, marginTop: 8 }}
-                variant="elevated"
-              >
-                <View style={{ padding: 16 }}>
-                  <TypographyText style={{ marginBottom: 8 }} weight="semibold">
+              <View style={styles.chartStack as ViewStyle}>
+                <View style={styles.chartCard as ViewStyle}>
+                  <CorrelationChart data={correlationData} title="" />
+                </View>
+                <View style={styles.aiCard as ViewStyle}>
+                  <Text style={styles.sectionTitle as TextStyle}>
                     {isRTL ? "التفسير الصحي" : "Interpretation"}
-                  </TypographyText>
-                  <Caption numberOfLines={5} style={{}}>
+                  </Text>
+                  <Text style={styles.aiStateText as TextStyle}>
                     {correlationData.correlation > 0.3
                       ? isRTL
                         ? "يبدو أن الالتزام بالأدوية يرتبط بانخفاض شدة الأعراض الصحية"
@@ -574,43 +702,34 @@ export default function AnalyticsScreen() {
                         : isRTL
                           ? "لا يوجد ارتباط واضح بين الالتزام بالأدوية وشدة الأعراض الصحية"
                           : "No clear correlation found between medication compliance and symptom severity"}
-                  </Caption>
+                  </Text>
                 </View>
-              </Card>
+              </View>
             </View>
           )}
 
           {/* AI Insights Section */}
           <View style={styles.section as ViewStyle}>
             <View style={styles.sectionHeader as ViewStyle}>
-              <Heading
-                level={6}
-                style={[
-                  styles.rtlText,
-                  isRTL && { textAlign: "right" as const },
-                ]}
-              >
+              <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
                 {isRTL ? "رؤى الذكاء الاصطناعي" : "AI Insights"}
-              </Heading>
+              </Text>
               <TouchableOpacity
                 onPress={() => setShowAIInsights(!showAIInsights)}
-                style={styles.comparisonToggle as ViewStyle}
+                style={[
+                  styles.sectionAction,
+                  isRTL && { flexDirection: "row-reverse" as const },
+                ]}
               >
                 <Brain
-                  color={
-                    showAIInsights
-                      ? theme.colors.primary.main
-                      : theme.colors.text.secondary
-                  }
+                  color={showAIInsights ? "#0F766E" : "#94A3B8"}
                   size={16}
                 />
                 <Text
-                  style={{
-                    fontSize: 12,
-                    color: showAIInsights
-                      ? theme.colors.primary.main
-                      : theme.colors.text.secondary,
-                  }}
+                  style={[
+                    styles.sectionActionText,
+                    { color: showAIInsights ? "#0F766E" : "#94A3B8" },
+                  ]}
                 >
                   {isRTL
                     ? showAIInsights
@@ -624,57 +743,30 @@ export default function AnalyticsScreen() {
             </View>
 
             {Boolean(showAIInsights) && (
-              <View style={{ marginHorizontal: 16 }}>
+              <View style={styles.aiCard as ViewStyle}>
                 {aiInsights.loading ? (
-                  <View style={{ padding: 20, alignItems: "center" }}>
-                    <ActivityIndicator
-                      color={theme.colors.primary.main}
-                      size="small"
-                    />
-                    <Text
-                      style={{
-                        ...getTextStyle(
-                          theme,
-                          "body",
-                          "regular",
-                          theme.colors.text.primary
-                        ),
-                        marginTop: theme.spacing.xs,
-                      }}
-                    >
+                  <View style={styles.aiState as ViewStyle}>
+                    <ActivityIndicator color="#0F766E" size="small" />
+                    <Text style={styles.aiStateText as TextStyle}>
                       {isRTL ? "تحليل بياناتك..." : "Analyzing your data..."}
                     </Text>
                   </View>
                 ) : aiInsights.error ? (
-                  <Card
-                    contentStyle={undefined}
-                    pressable={false}
-                    style={{ marginBottom: 8 }}
-                    variant="elevated"
-                  >
-                    <View style={{ padding: 16 }}>
-                      <Text
-                        style={{
-                          ...getTextStyle(
-                            theme,
-                            "body",
-                            "regular",
-                            theme.colors.text.primary
-                          ),
-                          color: theme.colors.accent.error,
-                        }}
-                      >
-                        {isRTL
-                          ? "فشل في تحميل الرؤى الذكية"
-                          : "Failed to load AI insights"}
+                  <View>
+                    <Text style={styles.errorText as TextStyle}>
+                      {isRTL
+                        ? "فشل في تحميل الرؤى الذكية"
+                        : "Failed to load AI insights"}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={aiInsights.refresh}
+                      style={styles.primaryButton as ViewStyle}
+                    >
+                      <Text style={styles.primaryButtonText as TextStyle}>
+                        {isRTL ? "إعادة المحاولة" : "Retry"}
                       </Text>
-                      <Button
-                        onPress={aiInsights.refresh}
-                        style={{ marginTop: 8 }}
-                        title={isRTL ? "إعادة المحاولة" : "Retry"}
-                      />
-                    </View>
-                  </Card>
+                    </TouchableOpacity>
+                  </View>
                 ) : (
                   <AIInsightsDashboard
                     compact={true}
@@ -690,72 +782,52 @@ export default function AnalyticsScreen() {
           {/* Summary Stats */}
           <View style={styles.section as ViewStyle}>
             <View style={styles.sectionHeader as ViewStyle}>
-              <Heading
-                level={6}
-                style={[
-                  styles.rtlText,
-                  isRTL && { textAlign: "right" as const },
-                ]}
-              >
+              <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
                 {isRTL ? "ملخص الإحصائيات" : "Summary Statistics"}
-              </Heading>
+              </Text>
             </View>
-            <View style={{ paddingHorizontal: 16, gap: 12 }}>
-              <Card
-                contentStyle={undefined}
-                pressable={false}
-                style={undefined}
-                variant="elevated"
-              >
-                <View style={{ padding: 16 }}>
-                  <TypographyText style={{ marginBottom: 4 }} weight="semibold">
-                    {isRTL
-                      ? "متوسط شدة الأعراض الصحية"
-                      : "Average Symptom Severity"}
-                  </TypographyText>
-                  <TypographyText size="large" style={{}} weight="bold">
-                    {symptomChartData.datasets[0].data.length > 0
-                      ? (
-                          symptomChartData.datasets[0].data.reduce(
-                            (a, b) => a + b,
-                            0
-                          ) / symptomChartData.datasets[0].data.length
-                        ).toFixed(1)
-                      : "0"}
-                    /5
-                  </TypographyText>
-                </View>
-              </Card>
+            <View style={styles.summaryGrid as ViewStyle}>
+              <View style={styles.summaryCard as ViewStyle}>
+                <Text style={styles.summaryLabel as TextStyle}>
+                  {isRTL
+                    ? "متوسط شدة الأعراض الصحية"
+                    : "Average Symptom Severity"}
+                </Text>
+                <Text style={styles.summaryValue as TextStyle}>
+                  {symptomChartData.datasets[0].data.length > 0
+                    ? (
+                        symptomChartData.datasets[0].data.reduce(
+                          (a, b) => a + b,
+                          0
+                        ) / symptomChartData.datasets[0].data.length
+                      ).toFixed(1)
+                    : "0"}
+                  /5
+                </Text>
+              </View>
 
-              <Card
-                contentStyle={undefined}
-                pressable={false}
-                style={undefined}
-                variant="elevated"
-              >
-                <View style={{ padding: 16 }}>
-                  <TypographyText style={{ marginBottom: 4 }} weight="semibold">
-                    {isRTL
-                      ? "متوسط الالتزام بالأدوية"
-                      : "Average Medication Compliance"}
-                  </TypographyText>
-                  <TypographyText size="large" style={{}} weight="bold">
-                    {medicationComplianceData.datasets[0].data.length > 0
-                      ? (
-                          medicationComplianceData.datasets[0].data.reduce(
-                            (a, b) => a + b,
-                            0
-                          ) / medicationComplianceData.datasets[0].data.length
-                        ).toFixed(0)
-                      : "100"}
-                    %
-                  </TypographyText>
-                </View>
-              </Card>
+              <View style={styles.summaryCard as ViewStyle}>
+                <Text style={styles.summaryLabel as TextStyle}>
+                  {isRTL
+                    ? "متوسط الالتزام بالأدوية"
+                    : "Average Medication Compliance"}
+                </Text>
+                <Text style={styles.summaryValue as TextStyle}>
+                  {medicationComplianceData.datasets[0].data.length > 0
+                    ? (
+                        medicationComplianceData.datasets[0].data.reduce(
+                          (a, b) => a + b,
+                          0
+                        ) / medicationComplianceData.datasets[0].data.length
+                      ).toFixed(0)
+                    : "100"}
+                  %
+                </Text>
+              </View>
             </View>
           </View>
         </ScrollView>
       )}
-    </SafeAreaView>
+    </GradientScreen>
   );
 }

@@ -1,6 +1,13 @@
 import { Tabs } from "expo-router";
-import { Activity, Home, Sparkles, User, Users } from "lucide-react-native";
+import {
+  Activity,
+  Home,
+  MessageCircle,
+  User,
+  Users,
+} from "lucide-react-native";
 import { useTranslation } from "react-i18next";
+import BottomNavBar from "@/components/figma/BottomNavBar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 
@@ -19,30 +26,9 @@ export default function TabLayout() {
         headerShown: false,
         tabBarActiveTintColor: theme.colors.primary.main,
         tabBarInactiveTintColor: theme.colors.text.secondary,
-        tabBarStyle: {
-          backgroundColor: theme.colors.background.secondary,
-          borderTopWidth: 1,
-          borderTopColor: theme.colors.border.light,
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          elevation: 10,
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-          zIndex: 1000,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontFamily: "Geist-Medium",
-        },
         tabBarHideOnKeyboard: true,
-        tabBarItemStyle: {
-          paddingVertical: 4,
-        },
       }}
+      tabBar={(props) => <BottomNavBar {...props} />}
     >
       {/* Home tab for all users */}
       <Tabs.Screen
@@ -72,7 +58,7 @@ export default function TabLayout() {
         options={{
           title: t("zeina"),
           tabBarIcon: ({ size, color }: { size?: number; color: string }) => (
-            <Sparkles color={color} size={size || 24} />
+            <MessageCircle color={color} size={size || 24} />
           ),
         }}
       />
@@ -134,6 +120,13 @@ export default function TabLayout() {
         name="vitals"
         options={{
           href: null, // Access via profile tab for regular users
+          headerShown: false,
+        }}
+      />
+      <Tabs.Screen
+        name="blood-pressure"
+        options={{
+          href: null, // Access via track tab
           headerShown: false,
         }}
       />

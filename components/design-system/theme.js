@@ -1,39 +1,39 @@
 // Modern Design System for Maak App
 
 export const colors = {
-  // Primary palette - Maak teal/dark blue
-  primary: "#0A3D4A",
-  primaryLight: "#15576A",
-  primaryDark: "#062832",
+  // Primary palette - Maak teal
+  primary: "#003543",
+  primaryLight: "#00667A",
+  primaryDark: "#03303C",
 
-  // Secondary palette - Maak orange/gold
-  secondary: "#E89B2E",
-  secondaryLight: "#F4B550",
-  secondaryDark: "#D88718",
+  // Secondary palette - Maak gold
+  secondary: "#EB9C0C",
+  secondaryLight: "#F1D8A3",
+  secondaryDark: "#D68A0A",
 
   // Accent colors
-  accent: "#E89B2E",
-  accentLight: "#F4B550",
-  warning: "#F4B550",
-  error: "#E74C3C",
-  success: "#27AE60",
-  info: "#3498DB",
+  accent: "#EB9C0C",
+  accentLight: "#F1D8A3",
+  warning: "#F59E0B",
+  error: "#EF4444",
+  success: "#10B981",
+  info: "#3B82F6",
 
   // Neutrals
-  background: "#F8F9FA",
-  backgroundDark: "#1A1A2E",
+  background: "#F9FDFE",
+  backgroundDark: "#03303C",
   surface: "#FFFFFF",
-  surfaceDark: "#16213E",
+  surfaceDark: "#003543",
 
   // Text colors
-  textPrimary: "#2D3436",
-  textSecondary: "#636E72",
-  textDisabled: "#B2BEC3",
+  textPrimary: "#1A1D1F",
+  textSecondary: "#6C7280",
+  textDisabled: "#9CA3AF",
   textLight: "#FFFFFF",
 
   // Border and divider
-  border: "#DFE6E9",
-  divider: "#ECEFF1",
+  border: "#E5E7EB",
+  divider: "#F3F4F6",
 
   // Overlay
   overlay: "rgba(0, 0, 0, 0.5)",
@@ -42,10 +42,10 @@ export const colors = {
 
 export const typography = {
   // Font families
-  fontRegular: "System",
-  fontMedium: "System",
-  fontBold: "System",
-  fontLight: "System",
+  fontRegular: "Inter-Regular",
+  fontMedium: "Inter-Medium",
+  fontBold: "Inter-Bold",
+  fontLight: "Inter-Regular",
 
   // Font sizes
   h1: 32,
