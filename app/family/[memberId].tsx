@@ -28,12 +28,13 @@ import {
 } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+// Import StyleSheet early to ensure it's available during HMR
+import { StyleSheet } from "react-native";
 import {
   ActivityIndicator,
   Alert,
   RefreshControl,
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
@@ -1500,7 +1501,9 @@ export default function FamilyMemberHealthView() {
   );
 }
 
-const styles = StyleSheet.create({
+// Defensive check to ensure StyleSheet is available before creating styles
+// This prevents HMR timing issues with transitive dependencies
+const styles = typeof StyleSheet !== 'undefined' ? StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "transparent",
@@ -2055,4 +2058,4 @@ const styles = StyleSheet.create({
   rtlText: {
     fontFamily: "Inter-Regular",
   },
-});
+}) : {};
