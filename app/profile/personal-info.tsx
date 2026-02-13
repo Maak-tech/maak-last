@@ -61,7 +61,7 @@ function InfoCard({
     <View style={styles.infoCard}>
       <View style={styles.infoCardHeader}>
         <View style={styles.infoCardIcon}>
-          <Icon color="#2563EB" size={20} />
+          <Icon color="#003543" size={20} />
         </View>
         <View style={styles.infoCardContent}>
           <Text style={[styles.infoCardLabel, isRTL && { textAlign: "left" }]}>
@@ -199,7 +199,7 @@ export default function PersonalInfoScreen() {
         </Text>
 
         <TouchableOpacity onPress={handleEdit} style={styles.editButton}>
-          <Edit3 color="#2563EB" size={20} />
+          <Edit3 color="#003543" size={20} />
         </TouchableOpacity>
       </View>
 
@@ -624,7 +624,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#EBF4FF",
+    backgroundColor: "#F0FAFB",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -711,7 +711,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#EBF4FF",
+    backgroundColor: "#F0FAFB",
     justifyContent: "center",
     alignItems: "center",
     marginEnd: 12,
@@ -759,7 +759,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 20,
     fontFamily: "Inter-Bold",
-    color: "#2563EB",
+    color: "#003543",
     marginBottom: 4,
   },
   statLabel: {
@@ -772,12 +772,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#2563EB",
+    backgroundColor: "#003543",
     borderRadius: 12,
     paddingVertical: 16,
     marginBottom: 32,
     gap: 8,
-    shadowColor: "#2563EB",
+    shadowColor: "#003543",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -858,7 +858,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#2563EB",
+    backgroundColor: "#003543",
     borderRadius: 12,
     paddingVertical: 16,
     marginTop: 20,
@@ -925,8 +925,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   avatarOptionSelected: {
-    backgroundColor: "#EBF4FF",
-    borderColor: "#2563EB",
+    backgroundColor: "#F0FAFB",
+    borderColor: "#003543",
   },
   modalCloseButton: {
     width: 40,
@@ -942,5 +942,11 @@ const styles = StyleSheet.create({
     color: "#64748B",
     marginTop: 8,
     textAlign: "center",
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
   },
 });

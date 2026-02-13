@@ -829,34 +829,6 @@ export default function MoodsScreen() {
       pointerEvents="box-none"
       style={styles.container}
     >
-      <View style={styles.figmaMoodHeaderWrap}>
-        <WavyBackground height={240} variant="teal">
-          <View style={styles.figmaMoodHeaderContent}>
-            <View style={styles.figmaMoodHeaderRow}>
-              <TouchableOpacity
-                onPress={() =>
-                  params.returnTo === "track"
-                    ? router.push("/(tabs)/track")
-                    : router.back()
-                }
-                style={styles.figmaMoodBackButton}
-              >
-                <ArrowLeft color="#003543" size={20} />
-              </TouchableOpacity>
-              <View style={styles.figmaMoodHeaderTitle}>
-                <View style={styles.figmaMoodTitleRow}>
-                  <Brain color="#EB9C0C" size={20} />
-                  <Text style={styles.figmaMoodTitle}>Mood Tracking</Text>
-                </View>
-                <Text style={styles.figmaMoodSubtitle}>
-                  Monitor emotional wellbeing
-                </Text>
-              </View>
-            </View>
-          </View>
-        </WavyBackground>
-      </View>
-
       <ScrollView
         contentContainerStyle={styles.figmaMoodContent}
         refreshControl={
@@ -868,6 +840,34 @@ export default function MoodsScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
+        <View style={styles.figmaMoodHeaderWrap}>
+          <WavyBackground height={240} variant="teal">
+            <View style={styles.figmaMoodHeaderContent}>
+              <View style={styles.figmaMoodHeaderRow}>
+                <TouchableOpacity
+                  onPress={() =>
+                    params.returnTo === "track"
+                      ? router.push("/(tabs)/track")
+                      : router.back()
+                  }
+                  style={styles.figmaMoodBackButton}
+                >
+                  <ArrowLeft color="#003543" size={20} />
+                </TouchableOpacity>
+                <View style={styles.figmaMoodHeaderTitle}>
+                  <View style={styles.figmaMoodTitleRow}>
+                    <Brain color="#EB9C0C" size={20} />
+                    <Text style={styles.figmaMoodTitle}>Mood Tracking</Text>
+                  </View>
+                  <Text style={styles.figmaMoodSubtitle}>
+                    Monitor emotional wellbeing
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </WavyBackground>
+        </View>
+
         <FamilyDataFilter
           currentUserId={user.id}
           familyMembers={familyMembers}

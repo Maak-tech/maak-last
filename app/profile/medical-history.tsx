@@ -1,6 +1,6 @@
 /* biome-ignore-all lint/style/noNestedTernary: Legacy screen with dense conditional UI branches. */
 /* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Refactor will be done in a dedicated pass. */
-import { useNavigation, useRouter } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import {
   ArrowLeft,
   FileText,
@@ -346,57 +346,57 @@ export default function MedicalHistoryScreen() {
 
   return (
     <GradientScreen>
-      <View style={styles.figmaHeaderWrapper}>
-        <WavyBackground height={220} variant="teal">
-          <View style={styles.figmaHeader}>
-            <TouchableOpacity
-              onPress={() => {
-                try {
-                  if (params.returnTo === "track") {
-                    router.push("/(tabs)/track");
-                  } else if (router.canGoBack?.()) {
-                    router.back();
-                  } else {
-                    router.push("/(tabs)/profile");
-                  }
-                } catch (_error) {
-                  router.push("/(tabs)/profile");
-                }
-              }}
-              style={styles.figmaBackButton}
-            >
-              <ArrowLeft
-                color="#003543"
-                size={20}
-                style={[isRTL && { transform: [{ rotate: "180deg" }] }]}
-              />
-            </TouchableOpacity>
-            <View style={styles.figmaHeaderText}>
-              <View style={styles.figmaHeaderTitleRow}>
-                <FileText color="#EB9C0C" size={22} />
-                <Text style={styles.figmaHeaderTitle}>Medical History</Text>
-              </View>
-              <Text style={styles.figmaHeaderSubtitle}>
-                Complete health record
-              </Text>
-            </View>
-          </View>
-        </WavyBackground>
-      </View>
-
       <ScrollView
         showsVerticalScrollIndicator={false}
         style={styles.figmaScrollView}
       >
+        <View style={styles.figmaHeaderWrapper}>
+          <WavyBackground height={220} variant="teal">
+            <View style={styles.figmaHeader}>
+              <TouchableOpacity
+                onPress={() => {
+                  try {
+                    if (params.returnTo === "track") {
+                      router.push("/(tabs)/track");
+                    } else if (router.canGoBack?.()) {
+                      router.back();
+                    } else {
+                      router.push("/(tabs)/profile");
+                    }
+                  } catch (_error) {
+                    router.push("/(tabs)/profile");
+                  }
+                }}
+                style={styles.figmaBackButton}
+              >
+                <ArrowLeft
+                  color="#003543"
+                  size={20}
+                  style={[isRTL && { transform: [{ rotate: "180deg" }] }]}
+                />
+              </TouchableOpacity>
+              <View style={styles.figmaHeaderText}>
+                <View style={styles.figmaHeaderTitleRow}>
+                  <FileText color="#EB9C0C" size={24} />
+                  <Text style={styles.figmaHeaderTitle}>Medical History</Text>
+                </View>
+                <Text style={styles.figmaHeaderSubtitle}>
+                  Complete health record
+                </Text>
+              </View>
+            </View>
+          </WavyBackground>
+        </View>
+
         <View style={styles.figmaContent}>
           {loading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator color="#2563EB" size="large" />
+              <ActivityIndicator color="#003543" size="large" />
               <Text
                 style={[styles.loadingText, isRTL && { textAlign: "left" }]}
               >
                 {isRTL
-                  ? "???????? ?????????? ?????????????? ??????????..."
+                  ? "جاري تحميل السجل الطبي..."
                   : "Loading medical history..."}
               </Text>
             </View>
@@ -940,14 +940,17 @@ const styles = StyleSheet.create({
   },
   figmaHeaderWrapper: {
     flexShrink: 0,
+    marginHorizontal: -20,
+    marginTop: -20,
+    marginBottom: 12,
   },
   figmaScrollView: {
     flex: 1,
   },
   figmaHeader: {
     paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 28,
+    paddingTop: 24,
+    paddingBottom: 32,
     flexDirection: "row",
     alignItems: "center",
     gap: 16,
@@ -956,7 +959,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.5)",
+    backgroundColor: "rgba(255,255,255,0.4)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -970,12 +973,13 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   figmaHeaderTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontFamily: "Inter-Bold",
     color: "#FFFFFF",
   },
   figmaHeaderSubtitle: {
-    fontSize: 13,
+    fontSize: 14,
+    fontFamily: "Inter-SemiBold",
     color: "#003543",
   },
   figmaContent: {
@@ -1026,10 +1030,12 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: 12,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
-    shadowRadius: 4,
+    shadowRadius: 8,
     elevation: 2,
   },
   figmaCardIcon: {

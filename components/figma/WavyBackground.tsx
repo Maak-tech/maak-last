@@ -20,7 +20,7 @@ const VARIANT_COLORS: Record<
   teal: {
     gradient: ["#003543", "#004D5F", "#00677B"],
     waveMid: "#A6CBD4",
-    waveLight: "#F2FBFC",
+    waveLight: "#F8FAFC",
   },
   gold: {
     gradient: ["#C07900", "#D98B06", "#F0A52E"],
@@ -74,8 +74,8 @@ export default function WavyBackground({
         viewBox="0 0 1440 320"
         width={svgWidth}
       >
-        <Path d={paths.waveLight} fill={colors.waveLight} />
-        <Path d={paths.waveMid} fill={colors.waveMid} />
+        <Path d={paths.waveLight} fill={colors.waveLight} fillOpacity={1} />
+        <Path d={paths.waveMid} fill={colors.waveMid} fillOpacity={1} />
       </Svg>
       <View style={styles.content}>{children}</View>
     </View>

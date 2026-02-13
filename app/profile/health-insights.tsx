@@ -95,51 +95,6 @@ export default function HealthInsightsScreen() {
       pointerEvents="box-none"
       style={styles.container}
     >
-      <View style={styles.headerWrap}>
-        <WavyBackground height={180} variant="teal">
-          <View style={styles.headerContent}>
-            <View
-              style={[
-                styles.headerRow,
-                isRTL && { flexDirection: "row-reverse" as const },
-              ]}
-            >
-              <TouchableOpacity
-                onPress={() => router.back()}
-                style={styles.backButton}
-              >
-                <ArrowLeft
-                  color="#003543"
-                  size={20}
-                  style={
-                    isRTL ? { transform: [{ rotate: "180deg" }] } : undefined
-                  }
-                />
-              </TouchableOpacity>
-              <View style={styles.headerTitle}>
-                <View
-                  style={[
-                    styles.headerTitleRow,
-                    isRTL && { flexDirection: "row-reverse" as const },
-                  ]}
-                >
-                  <Brain color="#EB9C0C" size={20} />
-                  <Text style={styles.headerTitleText}>
-                    {t("healthInsights", "Health Insights")}
-                  </Text>
-                </View>
-                <Text
-                  numberOfLines={1}
-                  style={[styles.headerSubtitle, isRTL && styles.rtlText]}
-                >
-                  {t("healthInsightsSubtitle")}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </WavyBackground>
-      </View>
-
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
@@ -151,6 +106,51 @@ export default function HealthInsightsScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
+        <View style={styles.headerWrap}>
+          <WavyBackground height={180} variant="teal">
+            <View style={styles.headerContent}>
+              <View
+                style={[
+                  styles.headerRow,
+                  isRTL && { flexDirection: "row-reverse" as const },
+                ]}
+              >
+                <TouchableOpacity
+                  onPress={() => router.back()}
+                  style={styles.backButton}
+                >
+                  <ArrowLeft
+                    color="#003543"
+                    size={20}
+                    style={
+                      isRTL ? { transform: [{ rotate: "180deg" }] } : undefined
+                    }
+                  />
+                </TouchableOpacity>
+                <View style={styles.headerTitle}>
+                  <View
+                    style={[
+                      styles.headerTitleRow,
+                      isRTL && { flexDirection: "row-reverse" as const },
+                    ]}
+                  >
+                    <Brain color="#EB9C0C" size={20} />
+                    <Text style={styles.headerTitleText}>
+                      {t("healthInsights", "Health Insights")}
+                    </Text>
+                  </View>
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.headerSubtitle, isRTL && styles.rtlText]}
+                  >
+                    {t("healthInsightsSubtitle")}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </WavyBackground>
+        </View>
+
         <HealthInsightsCard key={`health-insights-card-${refreshKey}`} />
         <AIInsightsDashboard
           compact={false}

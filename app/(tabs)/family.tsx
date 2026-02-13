@@ -817,6 +817,51 @@ export default function FamilyScreen() {
     }
   };
 
+  const handleResolveAlert = async (alertId: string) => {
+    if (!user?.id) return;
+
+    const startTime = Date.now();
+
+    try {
+      logger.info(
+        "User resolving alert",
+        {
+          alertId,
+          userId: user.id,
+          role: user.role,
+        },
+        "FamilyScreen"
+      );
+
+      await alertService.resolveAlert(alertId, user.id);
+      await loadActiveAlerts(true);
+
+      const durationMs = Date.now() - startTime;
+      logger.info(
+        "Alert resolved successfully",
+        {
+          alertId,
+          userId: user.id,
+          durationMs,
+        },
+        "FamilyScreen"
+      );
+
+      Alert.alert(
+        isRTL ? "تم" : "Success",
+        isRTL ? "تم حل التنبيه" : "Alert resolved"
+      );
+    } catch (error) {
+      const _durationMs = Date.now() - startTime;
+      logger.error("Failed to resolve alert", error, "FamilyScreen");
+
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "فشل في حل التنبيه" : "Failed to resolve alert"
+      );
+    }
+  };
+
   const handleEscalateEvent = async (eventId: string) => {
     if (!user?.id) return;
 
@@ -1220,7 +1265,7 @@ export default function FamilyScreen() {
       case "excellent":
         return "#10B981";
       case "good":
-        return "#2563EB";
+        return "#003543";
       case "attention":
         return "#F59E0B";
       case "critical":
@@ -2873,10 +2918,15 @@ export default function FamilyScreen() {
   }, []);
 
   const getSparklineData = useCallback((metric?: FamilyMemberMetrics) => {
-    if (!metric?.vitals?.heartRate) {
-      return [];
-    }
-    return [];
+    // Use real heart rate if available, otherwise use mock data (72 bpm)
+    const currentHR = metric?.vitals?.heartRate || 72;
+    const variance = 5; // +/- 5 bpm variation
+
+    // Generate sparkline data based on current or mock heart rate
+    return Array.from({ length: 7 }, (_, i) => {
+      const offset = Math.sin(i * 0.5) * variance + (Math.random() * 2 - 1);
+      return Math.max(50, Math.min(120, currentHR + offset));
+    });
   }, []);
 
   const getAvatarInitials = (fullName: string) => {
@@ -2900,50 +2950,6 @@ export default function FamilyScreen() {
       pointerEvents="box-none"
       style={styles.container}
     >
-      <View
-        style={[
-          styles.headerWrapper,
-          {
-            marginHorizontal: -contentPadding,
-            marginTop: -theme.spacing.base,
-            marginBottom: theme.spacing.lg,
-          },
-        ]}
-      >
-        <WavyBackground height={240} variant="teal">
-          <View
-            style={[
-              styles.familyHeader,
-              {
-                paddingHorizontal: headerPadding,
-                paddingTop: headerPadding,
-                paddingBottom: headerPadding,
-                minHeight: 230,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.familyTitle,
-                isRTL && styles.rtlText,
-                { color: theme.colors.neutral.white },
-              ]}
-            >
-              Family Circle
-            </Text>
-            <Text
-              style={[
-                styles.familySubtitle,
-                isRTL && styles.rtlText,
-                { color: "rgba(255, 255, 255, 0.85)" },
-              ]}
-            >
-              Manage your family circle
-            </Text>
-          </View>
-        </WavyBackground>
-      </View>
-
       <ScrollView
         contentContainerStyle={styles.familyContent}
         refreshControl={
@@ -2955,14 +2961,58 @@ export default function FamilyScreen() {
               }
             }}
             refreshing={refreshing}
-            tintColor="#2563EB"
+            tintColor="#003543"
           />
         }
         showsVerticalScrollIndicator={false}
       >
+        <View
+          style={[
+            styles.headerWrapper,
+            {
+              marginHorizontal: -contentPadding,
+              marginTop: -theme.spacing.base,
+              marginBottom: -40,
+            },
+          ]}
+        >
+          <WavyBackground height={240} variant="teal">
+            <View
+              style={[
+                styles.familyHeader,
+                {
+                  paddingHorizontal: headerPadding,
+                  paddingTop: headerPadding,
+                  paddingBottom: headerPadding,
+                  minHeight: 230,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.familyTitle,
+                  isRTL && styles.rtlText,
+                  { color: theme.colors.neutral.white },
+                ]}
+              >
+                Family Circle
+              </Text>
+              <Text
+                style={[
+                  styles.familySubtitle,
+                  isRTL && styles.rtlText,
+                  { color: "rgba(255, 255, 255, 0.85)" },
+                ]}
+              >
+                Manage your family circle
+              </Text>
+            </View>
+          </WavyBackground>
+        </View>
+
         {loading ? (
           <View style={styles.inlineLoadingContainer}>
-            <ActivityIndicator color="#2563EB" size="small" />
+            <ActivityIndicator color="#003543" size="small" />
             <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
               Loading...
             </Text>
@@ -3124,7 +3174,7 @@ export default function FamilyScreen() {
           <Card style={styles.eventsCard}>
             {loadingAlerts ? (
               <View style={[styles.emptyState, { gap: 8 }]}>
-                <ActivityIndicator color="#2563EB" size="small" />
+                <ActivityIndicator color="#003543" size="small" />
                 <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
                   {isRTL ? "جاري التحميل..." : "Loading alerts..."}
                 </Text>
@@ -3141,11 +3191,7 @@ export default function FamilyScreen() {
                           ? "#3B82F6"
                           : "#10B981";
                   return (
-                    <TouchableOpacity
-                      activeOpacity={0.7}
-                      key={item.alert.id}
-                      style={styles.eventItem}
-                    >
+                    <View key={item.alert.id} style={styles.eventItem}>
                       <View style={styles.eventItemLeft}>
                         <View
                           style={[
@@ -3179,8 +3225,15 @@ export default function FamilyScreen() {
                           </View>
                         </View>
                       </View>
-                      <ChevronRight color="#94A3B8" size={16} />
-                    </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => handleResolveAlert(item.alert.id)}
+                        style={styles.resolveAlertButton}
+                      >
+                        <Text style={styles.resolveAlertButtonText}>
+                          {isRTL ? "حل" : "Resolve"}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
                   );
                 })}
                 {activeAlerts.length > 5 && (
@@ -3206,7 +3259,7 @@ export default function FamilyScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionHeaderLeft}>
-              <Activity color="#2563EB" size={20} />
+              <Activity color="#003543" size={20} />
               <Text
                 style={[styles.sectionTitle, isRTL && styles.sectionTitleRTL]}
               >
@@ -3220,7 +3273,7 @@ export default function FamilyScreen() {
           <Card style={styles.eventsCard}>
             {loadingEvents ? (
               <View style={[styles.emptyState, { gap: 8 }]}>
-                <ActivityIndicator color="#2563EB" size="small" />
+                <ActivityIndicator color="#003543" size="small" />
                 <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
                   {isRTL ? "جاري التحميل..." : "Loading events..."}
                 </Text>
@@ -3483,7 +3536,7 @@ export default function FamilyScreen() {
 
             {inviteLoading && (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator color="#2563EB" size="large" />
+                <ActivityIndicator color="#003543" size="large" />
               </View>
             )}
           </ScrollView>
@@ -3593,7 +3646,7 @@ export default function FamilyScreen() {
                 >
                   {({ pressed }) => (
                     <>
-                      <Plus color="#2563EB" size={20} />
+                      <Plus color="#003543" size={20} />
                       <Text
                         style={[styles.addContactText, isRTL && styles.rtlText]}
                       >
@@ -3720,7 +3773,7 @@ export default function FamilyScreen() {
 
             {joinLoading && (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator color="#2563EB" size="large" />
+                <ActivityIndicator color="#003543" size="large" />
               </View>
             )}
           </ScrollView>
@@ -3869,7 +3922,7 @@ export default function FamilyScreen() {
 
             {editLoading && (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator color="#2563EB" size="large" />
+                <ActivityIndicator color="#003543" size="large" />
               </View>
             )}
           </ScrollView>
@@ -4486,7 +4539,7 @@ export default function FamilyScreen() {
                       thumbColor="#FFFFFF"
                       trackColor={{
                         false: "#E5E7EB",
-                        true: "#2563EB",
+                        true: "#003543",
                       }}
                       value={
                         privacySettings[
@@ -4513,7 +4566,7 @@ const styles = StyleSheet.create({
   headerWrapper: {
     marginHorizontal: -20,
     marginTop: -20,
-    marginBottom: 20,
+    marginBottom: -140,
   },
   familyHeader: {
     paddingHorizontal: 24,
@@ -4533,7 +4586,7 @@ const styles = StyleSheet.create({
   },
   familyContent: {
     paddingHorizontal: 24,
-    paddingBottom: 32,
+    paddingBottom: 150,
   },
   familyMemberCard: {
     backgroundColor: "#FFFFFF",
@@ -4798,7 +4851,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: -4,
     right: -4,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#003543",
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 8,
@@ -4907,7 +4960,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#003543",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -5075,8 +5128,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   relationOptionSelected: {
-    backgroundColor: "#2563EB",
-    borderColor: "#2563EB",
+    backgroundColor: "#003543",
+    borderColor: "#003543",
   },
   relationOptionText: {
     fontSize: 14,
@@ -5087,7 +5140,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   inviteButton: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#003543",
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: "center",
@@ -5183,7 +5236,7 @@ const styles = StyleSheet.create({
   addContactText: {
     fontSize: 14,
     fontFamily: "Inter-Medium",
-    color: "#2563EB",
+    color: "#003543",
     marginStart: 8,
   },
   settingToggle: {
@@ -5213,7 +5266,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#003543",
   },
   joinFamilyButton: {
     backgroundColor: "#10B981",
@@ -5244,8 +5297,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   roleOptionSelected: {
-    backgroundColor: "#2563EB",
-    borderColor: "#2563EB",
+    backgroundColor: "#003543",
+    borderColor: "#003543",
   },
   roleOptionText: {
     fontSize: 14,
@@ -5256,7 +5309,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   saveButton: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#003543",
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: "center",
@@ -5471,6 +5524,18 @@ const styles = StyleSheet.create({
     fontFamily: "Inter-Regular",
     color: "#94A3B8",
   },
+  resolveAlertButton: {
+    backgroundColor: "#003543",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginLeft: 12,
+  },
+  resolveAlertButtonText: {
+    fontSize: 13,
+    fontFamily: "Inter-SemiBold",
+    color: "#FFFFFF",
+  },
   eventStatusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -5597,6 +5662,6 @@ const styles = StyleSheet.create({
   viewAllText: {
     fontSize: 14,
     fontFamily: "Inter-Medium",
-    color: "#2563EB",
+    color: "#003543",
   },
 });

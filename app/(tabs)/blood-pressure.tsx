@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   addDoc,
   collection,
@@ -186,8 +186,14 @@ export default function BloodPressureScreen() {
       });
 
       setReadings(items);
-    } catch (_error) {
-      Alert.alert("Error", "Unable to load blood pressure readings.");
+    } catch (error) {
+      console.error("Failed to load blood pressure readings:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      Alert.alert(
+        "Error",
+        `Unable to load blood pressure readings. ${errorMessage}`
+      );
     } finally {
       setLoading(false);
     }
@@ -328,41 +334,47 @@ export default function BloodPressureScreen() {
 
   return (
     <GradientScreen>
-      <View style={styles.headerWrapper}>
-        <WavyBackground height={220} variant="teal">
-          <View style={styles.header}>
-            <TouchableOpacity
-              onPress={() => {
-                if (params.returnTo === "track") {
-                  router.push("/(tabs)/track");
-                } else if (router.canGoBack?.()) {
-                  router.back();
-                } else {
-                  router.push("/(tabs)/track");
-                }
-              }}
-              style={styles.backButton}
-            >
-              <ArrowLeft color="#003543" size={20} />
-            </TouchableOpacity>
-            <View style={styles.headerTitleWrap}>
-              <View style={styles.headerTitleRow}>
-                <Heart color="#EB9C0C" size={22} />
-                <Text style={styles.headerTitle}>Blood Pressure</Text>
-              </View>
-              <Text style={styles.headerSubtitle}>
-                Monitor BP readings over time
-              </Text>
-            </View>
-          </View>
-        </WavyBackground>
-      </View>
-
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         style={styles.scrollView}
       >
+        <View style={styles.headerWrapper}>
+          <WavyBackground height={220} variant="teal">
+            <View style={styles.header}>
+              <TouchableOpacity
+                onPress={() => {
+                  if (params.returnTo === "track") {
+                    router.push("/(tabs)/track");
+                  } else if (router.canGoBack?.()) {
+                    router.back();
+                  } else {
+                    router.push("/(tabs)/track");
+                  }
+                }}
+                style={styles.backButton}
+              >
+                <ArrowLeft
+                  color="#003543"
+                  size={20}
+                  style={
+                    isRTL ? { transform: [{ rotate: "180deg" }] } : undefined
+                  }
+                />
+              </TouchableOpacity>
+              <View style={styles.headerTitleWrap}>
+                <View style={styles.headerTitleRow}>
+                  <Heart color="#EB9C0C" size={24} />
+                  <Text style={styles.headerTitle}>Blood Pressure</Text>
+                </View>
+                <Text style={styles.headerSubtitle}>
+                  Monitor BP readings over time
+                </Text>
+              </View>
+            </View>
+          </WavyBackground>
+        </View>
+
         <View style={styles.content}>
           {loading ? (
             <View style={styles.loading}>
@@ -717,6 +729,9 @@ export default function BloodPressureScreen() {
 const styles = StyleSheet.create({
   headerWrapper: {
     flexShrink: 0,
+    marginHorizontal: -20,
+    marginTop: -20,
+    marginBottom: 12,
   },
   scrollView: {
     flex: 1,
@@ -726,7 +741,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 24,
-    paddingTop: 20,
+    paddingTop: 24,
     paddingBottom: 32,
     flexDirection: "row",
     alignItems: "center",
@@ -736,7 +751,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.5)",
+    backgroundColor: "rgba(255,255,255,0.4)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -750,12 +765,13 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontFamily: "Inter-Bold",
     color: "#FFFFFF",
   },
   headerSubtitle: {
-    fontSize: 13,
+    fontSize: 14,
+    fontFamily: "Inter-SemiBold",
     color: "#003543",
   },
   content: {
@@ -769,12 +785,14 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 20,
+    borderRadius: 16,
     padding: 20,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
     elevation: 2,
   },
   cardHeader: {
@@ -844,10 +862,12 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
-    shadowRadius: 4,
+    shadowRadius: 8,
     elevation: 2,
   },
   quickStatValue: {
@@ -933,10 +953,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
     elevation: 2,
   },
   readingIcon: {
@@ -991,7 +1013,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#D48A00",
+    backgroundColor: "#EB9C0C",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",

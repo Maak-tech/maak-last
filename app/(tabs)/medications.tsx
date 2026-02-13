@@ -1375,7 +1375,7 @@ export default function MedicationsScreen() {
               </TouchableOpacity>
               <View style={styles.figmaMedicationHeaderTitle}>
                 <View style={styles.figmaMedicationTitleRow}>
-                  <Pill color="#EB9C0C" size={20} />
+                  <Pill color="#EB9C0C" size={24} />
                   <Text style={styles.figmaMedicationTitle}>Medications</Text>
                 </View>
                 <Text style={styles.figmaMedicationSubtitle}>
@@ -1520,7 +1520,7 @@ export default function MedicationsScreen() {
                           { backgroundColor: `${accent}15` },
                         ]}
                       >
-                        <Pill color={accent} size={20} />
+                        <Pill color={accent} size={24} />
                       </View>
                       <View style={styles.figmaMedicationCardInfo}>
                         <View style={styles.figmaMedicationCardTopRow}>
@@ -1528,9 +1528,9 @@ export default function MedicationsScreen() {
                             {medication.name}
                           </Text>
                           {takenToday ? (
-                            <CheckCircle2 color="#10B981" size={18} />
+                            <CheckCircle2 color="#10B981" size={20} />
                           ) : (
-                            <AlertCircle color="#F97316" size={18} />
+                            <AlertCircle color="#F97316" size={20} />
                           )}
                         </View>
                         <Text style={styles.figmaMedicationDosage}>
@@ -1571,7 +1571,7 @@ export default function MedicationsScreen() {
                           </Text>
                         </View>
                       </View>
-                      <ChevronRight color="#94A3B8" size={18} />
+                      <ChevronRight color="#94A3B8" size={20} />
                     </View>
                     <View style={styles.figmaMedicationReminders}>
                       {visibleReminders.map((reminder) => {
@@ -2393,8 +2393,8 @@ const styles = StyleSheet.create({
   },
   figmaMedicationHeaderContent: {
     paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 16,
+    paddingTop: 24,
+    paddingBottom: 32,
   },
   figmaMedicationHeaderRow: {
     flexDirection: "row",
@@ -2405,7 +2405,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.5)",
+    backgroundColor: "rgba(255, 255, 255, 0.4)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -2419,14 +2419,14 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   figmaMedicationTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontFamily: "Inter-Bold",
     color: "#FFFFFF",
   },
   figmaMedicationSubtitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: "Inter-SemiBold",
-    color: "rgba(0, 53, 67, 0.85)",
+    color: "#003543",
   },
   figmaMedicationAddButton: {
     width: 40,

@@ -160,12 +160,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     alignItems: "center",
     paddingHorizontal: 8,
-    paddingVertical: 8,
+    paddingVertical: 6,
   },
   tabButton: {
     minWidth: 60,
     paddingHorizontal: 10,
-    paddingVertical: 10,
+    paddingVertical: 6,
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   tabContent: {
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
+    gap: 3,
   },
   tabLabel: {
     fontSize: 11,

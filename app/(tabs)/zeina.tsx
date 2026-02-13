@@ -552,55 +552,6 @@ export default function ZeinaScreen() {
       <View style={styles.figmaOrbTop} />
       <View style={styles.figmaOrbBottom} />
 
-      <View
-        style={[
-          styles.headerWrapper,
-          {
-            marginHorizontal: -contentPadding,
-            marginTop: -theme.spacing.base,
-            marginBottom: theme.spacing.lg,
-          },
-        ]}
-      >
-        <WavyBackground height={240} variant="teal">
-          <View
-            style={[
-              styles.figmaHeaderContent,
-              {
-                paddingHorizontal: headerPadding,
-                paddingTop: headerPadding,
-                paddingBottom: headerPadding,
-                minHeight: 230,
-              },
-            ]}
-          >
-            <View style={styles.figmaHeaderRow}>
-              <View style={styles.figmaHeaderIcon}>
-                <Sparkles color="#FFFFFF" size={20} />
-              </View>
-              <View>
-                <Text
-                  style={[
-                    styles.figmaHeaderTitle,
-                    { color: theme.colors.neutral.white },
-                  ]}
-                >
-                  Zeina AI
-                </Text>
-                <Text
-                  style={[
-                    styles.figmaHeaderSubtitle,
-                    { color: "rgba(255, 255, 255, 0.85)" },
-                  ]}
-                >
-                  {t("zeinaSubtitle", "Your health assistant")}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </WavyBackground>
-      </View>
-
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={90}
@@ -614,6 +565,55 @@ export default function ZeinaScreen() {
           showsVerticalScrollIndicator={false}
           style={styles.figmaMessagesContainer}
         >
+          <View
+            style={[
+              styles.headerWrapper,
+              {
+                marginHorizontal: -contentPadding,
+                marginTop: -theme.spacing.base,
+                marginBottom: -40,
+              },
+            ]}
+          >
+            <WavyBackground height={240} variant="teal">
+              <View
+                style={[
+                  styles.figmaHeaderContent,
+                  {
+                    paddingHorizontal: headerPadding,
+                    paddingTop: headerPadding,
+                    paddingBottom: headerPadding,
+                    minHeight: 230,
+                  },
+                ]}
+              >
+                <View style={styles.figmaHeaderRow}>
+                  <View style={styles.figmaHeaderIcon}>
+                    <Sparkles color="#FFFFFF" size={20} />
+                  </View>
+                  <View>
+                    <Text
+                      style={[
+                        styles.figmaHeaderTitle,
+                        { color: theme.colors.neutral.white },
+                      ]}
+                    >
+                      Zeina AI
+                    </Text>
+                    <Text
+                      style={[
+                        styles.figmaHeaderSubtitle,
+                        { color: "rgba(255, 255, 255, 0.85)" },
+                      ]}
+                    >
+                      {t("zeinaSubtitle", "Your health assistant")}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </WavyBackground>
+          </View>
+
           {isLoading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator color="#007AFF" size="large" />
@@ -1004,7 +1004,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   figmaHeaderTitle: {
-    fontSize: 22,
+    fontSize: 28,
     fontFamily: "Inter-Bold",
     color: "#003543",
   },

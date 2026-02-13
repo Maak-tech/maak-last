@@ -335,8 +335,8 @@ export default function TrackScreen() {
         },
         headerWrapper: {
           marginHorizontal: -contentPadding,
-          marginTop: -theme.spacing.sm,
-          marginBottom: theme.spacing.md,
+          marginTop: -theme.spacing.base,
+          marginBottom: -40,
         },
         headerContent: {
           paddingHorizontal: headerPadding,
@@ -351,7 +351,7 @@ export default function TrackScreen() {
           gap: theme.spacing.sm,
         },
         headerTitle: {
-          fontSize: 22,
+          fontSize: 28,
           fontFamily: "Inter-Bold",
           color: "#FFFFFF",
         },
@@ -385,8 +385,8 @@ export default function TrackScreen() {
           flex: 1,
           backgroundColor: "#FFFFFF",
           borderRadius: 16,
-          paddingVertical: 16,
-          paddingHorizontal: 12,
+          paddingVertical: 24,
+          paddingHorizontal: 16,
           alignItems: "center" as const,
           shadowColor: "#0F172A",
           shadowOffset: { width: 0, height: 6 },
@@ -395,13 +395,13 @@ export default function TrackScreen() {
           elevation: 4,
         },
         statValue: {
-          fontSize: 20,
+          fontSize: 28,
           fontFamily: "Inter-Bold",
           color: "#0F766E",
           marginBottom: 4,
         },
         statLabel: {
-          fontSize: 11,
+          fontSize: 14,
           fontFamily: "Inter-SemiBold",
           color: "#64748B",
           textAlign: "center" as const,
@@ -416,7 +416,7 @@ export default function TrackScreen() {
           marginBottom: 12,
         },
         sectionTitle: {
-          fontSize: 16,
+          fontSize: 18,
           fontFamily: "Inter-Bold",
           color: "#0F172A",
         },
@@ -462,13 +462,13 @@ export default function TrackScreen() {
           flex: 1,
         },
         categoryTitle: {
-          fontSize: 13,
+          fontSize: 16,
           fontFamily: "Inter-Bold",
           color: "#0F172A",
           marginBottom: 4,
         },
         categoryDescription: {
-          fontSize: 11,
+          fontSize: 13,
           fontFamily: "Inter-SemiBold",
           color: "#64748B",
         },
@@ -581,7 +581,7 @@ export default function TrackScreen() {
           marginBottom: 12,
         },
         sectionTitle: {
-          fontSize: 16,
+          fontSize: 18,
           fontFamily: "Inter-Bold",
           color: "#0F172A",
         },
@@ -1012,45 +1012,6 @@ export default function TrackScreen() {
       pointerEvents="box-none"
       style={styles.container as ViewStyle}
     >
-      {/* Header */}
-      <View style={styles.headerWrapper as ViewStyle}>
-        <WavyBackground curve="home" height={220} variant="teal">
-          <View style={styles.headerContent as ViewStyle}>
-            <View
-              style={[
-                styles.headerRow,
-                isRTL && { flexDirection: "row-reverse" as const },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.headerTitle,
-                  isRTL && { textAlign: "left" as const },
-                ]}
-              >
-                {isRTL ? "تتبع الصحة" : "Health Tracking"}
-              </Text>
-              <TouchableOpacity
-                onPress={handleShowHowTo}
-                style={styles.helpButton as ViewStyle}
-              >
-                <Info color={theme.colors.neutral.white} size={18} />
-              </TouchableOpacity>
-            </View>
-            <Text
-              style={[
-                styles.headerSubtitle,
-                isRTL && { textAlign: "left" as const },
-              ]}
-            >
-              {isRTL
-                ? "راقب أعراضك الصحية وأدويتك"
-                : "Monitor your symptoms and medications"}
-            </Text>
-          </View>
-        </WavyBackground>
-      </View>
-
       <ScrollView
         contentContainerStyle={styles.contentInner as ViewStyle}
         refreshControl={
@@ -1063,6 +1024,45 @@ export default function TrackScreen() {
         showsVerticalScrollIndicator={false}
         style={styles.content as ViewStyle}
       >
+        {/* Header */}
+        <View style={styles.headerWrapper as ViewStyle}>
+          <WavyBackground height={220} variant="teal">
+            <View style={styles.headerContent as ViewStyle}>
+              <View
+                style={[
+                  styles.headerRow,
+                  isRTL && { flexDirection: "row-reverse" as const },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.headerTitle,
+                    isRTL && { textAlign: "left" as const },
+                  ]}
+                >
+                  {isRTL ? "تتبع الصحة" : "Health Tracking"}
+                </Text>
+                <TouchableOpacity
+                  onPress={handleShowHowTo}
+                  style={styles.helpButton as ViewStyle}
+                >
+                  <Info color={theme.colors.neutral.white} size={18} />
+                </TouchableOpacity>
+              </View>
+              <Text
+                style={[
+                  styles.headerSubtitle,
+                  isRTL && { textAlign: "left" as const },
+                ]}
+              >
+                {isRTL
+                  ? "راقب أعراضك الصحية وأدويتك"
+                  : "Monitor your symptoms and medications"}
+              </Text>
+            </View>
+          </WavyBackground>
+        </View>
+
         {showBlockingLoading ? (
           <View style={styles.loadingContainer as ViewStyle}>
             <ActivityIndicator color={theme.colors.primary.main} size="large" />

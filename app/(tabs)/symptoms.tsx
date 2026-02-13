@@ -1,6 +1,6 @@
 /* biome-ignore-all lint/style/noNestedTernary: screen copy and condition branches are handled in legacy JSX. */
 /* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: this screen intentionally centralizes symptom workflows. */
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import {
   Activity,
   ArrowLeft,
@@ -657,7 +657,12 @@ export default function TrackScreen() {
       return value;
     }
     if (typeof value === "object" && typeof value.toDate === "function") {
-      return value.toDate();
+      try {
+        return value.toDate();
+      } catch (error) {
+        console.error("Failed to convert timestamp to date:", error);
+        return new Date(); // Fallback to current date
+      }
     }
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) {
@@ -750,34 +755,6 @@ export default function TrackScreen() {
       pointerEvents="box-none"
       style={styles.container}
     >
-      <View style={styles.figmaSymptomHeaderWrap}>
-        <WavyBackground height={240} variant="teal">
-          <View style={styles.figmaSymptomHeaderContent}>
-            <View style={styles.figmaSymptomHeaderRow}>
-              <TouchableOpacity
-                onPress={() =>
-                  params.returnTo === "track"
-                    ? router.push("/(tabs)/track")
-                    : router.back()
-                }
-                style={styles.figmaSymptomBackButton}
-              >
-                <ArrowLeft color="#003543" size={20} />
-              </TouchableOpacity>
-              <View style={styles.figmaSymptomHeaderTitle}>
-                <View style={styles.figmaSymptomTitleRow}>
-                  <Activity color="#EB9C0C" size={20} />
-                  <Text style={styles.figmaSymptomTitle}>Tracked Symptoms</Text>
-                </View>
-                <Text style={styles.figmaSymptomSubtitle}>
-                  Monitor symptoms over time
-                </Text>
-              </View>
-            </View>
-          </View>
-        </WavyBackground>
-      </View>
-
       <ScrollView
         contentContainerStyle={styles.figmaSymptomContent}
         refreshControl={
@@ -789,6 +766,36 @@ export default function TrackScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
+        <View style={styles.figmaSymptomHeaderWrap}>
+          <WavyBackground height={240} variant="teal">
+            <View style={styles.figmaSymptomHeaderContent}>
+              <View style={styles.figmaSymptomHeaderRow}>
+                <TouchableOpacity
+                  onPress={() =>
+                    params.returnTo === "track"
+                      ? router.push("/(tabs)/track")
+                      : router.back()
+                  }
+                  style={styles.figmaSymptomBackButton}
+                >
+                  <ArrowLeft color="#003543" size={20} />
+                </TouchableOpacity>
+                <View style={styles.figmaSymptomHeaderTitle}>
+                  <View style={styles.figmaSymptomTitleRow}>
+                    <Activity color="#EB9C0C" size={20} />
+                    <Text style={styles.figmaSymptomTitle}>
+                      Tracked Symptoms
+                    </Text>
+                  </View>
+                  <Text style={styles.figmaSymptomSubtitle}>
+                    Monitor symptoms over time
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </WavyBackground>
+        </View>
+
         <FamilyDataFilter
           currentUserId={user.id}
           familyMembers={familyMembers}
