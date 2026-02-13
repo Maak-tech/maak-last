@@ -12,18 +12,13 @@ config.resolver.unstable_enablePackageExports = false;
 config.transformer.unstable_allowRequireContext = true;
 
 // Replace PushNotificationIOS with our polyfill to prevent NativeEventEmitter errors
-const originalResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
-  // Intercept PushNotificationIOS module from any import path and replace with polyfill
+  // Intercept PushNotificationIOS module from specific React Native import paths only
+  // Be very specific to avoid accidentally intercepting other modules
   if (
-    moduleName ===
-      "react-native/Libraries/PushNotificationIOS/PushNotificationIOS" ||
-    moduleName === "react-native/Libraries/PushNotificationIOS" ||
-    moduleName === "PushNotificationIOS" ||
-    (typeof moduleName === "string" &&
-      (moduleName.includes("PushNotificationIOS") ||
-        moduleName.endsWith("/PushNotificationIOS") ||
-        moduleName.includes("PushNotificationIOS/PushNotificationIOS")))
+    moduleName === "@react-native/push-notification-ios" ||
+    moduleName === "react-native/Libraries/PushNotificationIOS/PushNotificationIOS" ||
+    moduleName === "react-native/Libraries/PushNotificationIOS"
   ) {
     return {
       filePath: path.resolve(__dirname, "lib/polyfills/pushNotificationIOS.js"),
@@ -31,10 +26,8 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     };
   }
 
-  // Use default resolver for everything else
-  if (originalResolveRequest) {
-    return originalResolveRequest(context, moduleName, platform);
-  }
+  // Use Metro's default resolver for everything else
+  // Call Metro's default resolution strategy instead of context.resolveRequest
   return context.resolveRequest(context, moduleName, platform);
 };
 
