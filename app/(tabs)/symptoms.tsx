@@ -1226,7 +1226,6 @@ export default function TrackScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
-      ;
     </GradientScreen>
   );
 }
