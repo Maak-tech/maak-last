@@ -1145,9 +1145,8 @@ export default function FamilyScreen() {
   useEffect(() => {
     loadMemberMetricsRef.current = loadMemberMetrics;
 
-    // Keep list mode fast by deferring heavy per-member metrics until dashboard mode.
+    // Load member metrics when family members are available (needed for family cards)
     if (
-      viewMode === "dashboard" &&
       familyMembers.length > 0 &&
       memberMetrics.length === 0 &&
       !loadingMetrics
@@ -1162,7 +1161,6 @@ export default function FamilyScreen() {
     memberMetrics.length,
     loadingMetrics,
     familyMembers,
-    viewMode,
   ]);
 
   // Load caregiver dashboard data
@@ -2060,7 +2058,7 @@ export default function FamilyScreen() {
             (memberMetricsRef.current.length === 0 ||
               memberMetricsRef.current.length !== members.length);
 
-          if (viewMode === "dashboard" && needsMetricsLoad) {
+          if (needsMetricsLoad) {
             loadMemberMetrics(members).catch(() => {
               // Error loading member metrics
             });
@@ -2976,7 +2974,7 @@ export default function FamilyScreen() {
             },
           ]}
         >
-          <WavyBackground height={240} variant="teal">
+          <WavyBackground curve="home" height={240} variant="teal">
             <View
               style={[
                 styles.familyHeader,
@@ -3041,9 +3039,7 @@ export default function FamilyScreen() {
             );
             const status = getMemberStatus(metric);
             const medications =
-              metric?.activeMedications ??
-              caregiverData?.medicationCompliance?.missedDoses ??
-              0;
+              metric?.activeMedications ?? 0;
             const nextAppointment =
               caregiverData?.medicationCompliance?.nextDose;
             const appointmentLabel = nextAppointment

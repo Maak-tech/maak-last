@@ -69,6 +69,38 @@ const COMMON_SYMPTOMS = [
   "numbness",
 ];
 
+function getSeverityColor(severityLevel: number): string {
+  switch (severityLevel) {
+    case 1:
+      return "#10B981";
+    case 2:
+      return "#F59E0B";
+    case 3:
+      return "#EF4444";
+    case 4:
+      return "#DC2626";
+    case 5:
+      return "#991B1B";
+    default:
+      return "#6B7280";
+  }
+}
+
+function getSeverityText(
+  severityLevel: number,
+  translate: (key: string, fallback?: string) => string
+): string {
+  const fallbacks: Record<number, string> = {
+    1: "Very mild",
+    2: "Mild",
+    3: "Moderate",
+    4: "Significant",
+    5: "Severe",
+  };
+  const key = `symptomSeverity${severityLevel}`;
+  return translate(key, fallbacks[severityLevel] ?? "Unknown");
+}
+
 export default function TrackScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
@@ -621,23 +653,6 @@ export default function TrackScreen() {
     );
   };
 
-  const getSeverityColor = (severityLevel: number) => {
-    switch (severityLevel) {
-      case 1:
-        return "#10B981";
-      case 2:
-        return "#F59E0B";
-      case 3:
-        return "#EF4444";
-      case 4:
-        return "#DC2626";
-      case 5:
-        return "#991B1B";
-      default:
-        return "#6B7280";
-    }
-  };
-
   const formatSymptomLabel = (symptomType: string) => {
     if (!symptomType) {
       return "Symptom";
@@ -767,7 +782,7 @@ export default function TrackScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.figmaSymptomHeaderWrap}>
-          <WavyBackground height={240} variant="teal">
+          <WavyBackground curve="home" height={240} variant="teal">
             <View style={styles.figmaSymptomHeaderContent}>
               <View style={styles.figmaSymptomHeaderRow}>
                 <TouchableOpacity

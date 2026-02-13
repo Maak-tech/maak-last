@@ -92,7 +92,7 @@ export default function PrivacyPolicyScreen() {
   return (
     <GradientScreen edges={["top"]} style={styles.container}>
       <View style={styles.headerWrapper}>
-        <WavyBackground height={220} variant="teal">
+        <WavyBackground curve="home" height={220} variant="teal">
           <View style={styles.headerContent}>
             <View style={[styles.headerRow, isRTL && styles.headerRowRTL]}>
               <TouchableOpacity

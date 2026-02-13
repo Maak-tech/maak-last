@@ -603,7 +603,7 @@ export default function TimelineScreen() {
       style={styles.container as ViewStyle}
     >
       <View style={styles.headerWrap as ViewStyle}>
-        <WavyBackground height={180} variant="teal">
+        <WavyBackground curve="home" height={180} variant="teal">
           <View style={styles.headerContent as ViewStyle}>
             <View
               style={[

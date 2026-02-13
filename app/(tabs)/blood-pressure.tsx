@@ -340,7 +340,7 @@ export default function BloodPressureScreen() {
         style={styles.scrollView}
       >
         <View style={styles.headerWrapper}>
-          <WavyBackground height={220} variant="teal">
+          <WavyBackground curve="home" height={220} variant="teal">
             <View style={styles.header}>
               <TouchableOpacity
                 onPress={() => {

@@ -1026,7 +1026,7 @@ export default function TrackScreen() {
       >
         {/* Header */}
         <View style={styles.headerWrapper as ViewStyle}>
-          <WavyBackground height={220} variant="teal">
+          <WavyBackground curve="home" height={220} variant="teal">
             <View style={styles.headerContent as ViewStyle}>
               <View
                 style={[

@@ -107,7 +107,7 @@ export default function HealthInsightsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.headerWrap}>
-          <WavyBackground height={180} variant="teal">
+          <WavyBackground curve="home" height={180} variant="teal">
             <View style={styles.headerContent}>
               <View
                 style={[

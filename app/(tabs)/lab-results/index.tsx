@@ -1,5 +1,5 @@
 /* biome-ignore-all lint/style/noNestedTernary: preserving existing conditional layout flow while iterating in batches. */
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import {
   ArrowLeft,
   ChevronRight,
@@ -275,6 +275,145 @@ export default function LabResultsScreen() {
     rtlText: {
       textAlign: (isRTL ? "right" : "left") as TextStyle["textAlign"],
     } as TextStyle,
+    // Figma-aligned stats row
+    figmaLabStatsRow: {
+      flexDirection: "row" as const,
+      gap: 12,
+      marginBottom: 20,
+    },
+    figmaLabStatCard: {
+      flex: 1,
+      backgroundColor: "#FFFFFF",
+      borderRadius: 16,
+      paddingVertical: 16,
+      paddingHorizontal: 12,
+      alignItems: "center" as const,
+      shadowColor: "#0F172A",
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      elevation: 4,
+    },
+    figmaLabStatValue: {
+      fontSize: 20,
+      fontFamily: "Inter-Bold",
+      color: "#003543",
+      marginBottom: 4,
+    },
+    figmaLabStatLabel: {
+      fontSize: 11,
+      fontFamily: "Inter-SemiBold",
+      color: "#64748B",
+    },
+    // Figma-aligned result cards
+    figmaLabCard: {
+      padding: 20,
+      marginBottom: 0,
+    },
+    figmaLabCardHeader: {
+      flexDirection: "row" as const,
+      justifyContent: "space-between" as const,
+      alignItems: "flex-start" as const,
+      marginBottom: 12,
+    },
+    figmaLabCardTitleWrap: {
+      flex: 1,
+    },
+    figmaLabCardTitle: {
+      fontSize: 16,
+      fontFamily: "Inter-SemiBold",
+      color: "#1A1D1F",
+      marginBottom: 4,
+    },
+    figmaLabCardMeta: {
+      fontSize: 13,
+      fontFamily: "Inter-Regular",
+      color: "#6C7280",
+    },
+    figmaLabCardHeaderActions: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: 8,
+    },
+    figmaLabStatusBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 999,
+    },
+    figmaLabStatusText: {
+      fontSize: 12,
+      fontFamily: "Inter-SemiBold",
+    },
+    figmaLabDownloadButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 8,
+      backgroundColor: "rgba(0, 53, 67, 0.1)",
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+    },
+    // Figma-aligned result rows
+    figmaLabResultsList: {
+      gap: 8,
+      marginTop: 4,
+    },
+    figmaLabResultRow: {
+      flexDirection: "row" as const,
+      justifyContent: "space-between" as const,
+      alignItems: "center" as const,
+      backgroundColor: "#F9FAFB",
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
+    figmaLabResultLabel: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: 6,
+    },
+    figmaLabResultName: {
+      fontSize: 14,
+      fontFamily: "Inter-Medium",
+      color: "#1A1D1F",
+    },
+    figmaLabResultIconWrap: {
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      borderWidth: 1,
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+    },
+    figmaLabResultValue: {
+      alignItems: "flex-end" as const,
+    },
+    figmaLabResultValueText: {
+      fontSize: 14,
+      fontFamily: "Inter-Bold",
+      color: "#003543",
+    },
+    figmaLabResultRange: {
+      fontSize: 11,
+      fontFamily: "Inter-Regular",
+      color: "#6C7280",
+      marginTop: 2,
+    },
+    // View full report button
+    figmaLabViewButton: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+      gap: 4,
+      paddingVertical: 10,
+      marginTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: "#F3F4F6",
+    },
+    figmaLabViewButtonText: {
+      fontSize: 14,
+      fontFamily: "Inter-SemiBold",
+      color: "#003543",
+    },
   }))(theme);
 
   const loadLabResults = useCallback(
@@ -404,7 +543,7 @@ export default function LabResultsScreen() {
       style={styles.container as StyleProp<ViewStyle>}
     >
       <View style={styles.figmaLabHeaderWrap as StyleProp<ViewStyle>}>
-        <WavyBackground height={240} variant="teal">
+        <WavyBackground curve="home" height={240} variant="teal">
           <View style={styles.figmaLabHeaderContent as StyleProp<ViewStyle>}>
             <View style={styles.figmaLabHeaderRow as StyleProp<ViewStyle>}>
               <TouchableOpacity

@@ -42,7 +42,6 @@ import {
   LogOut,
   MapPin,
   MessageSquare,
-  Minus,
   Moon,
   Phone,
   Plus,
@@ -388,13 +387,24 @@ export default function ProfileScreen() {
     const hasStepsData = stepsSeries.some((v) => v > 0);
     const hasSleepData = sleepSeries.some((v) => v > 0);
 
-    return {
+    const result = {
       heartRate: hasHeartRateData
         ? heartRateSeries
         : generateMockSparkline(72, 5),
       steps: hasStepsData ? stepsSeries : generateMockSparkline(8000, 1000),
       sleepHours: hasSleepData ? sleepSeries : generateMockSparkline(7, 1),
     };
+
+    console.log("Sparkline data:", {
+      heartRate: result.heartRate.length,
+      steps: result.steps.length,
+      sleepHours: result.sleepHours.length,
+      hasHeartRateData,
+      hasStepsData,
+      hasSleepData,
+    });
+
+    return result;
   }, []);
 
   // Helper function to convert Western numerals to Arabic numerals
@@ -672,7 +682,7 @@ export default function ProfileScreen() {
           const sparklines =
             results[3].status === "fulfilled"
               ? results[3].value
-              : { heartRate: [], sleepHours: [], steps: [] };
+              : getMockSparklineData();
 
           // Filter recent symptoms for display (last 30 days)
           const recentSymptoms = symptoms.filter(
@@ -1418,18 +1428,38 @@ export default function ProfileScreen() {
       ? "لا توجد بيانات حديثة"
       : "No recent data";
 
-  // Helper function to calculate trend direction from sparkline data
-  const getTrendDirection = (data: number[]): "up" | "down" | "stable" => {
-    if (data.length < 2) return "stable";
+  // Helper to calculate trend direction + percent change from sparkline data
+  const getTrend = (
+    data: number[]
+  ): { direction: "up" | "down" | "stable"; percent: number } => {
+    if (data.length < 2) return { direction: "stable", percent: 0 };
     const firstHalf = data.slice(0, Math.floor(data.length / 2));
     const secondHalf = data.slice(Math.floor(data.length / 2));
     const firstAvg = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
     const secondAvg = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
-    const percentChange = ((secondAvg - firstAvg) / firstAvg) * 100;
-    if (percentChange > 5) return "up";
-    if (percentChange < -5) return "down";
-    return "stable";
+    const pct = firstAvg !== 0 ? ((secondAvg - firstAvg) / firstAvg) * 100 : 0;
+    const absPct = Math.abs(Math.round(pct));
+    if (pct > 5) return { direction: "up", percent: absPct };
+    if (pct < -5) return { direction: "down", percent: absPct };
+    return { direction: "stable", percent: 0 };
   };
+
+  const getInsightLabel = (
+    direction: "up" | "down" | "stable",
+    percent: number
+  ): string => {
+    if (direction === "stable") {
+      return isRTL ? "مستقر" : "Stable";
+    }
+    const sign = direction === "up" ? "+" : "-";
+    return isRTL
+      ? `${sign}${percent}% هذا الأسبوع`
+      : `${sign}${percent}% this week`;
+  };
+
+  const hrTrend = getTrend(vitalsSparklines.heartRate);
+  const sleepTrend = getTrend(vitalsSparklines.sleepHours);
+  const stepsTrend = getTrend(vitalsSparklines.steps);
 
   const vitalsOverview = [
     {
@@ -1437,8 +1467,11 @@ export default function ProfileScreen() {
       label: "Heart Rate",
       value:
         heartRateValue !== null ? `${Math.round(heartRateValue)} bpm` : "N/A",
-      trend: vitalsUpdatedLabel,
-      trendDirection: getTrendDirection(vitalsSparklines.heartRate),
+      trend:
+        heartRateValue !== null
+          ? getInsightLabel(hrTrend.direction, hrTrend.percent)
+          : "",
+      trendDirection: hrTrend.direction,
       sparkline: vitalsSparklines.heartRate,
       color: "#EF4444",
       onPress: handleHealthOverviewPress,
@@ -1447,8 +1480,11 @@ export default function ProfileScreen() {
       icon: Moon,
       label: "Sleep",
       value: sleepValue !== null ? `${sleepValue.toFixed(1)} hrs` : "N/A",
-      trend: vitalsUpdatedLabel,
-      trendDirection: getTrendDirection(vitalsSparklines.sleepHours),
+      trend:
+        sleepValue !== null
+          ? getInsightLabel(sleepTrend.direction, sleepTrend.percent)
+          : "",
+      trendDirection: sleepTrend.direction,
       sparkline: vitalsSparklines.sleepHours,
       color: "#3B82F6",
       onPress: handleHealthOverviewPress,
@@ -1460,8 +1496,11 @@ export default function ProfileScreen() {
         stepsValue !== null
           ? `${safeFormatNumber(Math.round(stepsValue))} steps`
           : "N/A",
-      trend: vitalsUpdatedLabel,
-      trendDirection: getTrendDirection(vitalsSparklines.steps),
+      trend:
+        stepsValue !== null
+          ? getInsightLabel(stepsTrend.direction, stepsTrend.percent)
+          : "",
+      trendDirection: stepsTrend.direction,
       sparkline: vitalsSparklines.steps,
       color: "#10B981",
       onPress: handleHealthOverviewPress,
@@ -1678,22 +1717,26 @@ export default function ProfileScreen() {
                     </View>
                   </View>
                   <View style={styles.figmaVitalRight}>
-                    <Sparkline
-                      color={vital.color}
-                      data={vital.sparkline}
-                      height={32}
-                      width={64}
-                    />
-                    <View style={styles.figmaVitalTrendRow}>
-                      {vital.trendDirection === "up" ? (
-                        <TrendingUp color="#10B981" size={12} />
-                      ) : vital.trendDirection === "down" ? (
-                        <TrendingDown color="#EF4444" size={12} />
-                      ) : (
-                        <Minus color="#6C7280" size={12} />
-                      )}
-                      <Text style={styles.figmaVitalTrend}>{vital.trend}</Text>
-                    </View>
+                    {vital.value !== "N/A" && vital.sparkline.length > 0 && (
+                      <Sparkline
+                        color={vital.color}
+                        data={vital.sparkline}
+                        height={28}
+                        width={56}
+                      />
+                    )}
+                    {vital.value !== "N/A" && vital.trend ? (
+                      <View style={styles.figmaVitalTrendRow}>
+                        <Text style={styles.figmaVitalTrend}>
+                          {vital.trend}
+                        </Text>
+                        {vital.trendDirection === "up" ? (
+                          <TrendingUp color="#003543" size={10} />
+                        ) : vital.trendDirection === "down" ? (
+                          <TrendingDown color="#003543" size={10} />
+                        ) : null}
+                      </View>
+                    ) : null}
                   </View>
                 </TouchableOpacity>
               );
@@ -4196,6 +4239,14 @@ const styles = StyleSheet.create({
   },
   figmaVitalRight: {
     alignItems: "flex-end",
+    gap: 8,
+  },
+  figmaSparklineContainer: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 8,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
   figmaVitalTrendRow: {
     flexDirection: "row",
@@ -4205,8 +4256,8 @@ const styles = StyleSheet.create({
   },
   figmaVitalTrend: {
     fontSize: 12,
-    fontFamily: "Inter-Medium",
-    color: "#6C7280",
+    fontFamily: "Inter-SemiBold",
+    color: "#003543",
   },
   figmaListCard: {
     backgroundColor: "#FFFFFF",

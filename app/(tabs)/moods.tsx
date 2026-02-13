@@ -841,7 +841,7 @@ export default function MoodsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.figmaMoodHeaderWrap}>
-          <WavyBackground height={240} variant="teal">
+          <WavyBackground curve="home" height={240} variant="teal">
             <View style={styles.figmaMoodHeaderContent}>
               <View style={styles.figmaMoodHeaderRow}>
                 <TouchableOpacity

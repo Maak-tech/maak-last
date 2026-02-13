@@ -1200,7 +1200,7 @@ export default function AllergiesScreen() {
       style={styles.container}
     >
       <View style={styles.figmaAllergyHeaderWrapper}>
-        <WavyBackground height={240} variant="teal">
+        <WavyBackground curve="home" height={240} variant="teal">
           <View style={styles.figmaAllergyHeaderContent}>
             <View style={styles.figmaAllergyHeaderRow}>
               <TouchableOpacity

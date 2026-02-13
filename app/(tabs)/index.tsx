@@ -2042,7 +2042,7 @@ export default function DashboardScreen() {
         >
           {/* Wavy Header */}
           <View style={styles.wavyHeaderWrapper as ViewStyle}>
-            <WavyBackground height={240} variant="teal">
+            <WavyBackground curve="home" height={240} variant="teal">
               <View style={styles.wavyHeaderContent as ViewStyle}>
                 <View style={styles.wavyHeaderTopRow as ViewStyle}>
                   <View style={styles.headerContent as ViewStyle}>

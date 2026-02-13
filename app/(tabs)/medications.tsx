@@ -1360,7 +1360,7 @@ export default function MedicationsScreen() {
       style={styles.container}
     >
       <View style={styles.figmaMedicationHeaderWrap}>
-        <WavyBackground height={190} variant="teal">
+        <WavyBackground curve="home" height={190} variant="teal">
           <View style={styles.figmaMedicationHeaderContent}>
             <View style={styles.figmaMedicationHeaderRow}>
               <TouchableOpacity
@@ -1484,7 +1484,7 @@ export default function MedicationsScreen() {
         <View style={styles.figmaMedicationSection}>
           <View style={styles.figmaMedicationSectionHeader}>
             <Text style={styles.figmaMedicationSectionTitle}>
-              Active medications
+              Active Medications
             </Text>
             <View style={styles.figmaMedicationSectionMeta}>
               <Text style={styles.figmaMedicationSectionLink}>Manage</Text>
@@ -1534,7 +1534,7 @@ export default function MedicationsScreen() {
                           )}
                         </View>
                         <Text style={styles.figmaMedicationDosage}>
-                          {medication.dosage || "Dose not set"} -{" "}
+                          {medication.dosage || "Dose not set"} •{" "}
                           {medication.frequency}
                         </Text>
                         {(selectedFilter.type === "family" ||
@@ -1646,7 +1646,7 @@ export default function MedicationsScreen() {
         <View style={styles.figmaMedicationSection}>
           <View style={styles.figmaMedicationSectionHeader}>
             <Text style={styles.figmaMedicationSectionTitle}>
-              Upcoming doses
+              Upcoming Doses
             </Text>
             <Bell color="#003543" size={18} />
           </View>
@@ -2394,7 +2394,7 @@ const styles = StyleSheet.create({
   figmaMedicationHeaderContent: {
     paddingHorizontal: 24,
     paddingTop: 24,
-    paddingBottom: 32,
+    paddingBottom: 15,
   },
   figmaMedicationHeaderRow: {
     flexDirection: "row",
@@ -2427,6 +2427,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Inter-SemiBold",
     color: "#003543",
+    marginVertical: 6,
+    paddingVertical: 7,
   },
   figmaMedicationAddButton: {
     width: 40,
@@ -2457,7 +2459,8 @@ const styles = StyleSheet.create({
     color: "#003543",
   },
   figmaMedicationContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
+    paddingTop: 24,
     paddingBottom: 140,
   },
   figmaMedicationAlertBanner: {
@@ -2487,7 +2490,7 @@ const styles = StyleSheet.create({
   figmaMedicationStatsRow: {
     flexDirection: "row",
     gap: 12,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   figmaMedicationStatCard: {
     flex: 1,
@@ -2503,15 +2506,15 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   figmaMedicationStatValue: {
-    fontSize: 20,
+    fontSize: 24,
     fontFamily: "Inter-Bold",
     color: "#003543",
     marginBottom: 4,
   },
   figmaMedicationStatLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: "Inter-SemiBold",
-    color: "#64748B",
+    color: "#6C7280",
   },
   figmaMedicationStatTrendRow: {
     flexDirection: "row",
@@ -2520,7 +2523,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   figmaMedicationSection: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   figmaMedicationSectionHeader: {
     flexDirection: "row",
@@ -2530,8 +2533,8 @@ const styles = StyleSheet.create({
   },
   figmaMedicationSectionTitle: {
     fontSize: 18,
-    fontFamily: "Inter-Bold",
-    color: "#0F172A",
+    fontFamily: "Inter-SemiBold",
+    color: "#1A1D1F",
   },
   figmaMedicationSectionMeta: {
     flexDirection: "row",
@@ -2539,8 +2542,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   figmaMedicationSectionLink: {
-    fontSize: 12,
-    fontFamily: "Inter-SemiBold",
+    fontSize: 14,
+    fontFamily: "Inter-Medium",
     color: "#003543",
   },
   figmaMedicationList: {
@@ -2580,18 +2583,18 @@ const styles = StyleSheet.create({
   figmaMedicationName: {
     fontSize: 15,
     fontFamily: "Inter-SemiBold",
-    color: "#0F172A",
+    color: "#1A1D1F",
   },
   figmaMedicationMemberTag: {
     marginTop: 4,
-    fontSize: 11,
-    fontFamily: "Inter-Medium",
-    color: "#64748B",
-  },
-  figmaMedicationDosage: {
     fontSize: 12,
     fontFamily: "Inter-Medium",
-    color: "#475569",
+    color: "#6C7280",
+  },
+  figmaMedicationDosage: {
+    fontSize: 14,
+    fontFamily: "Inter-Medium",
+    color: "#6C7280",
     marginTop: 2,
   },
   figmaMedicationTags: {
@@ -2611,7 +2614,7 @@ const styles = StyleSheet.create({
   figmaMedicationMoreTags: {
     fontSize: 10,
     fontFamily: "Inter-Medium",
-    color: "#64748B",
+    color: "#6C7280",
   },
   figmaMedicationMetaRow: {
     flexDirection: "row",
@@ -2620,9 +2623,9 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   figmaMedicationMetaText: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: "Inter-Medium",
-    color: "#64748B",
+    color: "#6C7280",
   },
   figmaMedicationActions: {
     flexDirection: "row",
@@ -2659,7 +2662,7 @@ const styles = StyleSheet.create({
   figmaMedicationReminderMoreText: {
     fontSize: 10,
     fontFamily: "Inter-SemiBold",
-    color: "#64748B",
+    color: "#6C7280",
   },
   figmaMedicationManageRow: {
     flexDirection: "row",
@@ -2681,7 +2684,7 @@ const styles = StyleSheet.create({
   figmaMedicationManageText: {
     fontSize: 12,
     fontFamily: "Inter-SemiBold",
-    color: "#64748B",
+    color: "#6C7280",
   },
   figmaMedicationManageTextDanger: {
     color: "#EF4444",
@@ -2689,7 +2692,7 @@ const styles = StyleSheet.create({
   figmaMedicationEmpty: {
     fontSize: 13,
     fontFamily: "Inter-Medium",
-    color: "#64748B",
+    color: "#6C7280",
   },
   figmaMedicationUpcomingList: {
     gap: 12,
@@ -2723,19 +2726,19 @@ const styles = StyleSheet.create({
   figmaMedicationUpcomingName: {
     fontSize: 14,
     fontFamily: "Inter-SemiBold",
-    color: "#0F172A",
+    color: "#1A1D1F",
   },
   figmaMedicationUpcomingDetail: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: "Inter-Medium",
-    color: "#64748B",
+    color: "#6C7280",
     marginTop: 2,
   },
   figmaMedicationQuickButton: {
     marginLeft: 12,
   },
   figmaMedicationMarkButton: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 10,
     backgroundColor: "rgba(0, 53, 67, 0.1)",
@@ -2744,8 +2747,8 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   figmaMedicationMarkButtonText: {
-    fontSize: 12,
-    fontFamily: "Inter-SemiBold",
+    fontSize: 14,
+    fontFamily: "Inter-Medium",
     color: "#003543",
   },
   figmaMedicationHistoryList: {
@@ -2776,14 +2779,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   figmaMedicationHistoryName: {
-    fontSize: 13,
-    fontFamily: "Inter-SemiBold",
-    color: "#0F172A",
+    fontSize: 14,
+    fontFamily: "Inter-Medium",
+    color: "#1A1D1F",
   },
   figmaMedicationHistoryDetail: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: "Inter-Medium",
-    color: "#64748B",
+    color: "#6C7280",
     marginTop: 2,
   },
   figmaMedicationHistoryStatus: {
@@ -2798,8 +2801,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(239, 68, 68, 0.12)",
   },
   figmaMedicationHistoryStatusText: {
-    fontSize: 11,
-    fontFamily: "Inter-SemiBold",
+    fontSize: 12,
+    fontFamily: "Inter-Medium",
   },
   figmaMedicationHistoryStatusTextTaken: {
     color: "#10B981",
@@ -2839,7 +2842,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#003543",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -2847,7 +2850,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#003543",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -3070,8 +3073,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   frequencyChipSelected: {
-    backgroundColor: "#2563EB",
-    borderColor: "#2563EB",
+    backgroundColor: "#003543",
+    borderColor: "#003543",
   },
   frequencyChipText: {
     fontSize: 14,
@@ -3082,7 +3085,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   submitButton: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#003543",
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: "center",
@@ -3185,8 +3188,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   periodButtonSelected: {
-    backgroundColor: "#2563EB",
-    borderColor: "#2563EB",
+    backgroundColor: "#003543",
+    borderColor: "#003543",
   },
   periodButtonText: {
     fontSize: 14,
@@ -3254,8 +3257,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   memberOptionSelected: {
-    backgroundColor: "#EBF4FF",
-    borderColor: "#2563EB",
+    backgroundColor: "rgba(0, 53, 67, 0.08)",
+    borderColor: "#003543",
   },
   memberInfo: {
     flexDirection: "row",
@@ -3268,7 +3271,7 @@ const styles = StyleSheet.create({
     color: "#1E293B",
   },
   memberNameSelected: {
-    color: "#2563EB",
+    color: "#003543",
   },
   memberRole: {
     fontSize: 12,
@@ -3280,8 +3283,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   memberRoleSelected: {
-    color: "#2563EB",
-    backgroundColor: "#EBF4FF",
+    color: "#003543",
+    backgroundColor: "rgba(0, 53, 67, 0.08)",
   },
   suggestionsContainer: {
     backgroundColor: "#FFFFFF",

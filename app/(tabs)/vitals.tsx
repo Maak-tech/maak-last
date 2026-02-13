@@ -2028,7 +2028,7 @@ export default function VitalsScreen() {
     >
       {/* Header */}
       <View style={styles.figmaVitalsHeaderWrap as ViewStyle}>
-        <WavyBackground height={210} variant="teal">
+        <WavyBackground curve="home" height={210} variant="teal">
           <View style={styles.figmaVitalsHeaderContent as ViewStyle}>
             <View style={styles.figmaVitalsHeaderRow as ViewStyle}>
               <TouchableOpacity

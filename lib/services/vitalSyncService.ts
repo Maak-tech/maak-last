@@ -255,6 +255,38 @@ async function evaluateAndCreateHealthEventIfNeeded(
         },
       });
 
+      // Create a HealthEvent so it appears in Recent Events on the Family screen
+      const eventSource =
+        source === "manual"
+          ? "manual"
+          : source === "clinic"
+            ? "clinic"
+            : source === "wearable"
+              ? "wearable"
+              : "system";
+      try {
+        await createHealthEvent({
+          userId,
+          type: "VITAL_ALERT",
+          severity: evaluation.severity === "critical" ? "critical" : "high",
+          reasons: [
+            evaluation.message ||
+              `Abnormal ${vitalType} detected: ${value} ${reading.unit}`,
+          ],
+          source: eventSource,
+          vitalValues: {
+            [vitalType]: value,
+          },
+          metadata: {
+            alertId,
+            vitalType,
+            thresholdBreached: evaluation.thresholdBreached,
+          },
+        });
+      } catch {
+        // Non-blocking: alert was created; health event is for display
+      }
+
       const user = await userService.getUser(userId);
       await escalationService.startEscalation(
         alertId,

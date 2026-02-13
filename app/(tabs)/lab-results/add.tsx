@@ -604,7 +604,7 @@ export default function AddLabResultScreen() {
       style={styles.container}
     >
       <View style={styles.figmaLabHeaderWrap}>
-        <WavyBackground height={190} variant="teal">
+        <WavyBackground curve="home" height={190} variant="teal">
           <View style={styles.figmaLabHeaderContent}>
             <View style={styles.figmaLabHeaderRow}>
               <TouchableOpacity

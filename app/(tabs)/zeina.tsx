@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Zeina - AI Health Assistant Chat
  *
  * A text-based chat interface for health assistance powered by OpenAI.
@@ -575,7 +575,7 @@ export default function ZeinaScreen() {
               },
             ]}
           >
-            <WavyBackground height={240} variant="teal">
+            <WavyBackground curve="home" height={240} variant="teal">
               <View
                 style={[
                   styles.figmaHeaderContent,
@@ -680,6 +680,7 @@ export default function ZeinaScreen() {
                   {quickActions.map((action) => (
                     <TouchableOpacity
                       key={action}
+                      onPress={() => handleSend(action)}
                       style={styles.figmaQuickActionCard}
                     >
                       <Text style={styles.figmaQuickActionText}>{action}</Text>

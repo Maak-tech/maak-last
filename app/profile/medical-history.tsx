@@ -351,7 +351,7 @@ export default function MedicalHistoryScreen() {
         style={styles.figmaScrollView}
       >
         <View style={styles.figmaHeaderWrapper}>
-          <WavyBackground height={220} variant="teal">
+          <WavyBackground curve="home" height={220} variant="teal">
             <View style={styles.figmaHeader}>
               <TouchableOpacity
                 onPress={() => {

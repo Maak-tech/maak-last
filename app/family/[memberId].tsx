@@ -553,7 +553,7 @@ export default function FamilyMemberHealthView() {
         style={styles.container}
       >
         <View style={styles.figmaHeaderWrapper}>
-          <WavyBackground height={240} variant="teal">
+          <WavyBackground curve="home" height={240} variant="teal">
             <View style={styles.figmaHeaderContent}>
               <View style={styles.figmaHeaderRow}>
                 <TouchableOpacity
@@ -586,7 +586,7 @@ export default function FamilyMemberHealthView() {
         style={styles.container}
       >
         <View style={styles.figmaHeaderWrapper}>
-          <WavyBackground height={240} variant="teal">
+          <WavyBackground curve="home" height={240} variant="teal">
             <View style={styles.figmaHeaderContent}>
               <View style={styles.figmaHeaderRow}>
                 <TouchableOpacity
@@ -663,7 +663,7 @@ export default function FamilyMemberHealthView() {
       style={styles.container}
     >
       <View style={styles.figmaHeaderWrapper}>
-        <WavyBackground height={240} variant="teal">
+        <WavyBackground curve="home" height={240} variant="teal">
           <View style={styles.figmaHeaderContent}>
             <View style={styles.figmaHeaderRow}>
               <TouchableOpacity
