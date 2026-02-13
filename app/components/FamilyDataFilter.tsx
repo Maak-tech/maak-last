@@ -125,7 +125,7 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
   const renderFilterOption = useCallback(
     (option: FilterOption) => {
       const isSelected = selectedFilter.id === option.id;
-      const iconColor = isSelected ? "#FFFFFF" : "#64748B";
+      const iconColor = isSelected ? "#FFFFFF" : "#6C7280";
 
       const renderIcon = () => {
         switch (option.type) {
@@ -261,9 +261,9 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
             style={styles.expandButton}
           >
             {isExpanded ? (
-              <ChevronUp color="#64748B" size={20} />
+              <ChevronUp color="#6C7280" size={20} />
             ) : (
-              <ChevronDown color="#64748B" size={20} />
+              <ChevronDown color="#6C7280" size={20} />
             )}
           </TouchableOpacity>
         ) : null}
@@ -301,13 +301,13 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    borderRadius: 16,
     marginBottom: 16,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
     overflow: "hidden",
   },
   header: {
@@ -317,12 +317,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    borderBottomColor: "#F3F4F6",
   },
   headerTitle: {
     fontSize: 16,
     fontFamily: "Inter-SemiBold",
-    color: "#1E293B",
+    color: "#1A1D1F",
   },
   headerTitleRTL: {
     fontFamily: "Inter-SemiBold",
@@ -349,12 +349,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   filterOption: {
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F9FAFB",
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "#E5E7EB",
     flexDirection: "row",
     alignItems: "center",
     marginEnd: 8,
@@ -362,8 +362,8 @@ const styles = StyleSheet.create({
     minHeight: 36,
   },
   filterOptionSelected: {
-    backgroundColor: "#2563EB",
-    borderColor: "#2563EB",
+    backgroundColor: "#003543",
+    borderColor: "#003543",
   },
   filterOptionRTL: {
     marginEnd: 0,
@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
   filterText: {
     fontSize: 14,
     fontFamily: "Inter-Medium",
-    color: "#64748B",
+    color: "#6C7280",
   },
   filterTextSelected: {
     color: "#FFFFFF",
@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: "#E2E8F0",
+    backgroundColor: "#E5E7EB",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -402,13 +402,13 @@ const styles = StyleSheet.create({
   memberAvatarText: {
     fontSize: 10,
     fontFamily: "Inter-Bold",
-    color: "#64748B",
+    color: "#6C7280",
   },
   memberAvatarTextSelected: {
-    color: "#2563EB",
+    color: "#003543",
   },
   memberBadge: {
-    backgroundColor: "#EEF2FF",
+    backgroundColor: "rgba(0, 53, 67, 0.08)",
     borderRadius: 8,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -420,29 +420,29 @@ const styles = StyleSheet.create({
   memberBadgeText: {
     fontSize: 10,
     fontFamily: "Inter-Medium",
-    color: "#6366F1",
+    color: "#003543",
   },
   memberBadgeTextSelected: {
-    color: "#2563EB",
+    color: "#003543",
   },
   selectedIndicator: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F9FAFB",
   },
   selectedIndicatorDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#003543",
     marginEnd: 8,
   },
   selectedIndicatorText: {
     fontSize: 12,
     fontFamily: "Inter-Medium",
-    color: "#64748B",
+    color: "#6C7280",
   },
   selectedIndicatorTextRTL: {
     fontFamily: "Inter-Medium",

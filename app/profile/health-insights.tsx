@@ -29,25 +29,25 @@ export default function HealthInsightsScreen() {
       backgroundColor: "transparent",
     },
     headerWrap: {
-      marginHorizontal: -20,
-      marginTop: -20,
-      marginBottom: 12,
+      marginHorizontal: -24,
+      marginBottom: -20,
     },
     headerContent: {
       paddingHorizontal: 24,
-      paddingTop: 20,
-      paddingBottom: 16,
+      paddingTop: 140,
+      paddingBottom: 12,
     },
     headerRow: {
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
+      marginTop: 40,
     },
     backButton: {
       width: 40,
       height: 40,
       borderRadius: 12,
-      backgroundColor: "rgba(255, 255, 255, 0.5)",
+      backgroundColor: "rgba(0, 53, 67, 0.15)",
       alignItems: "center",
       justifyContent: "center",
     },
@@ -63,15 +63,17 @@ export default function HealthInsightsScreen() {
     headerTitleText: {
       fontSize: 22,
       fontFamily: "Inter-Bold",
-      color: "#FFFFFF",
+      color: "#003543",
     },
     headerSubtitle: {
       fontSize: 13,
       fontFamily: "Inter-SemiBold",
       color: "rgba(0, 53, 67, 0.85)",
+      marginTop: 4,
     },
     content: {
       paddingHorizontal: 24,
+      paddingTop: 40,
       paddingBottom: 40,
     },
     rtlText: {
@@ -107,7 +109,12 @@ export default function HealthInsightsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.headerWrap}>
-          <WavyBackground curve="home" height={180} variant="teal">
+          <WavyBackground
+            contentPosition="top"
+            curve="home"
+            height={280}
+            variant="teal"
+          >
             <View style={styles.headerContent}>
               <View
                 style={[
@@ -151,13 +158,13 @@ export default function HealthInsightsScreen() {
           </WavyBackground>
         </View>
 
-        <HealthInsightsCard key={`health-insights-card-${refreshKey}`} />
         <AIInsightsDashboard
           compact={false}
           embedded={true}
           key={`health-insights-dashboard-${refreshKey}`}
           onInsightPress={() => router.push("/(tabs)/analytics")}
         />
+        <HealthInsightsCard key={`health-insights-card-${refreshKey}`} />
       </ScrollView>
     </GradientScreen>
   );

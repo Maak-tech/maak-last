@@ -321,6 +321,10 @@ function RootLayout() {
                       name="(auth)"
                       options={{ headerShown: false }}
                     />
+                    <Stack.Screen
+                      name="family"
+                      options={{ headerShown: false }}
+                    />
                     <Stack.Screen name="+not-found" />
                   </Stack>
                 </FallDetectionProvider>

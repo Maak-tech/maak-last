@@ -22,10 +22,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import Avatar from "@/components/Avatar";
+import GradientScreen from "@/components/figma/GradientScreen";
+import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
-import { useTheme } from "@/contexts/ThemeContext";
 import { useRevenueCat } from "@/hooks/useRevenueCat";
 import { useSubscription } from "@/hooks/useSubscription";
 import { userService } from "@/lib/services/userService";
@@ -41,7 +41,6 @@ export default function AdminSettingsScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const navigation = useNavigation();
-  const { theme, isDark } = useTheme();
   const {
     subscriptionStatus,
     hasActiveSubscription,
@@ -227,42 +226,74 @@ export default function AdminSettingsScreen() {
   const styles = StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: isDark ? "#0F172A" : "#F8FAFC",
+      backgroundColor: "transparent",
     },
-    header: {
-      flexDirection: isRTL ? "row-reverse" : "row",
+    headerWrapper: {
+      marginHorizontal: -24,
+      marginBottom: -20,
+    },
+    headerContent: {
+      paddingHorizontal: 24,
+      paddingTop: 130,
+      paddingBottom: 16,
+    },
+    headerRow: {
+      flexDirection: "row",
       alignItems: "center",
-      paddingHorizontal: 16,
-      paddingVertical: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: isDark ? "#1E293B" : "#E2E8F0",
-      backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+      gap: 12,
+      marginTop: 50,
+    },
+    headerRowRTL: {
+      flexDirection: "row-reverse",
     },
     backButton: {
-      padding: 8,
-      marginEnd: 8,
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: "rgba(0, 53, 67, 0.15)",
+      alignItems: "center",
+      justifyContent: "center",
     },
     headerTitle: {
-      fontSize: 20,
-      fontWeight: "700",
-      color: isDark ? "#F1F5F9" : "#1E293B",
       flex: 1,
-      textAlign: isRTL ? "right" : "left",
     },
-    content: {
+    headerTitleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginBottom: 4,
+    },
+    headerTitleText: {
+      fontSize: 22,
+      fontFamily: "Inter-Bold",
+      color: "#003543",
+    },
+    headerSubtitle: {
+      fontSize: 13,
+      fontFamily: "Inter-SemiBold",
+      color: "rgba(0, 53, 67, 0.85)",
+    },
+    scrollView: {
       flex: 1,
+    },
+    scrollContent: {
+      paddingHorizontal: 24,
+      paddingTop: 40,
+      paddingBottom: 40,
+    },
+    rtlText: {
+      textAlign: "right",
     },
     section: {
-      backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
-      marginHorizontal: 16,
-      marginTop: 16,
+      backgroundColor: "#FFFFFF",
       borderRadius: 16,
-      padding: 16,
+      padding: 20,
+      marginBottom: 24,
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
+      shadowOpacity: 0.06,
+      shadowRadius: 8,
+      elevation: 2,
     },
     sectionHeader: {
       flexDirection: isRTL ? "row-reverse" : "row",
@@ -280,8 +311,8 @@ export default function AdminSettingsScreen() {
     },
     sectionTitle: {
       fontSize: 18,
-      fontWeight: "700",
-      color: isDark ? "#F1F5F9" : "#1E293B",
+      fontFamily: "Inter-Bold",
+      color: "#1A1D1F",
       flex: 1,
       textAlign: isRTL ? "right" : "left",
     },
@@ -295,7 +326,7 @@ export default function AdminSettingsScreen() {
     },
     subscriptionBadgeText: {
       fontSize: 12,
-      fontWeight: "600",
+      fontFamily: "Inter-SemiBold",
     },
     infoRow: {
       flexDirection: isRTL ? "row-reverse" : "row",
@@ -303,26 +334,27 @@ export default function AdminSettingsScreen() {
       alignItems: "center",
       paddingVertical: 12,
       borderBottomWidth: 1,
-      borderBottomColor: isDark ? "#334155" : "#E2E8F0",
+      borderBottomColor: "#E5E7EB",
     },
     infoRowLast: {
       borderBottomWidth: 0,
     },
     infoLabel: {
       fontSize: 14,
-      color: isDark ? "#94A3B8" : "#64748B",
+      fontFamily: "Inter-Regular",
+      color: "#64748B",
       textAlign: isRTL ? "right" : "left",
     },
     infoValue: {
       fontSize: 14,
-      fontWeight: "600",
-      color: isDark ? "#F1F5F9" : "#1E293B",
+      fontFamily: "Inter-SemiBold",
+      color: "#1A1D1F",
       textAlign: isRTL ? "left" : "right",
     },
     planLimitsContainer: {
-      backgroundColor: isDark ? "#0F172A" : "#F1F5F9",
+      backgroundColor: "#F8FAFC",
       borderRadius: 12,
-      padding: 12,
+      padding: 16,
       marginTop: 12,
     },
     planLimitRow: {
@@ -333,18 +365,19 @@ export default function AdminSettingsScreen() {
     },
     planLimitLabel: {
       fontSize: 14,
-      color: isDark ? "#94A3B8" : "#64748B",
+      fontFamily: "Inter-Regular",
+      color: "#64748B",
     },
     planLimitValue: {
       fontSize: 14,
-      fontWeight: "600",
-      color: isDark ? "#F1F5F9" : "#1E293B",
+      fontFamily: "Inter-SemiBold",
+      color: "#1A1D1F",
     },
     actionButton: {
       flexDirection: isRTL ? "row-reverse" : "row",
       alignItems: "center",
       justifyContent: "center",
-      paddingVertical: 12,
+      paddingVertical: 14,
       paddingHorizontal: 16,
       borderRadius: 12,
       marginTop: 12,
@@ -352,14 +385,14 @@ export default function AdminSettingsScreen() {
     },
     actionButtonText: {
       fontSize: 14,
-      fontWeight: "600",
+      fontFamily: "Inter-SemiBold",
     },
     memberItem: {
       flexDirection: isRTL ? "row-reverse" : "row",
       alignItems: "center",
       paddingVertical: 12,
       borderBottomWidth: 1,
-      borderBottomColor: isDark ? "#334155" : "#E2E8F0",
+      borderBottomColor: "#E5E7EB",
     },
     memberItemLast: {
       borderBottomWidth: 0,
@@ -373,13 +406,14 @@ export default function AdminSettingsScreen() {
     },
     memberName: {
       fontSize: 16,
-      fontWeight: "600",
-      color: isDark ? "#F1F5F9" : "#1E293B",
+      fontFamily: "Inter-SemiBold",
+      color: "#1A1D1F",
       textAlign: isRTL ? "right" : "left",
     },
     memberRole: {
       fontSize: 12,
-      color: isDark ? "#94A3B8" : "#64748B",
+      fontFamily: "Inter-Regular",
+      color: "#64748B",
       marginTop: 2,
       textAlign: isRTL ? "right" : "left",
     },
@@ -392,13 +426,15 @@ export default function AdminSettingsScreen() {
     },
     emptyText: {
       fontSize: 14,
-      color: isDark ? "#94A3B8" : "#64748B",
+      fontFamily: "Inter-Regular",
+      color: "#64748B",
       marginTop: 8,
       textAlign: "center",
     },
     memberCount: {
       fontSize: 12,
-      color: isDark ? "#94A3B8" : "#64748B",
+      fontFamily: "Inter-Regular",
+      color: "#64748B",
       marginTop: 4,
     },
     loadingContainer: {
@@ -413,7 +449,7 @@ export default function AdminSettingsScreen() {
       justifyContent: "flex-end",
     },
     modalContent: {
-      backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+      backgroundColor: "#FFFFFF",
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
       padding: 24,
@@ -427,8 +463,8 @@ export default function AdminSettingsScreen() {
     },
     modalTitle: {
       fontSize: 20,
-      fontWeight: "700",
-      color: isDark ? "#F1F5F9" : "#1E293B",
+      fontFamily: "Inter-Bold",
+      color: "#1A1D1F",
     },
     modalCloseButton: {
       padding: 8,
@@ -439,18 +475,20 @@ export default function AdminSettingsScreen() {
     },
     modalMemberName: {
       fontSize: 18,
-      fontWeight: "600",
-      color: isDark ? "#F1F5F9" : "#1E293B",
+      fontFamily: "Inter-SemiBold",
+      color: "#1A1D1F",
       marginTop: 12,
     },
     modalMemberEmail: {
       fontSize: 14,
-      color: isDark ? "#94A3B8" : "#64748B",
+      fontFamily: "Inter-Regular",
+      color: "#64748B",
       marginTop: 4,
     },
     modalMemberRole: {
       fontSize: 12,
-      color: theme.colors.primary.main,
+      fontFamily: "Inter-SemiBold",
+      color: "#003543",
       marginTop: 4,
       textTransform: "capitalize",
     },
@@ -464,59 +502,88 @@ export default function AdminSettingsScreen() {
       paddingVertical: 14,
       paddingHorizontal: 20,
       borderRadius: 12,
-      backgroundColor: isDark ? "#7F1D1D" : "#FEE2E2",
+      backgroundColor: "#FEE2E2",
       gap: 8,
     },
     removeButtonText: {
       fontSize: 16,
-      fontWeight: "600",
-      color: isDark ? "#FCA5A5" : "#DC2626",
+      fontFamily: "Inter-SemiBold",
+      color: "#DC2626",
     },
   });
 
   if (loading || subscriptionLoading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-          >
-            <ArrowLeft color={isDark ? "#F1F5F9" : "#1E293B"} size={24} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t("adminSettings")}</Text>
-        </View>
+      <GradientScreen edges={["top"]} style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator color={theme.colors.primary.main} size="large" />
+          <ActivityIndicator color="#003543" size="large" />
         </View>
-      </SafeAreaView>
+      </GradientScreen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <ArrowLeft color={isDark ? "#F1F5F9" : "#1E293B"} size={24} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t("adminSettings")}</Text>
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
+    <GradientScreen edges={["top"]} style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        style={styles.scrollView}
+      >
+        <View style={styles.headerWrapper}>
+          <WavyBackground
+            contentPosition="top"
+            curve="home"
+            height={280}
+            variant="teal"
+          >
+            <View style={styles.headerContent}>
+              <View style={[styles.headerRow, isRTL && styles.headerRowRTL]}>
+                <TouchableOpacity
+                  onPress={() => router.back()}
+                  style={styles.backButton}
+                >
+                  <ArrowLeft
+                    color="#003543"
+                    size={20}
+                    style={
+                      isRTL ? { transform: [{ rotate: "180deg" }] } : undefined
+                    }
+                  />
+                </TouchableOpacity>
+                <View style={styles.headerTitle}>
+                  <View
+                    style={[
+                      styles.headerTitleRow,
+                      isRTL && styles.headerRowRTL,
+                    ]}
+                  >
+                    <CreditCard color="#EB9C0C" size={20} />
+                    <Text style={styles.headerTitleText}>
+                      {t("adminSettings")}
+                    </Text>
+                  </View>
+                  <Text
+                    style={[styles.headerSubtitle, isRTL && styles.rtlText]}
+                  >
+                    {isRTL
+                      ? "إدارة الاشتراك وأعضاء العائلة"
+                      : "Manage subscription and family members"}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </WavyBackground>
+        </View>
         {/* Subscription Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View
               style={[
                 styles.sectionIcon,
-                { backgroundColor: `${theme.colors.primary.main}20` },
+                { backgroundColor: "rgba(0, 53, 67, 0.15)" },
               ]}
             >
-              <CreditCard color={theme.colors.primary.main} size={20} />
+              <CreditCard color="#003543" size={20} />
             </View>
             <Text style={styles.sectionTitle}>{t("subscription")}</Text>
             <View
@@ -524,23 +591,21 @@ export default function AdminSettingsScreen() {
                 styles.subscriptionBadge,
                 {
                   backgroundColor: hasActiveSubscription
-                    ? `${theme.colors.accent.success}20`
-                    : `${theme.colors.accent.warning}20`,
+                    ? "rgba(16, 185, 129, 0.15)"
+                    : "rgba(245, 158, 11, 0.15)",
                 },
               ]}
             >
               {hasActiveSubscription ? (
-                <Crown color={theme.colors.accent.success} size={14} />
+                <Crown color="#10B981" size={14} />
               ) : (
-                <AlertTriangle color={theme.colors.accent.warning} size={14} />
+                <AlertTriangle color="#F59E0B" size={14} />
               )}
               <Text
                 style={[
                   styles.subscriptionBadgeText,
                   {
-                    color: hasActiveSubscription
-                      ? theme.colors.accent.success
-                      : theme.colors.accent.warning,
+                    color: hasActiveSubscription ? "#10B981" : "#F59E0B",
                   },
                 ]}
               >
@@ -607,23 +672,15 @@ export default function AdminSettingsScreen() {
             onPress={handleRefreshSubscription}
             style={[
               styles.actionButton,
-              { backgroundColor: `${theme.colors.primary.main}15` },
+              { backgroundColor: "rgba(0, 53, 67, 0.1)" },
             ]}
           >
             {refreshing ? (
-              <ActivityIndicator
-                color={theme.colors.primary.main}
-                size="small"
-              />
+              <ActivityIndicator color="#003543" size="small" />
             ) : (
-              <RefreshCcw color={theme.colors.primary.main} size={18} />
+              <RefreshCcw color="#003543" size={18} />
             )}
-            <Text
-              style={[
-                styles.actionButtonText,
-                { color: theme.colors.primary.main },
-              ]}
-            >
+            <Text style={[styles.actionButtonText, { color: "#003543" }]}>
               {t("refreshStatus")}
             </Text>
           </TouchableOpacity>
@@ -631,18 +688,10 @@ export default function AdminSettingsScreen() {
           <TouchableOpacity
             disabled={refreshing}
             onPress={handleRestorePurchases}
-            style={[
-              styles.actionButton,
-              { backgroundColor: isDark ? "#334155" : "#E2E8F0" },
-            ]}
+            style={[styles.actionButton, { backgroundColor: "#F1F5F9" }]}
           >
-            <CreditCard color={isDark ? "#94A3B8" : "#64748B"} size={18} />
-            <Text
-              style={[
-                styles.actionButtonText,
-                { color: isDark ? "#94A3B8" : "#64748B" },
-              ]}
-            >
+            <CreditCard color="#64748B" size={18} />
+            <Text style={[styles.actionButtonText, { color: "#64748B" }]}>
               {t("restorePurchases")}
             </Text>
           </TouchableOpacity>
@@ -654,10 +703,10 @@ export default function AdminSettingsScreen() {
             <View
               style={[
                 styles.sectionIcon,
-                { backgroundColor: `${theme.colors.secondary.main}20` },
+                { backgroundColor: "rgba(235, 156, 12, 0.15)" },
               ]}
             >
-              <Users color={theme.colors.secondary.main} size={20} />
+              <Users color="#EB9C0C" size={20} />
             </View>
             <Text style={styles.sectionTitle}>{t("linkedFamilyMembers")}</Text>
           </View>
@@ -696,7 +745,7 @@ export default function AdminSettingsScreen() {
                     </Text>
                   </View>
                   <ChevronRight
-                    color={isDark ? "#64748B" : "#94A3B8"}
+                    color="#94A3B8"
                     size={20}
                     style={[
                       styles.memberChevron,
@@ -708,7 +757,7 @@ export default function AdminSettingsScreen() {
             </>
           ) : (
             <View style={styles.emptyState}>
-              <Users color={isDark ? "#475569" : "#CBD5E1"} size={48} />
+              <Users color="#CBD5E1" size={48} />
               <Text style={styles.emptyText}>
                 {t("noFamilyMembersLinked")}
                 {"\n"}
@@ -723,16 +772,11 @@ export default function AdminSettingsScreen() {
               onPress={() => router.push("/(tabs)/family")}
               style={[
                 styles.actionButton,
-                { backgroundColor: `${theme.colors.secondary.main}15` },
+                { backgroundColor: "rgba(235, 156, 12, 0.1)" },
               ]}
             >
-              <Users color={theme.colors.secondary.main} size={18} />
-              <Text
-                style={[
-                  styles.actionButtonText,
-                  { color: theme.colors.secondary.main },
-                ]}
-              >
+              <Users color="#EB9C0C" size={18} />
+              <Text style={[styles.actionButtonText, { color: "#EB9C0C" }]}>
                 {t("inviteFamilyMembers")}
               </Text>
             </TouchableOpacity>
@@ -760,7 +804,7 @@ export default function AdminSettingsScreen() {
                 onPress={() => setShowMemberModal(false)}
                 style={styles.modalCloseButton}
               >
-                <X color={isDark ? "#94A3B8" : "#64748B"} size={24} />
+                <X color="#64748B" size={24} />
               </TouchableOpacity>
             </View>
 
@@ -794,15 +838,9 @@ export default function AdminSettingsScreen() {
                     style={styles.removeButton}
                   >
                     {removingMember ? (
-                      <ActivityIndicator
-                        color={isDark ? "#FCA5A5" : "#DC2626"}
-                        size="small"
-                      />
+                      <ActivityIndicator color="#DC2626" size="small" />
                     ) : (
-                      <Trash2
-                        color={isDark ? "#FCA5A5" : "#DC2626"}
-                        size={20}
-                      />
+                      <Trash2 color="#DC2626" size={20} />
                     )}
                     <Text style={styles.removeButtonText}>
                       {t("removeFromFamily")}
@@ -814,6 +852,6 @@ export default function AdminSettingsScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </GradientScreen>
   );
 }

@@ -11,6 +11,8 @@ type WavyBackgroundProps = {
   variant?: WavyBackgroundVariant;
   height?: number;
   curve?: WavyBackgroundCurve;
+  /** Position of content: "top" keeps title at top when wave extends down, "bottom" (default) aligns to bottom */
+  contentPosition?: "top" | "bottom";
 };
 
 // Web design colors (exact match from design-figma)
@@ -71,8 +73,13 @@ export default function WavyBackground({
   variant = "teal",
   height = DEFAULT_HEIGHT,
   curve = "default",
+  contentPosition = "bottom",
 }: WavyBackgroundProps) {
   const svgWidth = Dimensions.get("window").width;
+  const contentStyle = [
+    styles.content,
+    contentPosition === "top" && { justifyContent: "flex-start" as const },
+  ];
 
   if (curve === "home") {
     const colors = WEB_VARIANT_COLORS[variant];
@@ -118,7 +125,7 @@ export default function WavyBackground({
             fillOpacity={1}
           />
         </Svg>
-        <View style={styles.content}>{children}</View>
+        <View style={contentStyle}>{children}</View>
       </View>
     );
   }
@@ -150,7 +157,7 @@ export default function WavyBackground({
         <Path d={paths.waveLight} fill={colors.waveLight} fillOpacity={1} />
         <Path d={paths.waveMid} fill={colors.waveMid} fillOpacity={1} />
       </Svg>
-      <View style={styles.content}>{children}</View>
+      <View style={contentStyle}>{children}</View>
     </View>
   );
 }

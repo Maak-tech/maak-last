@@ -348,6 +348,12 @@ export type WeeklySummary = {
     trend: "improving" | "declining" | "stable";
   };
   insights: PatternInsight[];
+  /** Daily data for chart/sparkline display (7 days, Sun–Sat) */
+  dailyChartData?: {
+    symptomCounts: number[];
+    symptomSeverities: number[];
+    moodIntensities: number[];
+  };
 };
 
 export type MonthlySummary = {
@@ -1765,6 +1771,39 @@ class HealthInsightsService {
       ),
     ]);
 
+    // Build daily chart data for sparklines (7 days)
+    const symptomCountsByDay: number[] = [];
+    const symptomSeveritiesByDay: number[] = [];
+    const moodIntensitiesByDay: number[] = [];
+
+    for (let i = 0; i < 7; i++) {
+      const dayStart = new Date(start);
+      dayStart.setDate(dayStart.getDate() + i);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+
+      const daySymptoms = weekSymptoms.filter(
+        (s) => s.timestamp >= dayStart && s.timestamp < dayEnd
+      );
+      const dayMoods = weekMoods.filter(
+        (m) => m.timestamp >= dayStart && m.timestamp < dayEnd
+      );
+
+      symptomCountsByDay.push(daySymptoms.length);
+      symptomSeveritiesByDay.push(
+        daySymptoms.length > 0
+          ? daySymptoms.reduce((sum, s) => sum + s.severity, 0) /
+              daySymptoms.length
+          : 0
+      );
+      moodIntensitiesByDay.push(
+        dayMoods.length > 0
+          ? dayMoods.reduce((sum, m) => sum + m.intensity, 0) / dayMoods.length
+          : 0
+      );
+    }
+
     return {
       weekStart: start,
       weekEnd: end,
@@ -1785,6 +1824,11 @@ class HealthInsightsService {
         trend: moodTrend,
       },
       insights: allInsights.slice(0, 5), // Top 5 insights
+      dailyChartData: {
+        symptomCounts: symptomCountsByDay,
+        symptomSeverities: symptomSeveritiesByDay,
+        moodIntensities: moodIntensitiesByDay,
+      },
     };
   }
 

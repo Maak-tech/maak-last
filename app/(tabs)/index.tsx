@@ -13,7 +13,7 @@ import * as Haptics from "expo-haptics";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
   Activity,
-  AlertTriangle,
+  AlertCircle,
   Check,
   ChevronRight,
   Heart,
@@ -255,30 +255,45 @@ export default function DashboardScreen() {
           fontSize: 14,
         },
         alertCard: {
-          backgroundColor: `${theme.colors.accent.error}10`,
-          borderRadius: theme.borderRadius.lg,
-          padding: theme.spacing.base,
-          marginBottom: theme.spacing.xl,
-          flexDirection: "row" as const,
-          alignItems: "center" as const,
+          backgroundColor: "#FEE2E2",
+          borderRadius: 16,
+          padding: 16,
+          marginBottom: 16,
           borderStartWidth: 4,
-          borderStartColor: theme.colors.accent.error,
+          borderStartColor: "#DC2626",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.05,
+          shadowRadius: 2,
+          elevation: 1,
+        },
+        alertCardInner: {
+          flexDirection: "row" as const,
+          gap: 12,
+        },
+        alertIconWrap: {
+          marginTop: 2,
         },
         alertContent: {
-          marginStart: theme.spacing.md,
           flex: 1,
+          minWidth: 0,
         },
         alertTitle: {
-          ...getTextStyle(
-            theme,
-            "subheading",
-            "bold",
-            theme.colors.accent.error
-          ),
+          fontSize: 15,
+          fontFamily: "Inter-SemiBold",
+          color: "#1A1D1F",
           marginBottom: 4,
         },
         alertText: {
-          ...getTextStyle(theme, "body", "regular", theme.colors.accent.error),
+          fontSize: 14,
+          fontFamily: "Inter-Regular",
+          color: "#4E5661",
+          marginBottom: 6,
+        },
+        alertTimestamp: {
+          fontSize: 12,
+          fontFamily: "Inter-Regular",
+          color: "#6C7280",
         },
         section: {
           marginBottom: theme.spacing.lg,
@@ -1876,8 +1891,8 @@ export default function DashboardScreen() {
         }
         return (
           <View key="alerts">
-            <Card
-              contentStyle={undefined}
+            <TouchableOpacity
+              activeOpacity={0.8}
               onPress={async () => {
                 if (!user?.id) {
                   return;
@@ -1892,34 +1907,34 @@ export default function DashboardScreen() {
                 }
               }}
               style={styles.alertCard as ViewStyle}
-              variant="elevated"
             >
-              <AlertTriangle color={theme.colors.accent.error} size={24} />
-              <View style={styles.alertContent as ViewStyle}>
-                <Text
-                  color={theme.colors.accent.error}
-                  style={[styles.alertTitle, isRTL && styles.rtlText]}
-                  weight="bold"
-                >
-                  {isRTL
-                    ? "تنبيهات طوارئ صحية نشطة"
-                    : "Active Emergency Alerts"}
-                </Text>
-                <Text
-                  color={theme.colors.accent.error}
-                  style={[styles.alertText, isRTL && styles.rtlText]}
-                >
-                  {isRTL
-                    ? `لديك ${alertsCount} تنبيه${
-                        alertsCount > 1 ? "ات" : ""
-                      } يتطلب الانتباه`
-                    : `You have ${alertsCount} alert${
-                        alertsCount > 1 ? "s" : ""
-                      } requiring attention`}
-                </Text>
+              <View style={styles.alertCardInner as ViewStyle}>
+                <View style={styles.alertIconWrap as ViewStyle}>
+                  <AlertCircle color="#DC2626" size={20} />
+                </View>
+                <View style={styles.alertContent as ViewStyle}>
+                  <Text style={[styles.alertTitle, isRTL && styles.rtlText]}>
+                    {isRTL
+                      ? "تنبيهات طوارئ صحية نشطة"
+                      : "Active Emergency Alerts"}
+                  </Text>
+                  <Text style={[styles.alertText, isRTL && styles.rtlText]}>
+                    {isRTL
+                      ? `لديك ${alertsCount} تنبيه${
+                          alertsCount > 1 ? "ات" : ""
+                        } يتطلب الانتباه`
+                      : `You have ${alertsCount} alert${
+                          alertsCount > 1 ? "s" : ""
+                        } requiring attention`}
+                  </Text>
+                  <Text
+                    style={[styles.alertTimestamp, isRTL && styles.rtlText]}
+                  >
+                    {isRTL ? "اضغط للعرض" : "Tap to view"}
+                  </Text>
+                </View>
               </View>
-              <ChevronRight color={theme.colors.accent.error} size={20} />
-            </Card>
+            </TouchableOpacity>
           </View>
         );
 
@@ -2134,11 +2149,11 @@ export default function DashboardScreen() {
             >
               <View
                 style={{
-                  backgroundColor: theme.colors.background.primary,
-                  borderTopLeftRadius: 20,
-                  borderTopRightRadius: 20,
+                  backgroundColor: "#FFFFFF",
+                  borderTopLeftRadius: 24,
+                  borderTopRightRadius: 24,
                   maxHeight: "80%",
-                  padding: theme.spacing.base,
+                  padding: 20,
                 }}
               >
                 <View
@@ -2146,17 +2161,16 @@ export default function DashboardScreen() {
                     flexDirection: "row",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    marginBottom: theme.spacing.base,
+                    marginBottom: 20,
                   }}
                 >
                   <Text
                     style={[
-                      getTextStyle(
-                        theme,
-                        "heading",
-                        "bold",
-                        theme.colors.text.primary
-                      ),
+                      {
+                        fontSize: 20,
+                        fontFamily: "Inter-SemiBold",
+                        color: "#1A1D1F",
+                      },
                       isRTL && styles.rtlText,
                     ]}
                   >
@@ -2166,14 +2180,11 @@ export default function DashboardScreen() {
                   </Text>
                   <TouchableOpacity onPress={() => setShowAlertsModal(false)}>
                     <Text
-                      style={
-                        getTextStyle(
-                          theme,
-                          "body",
-                          "medium",
-                          theme.colors.primary.main
-                        ) as StyleProp<TextStyle>
-                      }
+                      style={{
+                        fontSize: 14,
+                        fontFamily: "Inter-Medium",
+                        color: "#003543",
+                      }}
                     >
                       {isRTL ? "إغلاق" : "Close"}
                     </Text>
@@ -2187,26 +2198,22 @@ export default function DashboardScreen() {
                       alignItems: "center",
                     }}
                   >
-                    <ActivityIndicator
-                      color={theme.colors.primary.main}
-                      size="large"
-                    />
+                    <ActivityIndicator color="#003543" size="large" />
                   </View>
                 ) : userAlerts.length === 0 ? (
                   <View
                     style={{
-                      paddingVertical: theme.spacing.xl,
+                      paddingVertical: 32,
                       alignItems: "center",
                     }}
                   >
                     <Text
                       style={[
-                        getTextStyle(
-                          theme,
-                          "body",
-                          "regular",
-                          theme.colors.text.secondary
-                        ),
+                        {
+                          fontSize: 14,
+                          fontFamily: "Inter-Regular",
+                          color: "#6C7280",
+                        },
                         isRTL && styles.rtlText,
                       ]}
                     >
@@ -2217,187 +2224,223 @@ export default function DashboardScreen() {
                   </View>
                 ) : (
                   <ScrollView showsVerticalScrollIndicator={false}>
-                    {userAlerts.map((alert) => (
-                      <View
-                        key={alert.id}
-                        style={{
-                          backgroundColor: theme.colors.background.secondary,
-                          borderRadius: theme.borderRadius.lg,
-                          padding: theme.spacing.base,
-                          marginBottom: theme.spacing.md,
-                          borderStartWidth: 4,
-                          borderStartColor: theme.colors.accent.error,
-                        }}
-                      >
+                    {userAlerts.map((alert) => {
+                      const severityConfig = {
+                        emergency: {
+                          bg: "#FEE2E2",
+                          border: "#DC2626",
+                          icon: "#DC2626",
+                        },
+                        fall: {
+                          bg: "#FEE2E2",
+                          border: "#DC2626",
+                          icon: "#DC2626",
+                        },
+                        medication: {
+                          bg: "#FEF3C7",
+                          border: "#F59E0B",
+                          icon: "#F59E0B",
+                        },
+                        vitals: {
+                          bg: "#DBEAFE",
+                          border: "#3B82F6",
+                          icon: "#3B82F6",
+                        },
+                      };
+                      const config =
+                        severityConfig[
+                          alert.type as keyof typeof severityConfig
+                        ] || severityConfig.emergency;
+
+                      return (
                         <View
+                          key={alert.id}
                           style={{
-                            flexDirection: "row",
-                            justifyContent: "space-between",
-                            alignItems: "flex-start",
-                            marginBottom: theme.spacing.sm,
+                            backgroundColor: config.bg,
+                            borderRadius: 16,
+                            padding: 16,
+                            marginBottom: 12,
+                            borderStartWidth: 4,
+                            borderStartColor: config.border,
+                            shadowColor: "#000",
+                            shadowOffset: { width: 0, height: 1 },
+                            shadowOpacity: 0.05,
+                            shadowRadius: 2,
+                            elevation: 1,
                           }}
                         >
-                          <View style={{ flex: 1 }}>
-                            <Text
-                              style={[
-                                getTextStyle(
-                                  theme,
-                                  "subheading",
-                                  "bold",
-                                  theme.colors.text.primary
-                                ),
-                                isRTL && styles.rtlText,
-                              ]}
-                            >
-                              {alert.type === "fall"
-                                ? isRTL
-                                  ? "تنبيه سقوط"
-                                  : "Fall Detection"
-                                : alert.type === "emergency"
+                          <View style={{ flexDirection: "row", gap: 12 }}>
+                            <View style={{ marginTop: 2 }}>
+                              <AlertCircle color={config.icon} size={20} />
+                            </View>
+                            <View style={{ flex: 1, minWidth: 0 }}>
+                              <Text
+                                style={[
+                                  {
+                                    fontSize: 15,
+                                    fontFamily: "Inter-SemiBold",
+                                    color: "#1A1D1F",
+                                    marginBottom: 4,
+                                  },
+                                  isRTL && styles.rtlText,
+                                ]}
+                              >
+                                {alert.type === "fall"
                                   ? isRTL
-                                    ? "طوارئ"
-                                    : "Emergency"
-                                  : alert.type === "medication"
+                                    ? "تنبيه سقوط"
+                                    : "Fall Detection"
+                                  : alert.type === "emergency"
                                     ? isRTL
-                                      ? "دواء"
-                                      : "Medication"
-                                    : isRTL
-                                      ? "مؤشرات حيوية"
-                                      : "Vitals"}
-                            </Text>
-                            <Text
-                              style={[
-                                getTextStyle(
-                                  theme,
-                                  "caption",
-                                  "regular",
-                                  theme.colors.text.secondary
-                                ),
-                                isRTL && styles.rtlText,
-                                { marginTop: 4 },
-                              ]}
-                            >
-                              {formatDateTime(alert.timestamp)}
-                            </Text>
+                                      ? "طوارئ"
+                                      : "Emergency"
+                                    : alert.type === "medication"
+                                      ? isRTL
+                                        ? "دواء"
+                                        : "Medication"
+                                      : isRTL
+                                        ? "مؤشرات حيوية"
+                                        : "Vitals"}
+                              </Text>
+                              <Text
+                                style={[
+                                  {
+                                    fontSize: 14,
+                                    fontFamily: "Inter-Regular",
+                                    color: "#4E5661",
+                                    marginBottom: 6,
+                                  },
+                                  isRTL && styles.rtlText,
+                                ]}
+                              >
+                                {alert.message}
+                              </Text>
+                              <View
+                                style={{
+                                  flexDirection: "row",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                }}
+                              >
+                                <Text
+                                  style={[
+                                    {
+                                      fontSize: 12,
+                                      fontFamily: "Inter-Regular",
+                                      color: "#6C7280",
+                                    },
+                                    isRTL && styles.rtlText,
+                                  ]}
+                                >
+                                  {formatDateTime(alert.timestamp)}
+                                </Text>
+                                <TouchableOpacity
+                                  disabled={loadingAlerts}
+                                  onPress={async () => {
+                                    try {
+                                      setLoadingAlerts(true);
+
+                                      await alertService.resolveAlert(
+                                        alert.id,
+                                        user.id
+                                      );
+
+                                      await new Promise((resolve) =>
+                                        setTimeout(resolve, 1500)
+                                      );
+
+                                      const updatedAlerts =
+                                        await alertService.getActiveAlerts(
+                                          user.id
+                                        );
+
+                                      setUserAlerts(updatedAlerts);
+                                      setAlertsCount(updatedAlerts.length);
+
+                                      await loadDashboardData();
+
+                                      if (updatedAlerts.length === 0) {
+                                        setShowAlertsModal(false);
+                                        Alert.alert(
+                                          isRTL ? "نجح" : "Success",
+                                          isRTL
+                                            ? "تم حل جميع التنبيهات الطوارئ الصحية الفعالة"
+                                            : "All alerts resolved"
+                                        );
+                                      } else {
+                                        Alert.alert(
+                                          isRTL ? "نجح" : "Success",
+                                          isRTL
+                                            ? "تم حل التنبيه"
+                                            : "Alert resolved"
+                                        );
+                                      }
+                                    } catch (error: any) {
+                                      logger.error(
+                                        "Failed to resolve alert",
+                                        error,
+                                        "HomeScreen"
+                                      );
+
+                                      const errorMessage =
+                                        error?.message || "Unknown error";
+                                      let displayMessage = errorMessage;
+
+                                      if (
+                                        errorMessage.includes(
+                                          "permission-denied"
+                                        ) ||
+                                        errorMessage.includes("permission")
+                                      ) {
+                                        displayMessage = isRTL
+                                          ? "ليس لديك الصلاحية لحل هذا التنبيه"
+                                          : "You don't have permission to resolve this alert";
+                                      } else if (
+                                        errorMessage.includes(
+                                          "does not exist"
+                                        ) ||
+                                        errorMessage.includes("not found")
+                                      ) {
+                                        displayMessage = isRTL
+                                          ? "التنبيه غير موجود"
+                                          : "Alert not found";
+                                      }
+
+                                      Alert.alert(
+                                        isRTL ? "خطأ" : "Error",
+                                        isRTL
+                                          ? `فشل في حل التنبيه: ${displayMessage}`
+                                          : `Failed to resolve alert: ${displayMessage}`
+                                      );
+                                    } finally {
+                                      setLoadingAlerts(false);
+                                    }
+                                  }}
+                                  style={{
+                                    backgroundColor: loadingAlerts
+                                      ? "#9CA3AF"
+                                      : "#003543",
+                                    paddingHorizontal: 12,
+                                    paddingVertical: 6,
+                                    borderRadius: 8,
+                                    opacity: loadingAlerts ? 0.6 : 1,
+                                  }}
+                                >
+                                  <Text
+                                    style={{
+                                      fontSize: 12,
+                                      fontFamily: "Inter-SemiBold",
+                                      color: "#FFFFFF",
+                                    }}
+                                  >
+                                    {isRTL ? "حل" : "Resolve"}
+                                  </Text>
+                                </TouchableOpacity>
+                              </View>
+                            </View>
                           </View>
-                          <TouchableOpacity
-                            disabled={loadingAlerts}
-                            onPress={async () => {
-                              try {
-                                setLoadingAlerts(true);
-
-                                await alertService.resolveAlert(
-                                  alert.id,
-                                  user.id
-                                );
-
-                                // Wait for Firestore to update
-                                await new Promise((resolve) =>
-                                  setTimeout(resolve, 1500)
-                                );
-
-                                // Refresh alerts list
-                                const updatedAlerts =
-                                  await alertService.getActiveAlerts(user.id);
-
-                                setUserAlerts(updatedAlerts);
-                                setAlertsCount(updatedAlerts.length);
-
-                                // Refresh dashboard data
-                                await loadDashboardData();
-
-                                if (updatedAlerts.length === 0) {
-                                  setShowAlertsModal(false);
-                                  Alert.alert(
-                                    isRTL ? "نجح" : "Success",
-                                    isRTL
-                                      ? "تم حل جميع التنبيهات الطوارئ الصحية الفعالة"
-                                      : "All alerts resolved"
-                                  );
-                                } else {
-                                  Alert.alert(
-                                    isRTL ? "نجح" : "Success",
-                                    isRTL ? "تم حل التنبيه" : "Alert resolved"
-                                  );
-                                }
-                              } catch (error: any) {
-                                logger.error(
-                                  "Failed to resolve alert",
-                                  error,
-                                  "HomeScreen"
-                                );
-
-                                const errorMessage =
-                                  error?.message || "Unknown error";
-                                let displayMessage = errorMessage;
-
-                                // Check for specific error types
-                                if (
-                                  errorMessage.includes("permission-denied") ||
-                                  errorMessage.includes("permission")
-                                ) {
-                                  displayMessage = isRTL
-                                    ? "ليس لديك الصلاحية لحل هذا التنبيه"
-                                    : "You don't have permission to resolve this alert";
-                                } else if (
-                                  errorMessage.includes("does not exist") ||
-                                  errorMessage.includes("not found")
-                                ) {
-                                  displayMessage = isRTL
-                                    ? "التنبيه غير موجود"
-                                    : "Alert not found";
-                                }
-
-                                Alert.alert(
-                                  isRTL ? "خطأ" : "Error",
-                                  isRTL
-                                    ? `فشل في حل التنبيه: ${displayMessage}`
-                                    : `Failed to resolve alert: ${displayMessage}`
-                                );
-                              } finally {
-                                setLoadingAlerts(false);
-                              }
-                            }}
-                            style={{
-                              backgroundColor: loadingAlerts
-                                ? theme.colors.neutral[400]
-                                : theme.colors.accent.error,
-                              paddingHorizontal: theme.spacing.md,
-                              paddingVertical: theme.spacing.sm,
-                              borderRadius: theme.borderRadius.md,
-                              opacity: loadingAlerts ? 0.6 : 1,
-                            }}
-                          >
-                            <Text
-                              style={
-                                getTextStyle(
-                                  theme,
-                                  "caption",
-                                  "bold",
-                                  theme.colors.neutral.white
-                                ) as StyleProp<TextStyle>
-                              }
-                            >
-                              {isRTL ? "حل" : "Resolve"}
-                            </Text>
-                          </TouchableOpacity>
                         </View>
-                        <Text
-                          style={[
-                            getTextStyle(
-                              theme,
-                              "body",
-                              "regular",
-                              theme.colors.text.primary
-                            ),
-                            isRTL && styles.rtlText,
-                            { marginTop: theme.spacing.sm },
-                          ]}
-                        >
-                          {alert.message}
-                        </Text>
-                      </View>
-                    ))}
+                      );
+                    })}
                   </ScrollView>
                 )}
               </View>

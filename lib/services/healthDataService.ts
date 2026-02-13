@@ -274,28 +274,29 @@ export const healthDataService = {
     }
   },
 
-  // Get latest vital signs from all connected sources
-  // Aggregates data from Firestore (where all synced data is stored)
-  // Falls back to direct provider queries if Firestore doesn't have data yet
+  // Get latest vital signs - prefers provider (Apple Health/Health Connect) for
+  // real-time values that match the Health app; falls back to Firestore when
+  // no provider or sync hasn't run. Sparklines/trends use Firestore separately.
   async getLatestVitals(): Promise<VitalSigns | null> {
     try {
       const userId = auth.currentUser?.uid;
-      if (!userId) {
-        // No user logged in, fall back to direct provider queries
-        return await this.getLatestVitalsFromProviders();
+
+      // Prefer direct provider first - matches Health app in real time
+      const providerVitals = await this.getLatestVitalsFromProviders();
+      if (providerVitals) {
+        return providerVitals;
       }
 
-      // Try to get aggregated vitals from Firestore first
-      // This includes data from all synced sources (Fitbit, Withings, Apple Health, etc.)
-      const firestoreVitals = await this.getLatestVitalsFromFirestore(userId);
-      if (firestoreVitals) {
-        return firestoreVitals;
+      // Fall back to Firestore (synced data) when no provider connected
+      if (userId) {
+        return await this.getLatestVitalsFromFirestore(userId);
       }
-
-      // Fall back to direct provider queries if Firestore doesn't have data yet
-      return await this.getLatestVitalsFromProviders();
+      return null;
     } catch (_error) {
-      // If Firestore query fails, fall back to direct provider queries
+      const userId = auth.currentUser?.uid;
+      if (userId) {
+        return await this.getLatestVitalsFromFirestore(userId);
+      }
       return await this.getLatestVitalsFromProviders();
     }
   },
@@ -490,30 +491,38 @@ export const healthDataService = {
     }
   },
 
-  // Fallback: Get latest vitals from direct provider queries (priority-based)
+  // Get latest vitals from direct provider - Apple Health (iOS) or Health Connect (Android) first
+  // so displayed values match the Health app; Fitbit/Withings as fallback
   async getLatestVitalsFromProviders(): Promise<VitalSigns | null> {
     try {
       const { getProviderConnection } = await import("../health/healthSync");
 
-      // Check Fitbit first (works on both platforms)
+      // Prefer platform-native health app (matches Health app on device)
+      if (Platform.OS === "ios") {
+        const appleHealthConnection =
+          await getProviderConnection("apple_health");
+        if (appleHealthConnection?.connected) {
+          return await this.getIOSVitals();
+        }
+      }
+      if (Platform.OS === "android") {
+        const healthConnectConnection =
+          await getProviderConnection("health_connect");
+        if (healthConnectConnection?.connected) {
+          return await this.getAndroidVitals();
+        }
+      }
+
+      // Fallback to Fitbit (works on both platforms)
       const fitbitConnection = await getProviderConnection("fitbit");
       if (fitbitConnection?.connected) {
         return await this.getFitbitVitals();
       }
 
-      // Check Withings (works on both platforms)
+      // Fallback to Withings
       const withingsConnection = await getProviderConnection("withings");
       if (withingsConnection?.connected) {
         // Withings vitals would need to be fetched similarly
-        // For now, fall through to platform-specific providers
-      }
-
-      // Fall back to platform-specific providers
-      if (Platform.OS === "ios") {
-        return await this.getIOSVitals();
-      }
-      if (Platform.OS === "android") {
-        return await this.getAndroidVitals();
       }
 
       return null;
@@ -529,7 +538,7 @@ export const healthDataService = {
       const availability = await appleHealthService.checkAvailability();
       if (!availability.available) {
         // In production, return null instead of simulated data
-        return isDevEnvironment() ? this.getSimulatedVitals() : null;
+        return null;
       }
 
       // Check if a connection exists (authorization was granted)
@@ -540,7 +549,7 @@ export const healthDataService = {
       if (!connection?.connected) {
         // In production, return null instead of simulated data
         // User needs to authorize in settings first
-        return isDevEnvironment() ? this.getSimulatedVitals() : null;
+        return null;
       }
 
       // Get health metrics using appleHealthService
@@ -589,18 +598,28 @@ export const healthDataService = {
           return value;
         };
 
-        // Helper to get sum for metrics like steps (daily total)
-        const getSumValue = (metricKey: string): number | undefined => {
+        // Helper to get today's sum for daily metrics (steps, activeEnergy, etc.)
+        // Filters samples to local today only - fixes bug where yesterday+today were summed
+        const getTodaySumValue = (metricKey: string): number | undefined => {
           const metric = metrics.find((m) => m.metricKey === metricKey);
           if (!metric || metric.samples.length === 0) {
             return;
           }
-          // Sum all values for metrics like steps
-          const sum = metric.samples.reduce((acc, sample) => {
+          const todayStart = new Date();
+          todayStart.setHours(0, 0, 0, 0);
+          const todayEnd = new Date(todayStart);
+          todayEnd.setDate(todayEnd.getDate() + 1);
+          const todaySamples = metric.samples.filter((sample) => {
+            const sampleDate = new Date(sample.startDate);
+            return sampleDate >= todayStart && sampleDate < todayEnd;
+          });
+          if (todaySamples.length === 0) {
+            return;
+          }
+          const sum = todaySamples.reduce((acc, sample) => {
             const value = typeof sample.value === "number" ? sample.value : 0;
             return acc + value;
           }, 0);
-          // Return sum even if 0, since samples exist (distinguishes "no data" from "zero value")
           return sum;
         };
 
@@ -662,14 +681,14 @@ export const healthDataService = {
           bodyMassIndex: getLatestValue("body_mass_index"),
           bodyFatPercentage: getLatestValue("body_fat_percentage"),
 
-          // Activity & Fitness
-          steps: getSumValue("steps"), // Steps should be summed for daily total
-          activeEnergy: getSumValue("active_energy"), // Sum active energy for daily total
-          basalEnergy: getSumValue("basal_energy"), // Sum basal energy for daily total
-          distanceWalkingRunning: getSumValue("distance_walking_running"), // Sum distance for daily total
-          flightsClimbed: getSumValue("flights_climbed"), // Sum flights climbed for daily total
-          exerciseMinutes: getSumValue("exercise_minutes"), // Sum exercise minutes for daily total
-          standTime: getSumValue("stand_time"), // Sum stand time for daily total
+          // Activity & Fitness - use today's sum only (not yesterday+today)
+          steps: getTodaySumValue("steps"),
+          activeEnergy: getTodaySumValue("active_energy"),
+          basalEnergy: getTodaySumValue("basal_energy"),
+          distanceWalkingRunning: getTodaySumValue("distance_walking_running"),
+          flightsClimbed: getTodaySumValue("flights_climbed"),
+          exerciseMinutes: getTodaySumValue("exercise_minutes"),
+          standTime: getTodaySumValue("stand_time"),
           workouts: (() => {
             const metric = metrics.find((m) => m.metricKey === "workouts");
             if (!metric || metric.samples.length === 0) {
@@ -682,7 +701,7 @@ export const healthDataService = {
           sleepHours: getSleepHours(), // Calculate from sleep analysis samples
 
           // Nutrition
-          waterIntake: getSumValue("water_intake"), // Sum water intake for daily total
+          waterIntake: getTodaySumValue("water_intake"),
 
           // Glucose
           bloodGlucose: getLatestValue("blood_glucose"),
@@ -693,11 +712,11 @@ export const healthDataService = {
         return vitals;
       } catch {
         // In production, return null instead of simulated data
-        return isDevEnvironment() ? this.getSimulatedVitals() : null;
+        return null;
       }
     } catch {
       // In production, return null instead of simulated data
-      return isDevEnvironment() ? this.getSimulatedVitals() : null;
+      return null;
     }
   },
 
@@ -733,7 +752,7 @@ export const healthDataService = {
 
       if (!connection?.connected) {
         // In production, return null instead of simulated data
-        return isDevEnvironment() ? this.getSimulatedVitals() : null;
+        return null;
       }
 
       // Import healthConnectService dynamically
@@ -772,13 +791,24 @@ export const healthDataService = {
           return latestSample.value;
         };
 
-        // Helper to get sum for metrics like steps (daily total)
-        const getSumValue = (metricKey: string): number | undefined => {
+        // Helper to get today's sum for daily metrics (steps, activeEnergy, etc.)
+        const getTodaySumValue = (metricKey: string): number | undefined => {
           const metric = metrics.find((m) => m.metricKey === metricKey);
           if (!metric || metric.samples.length === 0) {
             return;
           }
-          const sum = metric.samples.reduce((acc, sample) => {
+          const todayStart = new Date();
+          todayStart.setHours(0, 0, 0, 0);
+          const todayEnd = new Date(todayStart);
+          todayEnd.setDate(todayEnd.getDate() + 1);
+          const todaySamples = metric.samples.filter((sample) => {
+            const sampleDate = new Date(sample.startDate);
+            return sampleDate >= todayStart && sampleDate < todayEnd;
+          });
+          if (todaySamples.length === 0) {
+            return;
+          }
+          const sum = todaySamples.reduce((acc, sample) => {
             const value = typeof sample.value === "number" ? sample.value : 0;
             return acc + value;
           }, 0);
@@ -840,13 +870,13 @@ export const healthDataService = {
           bodyMassIndex: getLatestValue("body_mass_index"),
           bodyFatPercentage: getLatestValue("body_fat_percentage"),
 
-          // Activity & Fitness
-          steps: getSumValue("steps"),
-          activeEnergy: getSumValue("active_energy"),
+          // Activity & Fitness - use today's sum only (not yesterday+today)
+          steps: getTodaySumValue("steps"),
+          activeEnergy: getTodaySumValue("active_energy"),
           basalEnergy: getLatestValue("basal_energy"),
-          distanceWalkingRunning: getSumValue("distance_walking_running"),
-          flightsClimbed: getSumValue("flights_climbed"),
-          exerciseMinutes: getSumValue("exercise_minutes"),
+          distanceWalkingRunning: getTodaySumValue("distance_walking_running"),
+          flightsClimbed: getTodaySumValue("flights_climbed"),
+          exerciseMinutes: getTodaySumValue("exercise_minutes"),
           workouts: (() => {
             const metric = metrics.find((m) => m.metricKey === "workouts");
             if (!metric || metric.samples.length === 0) {
@@ -859,7 +889,7 @@ export const healthDataService = {
           sleepHours: getSleepHours(),
 
           // Nutrition
-          waterIntake: getSumValue("water_intake"),
+          waterIntake: getTodaySumValue("water_intake"),
 
           // Glucose
           bloodGlucose: getLatestValue("blood_glucose"),
@@ -869,10 +899,10 @@ export const healthDataService = {
 
         return vitals;
       } catch {
-        return this.getSimulatedVitals();
+        return null;
       }
     } catch {
-      return this.getSimulatedVitals();
+      return null;
     }
   },
 
@@ -884,7 +914,7 @@ export const healthDataService = {
 
       if (!connection?.connected) {
         // In production, return null instead of simulated data
-        return isDevEnvironment() ? this.getSimulatedVitals() : null;
+        return null;
       }
 
       // Import fitbitService dynamically
@@ -923,13 +953,24 @@ export const healthDataService = {
           return latestSample.value;
         };
 
-        // Helper to get sum for metrics like steps (daily total)
-        const getSumValue = (metricKey: string): number | undefined => {
+        // Helper to get today's sum for daily metrics (steps, activeEnergy, etc.)
+        const getTodaySumValue = (metricKey: string): number | undefined => {
           const metric = metrics.find((m) => m.metricKey === metricKey);
           if (!metric || metric.samples.length === 0) {
             return;
           }
-          const sum = metric.samples.reduce((acc, sample) => {
+          const todayStart = new Date();
+          todayStart.setHours(0, 0, 0, 0);
+          const todayEnd = new Date(todayStart);
+          todayEnd.setDate(todayEnd.getDate() + 1);
+          const todaySamples = metric.samples.filter((sample) => {
+            const sampleDate = new Date(sample.startDate);
+            return sampleDate >= todayStart && sampleDate < todayEnd;
+          });
+          if (todaySamples.length === 0) {
+            return;
+          }
+          const sum = todaySamples.reduce((acc, sample) => {
             const value = typeof sample.value === "number" ? sample.value : 0;
             return acc + value;
           }, 0);
@@ -986,18 +1027,18 @@ export const healthDataService = {
           bodyMassIndex: getLatestValue("body_mass_index"),
           bodyFatPercentage: getLatestValue("body_fat_percentage"),
 
-          // Activity & Fitness
-          steps: getSumValue("steps"),
-          activeEnergy: getSumValue("active_energy"),
+          // Activity & Fitness - use today's sum only (not yesterday+today)
+          steps: getTodaySumValue("steps"),
+          activeEnergy: getTodaySumValue("active_energy"),
           basalEnergy: getLatestValue("basal_energy"),
-          distanceWalkingRunning: getSumValue("distance_walking_running"),
-          flightsClimbed: getSumValue("flights_climbed"),
+          distanceWalkingRunning: getTodaySumValue("distance_walking_running"),
+          flightsClimbed: getTodaySumValue("flights_climbed"),
 
           // Sleep
           sleepHours: getSleepHours(),
 
           // Nutrition
-          waterIntake: getSumValue("water_intake"),
+          waterIntake: getTodaySumValue("water_intake"),
 
           // Glucose (not available from Fitbit)
           // bloodGlucose: undefined,
@@ -1008,11 +1049,11 @@ export const healthDataService = {
         return vitals;
       } catch {
         // In production, return null instead of simulated data
-        return isDevEnvironment() ? this.getSimulatedVitals() : null;
+        return null;
       }
     } catch {
       // In production, return null instead of simulated data
-      return isDevEnvironment() ? this.getSimulatedVitals() : null;
+      return null;
     }
   },
 

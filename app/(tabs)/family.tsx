@@ -2617,7 +2617,12 @@ export default function FamilyScreen() {
         return (
           <TouchableOpacity
             key={member.id}
-            onPress={() => router.push(`/family/${member.id}`)}
+            onPress={() =>
+              router.push({
+                pathname: "/family/[memberId]",
+                params: { memberId: member.id },
+              })
+            }
             style={styles.dashboardCard}
           >
             <View style={styles.dashboardCardHeader}>
@@ -2876,32 +2881,6 @@ export default function FamilyScreen() {
     return map;
   }, [caregiverOverview]);
 
-  const formatRelativeTime = useCallback(
-    (date?: Date) => {
-      if (!date) {
-        return isRTL ? "غير متوفر" : "Unknown";
-      }
-
-      const diffMs = Date.now() - date.getTime();
-      const diffMinutes = Math.max(0, Math.floor(diffMs / 60_000));
-      if (diffMinutes < 2) {
-        return isRTL ? "الآن" : "Just now";
-      }
-      if (diffMinutes < 60) {
-        return isRTL
-          ? `منذ ${diffMinutes} دقيقة`
-          : `${diffMinutes} minutes ago`;
-      }
-      const diffHours = Math.floor(diffMinutes / 60);
-      if (diffHours < 24) {
-        return isRTL ? `منذ ${diffHours} ساعة` : `${diffHours} hours ago`;
-      }
-      const diffDays = Math.floor(diffHours / 24);
-      return isRTL ? `منذ ${diffDays} يوم` : `${diffDays} days ago`;
-    },
-    [isRTL]
-  );
-
   const getMemberStatus = useCallback((metric?: FamilyMemberMetrics) => {
     if (!metric) {
       return "unknown";
@@ -2916,14 +2895,14 @@ export default function FamilyScreen() {
   }, []);
 
   const getSparklineData = useCallback((metric?: FamilyMemberMetrics) => {
-    // Use real heart rate if available, otherwise use mock data (72 bpm)
-    const currentHR = metric?.vitals?.heartRate || 72;
+    // Use real heart rate if available; otherwise deterministic mock (72 bpm)
+    const currentHR = metric?.vitals?.heartRate ?? 72;
     const variance = 5; // +/- 5 bpm variation
 
-    // Generate sparkline data based on current or mock heart rate
+    // Real data: gentle curve around actual HR. No data: deterministic mock
     return Array.from({ length: 7 }, (_, i) => {
-      const offset = Math.sin(i * 0.5) * variance + (Math.random() * 2 - 1);
-      return Math.max(50, Math.min(120, currentHR + offset));
+      const offset = Math.sin(i * 0.5) * variance;
+      return Math.max(50, Math.min(120, Math.round(currentHR + offset)));
     });
   }, []);
 
@@ -3033,13 +3012,8 @@ export default function FamilyScreen() {
             const relationship =
               (member as { relationship?: string }).relationship ||
               (member.role === "admin" ? "Admin" : "Member");
-            const lastCheckIn = formatRelativeTime(
-              metric?.vitals?.timestamp ??
-                caregiverData?.recentSymptoms[0]?.timestamp
-            );
             const status = getMemberStatus(metric);
-            const medications =
-              metric?.activeMedications ?? 0;
+            const medications = metric?.activeMedications ?? 0;
             const nextAppointment =
               caregiverData?.medicationCompliance?.nextDose;
             const appointmentLabel = nextAppointment
@@ -3050,7 +3024,12 @@ export default function FamilyScreen() {
               <TouchableOpacity
                 activeOpacity={0.9}
                 key={member.id}
-                onPress={() => router.push(`/family/${member.id}`)}
+                onPress={() =>
+                  router.push({
+                    pathname: "/family/[memberId]",
+                    params: { memberId: member.id },
+                  })
+                }
                 style={styles.familyMemberCard}
               >
                 <View style={styles.familyMemberCardHeader}>
@@ -3093,7 +3072,7 @@ export default function FamilyScreen() {
                     <Text
                       style={[styles.familyMemberMeta, isRTL && styles.rtlText]}
                     >
-                      {relationship} - Last check-in {lastCheckIn}
+                      {relationship}
                     </Text>
                     <StatusBadge status={status} />
                   </View>
@@ -3160,10 +3139,7 @@ export default function FamilyScreen() {
                 {isRTL ? "التنبيهات النشطة" : "Active Alerts"}
               </Text>
               {activeAlerts.length > 0 && (
-                <Badge
-                  count={activeAlerts.length}
-                  style={styles.sectionCount}
-                />
+                <Badge style={styles.sectionCount}>{activeAlerts.length}</Badge>
               )}
             </View>
           </View>
@@ -3262,7 +3238,7 @@ export default function FamilyScreen() {
                 {isRTL ? "الأحداث الأخيرة" : "Recent Events"}
               </Text>
               {events.length > 0 && (
-                <Badge count={events.length} style={styles.sectionCount} />
+                <Badge style={styles.sectionCount}>{events.length}</Badge>
               )}
             </View>
           </View>

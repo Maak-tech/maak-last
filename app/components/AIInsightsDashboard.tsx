@@ -111,13 +111,13 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 14,
-    color: "#1F2937",
+    color: "#1A1D1F",
   },
   textSm: {
     fontSize: 12,
   },
   textMuted: {
-    color: "#6B7280",
+    color: "#6C7280",
   },
   textCenter: {
     textAlign: "center",
@@ -125,16 +125,16 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: "600",
-    color: "#1F2937",
+    color: "#1A1D1F",
   },
   subtitle: {
     fontSize: 16,
-    color: "#6B7280",
+    color: "#6C7280",
   },
   cardTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#1F2937",
+    color: "#1A1D1F",
   },
   lineHeight: {
     lineHeight: 20,
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 12,
     lineHeight: 16,
-    color: "#6B7280",
+    color: "#6C7280",
   },
   summaryCardValue: {
     marginTop: 8,
@@ -187,12 +187,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   categoryTabActive: {
-    backgroundColor: "#3B82F6",
+    backgroundColor: "#003543",
   },
   categoryTabText: {
     marginLeft: 6,
     fontSize: 14,
-    color: "#6B7280",
+    color: "#6C7280",
   },
   categoryTabTextActive: {
     color: "#FFFFFF",
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#1F2937",
+    color: "#1A1D1F",
   },
 });
 
@@ -536,7 +536,7 @@ function AIInsightsDashboard({
   if (loading && !insights) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#3B82F6" size="large" />
+        <ActivityIndicator color="#003543" size="large" />
         <Text style={[styles.text, styles.mt2]}>
           {t("aiInsightsAnalyzing", "Analyzing your health data...")}
         </Text>
@@ -576,23 +576,25 @@ function AIInsightsDashboard({
 
   const dashboardContent = (
     <View style={styles.p4}>
-      {/* Header */}
-      <View style={styles.mb4}>
-        <Text style={[styles.title, styles.mb2]}>
-          {t("healthInsights", "Health Insights")}
-        </Text>
-        <Text style={[styles.subtitle, styles.textMuted]}>
-          {t(
-            "healthInsightsSubtitle",
-            "Personalized analysis of your health patterns and recommendations"
-          )}
-        </Text>
-      </View>
+      {/* Header - hidden when embedded since parent page has its own header */}
+      {!embedded && (
+        <View style={styles.mb4}>
+          <Text style={[styles.title, styles.mb2]}>
+            {t("healthInsights", "Health Insights")}
+          </Text>
+          <Text style={[styles.subtitle, styles.textMuted]}>
+            {t(
+              "healthInsightsSubtitle",
+              "Personalized analysis of your health patterns and recommendations"
+            )}
+          </Text>
+        </View>
+      )}
 
       {/* Summary Cards */}
       <View style={[styles.summaryCardsRow, styles.mb4]}>
         <SummaryCard
-          color="#3B82F6"
+          color="#003543"
           icon="Brain"
           title={t("totalInsights", "Total Insights")}
           value={insights?.insightsSummary?.totalInsights?.toString() || "0"}
@@ -662,7 +664,7 @@ function AIInsightsDashboard({
             {getIcon(
               category.icon,
               16,
-              selectedCategory === category.key ? "#FFFFFF" : "#6B7280"
+              selectedCategory === category.key ? "#FFFFFF" : "#6C7280"
             )}
             <Text
               style={[
@@ -688,7 +690,7 @@ function AIInsightsDashboard({
       {insights.aiNarrative ? (
         <Card contentStyle={undefined} onPress={undefined} style={styles.mb4}>
           <View style={styles.row}>
-            {getIcon("Brain", 20, "#3B82F6")}
+            {getIcon("Brain", 20, "#003543")}
             <Text style={[styles.cardTitle, styles.ml2]}>
               {t("healthSummary", "Health Summary")}
             </Text>
@@ -1110,7 +1112,7 @@ function ActionPlanSection({
   return (
     <Card contentStyle={undefined} onPress={undefined} style={styles.mb4}>
       <View style={styles.row}>
-        {getIcon("Target", 20, "#3B82F6")}
+        {getIcon("Target", 20, "#003543")}
         <Text style={[styles.cardTitle, styles.ml2]}>
           {t("healthActionPlan", "Health Action Plan")}
         </Text>
@@ -1175,7 +1177,7 @@ function ActionPlanSection({
           {actionPlan.monitoring.length > 0 ? (
             <View>
               <Text
-                style={[styles.textSm, styles.fontBold, { color: "#6B7280" }]}
+                style={[styles.textSm, styles.fontBold, { color: "#6C7280" }]}
               >
                 Ongoing Monitoring
               </Text>
@@ -1236,7 +1238,7 @@ function CompactInsightsView({
       style={styles.mb3}
     >
       <View style={styles.row}>
-        {getIcon("Brain", 24, "#3B82F6")}
+        {getIcon("Brain", 24, "#003543")}
         <View style={styles.ml3}>
           <Text style={styles.cardTitle}>
             {isRTL ? "التحليلات الصحية" : "Health Insights"}
@@ -1253,7 +1255,7 @@ function CompactInsightsView({
             </Text>
           </View>
         </View>
-        {getIcon("ChevronRight", 16, "#6B7280")}
+        {getIcon("ChevronRight", 16, "#6C7280")}
       </View>
     </Card>
   );
@@ -1391,7 +1393,7 @@ function MedicationAlertCard({
     moderate: "#F59E0B",
     minor: "#10B981",
   };
-  const severityColor = severityMap[String(alert.severity)] || "#6B7280";
+  const severityColor = severityMap[String(alert.severity)] || "#6C7280";
 
   return (
     <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
@@ -1429,7 +1431,7 @@ function SuggestionCard({
             styles.textSm,
             styles.fontBold,
             styles.mt1,
-            { color: "#3B82F6" },
+            { color: "#003543" },
           ]}
         >
           {suggestion.action.label}
@@ -1489,7 +1491,7 @@ function getRiskColor(riskLevel: string): string {
     case "low":
       return "#10B981";
     default:
-      return "#6B7280";
+      return "#6C7280";
   }
 }
 

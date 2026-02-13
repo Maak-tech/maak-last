@@ -179,6 +179,9 @@ export default function ProfileScreen() {
     heartRate: [] as number[],
     sleepHours: [] as number[],
     steps: [] as number[],
+    hasHeartRateData: false,
+    hasStepsData: false,
+    hasSleepData: false,
   });
   const [exporting, setExporting] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
@@ -255,21 +258,6 @@ export default function ProfileScreen() {
     const month = `${date.getMonth() + 1}`.padStart(2, "0");
     const day = `${date.getDate()}`.padStart(2, "0");
     return `${year}-${month}-${day}`;
-  };
-
-  const getMockSparklineData = () => {
-    const days = 7;
-    const generateMockSeries = (baseValue: number, variance: number) =>
-      Array.from({ length: days }, (_, i) => {
-        const offset = Math.sin(i * 0.5) * variance + (Math.random() * 2 - 1);
-        return baseValue + offset;
-      });
-
-    return {
-      heartRate: generateMockSeries(72, 5),
-      steps: generateMockSeries(8000, 1000),
-      sleepHours: generateMockSeries(7, 1),
-    };
   };
 
   const buildSparklineSeries = (
@@ -376,23 +364,22 @@ export default function ProfileScreen() {
       "sum"
     );
 
-    // Generate mock data if real data is not available
-    const generateMockSparkline = (baseValue: number, variance: number) =>
-      Array.from({ length: days }, (_, i) => {
-        const offset = Math.sin(i * 0.5) * variance + (Math.random() * 2 - 1);
-        return baseValue + offset;
-      });
-
+    // Use real data when available; mock chart when no data for better UX
     const hasHeartRateData = heartRateSeries.some((v) => v > 0);
     const hasStepsData = stepsSeries.some((v) => v > 0);
     const hasSleepData = sleepSeries.some((v) => v > 0);
 
+    const mockHeartRate = [72, 68, 75, 70, 72, 74, 70];
+    const mockSteps = [3200, 4500, 2800, 5200, 4100, 3800, 6000];
+    const mockSleep = [7.2, 6.5, 7.8, 6.0, 8.0, 7.0, 6.5];
+
     const result = {
-      heartRate: hasHeartRateData
-        ? heartRateSeries
-        : generateMockSparkline(72, 5),
-      steps: hasStepsData ? stepsSeries : generateMockSparkline(8000, 1000),
-      sleepHours: hasSleepData ? sleepSeries : generateMockSparkline(7, 1),
+      heartRate: hasHeartRateData ? heartRateSeries : mockHeartRate,
+      steps: hasStepsData ? stepsSeries : mockSteps,
+      sleepHours: hasSleepData ? sleepSeries : mockSleep,
+      hasHeartRateData,
+      hasStepsData,
+      hasSleepData,
     };
 
     console.log("Sparkline data:", {
@@ -679,10 +666,18 @@ export default function ProfileScreen() {
             results[1].status === "fulfilled" ? results[1].value : [];
           const vitals =
             results[2].status === "fulfilled" ? results[2].value : null;
+          const mockSparklines = {
+            heartRate: [72, 68, 75, 70, 72, 74, 70],
+            steps: [3200, 4500, 2800, 5200, 4100, 3800, 6000],
+            sleepHours: [7.2, 6.5, 7.8, 6.0, 8.0, 7.0, 6.5],
+            hasHeartRateData: false,
+            hasStepsData: false,
+            hasSleepData: false,
+          };
           const sparklines =
             results[3].status === "fulfilled"
               ? results[3].value
-              : getMockSparklineData();
+              : mockSparklines;
 
           // Filter recent symptoms for display (last 30 days)
           const recentSymptoms = symptoms.filter(
@@ -765,7 +760,14 @@ export default function ProfileScreen() {
             healthScoreResult: null,
           });
           setLatestVitals(null);
-          setVitalsSparklines(getMockSparklineData());
+          setVitalsSparklines({
+            heartRate: [72, 68, 75, 70, 72, 74, 70],
+            steps: [3200, 4500, 2800, 5200, 4100, 3800, 6000],
+            sleepHours: [7.2, 6.5, 7.8, 6.0, 8.0, 7.0, 6.5],
+            hasHeartRateData: false,
+            hasStepsData: false,
+            hasSleepData: false,
+          });
         } finally {
           Sentry.setMeasurement(
             "profile.health_summary.load_duration",
@@ -1390,6 +1392,12 @@ export default function ProfileScreen() {
     user?.firstName && user?.lastName
       ? `${user.firstName} ${user.lastName}`
       : user?.firstName || "User";
+  const getAvatarInitials = (name: string) => {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return "?";
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  };
   const roleLabel =
     user?.role === "admin"
       ? "Primary Caregiver"
@@ -1448,13 +1456,9 @@ export default function ProfileScreen() {
     direction: "up" | "down" | "stable",
     percent: number
   ): string => {
-    if (direction === "stable") {
-      return isRTL ? "مستقر" : "Stable";
-    }
-    const sign = direction === "up" ? "+" : "-";
-    return isRTL
-      ? `${sign}${percent}% هذا الأسبوع`
-      : `${sign}${percent}% this week`;
+    const sign = direction === "up" ? "+" : direction === "down" ? "-" : "";
+    const pctStr = `${sign}${percent}%`;
+    return isRTL ? `${pctStr} أسبوعياً` : `${pctStr} per week`;
   };
 
   const hrTrend = getTrend(vitalsSparklines.heartRate);
@@ -1468,11 +1472,11 @@ export default function ProfileScreen() {
       value:
         heartRateValue !== null ? `${Math.round(heartRateValue)} bpm` : "N/A",
       trend:
-        heartRateValue !== null
+        heartRateValue !== null && (vitalsSparklines.hasHeartRateData ?? false)
           ? getInsightLabel(hrTrend.direction, hrTrend.percent)
           : "",
       trendDirection: hrTrend.direction,
-      sparkline: vitalsSparklines.heartRate,
+      sparkline: heartRateValue !== null ? vitalsSparklines.heartRate : [],
       color: "#EF4444",
       onPress: handleHealthOverviewPress,
     },
@@ -1481,11 +1485,11 @@ export default function ProfileScreen() {
       label: "Sleep",
       value: sleepValue !== null ? `${sleepValue.toFixed(1)} hrs` : "N/A",
       trend:
-        sleepValue !== null
+        sleepValue !== null && (vitalsSparklines.hasSleepData ?? false)
           ? getInsightLabel(sleepTrend.direction, sleepTrend.percent)
           : "",
       trendDirection: sleepTrend.direction,
-      sparkline: vitalsSparklines.sleepHours,
+      sparkline: sleepValue !== null ? vitalsSparklines.sleepHours : [],
       color: "#3B82F6",
       onPress: handleHealthOverviewPress,
     },
@@ -1494,14 +1498,14 @@ export default function ProfileScreen() {
       label: "Activity",
       value:
         stepsValue !== null
-          ? `${safeFormatNumber(Math.round(stepsValue))} steps`
+          ? `${safeFormatNumber(Math.round(stepsValue))} ${t("stepsToday", "steps today")}`
           : "N/A",
       trend:
-        stepsValue !== null
+        stepsValue !== null && (vitalsSparklines.hasStepsData ?? false)
           ? getInsightLabel(stepsTrend.direction, stepsTrend.percent)
           : "",
       trendDirection: stepsTrend.direction,
-      sparkline: vitalsSparklines.steps,
+      sparkline: stepsValue !== null ? vitalsSparklines.steps : [],
       color: "#10B981",
       onPress: handleHealthOverviewPress,
     },
@@ -1544,11 +1548,6 @@ export default function ProfileScreen() {
             setShowCalendarModal(true);
             loadCalendarEvents();
           },
-        },
-        {
-          label: t("healthResources", "Health Resources"),
-          icon: BookOpen,
-          onPress: () => router.push("/(tabs)/resources"),
         },
         {
           label: t("connectedDevices", "Connected Devices"),
@@ -1647,13 +1646,34 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.figmaProfileHeader}>
-          <Avatar
-            avatarType={user?.avatarType}
-            name={user?.firstName}
+          <TouchableOpacity
+            activeOpacity={0.8}
             onPress={() => setAvatarCreatorVisible(true)}
-            size="xl"
-            style={styles.figmaProfileAvatar}
-          />
+          >
+            <View
+              style={[
+                styles.familyAvatarRing,
+                { borderColor: "#10B981", marginBottom: 12 },
+              ]}
+            >
+              <View style={styles.familyAvatarInner}>
+                {user?.avatar ? (
+                  <Image
+                    source={
+                      typeof user.avatar === "string"
+                        ? { uri: user.avatar }
+                        : { uri: String(user.avatar) }
+                    }
+                    style={styles.familyAvatarImage}
+                  />
+                ) : (
+                  <Text style={styles.familyAvatarText}>
+                    {getAvatarInitials(fullName)}
+                  </Text>
+                )}
+              </View>
+            </View>
+          </TouchableOpacity>
           <Text style={styles.figmaProfileName}>{fullName}</Text>
           <Text style={styles.figmaProfileRole}>{roleLabel}</Text>
         </View>
@@ -1717,7 +1737,7 @@ export default function ProfileScreen() {
                     </View>
                   </View>
                   <View style={styles.figmaVitalRight}>
-                    {vital.value !== "N/A" && vital.sparkline.length > 0 && (
+                    {vital.sparkline.length > 0 && (
                       <Sparkline
                         color={vital.color}
                         data={vital.sparkline}
@@ -4107,6 +4127,34 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     marginBottom: 12,
+  },
+  familyAvatarRing: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 4,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  familyAvatarInner: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#003543",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  familyAvatarImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+  },
+  familyAvatarText: {
+    fontSize: 20,
+    fontFamily: "Inter-Bold",
+    color: "#FFFFFF",
+    letterSpacing: 1,
   },
   figmaProfileName: {
     fontSize: 32,

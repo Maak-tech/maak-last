@@ -11,11 +11,9 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock,
-  Edit,
   Minus,
   Pill,
   Plus,
-  Trash2,
   X,
 } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -40,7 +38,6 @@ import FamilyDataFilter, {
 import MedicationInteractionWarning from "@/app/components/MedicationInteractionWarning";
 import MedicationRefillCard from "@/app/components/MedicationRefillCard";
 import TagInput from "@/app/components/TagInput";
-import AnimatedCheckButton from "@/components/AnimatedCheckButton";
 // Design System Components
 import { Button, Input } from "@/components/design-system";
 import { Badge } from "@/components/design-system/AdditionalComponents";
@@ -1359,59 +1356,6 @@ export default function MedicationsScreen() {
       pointerEvents="box-none"
       style={styles.container}
     >
-      <View style={styles.figmaMedicationHeaderWrap}>
-        <WavyBackground curve="home" height={190} variant="teal">
-          <View style={styles.figmaMedicationHeaderContent}>
-            <View style={styles.figmaMedicationHeaderRow}>
-              <TouchableOpacity
-                onPress={() =>
-                  params.returnTo === "track"
-                    ? router.push("/(tabs)/track")
-                    : router.back()
-                }
-                style={styles.figmaMedicationBackButton}
-              >
-                <ArrowLeft color="#003543" size={20} />
-              </TouchableOpacity>
-              <View style={styles.figmaMedicationHeaderTitle}>
-                <View style={styles.figmaMedicationTitleRow}>
-                  <Pill color="#EB9C0C" size={24} />
-                  <Text style={styles.figmaMedicationTitle}>Medications</Text>
-                </View>
-                <Text style={styles.figmaMedicationSubtitle}>
-                  Manage medication schedule
-                </Text>
-              </View>
-              <View collapsable={false} ref={addMedicationButtonRef}>
-                <TouchableOpacity
-                  onPress={() => {
-                    setNewMedication({
-                      name: "",
-                      dosage: "",
-                      frequency: "",
-                      reminders: [{ time: "", period: "AM" }],
-                      notes: "",
-                      quantity: undefined,
-                      quantityUnit: "pills",
-                      lastRefillDate: undefined,
-                      refillReminderDays: 7,
-                      tags: [],
-                    });
-                    setSelectedTargetUser(user.id);
-                    setMedicationSuggestions([]);
-                    setShowSuggestions(false);
-                    setShowAddModal(true);
-                  }}
-                  style={styles.figmaMedicationAddButton}
-                >
-                  <Plus color="#FFFFFF" size={20} />
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </WavyBackground>
-      </View>
-
       <ScrollView
         contentContainerStyle={styles.figmaMedicationContent}
         refreshControl={
@@ -1423,6 +1367,33 @@ export default function MedicationsScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
+        <View style={styles.figmaMedicationHeaderWrap}>
+          <WavyBackground curve="home" height={160} variant="teal">
+            <View style={styles.figmaMedicationHeaderContent}>
+              <View style={styles.figmaMedicationHeaderRow}>
+                <TouchableOpacity
+                  onPress={() =>
+                    params.returnTo === "track"
+                      ? router.push("/(tabs)/track")
+                      : router.back()
+                  }
+                  style={styles.figmaMedicationBackButton}
+                >
+                  <ArrowLeft color="#003543" size={20} />
+                </TouchableOpacity>
+                <View style={styles.figmaMedicationHeaderTitle}>
+                  <View style={styles.figmaMedicationTitleRow}>
+                    <Pill color="#EB9C0C" size={24} />
+                    <Text style={styles.figmaMedicationTitle}>Medications</Text>
+                  </View>
+                  <Text style={styles.figmaMedicationSubtitle}>
+                    Manage medication schedule
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </WavyBackground>
+        </View>
         <FamilyDataFilter
           currentUserId={user.id}
           familyMembers={familyMembers}
@@ -1431,16 +1402,6 @@ export default function MedicationsScreen() {
           onFilterChange={handleFilterChange}
           selectedFilter={selectedFilter}
         />
-
-        {selectedFilter.type === "personal" && (
-          <View style={styles.figmaMedicationSection}>
-            <MedicationRefillCard refillSummary={refillSummary} />
-          </View>
-        )}
-
-        <View style={styles.figmaMedicationSection}>
-          <MedicationInteractionWarning medications={displayMedications} />
-        </View>
 
         {dueToday > 0 && (
           <View style={styles.figmaMedicationAlertBanner}>
@@ -1512,7 +1473,36 @@ export default function MedicationsScreen() {
                   reminders.length > 0 &&
                   reminders.every((reminder) => reminder.taken);
                 return (
-                  <View key={medication.id} style={styles.figmaMedicationCard}>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    key={medication.id}
+                    onPress={() => {
+                      if (canManage) {
+                        Alert.alert(
+                          medication.name,
+                          isRTL
+                            ? "ماذا تريد أن تفعل؟"
+                            : "What would you like to do?",
+                          [
+                            {
+                              text: isRTL ? "تعديل" : "Edit",
+                              onPress: () => handleEditMedication(medication),
+                            },
+                            {
+                              text: isRTL ? "حذف" : "Delete",
+                              style: "destructive",
+                              onPress: () => handleDeleteMedication(medication),
+                            },
+                            {
+                              text: isRTL ? "إلغاء" : "Cancel",
+                              style: "cancel",
+                            },
+                          ]
+                        );
+                      }
+                    }}
+                    style={styles.figmaMedicationCard}
+                  >
                     <View style={styles.figmaMedicationCardHeader}>
                       <View
                         style={[
@@ -1573,66 +1563,7 @@ export default function MedicationsScreen() {
                       </View>
                       <ChevronRight color="#94A3B8" size={20} />
                     </View>
-                    <View style={styles.figmaMedicationReminders}>
-                      {visibleReminders.map((reminder) => {
-                        const canMarkTaken =
-                          medication.userId === user.id ||
-                          (isAdmin && user.familyId);
-                        const reminderId = reminder.id;
-                        return (
-                          <AnimatedCheckButton
-                            disabled={!(canMarkTaken && reminderId)}
-                            isChecked={reminder.taken}
-                            key={reminder.id}
-                            label={convertTo12Hour(reminder.time)}
-                            onPress={() =>
-                              reminderId &&
-                              toggleMedicationTaken(medication.id, reminderId)
-                            }
-                            size="sm"
-                            style={styles.figmaMedicationReminderButton}
-                          />
-                        );
-                      })}
-                      {extraReminders > 0 && (
-                        <View style={styles.figmaMedicationReminderMore}>
-                          <Text style={styles.figmaMedicationReminderMoreText}>
-                            +{extraReminders} more
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                    {canManage && (
-                      <View style={styles.figmaMedicationManageRow}>
-                        <TouchableOpacity
-                          onPress={() => handleEditMedication(medication)}
-                          style={styles.figmaMedicationManageButton}
-                        >
-                          <Edit color="#64748B" size={16} />
-                          <Text style={styles.figmaMedicationManageText}>
-                            Edit
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => handleDeleteMedication(medication)}
-                          style={[
-                            styles.figmaMedicationManageButton,
-                            styles.figmaMedicationManageButtonDanger,
-                          ]}
-                        >
-                          <Trash2 color="#EF4444" size={16} />
-                          <Text
-                            style={[
-                              styles.figmaMedicationManageText,
-                              styles.figmaMedicationManageTextDanger,
-                            ]}
-                          >
-                            Delete
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                  </View>
+                  </TouchableOpacity>
                 );
               })
             ) : (
@@ -1781,7 +1712,43 @@ export default function MedicationsScreen() {
             <Text style={styles.figmaMedicationEmpty}>No recent doses</Text>
           )}
         </View>
+
+        {selectedFilter.type === "personal" && (
+          <View style={styles.figmaMedicationSection}>
+            <MedicationRefillCard refillSummary={refillSummary} />
+          </View>
+        )}
+
+        <View style={styles.figmaMedicationSection}>
+          <MedicationInteractionWarning medications={displayMedications} />
+        </View>
       </ScrollView>
+
+      <View collapsable={false} ref={addMedicationButtonRef}>
+        <TouchableOpacity
+          onPress={() => {
+            setNewMedication({
+              name: "",
+              dosage: "",
+              frequency: "",
+              reminders: [{ time: "", period: "AM" }],
+              notes: "",
+              quantity: undefined,
+              quantityUnit: "pills",
+              lastRefillDate: undefined,
+              refillReminderDays: 7,
+              tags: [],
+            });
+            setSelectedTargetUser(user.id);
+            setMedicationSuggestions([]);
+            setShowSuggestions(false);
+            setShowAddModal(true);
+          }}
+          style={styles.figmaMedicationFab}
+        >
+          <Plus color="#FFFFFF" size={22} />
+        </TouchableOpacity>
+      </View>
 
       <CoachMark
         body={
@@ -2091,10 +2058,7 @@ export default function MedicationsScreen() {
                   const periodValue: "AM" | "PM" = reminder.period || "AM";
 
                   return (
-                    <View
-                      key={`${reminder.time}-${reminder.period}-${index}`}
-                      style={styles.reminderItem}
-                    >
+                    <View key={`reminder-${index}`} style={styles.reminderItem}>
                       <TextInput
                         keyboardType="number-pad"
                         maxLength={5}
@@ -2387,14 +2351,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8FAFC",
   },
   figmaMedicationHeaderWrap: {
-    marginHorizontal: -20,
-    marginTop: -20,
-    marginBottom: 12,
+    marginHorizontal: -24,
+    marginTop: -16,
+    marginBottom: 16,
   },
   figmaMedicationHeaderContent: {
     paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 15,
+    paddingTop: 56,
+    paddingBottom: 12,
   },
   figmaMedicationHeaderRow: {
     flexDirection: "row",
@@ -2405,7 +2369,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.4)",
+    backgroundColor: "rgba(0, 53, 67, 0.15)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -2421,22 +2385,37 @@ const styles = StyleSheet.create({
   figmaMedicationTitle: {
     fontSize: 24,
     fontFamily: "Inter-Bold",
-    color: "#FFFFFF",
+    color: "#003543",
   },
   figmaMedicationSubtitle: {
     fontSize: 14,
     fontFamily: "Inter-SemiBold",
     color: "#003543",
-    marginVertical: 6,
-    paddingVertical: 7,
+    marginTop: 4,
   },
   figmaMedicationAddButton: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "#003543",
+    backgroundColor: "#EB9C0C",
     alignItems: "center",
     justifyContent: "center",
+  },
+  figmaMedicationFab: {
+    position: "absolute",
+    right: 20,
+    bottom: 100,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#D48A00",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 6,
   },
   figmaMedicationHeaderStatsRow: {
     flexDirection: "row",
@@ -2645,8 +2624,9 @@ const styles = StyleSheet.create({
   figmaMedicationReminders: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
-    marginTop: 12,
+    gap: 6,
+    marginTop: 10,
+    alignItems: "flex-start",
   },
   figmaMedicationReminderButton: {
     marginBottom: 0,

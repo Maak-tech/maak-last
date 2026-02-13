@@ -1,5 +1,5 @@
 /* biome-ignore-all lint/style/noNestedTernary: preserving existing conditional timeline UI structure in this batch. */
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   Activity,
   AlertTriangle,
@@ -10,6 +10,7 @@ import {
   FileText,
   Filter,
   Pill,
+  Plus,
   Smile,
   TestTube,
 } from "lucide-react-native";
@@ -47,7 +48,7 @@ type FilterType = TimelineEvent["type"] | "all";
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: screen coordinates timeline loading, grouping, and modal presentation.
 export default function TimelineScreen() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const timelineRouter = useRouter();
   const params = useLocalSearchParams<{ returnTo?: string }>();
@@ -73,13 +74,11 @@ export default function TimelineScreen() {
       backgroundColor: "transparent",
     },
     headerWrap: {
-      marginHorizontal: -20,
-      marginTop: -20,
-      marginBottom: 12,
+      marginBottom: -40,
     },
     headerContent: {
       paddingHorizontal: 24,
-      paddingTop: 20,
+      paddingTop: 160,
       paddingBottom: 16,
     },
     headerRow: {
@@ -91,7 +90,7 @@ export default function TimelineScreen() {
       width: 40,
       height: 40,
       borderRadius: 12,
-      backgroundColor: "rgba(255, 255, 255, 0.5)",
+      backgroundColor: "rgba(0, 53, 67, 0.15)",
       alignItems: "center",
       justifyContent: "center",
     },
@@ -107,7 +106,7 @@ export default function TimelineScreen() {
     headerTitle: {
       fontSize: 22,
       fontFamily: "Inter-Bold",
-      color: "#FFFFFF",
+      color: "#003543",
     },
     headerSubtitle: {
       fontSize: 13,
@@ -118,6 +117,7 @@ export default function TimelineScreen() {
       flexDirection: "row",
       gap: 10,
       paddingHorizontal: 20,
+      marginTop: 24,
       marginBottom: 12,
     },
     searchInput: {
@@ -354,6 +354,22 @@ export default function TimelineScreen() {
       fontSize: 13,
       fontFamily: "Inter-SemiBold",
       color: "#0F172A",
+    },
+    fab: {
+      position: "absolute" as const,
+      right: 20,
+      bottom: 100,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: "#D48A00",
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+      shadowColor: "#0F172A",
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.18,
+      shadowRadius: 12,
+      elevation: 6,
     },
   });
 
@@ -603,7 +619,12 @@ export default function TimelineScreen() {
       style={styles.container as ViewStyle}
     >
       <View style={styles.headerWrap as ViewStyle}>
-        <WavyBackground curve="home" height={180} variant="teal">
+        <WavyBackground
+          contentPosition="top"
+          curve="home"
+          height={240}
+          variant="teal"
+        >
           <View style={styles.headerContent as ViewStyle}>
             <View
               style={[
@@ -876,7 +897,7 @@ export default function TimelineScreen() {
                                   isRTL && (styles.rtlText as TextStyle),
                                 ]}
                               >
-                                {event.title}
+                                {t(event.title, event.title)}
                               </Text>
                               <View style={styles.eventTypeChip as ViewStyle}>
                                 <Text style={styles.eventTypeText as TextStyle}>
@@ -916,7 +937,13 @@ export default function TimelineScreen() {
         </ScrollView>
       )}
 
-      {/* Filter Modal */}
+      <TouchableOpacity
+        onPress={() => timelineRouter.push("/(tabs)/track")}
+        style={styles.fab as ViewStyle}
+      >
+        <Plus color="#FFFFFF" size={22} />
+      </TouchableOpacity>
+
       <Modal
         animationType="slide"
         onRequestClose={() => setShowFilters(false)}
@@ -979,7 +1006,6 @@ export default function TimelineScreen() {
         </View>
       </Modal>
 
-      {/* Event Detail Modal */}
       <Modal
         animationType="slide"
         onRequestClose={() => {

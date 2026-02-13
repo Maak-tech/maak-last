@@ -33,6 +33,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Avatar from "@/components/Avatar";
+import GradientScreen from "@/components/figma/GradientScreen";
+import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
 import { userService } from "@/lib/services/userService";
 import type { AvatarType } from "@/types";
@@ -180,30 +182,52 @@ export default function PersonalInfoScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={[styles.backButton, isRTL && styles.backButtonRTL]}
-        >
-          <ArrowLeft
-            color="#1E293B"
-            size={24}
-            style={[isRTL && { transform: [{ rotate: "180deg" }] }]}
-          />
-        </TouchableOpacity>
+    <GradientScreen
+      edges={["top"]}
+      pointerEvents="box-none"
+      style={styles.container}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header with WavyBackground */}
+        <View style={styles.headerWrap}>
+          <WavyBackground curve="home" height={200} variant="teal">
+            <View style={styles.headerContent}>
+              <View
+                style={[
+                  styles.headerRow,
+                  isRTL && { flexDirection: "row-reverse" as const },
+                ]}
+              >
+                <TouchableOpacity
+                  onPress={() => router.back()}
+                  style={styles.backButton}
+                >
+                  <ArrowLeft
+                    color="#003543"
+                    size={20}
+                    style={
+                      isRTL ? { transform: [{ rotate: "180deg" }] } : undefined
+                    }
+                  />
+                </TouchableOpacity>
 
-        <Text style={[styles.headerTitle, isRTL && { textAlign: "left" }]}>
-          {isRTL ? "المعلومات الشخصية" : "Personal Information"}
-        </Text>
+                <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
+                  {isRTL ? "المعلومات الشخصية" : "Personal Information"}
+                </Text>
 
-        <TouchableOpacity onPress={handleEdit} style={styles.editButton}>
-          <Edit3 color="#003543" size={20} />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
+                <TouchableOpacity
+                  onPress={handleEdit}
+                  style={styles.editButton}
+                >
+                  <Edit3 color="#003543" size={20} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </WavyBackground>
+        </View>
         {/* Profile Avatar Section */}
         <View style={styles.avatarSection}>
           <View style={styles.avatarContainer}>
@@ -407,7 +431,7 @@ export default function PersonalInfoScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.modalContent}>
+          <ScrollView style={styles.modalFormContent}>
             {/* First Name Field */}
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && { textAlign: "left" }]}>
@@ -502,7 +526,7 @@ export default function PersonalInfoScreen() {
         visible={avatarCreatorVisible}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={styles.avatarModalContent}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, isRTL && { textAlign: "left" }]}>
                 {isRTL ? "اختر الصورة الرمزية" : "Choose Your Avatar"}
@@ -582,63 +606,68 @@ export default function PersonalInfoScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </GradientScreen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "transparent",
   },
-  header: {
+  headerWrap: {
+    marginHorizontal: -24,
+    marginBottom: 0,
+  },
+  headerContent: {
+    paddingHorizontal: 24,
+    paddingTop: 40,
+    paddingBottom: 16,
+  },
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
+    gap: 12,
+    marginTop: 0,
   },
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: "#F1F5F9",
+    borderRadius: 12,
+    backgroundColor: "rgba(0, 53, 67, 0.15)",
     justifyContent: "center",
     alignItems: "center",
   },
-  backButtonRTL: {
-    transform: [{ scaleX: -1 }],
-  },
   headerTitle: {
-    fontSize: 18,
-    fontFamily: "Inter-SemiBold",
-    color: "#1E293B",
+    fontSize: 22,
+    fontFamily: "Inter-Bold",
+    color: "#003543",
     flex: 1,
-    textAlign: "center",
   },
   editButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: "#F0FAFB",
+    borderRadius: 12,
+    backgroundColor: "rgba(0, 53, 67, 0.15)",
     justifyContent: "center",
     alignItems: "center",
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 40,
   },
   avatarSection: {
     alignItems: "center",
     paddingVertical: 32,
     backgroundColor: "#FFFFFF",
-    marginTop: 20,
     borderRadius: 16,
     marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 3,
   },
   avatarContainer: {
     position: "relative",
@@ -666,7 +695,7 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 24,
     fontFamily: "Inter-Bold",
-    color: "#1E293B",
+    color: "#003543",
     marginBottom: 8,
   },
   roleContainer: {
@@ -689,19 +718,19 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontFamily: "Inter-SemiBold",
-    color: "#1E293B",
+    color: "#003543",
     marginBottom: 16,
   },
   infoCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 3,
   },
   infoCardHeader: {
     flexDirection: "row",
@@ -710,8 +739,8 @@ const styles = StyleSheet.create({
   infoCardIcon: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: "#F0FAFB",
+    borderRadius: 12,
+    backgroundColor: "rgba(0, 53, 67, 0.08)",
     justifyContent: "center",
     alignItems: "center",
     marginEnd: 12,
@@ -722,13 +751,13 @@ const styles = StyleSheet.create({
   infoCardLabel: {
     fontSize: 14,
     fontFamily: "Inter-Medium",
-    color: "#64748B",
+    color: "#6C7280",
     marginBottom: 4,
   },
   infoCardValue: {
     fontSize: 16,
     fontFamily: "Inter-SemiBold",
-    color: "#1E293B",
+    color: "#1A1D1F",
     marginBottom: 4,
   },
   infoCardDescription: {
@@ -747,14 +776,14 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     alignItems: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 3,
   },
   statValue: {
     fontSize: 20,
@@ -765,7 +794,7 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 12,
     fontFamily: "Inter-Medium",
-    color: "#64748B",
+    color: "#6C7280",
     textAlign: "center",
   },
   editProfileButton: {
@@ -773,7 +802,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#003543",
-    borderRadius: 12,
+    borderRadius: 16,
     paddingVertical: 16,
     marginBottom: 32,
     gap: 8,
@@ -790,11 +819,10 @@ const styles = StyleSheet.create({
   },
   rtlText: {
     textAlign: "right",
-    fontFamily: "Inter-Regular",
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F9FDFE",
   },
   modalHeader: {
     flexDirection: "row",
@@ -803,13 +831,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
+    borderBottomColor: "#E5E7EB",
     backgroundColor: "#FFFFFF",
   },
   modalTitle: {
     fontSize: 20,
     fontFamily: "Inter-SemiBold",
-    color: "#1E293B",
+    color: "#003543",
   },
   closeButton: {
     width: 32,
@@ -817,13 +845,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  modalContent: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+  modalFormContent: {
     padding: 24,
-    width: "100%",
-    maxWidth: 400,
-    maxHeight: "80%",
   },
   fieldContainer: {
     marginBottom: 20,
@@ -831,18 +854,19 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 16,
     fontFamily: "Inter-Medium",
-    color: "#374151",
+    color: "#1A1D1F",
     marginBottom: 8,
   },
   textInput: {
     borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     fontSize: 16,
     fontFamily: "Inter-Regular",
     backgroundColor: "#FFFFFF",
+    color: "#1A1D1F",
   },
   rtlInput: {
     fontFamily: "Inter-Regular",
@@ -850,7 +874,7 @@ const styles = StyleSheet.create({
   fieldDescription: {
     fontSize: 12,
     fontFamily: "Inter-Regular",
-    color: "#64748B",
+    color: "#6C7280",
     marginTop: 4,
     lineHeight: 16,
   },
@@ -859,7 +883,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#003543",
-    borderRadius: 12,
+    borderRadius: 16,
     paddingVertical: 16,
     marginTop: 20,
     gap: 8,
@@ -872,39 +896,20 @@ const styles = StyleSheet.create({
     fontFamily: "Inter-SemiBold",
     color: "#FFFFFF",
   },
-  creatorModalContainer: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
-  creatorModalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
-    backgroundColor: "#FFFFFF",
-  },
-  creatorModalTitle: {
-    fontSize: 20,
-    fontFamily: "Inter-SemiBold",
-    color: "#1E293B",
-  },
-  creatorCloseButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#F1F5F9",
-    justifyContent: "center",
-    alignItems: "center",
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 20,
+  },
+  avatarModalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 24,
+    width: "100%",
+    maxWidth: 400,
+    maxHeight: "80%",
   },
   avatarGrid: {
     flexDirection: "row",
@@ -914,12 +919,12 @@ const styles = StyleSheet.create({
   },
   avatarOption: {
     width: "30%",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F9FDFE",
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#E2E8F0",
+    borderColor: "#E5E7EB",
     position: "relative",
     paddingVertical: 16,
     marginBottom: 12,
@@ -931,22 +936,16 @@ const styles = StyleSheet.create({
   modalCloseButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: "#F1F5F9",
+    borderRadius: 12,
+    backgroundColor: "rgba(0, 53, 67, 0.08)",
     justifyContent: "center",
     alignItems: "center",
   },
   avatarLabel: {
     fontSize: 12,
     fontFamily: "Inter-Medium",
-    color: "#64748B",
+    color: "#6C7280",
     marginTop: 8,
     textAlign: "center",
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
   },
 });

@@ -1,4 +1,4 @@
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import {
   AlertCircle,
   ArrowLeft,
@@ -588,8 +588,6 @@ export default function AllergiesScreen() {
       backgroundColor: theme.colors.background.primary,
     },
     figmaAllergyHeaderWrapper: {
-      marginHorizontal: -20,
-      marginTop: -20,
       marginBottom: 12,
     },
     figmaAllergyHeaderContent: {
@@ -606,7 +604,7 @@ export default function AllergiesScreen() {
       width: 40,
       height: 40,
       borderRadius: 12,
-      backgroundColor: "rgba(255, 255, 255, 0.5)",
+      backgroundColor: "rgba(0, 53, 67, 0.15)",
       alignItems: "center",
       justifyContent: "center",
     },
@@ -622,7 +620,7 @@ export default function AllergiesScreen() {
     figmaAllergyTitle: {
       fontSize: 22,
       fontFamily: "Inter-Bold",
-      color: "#FFFFFF",
+      color: "#003543",
     },
     figmaAllergySubtitle: {
       fontSize: 13,
@@ -1224,15 +1222,6 @@ export default function AllergiesScreen() {
                   {t("manageAllergyInformation", "Manage allergy information")}
                 </Text>
               </View>
-              <TouchableOpacity
-                onPress={() => {
-                  resetForm();
-                  setShowAddModal(true);
-                }}
-                style={styles.figmaAllergyAddButton}
-              >
-                <Plus color="#FFFFFF" size={20} />
-              </TouchableOpacity>
             </View>
           </View>
         </WavyBackground>
@@ -1337,7 +1326,7 @@ export default function AllergiesScreen() {
                       <View style={styles.figmaAllergyCardInfo}>
                         <View style={styles.figmaAllergyCardTitleRow}>
                           <Text style={styles.figmaAllergyCardTitle}>
-                            {allergy.name}
+                            {getTranslatedAllergyName(allergy.name)}
                           </Text>
                           <View
                             style={[

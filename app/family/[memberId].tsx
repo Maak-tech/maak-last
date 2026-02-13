@@ -20,7 +20,6 @@ import {
   Scale,
   ShieldAlert,
   Thermometer,
-  Users,
   Waves,
   Wind,
   XCircle,
@@ -29,18 +28,20 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 // Import StyleSheet early to ensure it's available during HMR
-import { StyleSheet } from "react-native";
 import {
   ActivityIndicator,
   Alert,
+  Image,
+  Linking,
   RefreshControl,
   ScrollView,
+  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import Avatar from "@/components/Avatar";
 import GradientScreen from "@/components/figma/GradientScreen";
+import StatusBadge from "@/components/figma/StatusBadge";
 import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/firebase";
@@ -71,6 +72,13 @@ import type {
 import { coerceToDate } from "@/utils/dateCoercion";
 import { safeFormatDate, safeFormatTime } from "@/utils/dateFormat";
 
+const getAvatarInitials = (fullName: string): string => {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+};
+
 const getErrorMessage = (error: unknown, fallback: string): string => {
   if (error instanceof Error && error.message) {
     return error.message;
@@ -87,7 +95,7 @@ const getAlertSeverityColor = (
   if (severity === "high") {
     return "#F59E0B";
   }
-  return "#2563EB";
+  return "#003543";
 };
 
 const getHistorySeverityColor = (
@@ -431,7 +439,7 @@ export default function FamilyMemberHealthView() {
     if (confidence >= 70) {
       return "#F59E0B";
     }
-    return "#2563EB";
+    return "#003543";
   };
 
   const getInsightIcon = (type: PatternInsight["type"]) => {
@@ -439,7 +447,7 @@ export default function FamilyMemberHealthView() {
       return <Gauge color="#7C3AED" size={16} />;
     }
     if (type === "trend") {
-      return <Activity color="#2563EB" size={16} />;
+      return <Activity color="#003543" size={16} />;
     }
     if (type === "correlation") {
       return <Route color="#0EA5E9" size={16} />;
@@ -652,6 +660,43 @@ export default function FamilyMemberHealthView() {
         new Date(s.timestamp).getTime() > Date.now() - 30 * 24 * 60 * 60 * 1000
     )
     .slice(0, 10);
+
+  // Derive member status for Figma-aligned header (stable | monitor | critical)
+  const memberStatus: "stable" | "monitor" | "critical" | "unknown" =
+    alerts.length > 1 ? "critical" : alerts.length > 0 ? "monitor" : "stable";
+  const statusExplanation =
+    insightsSummary &&
+    (insightsSummary.symptoms.total > 3 ||
+      insightsSummary.medications.compliance < 80)
+      ? isRTL
+        ? "مستوى الأعراض أو الالتزام بالأدوية يحتاج متابعة."
+        : "Symptom levels or medication adherence needs monitoring."
+      : insightsSummary?.medications.compliance !== undefined &&
+          insightsSummary.medications.compliance >= 90
+        ? isRTL
+          ? "الالتزام بالأدوية جيد. استمر في المتابعة."
+          : "Medication adherence is good. Continue monitoring."
+        : null;
+
+  const handleQuickAction = (
+    action: "call" | "message" | "share" | "report"
+  ) => {
+    const phone = member.phoneNumber;
+    if (action === "call" && phone) {
+      Linking.openURL(`tel:${phone}`);
+    } else if (action === "message" && phone) {
+      Linking.openURL(`sms:${phone}`);
+    } else if (action === "share") {
+      // Share member health summary - placeholder
+      Alert.alert(
+        isRTL ? "مشاركة" : "Share",
+        isRTL ? "مشاركة التقرير الصحي قريباً" : "Share health report coming soon"
+      );
+    } else if (action === "report") {
+      router.push("/(tabs)/analytics");
+    }
+  };
+
   const predictiveInsight = insights.find(
     (insight) =>
       insight.type === "ml" && typeof insight.data?.riskScore === "number"
@@ -666,27 +711,115 @@ export default function FamilyMemberHealthView() {
       <View style={styles.figmaHeaderWrapper}>
         <WavyBackground curve="home" height={240} variant="teal">
           <View style={styles.figmaHeaderContent}>
-            <View style={styles.figmaHeaderRow}>
-              <TouchableOpacity
-                onPress={() => router.back()}
-                style={styles.figmaBackButton}
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={styles.figmaBackButton}
+            >
+              <ArrowLeft color="#FFFFFF" size={20} />
+            </TouchableOpacity>
+            <View style={styles.figmaHeaderProfile}>
+              <View
+                style={[
+                  styles.figmaAvatarRing,
+                  {
+                    borderColor:
+                      memberStatus === "critical"
+                        ? "#EF4444"
+                        : memberStatus === "monitor"
+                          ? "#F59E0B"
+                          : "#10B981",
+                  },
+                ]}
               >
-                <ArrowLeft color="#003543" size={20} />
-              </TouchableOpacity>
-              <View style={styles.figmaHeaderTitle}>
-                <View style={styles.figmaHeaderTitleRow}>
-                  <Users color="#EB9C0C" size={20} />
-                  <Text style={styles.figmaHeaderTitleText}>{memberName}</Text>
+                <View style={styles.figmaAvatarInner}>
+                  {member.avatar ? (
+                    <Image
+                      source={
+                        typeof member.avatar === "string"
+                          ? { uri: member.avatar }
+                          : member.avatar
+                      }
+                      style={styles.figmaAvatarImage}
+                    />
+                  ) : (
+                    <Text style={styles.figmaAvatarText}>
+                      {getAvatarInitials(memberName)}
+                    </Text>
+                  )}
                 </View>
+              </View>
+              <View style={styles.figmaHeaderInfo}>
+                <Text style={styles.figmaHeaderTitleText}>{memberName}</Text>
                 <Text
                   style={[styles.figmaHeaderSubtitle, isRTL && styles.rtlText]}
                 >
-                  {isRTL ? "عرض الصحة الكامل" : "Full Health View"}
+                  {displayRelationship}
                 </Text>
+                <StatusBadge status={memberStatus} />
               </View>
             </View>
+            {statusExplanation ? (
+              <View style={styles.statusExplanation}>
+                <Text style={styles.statusExplanationText}>
+                  {statusExplanation}
+                </Text>
+              </View>
+            ) : null}
           </View>
         </WavyBackground>
+      </View>
+
+      {/* Quick actions - Figma Profile style */}
+      <View style={styles.quickActions}>
+        {[
+          {
+            icon: Phone,
+            label: isRTL ? "اتصال" : "Call",
+            action: "call" as const,
+          },
+          {
+            icon: MessageSquare,
+            label: isRTL ? "رسالة" : "Message",
+            action: "message" as const,
+          },
+          {
+            icon: Share2,
+            label: isRTL ? "مشاركة" : "Share",
+            action: "share" as const,
+          },
+          {
+            icon: FileText,
+            label: isRTL ? "تقرير" : "Report",
+            action: "report" as const,
+          },
+        ].map((item) => {
+          const Icon = item.icon;
+          const color =
+            item.action === "call"
+              ? "#10B981"
+              : item.action === "message"
+                ? "#3B82F6"
+                : item.action === "share"
+                  ? "#6C7280"
+                  : "#EB9C0C";
+          return (
+            <TouchableOpacity
+              key={item.action}
+              onPress={() => handleQuickAction(item.action)}
+              style={styles.quickActionButton}
+            >
+              <View
+                style={[
+                  styles.quickActionIconWrap,
+                  { backgroundColor: `${color}15` },
+                ]}
+              >
+                <Icon color={color} size={24} />
+              </View>
+              <Text style={styles.quickActionLabel}>{item.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       <ScrollView
@@ -703,79 +836,71 @@ export default function FamilyMemberHealthView() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Member Info Card */}
-        <View style={styles.memberCard}>
-          <Avatar
-            avatarType={member.avatarType}
-            name={memberName}
-            size="xl"
-            source={member.avatar ? { uri: member.avatar } : undefined}
-          />
-          <Text style={[styles.memberName, isRTL && styles.rtlText]}>
-            {memberName}
-          </Text>
-          <Text style={[styles.memberRelationship, isRTL && styles.rtlText]}>
-            {displayRelationship}
-          </Text>
-
-          {/* Role Management for Admins */}
-          {user?.role === "admin" && user?.id !== memberId && (
-            <View style={styles.roleManagement}>
-              <Text style={[styles.roleLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "الدور" : "Role"}
-              </Text>
-              <View style={styles.roleButtons}>
-                <TouchableOpacity
-                  onPress={() => changeMemberRole(memberId, "member")}
-                  style={[
-                    styles.roleButton,
-                    member.role === "member" && styles.roleButtonActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.roleButtonText,
-                      member.role === "member" && styles.roleButtonTextActive,
-                    ]}
-                  >
-                    {isRTL ? "فرد العائلة" : "Member"}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => changeMemberRole(memberId, "caregiver")}
-                  style={[
-                    styles.roleButton,
-                    member.role === "caregiver" && styles.roleButtonActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.roleButtonText,
-                      member.role === "caregiver" &&
-                        styles.roleButtonTextActive,
-                    ]}
-                  >
-                    {isRTL ? "مرافق صحي" : "Caregiver"}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {/* Caregiver Alert Button */}
-          {user?.role === "caregiver" &&
-            user?.familyId === member?.familyId && (
-              <TouchableOpacity
-                onPress={() => sendCaregiverAlert()}
-                style={styles.caregiverAlertButton}
-              >
-                <AlertTriangle color="#FFFFFF" size={20} />
-                <Text style={styles.caregiverAlertText}>
-                  {isRTL ? "إرسال تنبيه لمدير العائلة" : "Send Alert to Admin"}
+        {/* Member Info Card - Role & actions (avatar/name in header) */}
+        {(user?.role === "admin" && user?.id !== memberId) ||
+        (user?.role === "caregiver" && user?.familyId === member?.familyId) ? (
+          <View style={styles.memberCard}>
+            {/* Role Management for Admins */}
+            {user?.role === "admin" && user?.id !== memberId && (
+              <View style={styles.roleManagement}>
+                <Text style={[styles.roleLabel, isRTL && styles.rtlText]}>
+                  {isRTL ? "الدور" : "Role"}
                 </Text>
-              </TouchableOpacity>
+                <View style={styles.roleButtons}>
+                  <TouchableOpacity
+                    onPress={() => changeMemberRole(memberId, "member")}
+                    style={[
+                      styles.roleButton,
+                      member.role === "member" && styles.roleButtonActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.roleButtonText,
+                        member.role === "member" && styles.roleButtonTextActive,
+                      ]}
+                    >
+                      {isRTL ? "فرد العائلة" : "Member"}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => changeMemberRole(memberId, "caregiver")}
+                    style={[
+                      styles.roleButton,
+                      member.role === "caregiver" && styles.roleButtonActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.roleButtonText,
+                        member.role === "caregiver" &&
+                          styles.roleButtonTextActive,
+                      ]}
+                    >
+                      {isRTL ? "مرافق صحي" : "Caregiver"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             )}
-        </View>
+
+            {/* Caregiver Alert Button */}
+            {user?.role === "caregiver" &&
+              user?.familyId === member?.familyId && (
+                <TouchableOpacity
+                  onPress={() => sendCaregiverAlert()}
+                  style={styles.caregiverAlertButton}
+                >
+                  <AlertTriangle color="#FFFFFF" size={20} />
+                  <Text style={styles.caregiverAlertText}>
+                    {isRTL
+                      ? "إرسال تنبيه لمدير العائلة"
+                      : "Send Alert to Admin"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+          </View>
+        ) : null}
 
         {/* Vitals Section - Always show, positioned prominently */}
         <View style={styles.section}>
@@ -785,7 +910,7 @@ export default function FamilyMemberHealthView() {
               isRTL && { flexDirection: "row-reverse" },
             ]}
           >
-            <Gauge color="#2563EB" size={20} />
+            <Gauge color="#003543" size={20} />
             <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
               {isRTL ? "العلامات الحيوية" : "Vital Signs"}
             </Text>
@@ -1251,7 +1376,7 @@ export default function FamilyMemberHealthView() {
               isRTL && { flexDirection: "row-reverse" },
             ]}
           >
-            <Pill color="#2563EB" size={20} />
+            <Pill color="#EB9C0C" size={20} />
             <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
               {isRTL ? "الأدوية" : "Medications"}
             </Text>
@@ -1503,559 +1628,646 @@ export default function FamilyMemberHealthView() {
 
 // Defensive check to ensure StyleSheet is available before creating styles
 // This prevents HMR timing issues with transitive dependencies
-const styles = typeof StyleSheet !== 'undefined' ? StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "transparent",
-  },
-  figmaHeaderWrapper: {
-    marginHorizontal: -20,
-    marginTop: -20,
-    marginBottom: 12,
-  },
-  figmaHeaderContent: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 16,
-  },
-  figmaHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  figmaBackButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.5)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  figmaHeaderTitle: {
-    flex: 1,
-  },
-  figmaHeaderTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 4,
-  },
-  figmaHeaderTitleText: {
-    fontSize: 22,
-    fontFamily: "Inter-Bold",
-    color: "#FFFFFF",
-  },
-  figmaHeaderSubtitle: {
-    fontSize: 13,
-    fontFamily: "Inter-SemiBold",
-    color: "rgba(0, 53, 67, 0.85)",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  figmaContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 32,
-  },
-  memberCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 24,
-    alignItems: "center",
-    marginTop: 12,
-    marginBottom: 24,
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  memberName: {
-    fontSize: 22,
-    fontFamily: "Inter-Bold",
-    color: "#1E293B",
-    marginTop: 12,
-    textAlign: "center",
-  },
-  memberRelationship: {
-    fontSize: 14,
-    fontFamily: "Inter-Regular",
-    color: "#64748B",
-    marginTop: 4,
-    textAlign: "center",
-  },
-  roleManagement: {
-    marginTop: 16,
-    alignItems: "center",
-  },
-  roleLabel: {
-    fontSize: 14,
-    fontFamily: "Inter-Medium",
-    color: "#1E293B",
-    marginBottom: 8,
-  },
-  roleButtons: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  roleButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    backgroundColor: "#F8FAFC",
-  },
-  roleButtonActive: {
-    backgroundColor: "#2563EB",
-    borderColor: "#2563EB",
-  },
-  roleButtonText: {
-    fontSize: 12,
-    fontFamily: "Inter-Medium",
-    color: "#64748B",
-  },
-  roleButtonTextActive: {
-    color: "#FFFFFF",
-  },
-  caregiverAlertButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F59E0B",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 16,
-    gap: 8,
-  },
-  caregiverAlertText: {
-    fontSize: 14,
-    fontFamily: "Inter-SemiBold",
-    color: "#FFFFFF",
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontFamily: "Inter-Bold",
-    color: "#1A1D1F",
-  },
-  sectionCount: {
-    fontSize: 14,
-    fontFamily: "Inter-Medium",
-    color: "#64748B",
-  },
-  alertsList: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    overflow: "hidden",
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  alertItem: {
-    flexDirection: "row",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
-    gap: 12,
-  },
-  alertContent: {
-    flex: 1,
-  },
-  alertMessage: {
-    fontSize: 14,
-    fontFamily: "Inter-Medium",
-    color: "#1E293B",
-    marginBottom: 4,
-  },
-  alertTime: {
-    fontSize: 12,
-    fontFamily: "Inter-Regular",
-    color: "#64748B",
-  },
-  vitalsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    alignContent: "center",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 12,
-  },
-  vitalCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    minWidth: 100,
-    maxWidth: 120,
-    flexBasis: "30%",
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  vitalValue: {
-    fontSize: 20,
-    fontFamily: "Inter-Bold",
-    color: "#1E293B",
-    marginTop: 8,
-  },
-  vitalLabel: {
-    fontSize: 12,
-    fontFamily: "Inter-Regular",
-    color: "#64748B",
-    marginTop: 4,
-  },
-  vitalsTimestamp: {
-    fontSize: 12,
-    fontFamily: "Inter-Regular",
-    color: "#94A3B8",
-    textAlign: "center",
-  },
-  insightSummaryCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 12,
-    marginBottom: 12,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  insightSummaryItem: {
-    flex: 1,
-    alignItems: "center",
-  },
-  insightSummaryValue: {
-    fontSize: 20,
-    fontFamily: "Inter-Bold",
-    color: "#1E293B",
-  },
-  insightSummaryLabel: {
-    fontSize: 12,
-    fontFamily: "Inter-Regular",
-    color: "#64748B",
-    marginTop: 4,
-  },
-  insightsList: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    overflow: "hidden",
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  insightItem: {
-    padding: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
-  },
-  insightHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 8,
-  },
-  insightTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    flex: 1,
-  },
-  insightTitle: {
-    fontSize: 14,
-    fontFamily: "Inter-SemiBold",
-    color: "#1E293B",
-    flex: 1,
-  },
-  insightConfidenceBadge: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    alignSelf: "flex-start",
-  },
-  insightConfidenceText: {
-    fontSize: 11,
-    fontFamily: "Inter-SemiBold",
-  },
-  insightDescription: {
-    fontSize: 13,
-    fontFamily: "Inter-Regular",
-    color: "#475569",
-    marginTop: 8,
-    lineHeight: 18,
-  },
-  insightRecommendation: {
-    fontSize: 12,
-    fontFamily: "Inter-Medium",
-    color: "#334155",
-    marginTop: 8,
-  },
-  insightsLoadingContainer: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  insightsLoadingText: {
-    fontSize: 13,
-    fontFamily: "Inter-Regular",
-    color: "#64748B",
-  },
-  symptomsList: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    overflow: "hidden",
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  symptomItem: {
-    flexDirection: "row",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
-  },
-  severityIndicator: {
-    width: 4,
-    borderRadius: 2,
-    marginEnd: 12,
-  },
-  symptomContent: {
-    flex: 1,
-  },
-  symptomHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  symptomType: {
-    fontSize: 16,
-    fontFamily: "Inter-SemiBold",
-    color: "#1E293B",
-    flex: 1,
-  },
-  severityBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  severityBadgeText: {
-    fontSize: 10,
-    fontFamily: "Inter-SemiBold",
-    color: "#FFFFFF",
-  },
-  symptomDescription: {
-    fontSize: 14,
-    fontFamily: "Inter-Regular",
-    color: "#64748B",
-    marginBottom: 4,
-  },
-  symptomTime: {
-    fontSize: 12,
-    fontFamily: "Inter-Regular",
-    color: "#94A3B8",
-  },
-  medicationsList: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    overflow: "hidden",
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  medicationItem: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
-  },
-  medicationHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  medicationName: {
-    fontSize: 16,
-    fontFamily: "Inter-SemiBold",
-    color: "#1E293B",
-    flex: 1,
-  },
-  medicationStatus: {
-    marginStart: 8,
-  },
-  medicationDosage: {
-    fontSize: 14,
-    fontFamily: "Inter-Regular",
-    color: "#64748B",
-    marginBottom: 8,
-  },
-  remindersList: {
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: "#F1F5F9",
-  },
-  remindersTitle: {
-    fontSize: 12,
-    fontFamily: "Inter-Medium",
-    color: "#64748B",
-    marginBottom: 8,
-  },
-  reminderItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 4,
-  },
-  reminderTime: {
-    fontSize: 14,
-    fontFamily: "Inter-Regular",
-    color: "#1E293B",
-  },
-  medicationNotes: {
-    fontSize: 12,
-    fontFamily: "Inter-Regular",
-    color: "#94A3B8",
-    marginTop: 8,
-    fontStyle: "italic",
-  },
-  historyList: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    overflow: "hidden",
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  historyItem: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
-  },
-  historyHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  historyCondition: {
-    fontSize: 16,
-    fontFamily: "Inter-SemiBold",
-    color: "#1E293B",
-    flex: 1,
-  },
-  historyDate: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 8,
-  },
-  historyDateText: {
-    fontSize: 12,
-    fontFamily: "Inter-Regular",
-    color: "#64748B",
-  },
-  historyNotes: {
-    fontSize: 14,
-    fontFamily: "Inter-Regular",
-    color: "#64748B",
-    marginTop: 4,
-  },
-  allergiesList: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    overflow: "hidden",
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  allergyItem: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
-  },
-  allergyHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  allergyName: {
-    fontSize: 16,
-    fontFamily: "Inter-SemiBold",
-    color: "#1E293B",
-    flex: 1,
-  },
-  allergyReaction: {
-    fontSize: 14,
-    fontFamily: "Inter-Medium",
-    color: "#DC2626",
-    marginBottom: 4,
-  },
-  allergyNotes: {
-    fontSize: 12,
-    fontFamily: "Inter-Regular",
-    color: "#94A3B8",
-    marginTop: 4,
-    fontStyle: "italic",
-  },
-  emptyState: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 24,
-    alignItems: "center",
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  emptyText: {
-    fontSize: 14,
-    fontFamily: "Inter-Regular",
-    color: "#94A3B8",
-    textAlign: "center",
-  },
-  rtlText: {
-    fontFamily: "Inter-Regular",
-  },
-}) : {};
+const styles =
+  typeof StyleSheet !== "undefined"
+    ? StyleSheet.create({
+        container: {
+          flex: 1,
+          backgroundColor: "transparent",
+        },
+        figmaHeaderWrapper: {
+          marginBottom: -40,
+        },
+        figmaHeaderContent: {
+          paddingHorizontal: 24,
+          paddingTop: 56,
+          paddingBottom: 16,
+        },
+        figmaHeaderRow: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 12,
+        },
+        figmaBackButton: {
+          width: 40,
+          height: 40,
+          borderRadius: 12,
+          backgroundColor: "rgba(255, 255, 255, 0.2)",
+          alignItems: "center",
+          justifyContent: "center",
+          marginBottom: 16,
+        },
+        figmaHeaderProfile: {
+          flexDirection: "row",
+          alignItems: "flex-start",
+          gap: 16,
+        },
+        figmaAvatarRing: {
+          width: 72,
+          height: 72,
+          borderRadius: 36,
+          borderWidth: 4,
+          alignItems: "center",
+          justifyContent: "center",
+        },
+        figmaAvatarInner: {
+          width: 60,
+          height: 60,
+          borderRadius: 30,
+          backgroundColor: "rgba(255, 255, 255, 0.25)",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "hidden",
+        },
+        figmaAvatarImage: {
+          width: 60,
+          height: 60,
+          borderRadius: 30,
+        },
+        figmaAvatarText: {
+          fontSize: 20,
+          fontFamily: "Inter-Bold",
+          color: "#FFFFFF",
+          letterSpacing: 1,
+        },
+        figmaHeaderInfo: {
+          flex: 1,
+          paddingTop: 8,
+        },
+        statusExplanation: {
+          marginTop: 16,
+          padding: 16,
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: "rgba(255, 255, 255, 0.2)",
+          backgroundColor: "rgba(255, 255, 255, 0.1)",
+        },
+        statusExplanationText: {
+          fontSize: 14,
+          color: "rgba(255, 255, 255, 0.9)",
+          lineHeight: 20,
+        },
+        quickActions: {
+          flexDirection: "row",
+          flexWrap: "wrap",
+          justifyContent: "space-between",
+          paddingHorizontal: 24,
+          paddingTop: 16,
+          paddingBottom: 8,
+          gap: 12,
+        },
+        quickActionButton: {
+          flex: 1,
+          minWidth: "22%",
+          alignItems: "center",
+          paddingVertical: 12,
+          paddingHorizontal: 8,
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: "#E5E7EB",
+          backgroundColor: "#FFFFFF",
+        },
+        quickActionIconWrap: {
+          width: 48,
+          height: 48,
+          borderRadius: 12,
+          alignItems: "center",
+          justifyContent: "center",
+          marginBottom: 8,
+        },
+        quickActionLabel: {
+          fontSize: 12,
+          fontFamily: "Inter-Medium",
+          color: "#4E5661",
+        },
+        figmaHeaderTitle: {
+          flex: 1,
+        },
+        figmaHeaderTitleRow: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 4,
+        },
+        figmaHeaderTitleText: {
+          fontSize: 22,
+          fontFamily: "Inter-Bold",
+          color: "#FFFFFF",
+        },
+        figmaHeaderSubtitle: {
+          fontSize: 14,
+          fontFamily: "Inter-Regular",
+          color: "rgba(255, 255, 255, 0.85)",
+          marginTop: 4,
+          marginBottom: 8,
+        },
+        loadingContainer: {
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+        },
+        figmaContent: {
+          paddingHorizontal: 24,
+          paddingBottom: 32,
+        },
+        memberCard: {
+          backgroundColor: "#FFFFFF",
+          borderRadius: 16,
+          padding: 24,
+          alignItems: "center",
+          marginTop: 12,
+          marginBottom: 24,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 6,
+          elevation: 3,
+        },
+        memberName: {
+          fontSize: 22,
+          fontFamily: "Inter-Bold",
+          color: "#003543",
+          marginTop: 12,
+          textAlign: "center",
+        },
+        memberRelationship: {
+          fontSize: 14,
+          fontFamily: "Inter-Regular",
+          color: "#6C7280",
+          marginTop: 4,
+          textAlign: "center",
+        },
+        roleManagement: {
+          marginTop: 16,
+          alignItems: "center",
+        },
+        roleLabel: {
+          fontSize: 14,
+          fontFamily: "Inter-Medium",
+          color: "#1A1D1F",
+          marginBottom: 8,
+        },
+        roleButtons: {
+          flexDirection: "row",
+          gap: 8,
+        },
+        roleButton: {
+          paddingHorizontal: 16,
+          paddingVertical: 8,
+          borderRadius: 20,
+          borderWidth: 1,
+          borderColor: "#E5E7EB",
+          backgroundColor: "#F9FDFE",
+        },
+        roleButtonActive: {
+          backgroundColor: "#003543",
+          borderColor: "#003543",
+        },
+        roleButtonText: {
+          fontSize: 12,
+          fontFamily: "Inter-Medium",
+          color: "#6C7280",
+        },
+        roleButtonTextActive: {
+          color: "#FFFFFF",
+        },
+        caregiverAlertButton: {
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "#F59E0B",
+          paddingHorizontal: 16,
+          paddingVertical: 12,
+          borderRadius: 16,
+          marginTop: 16,
+          gap: 8,
+        },
+        caregiverAlertText: {
+          fontSize: 14,
+          fontFamily: "Inter-SemiBold",
+          color: "#FFFFFF",
+        },
+        section: {
+          marginBottom: 24,
+        },
+        sectionHeader: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 12,
+        },
+        sectionTitle: {
+          fontSize: 18,
+          fontFamily: "Inter-Bold",
+          color: "#003543",
+        },
+        sectionCount: {
+          fontSize: 13,
+          fontFamily: "Inter-Medium",
+          color: "#6C7280",
+        },
+        alertsList: {
+          backgroundColor: "#FFFFFF",
+          borderRadius: 16,
+          overflow: "hidden",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 6,
+          elevation: 3,
+        },
+        alertItem: {
+          flexDirection: "row",
+          padding: 16,
+          borderBottomWidth: 1,
+          borderBottomColor: "#F3F4F6",
+          gap: 12,
+        },
+        alertContent: {
+          flex: 1,
+        },
+        alertMessage: {
+          fontSize: 14,
+          fontFamily: "Inter-Medium",
+          color: "#1A1D1F",
+          marginBottom: 4,
+        },
+        alertTime: {
+          fontSize: 12,
+          fontFamily: "Inter-Regular",
+          color: "#6C7280",
+        },
+        vitalsGrid: {
+          flexDirection: "row",
+          flexWrap: "wrap",
+          justifyContent: "center",
+          alignContent: "center",
+          alignItems: "center",
+          gap: 12,
+          marginBottom: 12,
+        },
+        vitalCard: {
+          backgroundColor: "#FFFFFF",
+          borderRadius: 16,
+          padding: 16,
+          alignItems: "center",
+          justifyContent: "center",
+          minWidth: 100,
+          maxWidth: 120,
+          flexBasis: "30%",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 6,
+          elevation: 3,
+        },
+        vitalValue: {
+          fontSize: 20,
+          fontFamily: "Inter-Bold",
+          color: "#003543",
+          marginTop: 8,
+        },
+        vitalLabel: {
+          fontSize: 12,
+          fontFamily: "Inter-Regular",
+          color: "#6C7280",
+          marginTop: 4,
+        },
+        vitalsTimestamp: {
+          fontSize: 12,
+          fontFamily: "Inter-Regular",
+          color: "#94A3B8",
+          textAlign: "center",
+        },
+        insightSummaryCard: {
+          backgroundColor: "#FFFFFF",
+          borderRadius: 16,
+          padding: 12,
+          marginBottom: 12,
+          flexDirection: "row",
+          justifyContent: "space-between",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 6,
+          elevation: 3,
+        },
+        insightSummaryItem: {
+          flex: 1,
+          alignItems: "center",
+        },
+        insightSummaryValue: {
+          fontSize: 20,
+          fontFamily: "Inter-Bold",
+          color: "#003543",
+        },
+        insightSummaryLabel: {
+          fontSize: 12,
+          fontFamily: "Inter-Regular",
+          color: "#6C7280",
+          marginTop: 4,
+        },
+        insightsList: {
+          backgroundColor: "#FFFFFF",
+          borderRadius: 16,
+          overflow: "hidden",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 6,
+          elevation: 3,
+        },
+        insightItem: {
+          padding: 14,
+          borderBottomWidth: 1,
+          borderBottomColor: "#F3F4F6",
+        },
+        insightHeader: {
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 8,
+        },
+        insightTitleRow: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 8,
+          flex: 1,
+        },
+        insightTitle: {
+          fontSize: 14,
+          fontFamily: "Inter-SemiBold",
+          color: "#1A1D1F",
+          flex: 1,
+        },
+        insightConfidenceBadge: {
+          borderWidth: 1,
+          borderRadius: 999,
+          paddingHorizontal: 8,
+          paddingVertical: 2,
+          alignSelf: "flex-start",
+        },
+        insightConfidenceText: {
+          fontSize: 11,
+          fontFamily: "Inter-SemiBold",
+        },
+        insightDescription: {
+          fontSize: 13,
+          fontFamily: "Inter-Regular",
+          color: "#475569",
+          marginTop: 8,
+          lineHeight: 18,
+        },
+        insightRecommendation: {
+          fontSize: 12,
+          fontFamily: "Inter-Medium",
+          color: "#334155",
+          marginTop: 8,
+        },
+        insightsLoadingContainer: {
+          backgroundColor: "#FFFFFF",
+          borderRadius: 16,
+          padding: 16,
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 6,
+          elevation: 3,
+        },
+        insightsLoadingText: {
+          fontSize: 13,
+          fontFamily: "Inter-Regular",
+          color: "#6C7280",
+        },
+        symptomsList: {
+          backgroundColor: "#FFFFFF",
+          borderRadius: 16,
+          overflow: "hidden",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 6,
+          elevation: 3,
+        },
+        symptomItem: {
+          flexDirection: "row",
+          padding: 16,
+          borderBottomWidth: 1,
+          borderBottomColor: "#F3F4F6",
+        },
+        severityIndicator: {
+          width: 4,
+          borderRadius: 2,
+          marginEnd: 12,
+        },
+        symptomContent: {
+          flex: 1,
+        },
+        symptomHeader: {
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 4,
+        },
+        symptomType: {
+          fontSize: 16,
+          fontFamily: "Inter-SemiBold",
+          color: "#1A1D1F",
+          flex: 1,
+        },
+        severityBadge: {
+          paddingHorizontal: 8,
+          paddingVertical: 4,
+          borderRadius: 8,
+        },
+        severityBadgeText: {
+          fontSize: 10,
+          fontFamily: "Inter-SemiBold",
+          color: "#FFFFFF",
+        },
+        symptomDescription: {
+          fontSize: 14,
+          fontFamily: "Inter-Regular",
+          color: "#6C7280",
+          marginBottom: 4,
+        },
+        symptomTime: {
+          fontSize: 12,
+          fontFamily: "Inter-Regular",
+          color: "#94A3B8",
+        },
+        medicationsList: {
+          backgroundColor: "#FFFFFF",
+          borderRadius: 16,
+          overflow: "hidden",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 6,
+          elevation: 3,
+        },
+        medicationItem: {
+          padding: 16,
+          borderBottomWidth: 1,
+          borderBottomColor: "#F3F4F6",
+        },
+        medicationHeader: {
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 8,
+        },
+        medicationName: {
+          fontSize: 16,
+          fontFamily: "Inter-SemiBold",
+          color: "#1A1D1F",
+          flex: 1,
+        },
+        medicationStatus: {
+          marginStart: 8,
+        },
+        medicationDosage: {
+          fontSize: 14,
+          fontFamily: "Inter-Regular",
+          color: "#6C7280",
+          marginBottom: 8,
+        },
+        remindersList: {
+          marginTop: 8,
+          paddingTop: 8,
+          borderTopWidth: 1,
+          borderTopColor: "#F3F4F6",
+        },
+        remindersTitle: {
+          fontSize: 12,
+          fontFamily: "Inter-Medium",
+          color: "#6C7280",
+          marginBottom: 8,
+        },
+        reminderItem: {
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          paddingVertical: 4,
+        },
+        reminderTime: {
+          fontSize: 14,
+          fontFamily: "Inter-Regular",
+          color: "#1A1D1F",
+        },
+        medicationNotes: {
+          fontSize: 12,
+          fontFamily: "Inter-Regular",
+          color: "#94A3B8",
+          marginTop: 8,
+          fontStyle: "italic",
+        },
+        historyList: {
+          backgroundColor: "#FFFFFF",
+          borderRadius: 16,
+          overflow: "hidden",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 6,
+          elevation: 3,
+        },
+        historyItem: {
+          padding: 16,
+          borderBottomWidth: 1,
+          borderBottomColor: "#F3F4F6",
+        },
+        historyHeader: {
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 8,
+        },
+        historyCondition: {
+          fontSize: 16,
+          fontFamily: "Inter-SemiBold",
+          color: "#1A1D1F",
+          flex: 1,
+        },
+        historyDate: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 6,
+          marginBottom: 8,
+        },
+        historyDateText: {
+          fontSize: 12,
+          fontFamily: "Inter-Regular",
+          color: "#6C7280",
+        },
+        historyNotes: {
+          fontSize: 14,
+          fontFamily: "Inter-Regular",
+          color: "#6C7280",
+          marginTop: 4,
+        },
+        allergiesList: {
+          backgroundColor: "#FFFFFF",
+          borderRadius: 16,
+          overflow: "hidden",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 6,
+          elevation: 3,
+        },
+        allergyItem: {
+          padding: 16,
+          borderBottomWidth: 1,
+          borderBottomColor: "#F3F4F6",
+        },
+        allergyHeader: {
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 8,
+        },
+        allergyName: {
+          fontSize: 16,
+          fontFamily: "Inter-SemiBold",
+          color: "#1A1D1F",
+          flex: 1,
+        },
+        allergyReaction: {
+          fontSize: 14,
+          fontFamily: "Inter-Medium",
+          color: "#DC2626",
+          marginBottom: 4,
+        },
+        allergyNotes: {
+          fontSize: 12,
+          fontFamily: "Inter-Regular",
+          color: "#94A3B8",
+          marginTop: 4,
+          fontStyle: "italic",
+        },
+        emptyState: {
+          backgroundColor: "#FFFFFF",
+          borderRadius: 16,
+          padding: 24,
+          alignItems: "center",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 6,
+          elevation: 3,
+        },
+        emptyText: {
+          fontSize: 14,
+          fontFamily: "Inter-Regular",
+          color: "#94A3B8",
+          textAlign: "center",
+        },
+        rtlText: {
+          fontFamily: "Inter-Regular",
+        },
+      })
+    : {};

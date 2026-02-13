@@ -284,53 +284,54 @@ export default function ChangePasswordScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardView}
       >
-        {/* Header - Figma WavyBackground */}
-        <View style={styles.headerWrapper}>
-          <WavyBackground curve="home" height={220} variant="teal">
-            <View style={styles.headerContent}>
-              <View style={[styles.headerRow, isRTL && styles.headerRowRTL]}>
-                <TouchableOpacity
-                  onPress={() => router.back()}
-                  style={styles.backButton}
-                >
-                  <ArrowLeft
-                    color="#003543"
-                    size={20}
-                    style={
-                      isRTL ? { transform: [{ rotate: "180deg" }] } : undefined
-                    }
-                  />
-                </TouchableOpacity>
-                <View style={styles.headerTitle}>
-                  <View
-                    style={[
-                      styles.headerTitleRow,
-                      isRTL && styles.headerRowRTL,
-                    ]}
-                  >
-                    <Lock color="#EB9C0C" size={20} />
-                    <Text style={styles.headerTitleText}>
-                      {isRTL ? "تغيير كلمة المرور" : "Change Password"}
-                    </Text>
-                  </View>
-                  <Text
-                    style={[styles.headerSubtitle, isRTL && styles.rtlText]}
-                  >
-                    {isRTL
-                      ? "قم بتحديث كلمة المرور لحسابك"
-                      : "Update your account password"}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </WavyBackground>
-        </View>
-
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* Header - Figma WavyBackground */}
+          <View style={styles.headerWrapper}>
+            <WavyBackground curve="home" height={200} variant="teal">
+              <View style={styles.headerContent}>
+                <View style={[styles.headerRow, isRTL && styles.headerRowRTL]}>
+                  <TouchableOpacity
+                    onPress={() => router.back()}
+                    style={styles.backButton}
+                  >
+                    <ArrowLeft
+                      color="#003543"
+                      size={20}
+                      style={
+                        isRTL
+                          ? { transform: [{ rotate: "180deg" }] }
+                          : undefined
+                      }
+                    />
+                  </TouchableOpacity>
+                  <View style={styles.headerTitle}>
+                    <View
+                      style={[
+                        styles.headerTitleRow,
+                        isRTL && styles.headerRowRTL,
+                      ]}
+                    >
+                      <Lock color="#EB9C0C" size={20} />
+                      <Text style={styles.headerTitleText}>
+                        {isRTL ? "تغيير كلمة المرور" : "Change Password"}
+                      </Text>
+                    </View>
+                    <Text
+                      style={[styles.headerSubtitle, isRTL && styles.rtlText]}
+                    >
+                      {isRTL
+                        ? "قم بتحديث كلمة المرور لحسابك"
+                        : "Update your account password"}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </WavyBackground>
+          </View>
           <View style={styles.formCard}>
             {renderInput(
               isRTL ? "كلمة المرور الحالية" : "Current Password",
@@ -421,20 +422,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerWrapper: {
-    flexShrink: 0,
-    marginHorizontal: -20,
-    marginTop: -20,
-    marginBottom: 12,
+    marginHorizontal: -24,
+    marginBottom: 0,
   },
   headerContent: {
     paddingHorizontal: 24,
-    paddingTop: 20,
+    paddingTop: 40,
     paddingBottom: 16,
   },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    marginTop: 0,
   },
   headerRowRTL: {
     flexDirection: "row-reverse",
@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.5)",
+    backgroundColor: "rgba(0, 53, 67, 0.15)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -459,7 +459,7 @@ const styles = StyleSheet.create({
   headerTitleText: {
     fontSize: 22,
     fontFamily: "Inter-Bold",
-    color: "#FFFFFF",
+    color: "#003543",
   },
   headerSubtitle: {
     fontSize: 13,
@@ -468,6 +468,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 24,
+    paddingTop: 20,
     paddingBottom: 40,
   },
   formCard: {

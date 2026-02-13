@@ -409,72 +409,100 @@ export default function HealthInsightsCard({
             </View>
           </View>
 
-          {/* Trend Indicators */}
+          {/* Trend Charts with Sparklines */}
           <View style={styles.trendsRow}>
-            {weeklySummary.symptoms.trend !== "stable" && (
-              <View style={styles.trendItem}>
-                <Ionicons
-                  color={
-                    weeklySummary.symptoms.trend === "increasing"
-                      ? theme.colors.accent.error || "#EF4444"
-                      : theme.colors.accent.success || "#10B981"
-                  }
-                  name={
-                    weeklySummary.symptoms.trend === "increasing"
-                      ? "trending-up"
-                      : "trending-down"
-                  }
-                  size={16}
-                />
-                <Caption
-                  numberOfLines={1}
-                  style={[
-                    styles.trendText,
-                    {
-                      color:
-                        weeklySummary.symptoms.trend === "increasing"
-                          ? theme.colors.accent.error || "#EF4444"
-                          : theme.colors.accent.success || "#10B981",
-                    },
-                  ]}
-                >
-                  {weeklySummary.symptoms.trend === "increasing"
-                    ? t("symptomsIncreasing", "Symptoms ↑")
-                    : t("symptomsDecreasing", "Symptoms ↓")}
-                </Caption>
+            {(weeklySummary.symptoms.trend !== "stable" ||
+              (weeklySummary.dailyChartData?.symptomCounts &&
+                weeklySummary.dailyChartData.symptomCounts.some(
+                  (v) => v > 0
+                ))) && (
+              <View style={styles.trendChartCard}>
+                <View style={styles.trendChartHeader}>
+                  <Sparkline
+                    color={
+                      weeklySummary.symptoms.trend === "increasing"
+                        ? "#EF4444"
+                        : weeklySummary.symptoms.trend === "decreasing"
+                          ? "#10B981"
+                          : "#64748B"
+                    }
+                    data={
+                      weeklySummary.dailyChartData?.symptomCounts ||
+                      Array(7).fill(0)
+                    }
+                    height={36}
+                    width={80}
+                  />
+                  <View style={styles.trendChartLabel}>
+                    <Caption
+                      numberOfLines={1}
+                      style={[
+                        styles.trendText,
+                        {
+                          color:
+                            weeklySummary.symptoms.trend === "increasing"
+                              ? "#EF4444"
+                              : weeklySummary.symptoms.trend === "decreasing"
+                                ? "#10B981"
+                                : theme.colors.text.secondary,
+                        },
+                      ]}
+                    >
+                      {weeklySummary.symptoms.trend === "increasing"
+                        ? t("symptomsIncreasing", "Symptoms ↑")
+                        : weeklySummary.symptoms.trend === "decreasing"
+                          ? t("symptomsDecreasing", "Symptoms ↓")
+                          : t("symptoms", "Symptoms")}
+                    </Caption>
+                  </View>
+                </View>
               </View>
             )}
-            {weeklySummary.moods.trend !== "stable" && (
-              <View style={styles.trendItem}>
-                <Ionicons
-                  color={
-                    weeklySummary.moods.trend === "improving"
-                      ? theme.colors.accent.success || "#10B981"
-                      : theme.colors.accent.error || "#EF4444"
-                  }
-                  name={
-                    weeklySummary.moods.trend === "improving"
-                      ? "trending-up"
-                      : "trending-down"
-                  }
-                  size={16}
-                />
-                <Caption
-                  numberOfLines={1}
-                  style={[
-                    styles.trendText,
-                    {
-                      color:
-                        weeklySummary.moods.trend === "improving"
-                          ? theme.colors.accent.success || "#10B981"
-                          : theme.colors.accent.error || "#EF4444",
-                    },
-                  ]}
-                >
-                  {weeklySummary.moods.trend === "improving"
-                    ? t("moodImproving", "Mood ↑")
-                    : t("moodDeclining", "Mood ↓")}
-                </Caption>
+            {(weeklySummary.moods.trend !== "stable" ||
+              (weeklySummary.dailyChartData?.moodIntensities &&
+                weeklySummary.dailyChartData.moodIntensities.some(
+                  (v) => v > 0
+                ))) && (
+              <View style={styles.trendChartCard}>
+                <View style={styles.trendChartHeader}>
+                  <Sparkline
+                    color={
+                      weeklySummary.moods.trend === "improving"
+                        ? "#10B981"
+                        : weeklySummary.moods.trend === "declining"
+                          ? "#EF4444"
+                          : "#64748B"
+                    }
+                    data={
+                      weeklySummary.dailyChartData?.moodIntensities ||
+                      Array(7).fill(0)
+                    }
+                    height={36}
+                    width={80}
+                  />
+                  <View style={styles.trendChartLabel}>
+                    <Caption
+                      numberOfLines={1}
+                      style={[
+                        styles.trendText,
+                        {
+                          color:
+                            weeklySummary.moods.trend === "improving"
+                              ? "#10B981"
+                              : weeklySummary.moods.trend === "declining"
+                                ? "#EF4444"
+                                : theme.colors.text.secondary,
+                        },
+                      ]}
+                    >
+                      {weeklySummary.moods.trend === "improving"
+                        ? t("moodImproving", "Mood ↑")
+                        : weeklySummary.moods.trend === "declining"
+                          ? t("moodDeclining", "Mood ↓")
+                          : t("mood", "Mood")}
+                    </Caption>
+                  </View>
+                </View>
               </View>
             )}
           </View>
@@ -660,6 +688,20 @@ const getStyles = (theme: any, isRTL: boolean) => ({
     flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",
     alignItems: "center" as const,
     gap: theme.spacing.xs,
+  } as ViewStyle,
+  trendChartCard: {
+    backgroundColor: theme.colors.background.secondary,
+    borderRadius: theme.borderRadius.sm,
+    padding: theme.spacing.sm,
+    minWidth: 100,
+  } as ViewStyle,
+  trendChartHeader: {
+    flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",
+    alignItems: "center" as const,
+    gap: theme.spacing.sm,
+  } as ViewStyle,
+  trendChartLabel: {
+    flex: 1,
   } as ViewStyle,
   trendText: {
     fontSize: 12,

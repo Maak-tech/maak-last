@@ -88,7 +88,7 @@ function getSeverityColor(severityLevel: number): string {
 
 function getSeverityText(
   severityLevel: number,
-  translate: (key: string, fallback?: string) => string
+  translate: (key: string, options?: { defaultValue?: string }) => string
 ): string {
   const fallbacks: Record<number, string> = {
     1: "Very mild",
@@ -97,8 +97,14 @@ function getSeverityText(
     4: "Significant",
     5: "Severe",
   };
-  const key = `symptomSeverity${severityLevel}`;
-  return translate(key, fallbacks[severityLevel] ?? "Unknown");
+  const level = Math.min(
+    5,
+    Math.max(1, Math.round(Number(severityLevel) || 1))
+  );
+  const key = `symptomSeverity${level}`;
+  const fallback = fallbacks[level] ?? "Unknown";
+  const result = translate(key, { defaultValue: fallback });
+  return typeof result === "string" ? result : fallback;
 }
 
 export default function TrackScreen() {
@@ -195,10 +201,31 @@ export default function TrackScreen() {
     return Math.max(0, Math.round((delta / prev.length) * 100));
   }, [symptoms]);
 
-  const symptomTrendData = useMemo(
-    () => chartsService.prepareSymptomTimeSeries(symptoms, 7),
-    [symptoms]
-  );
+  const symptomTrendData = useMemo(() => {
+    const real = chartsService.prepareSymptomTimeSeries(symptoms, 7);
+    const hasData = real.datasets[0]?.data.some((v) => v > 0) ?? false;
+    if (hasData) {
+      return real;
+    }
+    // Mock chart when no symptom data: 7 days of sample severity (1-5 scale)
+    const labels: string[] = [];
+    const mockData = [1.5, 2, 1.8, 2.2, 1.6, 2.5, 2];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      labels.push(`${d.getMonth() + 1}/${d.getDate()}`);
+    }
+    return {
+      labels,
+      datasets: [
+        {
+          data: mockData,
+          color: (opacity: number) => `rgba(239, 68, 68, ${opacity})`,
+          strokeWidth: 2,
+        },
+      ],
+    };
+  }, [symptoms]);
 
   const loadSymptoms = useCallback(
     async (isRefresh = false) => {
@@ -771,7 +798,7 @@ export default function TrackScreen() {
       style={styles.container}
     >
       <ScrollView
-        contentContainerStyle={styles.figmaSymptomContent}
+        contentContainerStyle={styles.figmaSymptomScrollContent}
         refreshControl={
           <RefreshControl
             onRefresh={() => loadSymptoms(true)}
@@ -781,6 +808,7 @@ export default function TrackScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
+        {/* Header - scrolls with content */}
         <View style={styles.figmaSymptomHeaderWrap}>
           <WavyBackground curve="home" height={240} variant="teal">
             <View style={styles.figmaSymptomHeaderContent}>
@@ -811,169 +839,182 @@ export default function TrackScreen() {
           </WavyBackground>
         </View>
 
-        <FamilyDataFilter
-          currentUserId={user.id}
-          familyMembers={familyMembers}
-          hasFamily={hasFamily}
-          isAdmin={isAdmin}
-          onFilterChange={handleFilterChange}
-          selectedFilter={selectedFilter}
-        />
-
-        <View style={styles.figmaSymptomStatsRow}>
-          <View style={styles.figmaSymptomStatCard}>
-            <Text style={styles.figmaSymptomStatValue}>{symptomsThisWeek}</Text>
-            <Text style={styles.figmaSymptomStatLabel}>This Week</Text>
-          </View>
-          <View style={styles.figmaSymptomStatCard}>
-            <Text style={[styles.figmaSymptomStatValue, { color: "#F97316" }]}>
-              {avgSeverityThisWeek.toFixed(1)}
-            </Text>
-            <Text style={styles.figmaSymptomStatLabel}>Avg Severity</Text>
-          </View>
-          <View style={styles.figmaSymptomStatCard}>
-            <View style={styles.figmaSymptomTrendRow}>
-              <TrendingUp color="#10B981" size={14} />
-              <Text
-                style={[styles.figmaSymptomStatValue, { color: "#10B981" }]}
-              >
-                {improvementPercent}%
-              </Text>
-            </View>
-            <Text style={styles.figmaSymptomStatLabel}>Improving</Text>
-          </View>
-        </View>
-
-        <View style={styles.figmaSymptomSection}>
-          <View style={styles.figmaSymptomSectionHeader}>
-            <Text style={styles.figmaSymptomSectionTitle}>Severity Trend</Text>
-            <TouchableOpacity>
-              <Text style={styles.figmaSymptomSectionLink}>7 Days</Text>
-            </TouchableOpacity>
-          </View>
-          <HealthChart
-            data={symptomTrendData}
-            height={200}
-            showGrid={true}
-            showLegend={false}
-            title=""
-            yAxisSuffix=""
+        <View style={styles.figmaSymptomContent}>
+          <FamilyDataFilter
+            currentUserId={user.id}
+            familyMembers={familyMembers}
+            hasFamily={hasFamily}
+            isAdmin={isAdmin}
+            onFilterChange={handleFilterChange}
+            selectedFilter={selectedFilter}
           />
-          <View style={styles.figmaSymptomTrendFootnote}>
-            <Text style={styles.figmaSymptomTrendFootnoteText}>
-              1 = Minimal
-            </Text>
-            <Text style={styles.figmaSymptomTrendFootnoteText}>5 = Severe</Text>
-          </View>
-        </View>
 
-        <View style={styles.figmaSymptomSection}>
-          <Text style={styles.figmaSymptomSectionTitle}>Quick Add</Text>
-          <View style={styles.figmaSymptomQuickAddGrid}>
-            {["nausea", "headache", "fatigue", "dizziness"].map((key) => (
-              <TouchableOpacity
-                key={key}
-                onPress={() => {
-                  setSelectedSymptom(key);
-                  setSelectedTargetUser(user.id);
-                  setShowAddModal(true);
-                }}
-                style={styles.figmaSymptomQuickAddButton}
+          <View style={styles.figmaSymptomStatsRow}>
+            <View style={styles.figmaSymptomStatCard}>
+              <Text style={styles.figmaSymptomStatValue}>
+                {symptomsThisWeek}
+              </Text>
+              <Text style={styles.figmaSymptomStatLabel}>This Week</Text>
+            </View>
+            <View style={styles.figmaSymptomStatCard}>
+              <Text
+                style={[styles.figmaSymptomStatValue, { color: "#F97316" }]}
               >
-                <Text style={styles.figmaSymptomQuickAddText}>+ {t(key)}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.figmaSymptomSection}>
-          <View style={styles.figmaSymptomSectionHeader}>
-            <Text style={styles.figmaSymptomSectionTitle}>Recent Entries</Text>
-            <TouchableOpacity>
-              <Text style={styles.figmaSymptomSectionLink}>View All</Text>
-            </TouchableOpacity>
-          </View>
-          {loading ? (
-            <View style={styles.figmaSymptomEmptyState}>
-              <Text style={styles.figmaSymptomEmptyText}>
-                Loading symptoms...
+                {avgSeverityThisWeek.toFixed(1)}
               </Text>
+              <Text style={styles.figmaSymptomStatLabel}>Avg Severity</Text>
             </View>
-          ) : recentSymptoms.length === 0 ? (
-            <View style={styles.figmaSymptomEmptyState}>
-              <Text style={styles.figmaSymptomEmptyText}>
-                No symptoms recorded
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.figmaSymptomList}>
-              {recentSymptoms.map((symptom) => (
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  key={symptom.id}
-                  onPress={() => handleEditSymptom(symptom)}
-                  style={styles.figmaSymptomCard}
+            <View style={styles.figmaSymptomStatCard}>
+              <View style={styles.figmaSymptomTrendRow}>
+                <TrendingUp color="#10B981" size={14} />
+                <Text
+                  style={[styles.figmaSymptomStatValue, { color: "#10B981" }]}
                 >
-                  <View style={styles.figmaSymptomCardHeader}>
-                    <View
-                      style={[
-                        styles.figmaSymptomIconWrap,
-                        {
-                          backgroundColor: `${getSeverityColor(
-                            symptom.severity
-                          )}15`,
-                        },
-                      ]}
-                    >
-                      <Activity
-                        color={getSeverityColor(symptom.severity)}
-                        size={20}
-                      />
-                    </View>
-                    <View style={styles.figmaSymptomCardInfo}>
-                      <View style={styles.figmaSymptomCardTitleRow}>
-                        <Text style={styles.figmaSymptomCardTitle}>
-                          {t(symptom.type, formatSymptomLabel(symptom.type))}
-                        </Text>
-                        <View
-                          style={[
-                            styles.figmaSymptomSeverityBadge,
-                            {
-                              backgroundColor: `${getSeverityColor(
-                                symptom.severity
-                              )}15`,
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.figmaSymptomSeverityText,
-                              { color: getSeverityColor(symptom.severity) },
-                            ]}
-                          >
-                            {getSeverityText(symptom.severity, t)}
-                          </Text>
-                        </View>
-                      </View>
-                      <Text style={styles.figmaSymptomCardMeta}>
-                        {symptom.description || "No notes"}
-                      </Text>
-                      <View style={styles.figmaSymptomCardTimeRow}>
-                        <Clock color="#6C7280" size={12} />
-                        <Text style={styles.figmaSymptomCardTime}>
-                          {formatDate(symptom.timestamp) || ""}
-                        </Text>
-                      </View>
-                    </View>
-                    <ChevronRight color="#94A3B8" size={18} />
-                  </View>
+                  {improvementPercent}%
+                </Text>
+              </View>
+              <Text style={styles.figmaSymptomStatLabel}>Improving</Text>
+            </View>
+          </View>
+
+          <View style={styles.figmaSymptomSection}>
+            <View style={styles.figmaSymptomSectionHeader}>
+              <Text style={styles.figmaSymptomSectionTitle}>
+                Severity Trend
+              </Text>
+              <TouchableOpacity>
+                <Text style={styles.figmaSymptomSectionLink}>7 Days</Text>
+              </TouchableOpacity>
+            </View>
+            <HealthChart
+              data={symptomTrendData}
+              height={200}
+              showGrid={true}
+              showLegend={false}
+              title=""
+              yAxisSuffix=""
+            />
+            <View style={styles.figmaSymptomTrendFootnote}>
+              <Text style={styles.figmaSymptomTrendFootnoteText}>
+                1 = Minimal
+              </Text>
+              <Text style={styles.figmaSymptomTrendFootnoteText}>
+                5 = Severe
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.figmaSymptomSection}>
+            <Text style={styles.figmaSymptomSectionTitle}>Quick Add</Text>
+            <View style={styles.figmaSymptomQuickAddGrid}>
+              {["nausea", "headache", "fatigue", "dizziness"].map((key) => (
+                <TouchableOpacity
+                  key={key}
+                  onPress={() => {
+                    setSelectedSymptom(key);
+                    setSelectedTargetUser(user.id);
+                    setShowAddModal(true);
+                  }}
+                  style={styles.figmaSymptomQuickAddButton}
+                >
+                  <Text style={styles.figmaSymptomQuickAddText}>
+                    + {t(key)}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
-          )}
+          </View>
+
+          <View style={styles.figmaSymptomSection}>
+            <View style={styles.figmaSymptomSectionHeader}>
+              <Text style={styles.figmaSymptomSectionTitle}>
+                Recent Entries
+              </Text>
+              <TouchableOpacity>
+                <Text style={styles.figmaSymptomSectionLink}>View All</Text>
+              </TouchableOpacity>
+            </View>
+            {loading ? (
+              <View style={styles.figmaSymptomEmptyState}>
+                <Text style={styles.figmaSymptomEmptyText}>
+                  Loading symptoms...
+                </Text>
+              </View>
+            ) : recentSymptoms.length === 0 ? (
+              <View style={styles.figmaSymptomEmptyState}>
+                <Text style={styles.figmaSymptomEmptyText}>
+                  No symptoms recorded
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.figmaSymptomList}>
+                {recentSymptoms.map((symptom) => (
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    key={symptom.id}
+                    onPress={() => handleEditSymptom(symptom)}
+                    style={styles.figmaSymptomCard}
+                  >
+                    <View style={styles.figmaSymptomCardHeader}>
+                      <View
+                        style={[
+                          styles.figmaSymptomIconWrap,
+                          {
+                            backgroundColor: `${getSeverityColor(
+                              symptom.severity
+                            )}15`,
+                          },
+                        ]}
+                      >
+                        <Activity
+                          color={getSeverityColor(symptom.severity)}
+                          size={20}
+                        />
+                      </View>
+                      <View style={styles.figmaSymptomCardInfo}>
+                        <View style={styles.figmaSymptomCardTitleRow}>
+                          <Text style={styles.figmaSymptomCardTitle}>
+                            {t(symptom.type, formatSymptomLabel(symptom.type))}
+                          </Text>
+                          <View
+                            style={[
+                              styles.figmaSymptomSeverityBadge,
+                              {
+                                backgroundColor: `${getSeverityColor(
+                                  symptom.severity
+                                )}15`,
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.figmaSymptomSeverityText,
+                                { color: getSeverityColor(symptom.severity) },
+                              ]}
+                            >
+                              {getSeverityText(symptom.severity, t)}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text style={styles.figmaSymptomCardMeta}>
+                          {symptom.description || "No notes"}
+                        </Text>
+                        <View style={styles.figmaSymptomCardTimeRow}>
+                          <Clock color="#6C7280" size={12} />
+                          <Text style={styles.figmaSymptomCardTime}>
+                            {formatDate(symptom.timestamp) || ""}
+                          </Text>
+                        </View>
+                      </View>
+                      <ChevronRight color="#94A3B8" size={18} />
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
         </View>
       </ScrollView>
-
       <TouchableOpacity
         onPress={() => {
           setSelectedTargetUser(user.id);
@@ -983,7 +1024,6 @@ export default function TrackScreen() {
       >
         <Plus color="#FFFFFF" size={22} />
       </TouchableOpacity>
-
       {/* Add Symptom Modal */}
       <Modal
         animationType="slide"
@@ -1009,8 +1049,8 @@ export default function TrackScreen() {
                   ? "تعديل العرض"
                   : "Edit Symptom"
                 : isRTL
-                  ? "إضافة أعراض صحية جديدة"
-                  : "Add New Symptom"}
+                  ? "تسجيل عرض صحي"
+                  : "Log Symptom"}
             </Heading>
             <TouchableOpacity
               onPress={() => {
@@ -1023,7 +1063,7 @@ export default function TrackScreen() {
               }}
               style={styles.closeButton}
             >
-              <X color="#64748B" size={24} />
+              <X color="#6C7280" size={20} />
             </TouchableOpacity>
           </View>
 
@@ -1186,6 +1226,7 @@ export default function TrackScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+      ;
     </GradientScreen>
   );
 }
@@ -1195,14 +1236,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F8FAFC",
   },
+  figmaSymptomScrollContent: {
+    paddingBottom: 140,
+  },
   figmaSymptomHeaderWrap: {
-    marginHorizontal: -20,
-    marginTop: -20,
-    marginBottom: 12,
+    marginBottom: -40,
   },
   figmaSymptomHeaderContent: {
     paddingHorizontal: 24,
-    paddingTop: 20,
+    paddingTop: 56,
     paddingBottom: 16,
   },
   figmaSymptomHeaderRow: {
@@ -1214,7 +1256,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.5)",
+    backgroundColor: "rgba(0, 53, 67, 0.15)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1230,7 +1272,7 @@ const styles = StyleSheet.create({
   figmaSymptomTitle: {
     fontSize: 22,
     fontFamily: "Inter-Bold",
-    color: "#FFFFFF",
+    color: "#003543",
   },
   figmaSymptomSubtitle: {
     fontSize: 13,
@@ -1247,7 +1289,7 @@ const styles = StyleSheet.create({
   },
   figmaSymptomContent: {
     paddingHorizontal: 20,
-    paddingBottom: 140,
+    paddingTop: 24,
   },
   figmaSymptomStatsRow: {
     flexDirection: "row",
@@ -1501,7 +1543,7 @@ const styles = StyleSheet.create({
   figmaSymptomFab: {
     position: "absolute",
     right: 20,
-    bottom: 24,
+    bottom: 100,
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -1723,40 +1765,45 @@ const styles = StyleSheet.create({
     color: "#EF4444",
     textAlign: "center",
   },
-  // Modal styles
+  // Modal styles - Figma design & Maak theme (#003543 primary, #EB9C0C accent)
   modalContainer: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#FFFFFF",
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    paddingBottom: 24,
     backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
   },
   modalTitle: {
     fontSize: 20,
-    fontFamily: "Inter-SemiBold",
-    color: "#1E293B",
+    fontFamily: "Inter-Bold",
+    color: "#1A1D1F",
   },
   closeButton: {
-    padding: 4,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
   },
   modalContent: {
     flex: 1,
-    padding: 20,
+    paddingHorizontal: 24,
+    paddingBottom: 32,
   },
   fieldGroup: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   fieldLabel: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: "Inter-SemiBold",
-    color: "#1E293B",
+    color: "#1A1D1F",
     marginBottom: 8,
   },
   symptomsGrid: {
@@ -1765,35 +1812,35 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   symptomOption: {
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#E5E7EB",
   },
   symptomOptionSelected: {
-    backgroundColor: "#2563EB",
-    borderColor: "#2563EB",
+    backgroundColor: "rgba(0, 53, 67, 0.05)",
+    borderColor: "#003543",
   },
   symptomOptionText: {
     fontSize: 14,
-    fontFamily: "Inter-Medium",
-    color: "#64748B",
+    fontFamily: "Inter-SemiBold",
+    color: "#6C7280",
   },
   symptomOptionTextSelected: {
-    color: "#FFFFFF",
+    color: "#003543",
   },
   textInput: {
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 8,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
     fontFamily: "Inter-Regular",
-    color: "#1E293B",
+    color: "#1A1D1F",
   },
   rtlTextInput: {
     fontFamily: "Inter-Regular",
@@ -1803,7 +1850,7 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
   },
   severityContainer: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   severityButtons: {
     flexDirection: "row",
@@ -1812,25 +1859,25 @@ const styles = StyleSheet.create({
   },
   severityButton: {
     flex: 1,
-    height: 44,
-    backgroundColor: "#F1F5F9",
-    borderRadius: 8,
+    height: 48,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderWidth: 2,
+    borderColor: "#E5E7EB",
   },
   severityButtonActive: {
-    backgroundColor: "#2563EB",
-    borderColor: "#2563EB",
+    backgroundColor: "rgba(0, 53, 67, 0.05)",
+    borderColor: "#003543",
   },
   severityButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: "Inter-SemiBold",
-    color: "#64748B",
+    color: "#6C7280",
   },
   severityButtonTextActive: {
-    color: "#FFFFFF",
+    color: "#003543",
   },
   severityLabels: {
     flexDirection: "row",
@@ -1839,11 +1886,11 @@ const styles = StyleSheet.create({
   severityLabel: {
     fontSize: 12,
     fontFamily: "Inter-Medium",
-    color: "#64748B",
+    color: "#6C7280",
   },
   saveButton: {
-    backgroundColor: "#2563EB",
-    borderRadius: 8,
+    backgroundColor: "#003543",
+    borderRadius: 12,
     paddingVertical: 16,
     alignItems: "center",
     marginTop: 24,
@@ -1862,15 +1909,15 @@ const styles = StyleSheet.create({
   },
   memberOption: {
     backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
   memberOptionSelected: {
-    backgroundColor: "#EBF4FF",
-    borderColor: "#2563EB",
+    backgroundColor: "rgba(0, 53, 67, 0.05)",
+    borderColor: "#003543",
   },
   memberInfo: {
     flexDirection: "row",
@@ -1880,22 +1927,22 @@ const styles = StyleSheet.create({
   memberName: {
     fontSize: 16,
     fontFamily: "Inter-Medium",
-    color: "#1E293B",
+    color: "#1A1D1F",
   },
   memberNameSelected: {
-    color: "#2563EB",
+    color: "#003543",
   },
   memberRole: {
     fontSize: 12,
     fontFamily: "Inter-Medium",
-    color: "#64748B",
-    backgroundColor: "#F1F5F9",
+    color: "#6C7280",
+    backgroundColor: "#F3F4F6",
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
   },
   memberRoleSelected: {
-    color: "#2563EB",
-    backgroundColor: "#EBF4FF",
+    color: "#003543",
+    backgroundColor: "rgba(0, 53, 67, 0.08)",
   },
 });

@@ -1,4 +1,4 @@
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Heart } from "lucide-react-native";
 import { type ComponentType, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useAuth } from "@/contexts/AuthContext";
 
 // This screen is isolated - TextImpl errors only affect this route
@@ -95,7 +96,7 @@ export default function PPGMeasureScreen() {
           <TouchableOpacity
             onPress={() =>
               params.returnTo === "track"
-                ? router.push("/(tabs)/track")
+                ? router.replace("/(tabs)/track")
                 : router.back()
             }
             style={styles.backButtonLarge}
@@ -133,24 +134,49 @@ export default function PPGMeasureScreen() {
 
       {/* No fallback banner - if VisionCamera fails, show error screen only */}
 
-      {/* PPG Component */}
+      {/* PPG Component - wrapped in ErrorBoundary to catch native/camera failures */}
       <View style={{ flex: 1 }}>
-        <PPGComponent
-          onClose={() => {
-            // Navigate back when closed
-            if (params.returnTo === "track") {
-              router.push("/(tabs)/track");
-            } else {
-              router.back();
-            }
-          }}
-          onMeasurementComplete={() => {
-            // Keep this route mounted so the PPG modal can show the success UI + score.
-            // The user can tap "Done" which triggers `onClose` and navigates back.
-          }}
-          userId={user.id}
-          visible={true}
-        />
+        <ErrorBoundary
+          fallback={
+            <View style={[styles.container, styles.errorContainer]}>
+              <Heart color="#EF4444" size={48} />
+              <Text style={styles.errorTitle}>
+                {t("ppgMeasurementUnavailable", "PPG Measurement Unavailable")}
+              </Text>
+              <Text style={styles.errorText}>
+                {t(
+                  "ppgRequiresNativeBuild",
+                  "Real camera heart rate measurement requires a native build with react-native-vision-camera."
+                )}
+              </Text>
+              <TouchableOpacity
+                onPress={() =>
+                  params.returnTo === "track"
+                    ? router.replace("/(tabs)/track")
+                    : router.back()
+                }
+                style={styles.backButtonLarge}
+              >
+                <Text style={styles.backButtonLargeText}>
+                  {t("goBack", "Go Back")}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          }
+        >
+          <PPGComponent
+            onClose={() => {
+              if (params.returnTo === "track") {
+                router.replace("/(tabs)/track");
+              } else {
+                router.back();
+              }
+            }}
+            onMeasurementComplete={() => {}}
+            userId={user.id}
+            visible={true}
+          />
+        </ErrorBoundary>
       </View>
     </View>
   );

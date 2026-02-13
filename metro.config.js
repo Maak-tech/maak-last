@@ -17,7 +17,8 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   // Be very specific to avoid accidentally intercepting other modules
   if (
     moduleName === "@react-native/push-notification-ios" ||
-    moduleName === "react-native/Libraries/PushNotificationIOS/PushNotificationIOS" ||
+    moduleName ===
+      "react-native/Libraries/PushNotificationIOS/PushNotificationIOS" ||
     moduleName === "react-native/Libraries/PushNotificationIOS"
   ) {
     return {

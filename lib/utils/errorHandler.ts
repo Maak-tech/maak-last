@@ -72,7 +72,9 @@ function handleGlobalError(error: Error, isFatal = false) {
         const emit =
           isFatal &&
           typeof observabilityEmitter.emitImmediatePlatformEvent === "function"
-            ? observabilityEmitter.emitImmediatePlatformEvent.bind(observabilityEmitter)
+            ? observabilityEmitter.emitImmediatePlatformEvent.bind(
+                observabilityEmitter
+              )
             : observabilityEmitter.emitPlatformEvent.bind(observabilityEmitter);
 
         void emit(

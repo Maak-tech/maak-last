@@ -251,23 +251,44 @@ export default function BloodPressureScreen() {
       .slice(0, 7)
       .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
 
+    if (points.length > 0) {
+      return {
+        labels: points.map((reading) =>
+          reading.timestamp.toLocaleDateString(isRTL ? "ar-EG" : "en-US", {
+            weekday: "short",
+          })
+        ),
+        datasets: [
+          {
+            data: points.map((reading) => reading.systolic),
+            color: () => "#DC2626",
+            strokeWidth: 2.5,
+          },
+          {
+            data: points.map((reading) => reading.diastolic),
+            color: () => "#3B82F6",
+            strokeWidth: 2.5,
+          },
+        ],
+      };
+    }
+
+    // Mock chart when no data: 7 days of sample BP values
+    const mockSystolic = [118, 120, 119, 122, 118, 121, 121];
+    const mockDiastolic = [78, 76, 80, 79, 77, 78, 79];
+    const labels: string[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      labels.push(
+        d.toLocaleDateString(isRTL ? "ar-EG" : "en-US", { weekday: "short" })
+      );
+    }
     return {
-      labels: points.map((reading) =>
-        reading.timestamp.toLocaleDateString(isRTL ? "ar-EG" : "en-US", {
-          weekday: "short",
-        })
-      ),
+      labels,
       datasets: [
-        {
-          data: points.map((reading) => reading.systolic),
-          color: () => "#DC2626",
-          strokeWidth: 2.5,
-        },
-        {
-          data: points.map((reading) => reading.diastolic),
-          color: () => "#3B82F6",
-          strokeWidth: 2.5,
-        },
+        { data: mockSystolic, color: () => "#DC2626", strokeWidth: 2.5 },
+        { data: mockDiastolic, color: () => "#3B82F6", strokeWidth: 2.5 },
       ],
     };
   }, [readings, isRTL]);
@@ -486,31 +507,27 @@ export default function BloodPressureScreen() {
                   <Text style={styles.sectionTitle}>Pressure Trend</Text>
                   <Text style={styles.sectionAction}>7 Days</Text>
                 </View>
-                {chartData.labels.length > 0 ? (
-                  <LineChart
-                    chartConfig={{
-                      backgroundGradientFrom: "#FFFFFF",
-                      backgroundGradientTo: "#FFFFFF",
-                      color: (opacity = 1) => `rgba(30, 41, 59, ${opacity})`,
-                      labelColor: (opacity = 1) =>
-                        `rgba(107, 114, 128, ${opacity})`,
-                      propsForDots: {
-                        r: "3",
-                      },
-                      propsForBackgroundLines: {
-                        strokeDasharray: "3 3",
-                        stroke: "#E5E7EB",
-                      },
-                    }}
-                    data={chartData}
-                    height={220}
-                    style={styles.chart}
-                    width={Dimensions.get("window").width - 48}
-                    withShadow={false}
-                  />
-                ) : (
-                  <Text style={styles.emptyText}>No data to display</Text>
-                )}
+                <LineChart
+                  chartConfig={{
+                    backgroundGradientFrom: "#FFFFFF",
+                    backgroundGradientTo: "#FFFFFF",
+                    color: (opacity = 1) => `rgba(30, 41, 59, ${opacity})`,
+                    labelColor: (opacity = 1) =>
+                      `rgba(107, 114, 128, ${opacity})`,
+                    propsForDots: {
+                      r: "3",
+                    },
+                    propsForBackgroundLines: {
+                      strokeDasharray: "3 3",
+                      stroke: "#E5E7EB",
+                    },
+                  }}
+                  data={chartData}
+                  height={220}
+                  style={styles.chart}
+                  width={Dimensions.get("window").width - 48}
+                  withShadow={false}
+                />
                 <View style={styles.chartLegend}>
                   <Text style={styles.chartLegendText}>Normal: &lt;120/80</Text>
                   <Text style={styles.chartLegendText}>
@@ -729,8 +746,6 @@ export default function BloodPressureScreen() {
 const styles = StyleSheet.create({
   headerWrapper: {
     flexShrink: 0,
-    marginHorizontal: -20,
-    marginTop: -20,
     marginBottom: 12,
   },
   scrollView: {
@@ -751,7 +766,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.4)",
+    backgroundColor: "rgba(0, 53, 67, 0.15)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -767,7 +782,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontFamily: "Inter-Bold",
-    color: "#FFFFFF",
+    color: "#003543",
   },
   headerSubtitle: {
     fontSize: 14,
@@ -1008,7 +1023,7 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: "absolute",
-    bottom: 32,
+    bottom: 100,
     right: 24,
     width: 56,
     height: 56,

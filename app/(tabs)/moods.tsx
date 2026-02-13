@@ -1,6 +1,6 @@
 /* biome-ignore-all lint/style/noNestedTernary: preserving existing UI conditional copy paths in this batch. */
 /* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: large legacy screen to be split in future refactor batches. */
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
   ArrowLeft,
   Brain,
@@ -1413,7 +1413,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.5)",
+    backgroundColor: "rgba(0, 53, 67, 0.15)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1429,7 +1429,7 @@ const styles = StyleSheet.create({
   figmaMoodTitle: {
     fontSize: 22,
     fontFamily: "Inter-Bold",
-    color: "#FFFFFF",
+    color: "#003543",
   },
   figmaMoodSubtitle: {
     fontSize: 13,
@@ -1816,7 +1816,7 @@ const styles = StyleSheet.create({
   figmaMoodFab: {
     position: "absolute",
     right: 20,
-    bottom: 24,
+    bottom: 100,
     width: 56,
     height: 56,
     borderRadius: 28,

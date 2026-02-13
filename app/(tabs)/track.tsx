@@ -267,6 +267,13 @@ export default function TrackScreen() {
     return count;
   };
 
+  const formatLabel = (value: string) => {
+    if (!value) return "";
+    return value
+      .replace(/([A-Z])/g, " $1")
+      .replace(/^./, (char) => char.toUpperCase());
+  };
+
   const recentActivityItems = () => {
     const items = [] as {
       id: string;
@@ -277,9 +284,10 @@ export default function TrackScreen() {
     }[];
 
     recentSymptoms.slice(0, 2).forEach((symptom) => {
+      const label = t(symptom.type, formatLabel(symptom.type));
       items.push({
         id: `symptom-${symptom.id}`,
-        title: isRTL ? "?? ????? ???" : "Symptom logged",
+        title: label,
         detail: `${formatRelativeTime(new Date(symptom.timestamp))}`,
         color: "#EF4444",
         icon: Activity,
@@ -287,9 +295,11 @@ export default function TrackScreen() {
     });
 
     recentMoods.slice(0, 1).forEach((mood) => {
+      const label = t(mood.mood, formatLabel(mood.mood));
+      const emoji = getMoodEmoji(mood.mood);
       items.push({
         id: `mood-${mood.id}`,
-        title: isRTL ? "?? ????? ??????" : "Mood updated",
+        title: `${emoji} ${label}`,
         detail: `${formatRelativeTime(new Date(mood.timestamp))}`,
         color: "#8B5CF6",
         icon: Brain,
@@ -299,7 +309,7 @@ export default function TrackScreen() {
     recentMedicalHistory.slice(0, 1).forEach((history) => {
       items.push({
         id: `history-${history.id}`,
-        title: isRTL ? "??? ????? ??? ???" : "Medical history updated",
+        title: history.condition || (isRTL ? "سجل طبي" : "Medical history"),
         detail: `${formatRelativeTime(new Date(history.diagnosedDate || new Date()))}`,
         color: "#6366F1",
         icon: FileText,
@@ -309,7 +319,7 @@ export default function TrackScreen() {
     recentAllergies.slice(0, 1).forEach((allergy) => {
       items.push({
         id: `allergy-${allergy.id}`,
-        title: isRTL ? "?? ????? ??????" : "Allergy updated",
+        title: allergy.name || (isRTL ? "حساسية" : "Allergy"),
         detail: `${formatRelativeTime(new Date(allergy.timestamp))}`,
         color: "#F97316",
         icon: AlertCircle,
@@ -334,13 +344,11 @@ export default function TrackScreen() {
           backgroundColor: "transparent",
         },
         headerWrapper: {
-          marginHorizontal: -contentPadding,
-          marginTop: -theme.spacing.base,
-          marginBottom: -40,
+          marginBottom: -48,
         },
         headerContent: {
           paddingHorizontal: headerPadding,
-          paddingTop: theme.spacing.lg,
+          paddingTop: theme.spacing.xl + 12,
           paddingBottom: theme.spacing.lg,
           minHeight: 200,
         },
@@ -358,7 +366,7 @@ export default function TrackScreen() {
         headerSubtitle: {
           fontSize: 13,
           fontFamily: "Inter-SemiBold",
-          color: "rgba(255, 255, 255, 0.85)",
+          color: "#FFFFFF",
           marginTop: 4,
         },
         helpButton: {
@@ -367,26 +375,29 @@ export default function TrackScreen() {
           borderRadius: 12,
           alignItems: "center" as const,
           justifyContent: "center" as const,
-          backgroundColor: "rgba(255, 255, 255, 0.5)",
+          backgroundColor: "rgba(0, 53, 67, 0.15)",
         },
         content: {
           flex: 1,
         },
         contentInner: {
-          paddingHorizontal: 20,
           paddingBottom: 140,
+        },
+        contentPadded: {
+          paddingHorizontal: 20,
         },
         statsGrid: {
           flexDirection: "row" as const,
           gap: 12,
+          marginTop: 16,
           marginBottom: 20,
         },
         statCard: {
           flex: 1,
           backgroundColor: "#FFFFFF",
           borderRadius: 16,
-          paddingVertical: 24,
-          paddingHorizontal: 16,
+          paddingVertical: 28,
+          paddingHorizontal: 18,
           alignItems: "center" as const,
           shadowColor: "#0F172A",
           shadowOffset: { width: 0, height: 6 },
@@ -395,13 +406,13 @@ export default function TrackScreen() {
           elevation: 4,
         },
         statValue: {
-          fontSize: 28,
+          fontSize: 30,
           fontFamily: "Inter-Bold",
           color: "#0F766E",
-          marginBottom: 4,
+          marginBottom: 6,
         },
         statLabel: {
-          fontSize: 14,
+          fontSize: 12,
           fontFamily: "Inter-SemiBold",
           color: "#64748B",
           textAlign: "center" as const,
@@ -438,7 +449,7 @@ export default function TrackScreen() {
           width: "48%",
           backgroundColor: "#FFFFFF",
           borderRadius: 18,
-          padding: 16,
+          padding: 18,
           shadowColor: "#0F172A",
           shadowOffset: { width: 0, height: 6 },
           shadowOpacity: 0.08,
@@ -460,15 +471,16 @@ export default function TrackScreen() {
         },
         categoryText: {
           flex: 1,
+          minWidth: 0,
         },
         categoryTitle: {
-          fontSize: 16,
+          fontSize: 14,
           fontFamily: "Inter-Bold",
           color: "#0F172A",
           marginBottom: 4,
         },
         categoryDescription: {
-          fontSize: 13,
+          fontSize: 12,
           fontFamily: "Inter-SemiBold",
           color: "#64748B",
         },
@@ -478,7 +490,7 @@ export default function TrackScreen() {
         activityCard: {
           backgroundColor: "#FFFFFF",
           borderRadius: 18,
-          padding: 16,
+          padding: 18,
           shadowColor: "#0F172A",
           shadowOffset: { width: 0, height: 6 },
           shadowOpacity: 0.08,
@@ -499,9 +511,10 @@ export default function TrackScreen() {
         },
         activityText: {
           flex: 1,
+          minWidth: 0,
         },
         activityTitle: {
-          fontSize: 14,
+          fontSize: 13,
           fontFamily: "Inter-Bold",
           color: "#0F172A",
           marginBottom: 2,
@@ -1024,9 +1037,14 @@ export default function TrackScreen() {
         showsVerticalScrollIndicator={false}
         style={styles.content as ViewStyle}
       >
-        {/* Header */}
+        {/* Header - scrolls with content */}
         <View style={styles.headerWrapper as ViewStyle}>
-          <WavyBackground curve="home" height={220} variant="teal">
+          <WavyBackground
+            contentPosition="top"
+            curve="home"
+            height={280}
+            variant="teal"
+          >
             <View style={styles.headerContent as ViewStyle}>
               <View
                 style={[
@@ -1037,6 +1055,7 @@ export default function TrackScreen() {
                 <Text
                   style={[
                     styles.headerTitle,
+                    { color: "#FFFFFF" },
                     isRTL && { textAlign: "left" as const },
                   ]}
                 >
@@ -1046,7 +1065,7 @@ export default function TrackScreen() {
                   onPress={handleShowHowTo}
                   style={styles.helpButton as ViewStyle}
                 >
-                  <Info color={theme.colors.neutral.white} size={18} />
+                  <Info color="#FFFFFF" size={18} />
                 </TouchableOpacity>
               </View>
               <Text
@@ -1063,166 +1082,187 @@ export default function TrackScreen() {
           </WavyBackground>
         </View>
 
-        {showBlockingLoading ? (
-          <View style={styles.loadingContainer as ViewStyle}>
-            <ActivityIndicator color={theme.colors.primary.main} size="large" />
-            <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
-              {isRTL ? "???? ???????..." : "Loading..."}
-            </Text>
-          </View>
-        ) : (
-          <>
-            {loading ? (
-              <View style={styles.inlineLoadingContainer as ViewStyle}>
-                <ActivityIndicator
-                  color={theme.colors.primary.main}
-                  size="small"
-                />
-                <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
-                  {isRTL ? "???? ???????..." : "Updating..."}
-                </Text>
-              </View>
-            ) : null}
-
-            <View style={styles.statsGrid as ViewStyle}>
-              <View style={styles.statCard as ViewStyle}>
-                <Text style={[styles.statValue, isRTL && styles.rtlText]}>
-                  {entriesToday()}
-                </Text>
-                <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
-                  {isRTL ? "??????? ?????" : "Entries Today"}
-                </Text>
-              </View>
-              <View style={styles.statCard as ViewStyle}>
-                <Text style={[styles.statValue, isRTL && styles.rtlText]}>
-                  {trackingCategories.length}
-                </Text>
-                <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
-                  {isRTL ? "??????" : "Categories"}
-                </Text>
-              </View>
-              <View style={styles.statCard as ViewStyle}>
-                <Text style={[styles.statValue, isRTL && styles.rtlText]}>
-                  {stats.medicationCompliance}%
-                </Text>
-                <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
-                  {isRTL ? "????????" : "Compliance"}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.section as ViewStyle}>
-              <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-                {isRTL ? "???? ??????" : "Tracking Categories"}
+        <View style={styles.contentPadded as ViewStyle}>
+          {showBlockingLoading ? (
+            <View style={styles.loadingContainer as ViewStyle}>
+              <ActivityIndicator
+                color={theme.colors.primary.main}
+                size="large"
+              />
+              <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
+                {isRTL ? "???? ???????..." : "Loading..."}
               </Text>
-              <View style={styles.categoriesGrid as ViewStyle}>
-                {trackingCategories.map((category) => {
-                  const Icon = category.icon;
-                  return (
-                    <TouchableOpacity
-                      activeOpacity={0.8}
-                      key={category.label}
-                      onPress={category.onPress}
-                      style={styles.categoryCard as ViewStyle}
-                    >
-                      <View style={styles.categoryCardInner as ViewStyle}>
-                        <View
-                          style={[
-                            styles.categoryIconWrap,
-                            { backgroundColor: `${category.color}15` },
-                          ]}
-                        >
-                          <Icon color={category.color} size={22} />
-                        </View>
-                        <View style={styles.categoryText as ViewStyle}>
-                          <Text
-                            style={[
-                              styles.categoryTitle,
-                              isRTL && styles.rtlText,
-                            ]}
-                          >
-                            {category.label}
-                          </Text>
-                          <Text
-                            style={[
-                              styles.categoryDescription,
-                              isRTL && styles.rtlText,
-                            ]}
-                          >
-                            {category.description}
-                          </Text>
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
             </View>
-
-            <View style={styles.section as ViewStyle}>
-              <View style={styles.sectionHeaderRow as ViewStyle}>
-                <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-                  {isRTL ? "?????? ??????" : "Recent Activity"}
-                </Text>
-                <TouchableOpacity
-                  onPress={navigateToTimeline}
-                  style={styles.viewAllButton as ViewStyle}
-                >
-                  <Text style={[styles.viewAllText, isRTL && styles.rtlText]}>
-                    {isRTL ? "??? ????" : "View All"}
+          ) : (
+            <>
+              {loading ? (
+                <View style={styles.inlineLoadingContainer as ViewStyle}>
+                  <ActivityIndicator
+                    color={theme.colors.primary.main}
+                    size="small"
+                  />
+                  <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
+                    {isRTL ? "???? ???????..." : "Updating..."}
                   </Text>
-                </TouchableOpacity>
+                </View>
+              ) : null}
+
+              <View style={styles.statsGrid as ViewStyle}>
+                <View style={styles.statCard as ViewStyle}>
+                  <Text style={[styles.statValue, isRTL && styles.rtlText]}>
+                    {entriesToday()}
+                  </Text>
+                  <Text
+                    adjustsFontSizeToFit
+                    numberOfLines={1}
+                    style={[styles.statLabel, isRTL && styles.rtlText]}
+                  >
+                    {isRTL ? "??????? ?????" : "Entries Today"}
+                  </Text>
+                </View>
+                <View style={styles.statCard as ViewStyle}>
+                  <Text style={[styles.statValue, isRTL && styles.rtlText]}>
+                    {trackingCategories.length}
+                  </Text>
+                  <Text
+                    adjustsFontSizeToFit
+                    numberOfLines={1}
+                    style={[styles.statLabel, isRTL && styles.rtlText]}
+                  >
+                    {isRTL ? "??????" : "Categories"}
+                  </Text>
+                </View>
+                <View style={styles.statCard as ViewStyle}>
+                  <Text style={[styles.statValue, isRTL && styles.rtlText]}>
+                    {stats.medicationCompliance}%
+                  </Text>
+                  <Text
+                    adjustsFontSizeToFit
+                    numberOfLines={1}
+                    style={[styles.statLabel, isRTL && styles.rtlText]}
+                  >
+                    {isRTL ? "????????" : "Compliance"}
+                  </Text>
+                </View>
               </View>
 
-              <View style={styles.activityList as ViewStyle}>
-                {recentActivityItems().length > 0 ? (
-                  recentActivityItems().map((item) => {
-                    const Icon = item.icon;
+              <View style={styles.section as ViewStyle}>
+                <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+                  {isRTL ? "???? ??????" : "Tracking Categories"}
+                </Text>
+                <View style={styles.categoriesGrid as ViewStyle}>
+                  {trackingCategories.map((category) => {
+                    const Icon = category.icon;
                     return (
-                      <View
-                        key={item.id}
-                        style={styles.activityCard as ViewStyle}
+                      <TouchableOpacity
+                        activeOpacity={0.8}
+                        key={category.label}
+                        onPress={category.onPress}
+                        style={styles.categoryCard as ViewStyle}
                       >
-                        <View style={styles.activityRow as ViewStyle}>
+                        <View style={styles.categoryCardInner as ViewStyle}>
                           <View
                             style={[
-                              styles.activityIcon,
-                              { backgroundColor: `${item.color}15` },
+                              styles.categoryIconWrap,
+                              { backgroundColor: `${category.color}15` },
                             ]}
                           >
-                            <Icon color={item.color} size={18} />
+                            <Icon color={category.color} size={22} />
                           </View>
-                          <View style={styles.activityText as ViewStyle}>
+                          <View style={styles.categoryText as ViewStyle}>
                             <Text
+                              numberOfLines={2}
                               style={[
-                                styles.activityTitle,
+                                styles.categoryTitle,
                                 isRTL && styles.rtlText,
                               ]}
                             >
-                              {item.title}
+                              {category.label}
                             </Text>
                             <Text
+                              numberOfLines={2}
                               style={[
-                                styles.activityDetail,
+                                styles.categoryDescription,
                                 isRTL && styles.rtlText,
                               ]}
                             >
-                              {item.detail}
+                              {category.description}
                             </Text>
                           </View>
                         </View>
-                      </View>
+                      </TouchableOpacity>
                     );
-                  })
-                ) : (
-                  <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-                    {isRTL ? "?? ???? ???? ????" : "No recent activity"}
-                  </Text>
-                )}
+                  })}
+                </View>
               </View>
-            </View>
-          </>
-        )}
+
+              <View style={styles.section as ViewStyle}>
+                <View style={styles.sectionHeaderRow as ViewStyle}>
+                  <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+                    {isRTL ? "?????? ??????" : "Recent Activity"}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={navigateToTimeline}
+                    style={styles.viewAllButton as ViewStyle}
+                  >
+                    <Text style={[styles.viewAllText, isRTL && styles.rtlText]}>
+                      {isRTL ? "??? ????" : "View All"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.activityList as ViewStyle}>
+                  {recentActivityItems().length > 0 ? (
+                    recentActivityItems().map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <View
+                          key={item.id}
+                          style={styles.activityCard as ViewStyle}
+                        >
+                          <View style={styles.activityRow as ViewStyle}>
+                            <View
+                              style={[
+                                styles.activityIcon,
+                                { backgroundColor: `${item.color}15` },
+                              ]}
+                            >
+                              <Icon color={item.color} size={18} />
+                            </View>
+                            <View style={styles.activityText as ViewStyle}>
+                              <Text
+                                numberOfLines={2}
+                                style={[
+                                  styles.activityTitle,
+                                  isRTL && styles.rtlText,
+                                ]}
+                              >
+                                {item.title}
+                              </Text>
+                              <Text
+                                numberOfLines={2}
+                                style={[
+                                  styles.activityDetail,
+                                  isRTL && styles.rtlText,
+                                ]}
+                              >
+                                {item.detail}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      );
+                    })
+                  ) : (
+                    <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
+                      {isRTL ? "?? ???? ???? ????" : "No recent activity"}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            </>
+          )}
+        </View>
       </ScrollView>
 
       <TouchableOpacity

@@ -1,5 +1,5 @@
 import { ImpactFeedbackStyle, impactAsync } from "expo-haptics";
-import { Check } from "lucide-react-native";
+import { Circle } from "lucide-react-native";
 import type React from "react";
 import { useEffect } from "react";
 import {
@@ -113,17 +113,21 @@ export const AnimatedCheckButton: React.FC<AnimatedCheckButtonProps> = ({
           onPress={handlePress}
           style={buttonStyle}
         >
-          <Animated.View style={{ opacity: checkOpacity }}>
-            <Check
-              color={
-                isChecked
-                  ? theme.colors.neutral.white
-                  : theme.colors.text.tertiary
-              }
+          {isChecked ? (
+            <Animated.View style={{ opacity: checkOpacity }}>
+              <CircleDot
+                color={theme.colors.neutral.white}
+                size={currentSize.iconSize}
+                strokeWidth={2}
+              />
+            </Animated.View>
+          ) : (
+            <Circle
+              color={theme.colors.text.tertiary}
               size={currentSize.iconSize}
-              strokeWidth={isChecked ? 3 : 2}
+              strokeWidth={2}
             />
-          </Animated.View>
+          )}
         </TouchableOpacity>
       </Animated.View>
       {label ? (

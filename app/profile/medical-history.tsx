@@ -647,7 +647,7 @@ export default function MedicalHistoryScreen() {
               }}
               style={styles.closeButton}
             >
-              <X color="#64748B" size={24} />
+              <X color="#6C7280" size={20} />
             </TouchableOpacity>
           </View>
 
@@ -664,6 +664,7 @@ export default function MedicalHistoryScreen() {
                 placeholder={
                   isRTL ? "مثال: السكري، الضغط" : "e.g., Diabetes, Hypertension"
                 }
+                placeholderTextColor="#94A3B8"
                 style={[styles.textInput, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={newCondition.condition}
@@ -761,7 +762,7 @@ export default function MedicalHistoryScreen() {
                       });
                     }}
                     thumbColor={newCondition.isFamily ? "#FFFFFF" : "#9CA3AF"}
-                    trackColor={{ false: "#E5E7EB", true: "#2563EB" }}
+                    trackColor={{ false: "#E5E7EB", true: "#003543" }}
                     value={newCondition.isFamily}
                   />
                 </View>
@@ -778,7 +779,7 @@ export default function MedicalHistoryScreen() {
                 </Text>
                 {loadingFamilyMembers ? (
                   <ActivityIndicator
-                    color="#2563EB"
+                    color="#003543"
                     size="small"
                     style={{ marginVertical: 12 }}
                   />
@@ -844,6 +845,7 @@ export default function MedicalHistoryScreen() {
                       ? "مثال: الأب، الأم، الزوج"
                       : "e.g., Father, Mother, Spouse"
                   }
+                  placeholderTextColor="#94A3B8"
                   style={[styles.textInput, isRTL && styles.rtlInput]}
                   textAlign={isRTL ? "right" : "left"}
                   value={newCondition.relation}
@@ -863,6 +865,7 @@ export default function MedicalHistoryScreen() {
                   setNewCondition({ ...newCondition, notes: text })
                 }
                 placeholder={isRTL ? "أضف ملاحظات..." : "Add notes..."}
+                placeholderTextColor="#94A3B8"
                 style={[styles.textArea, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={newCondition.notes}
@@ -940,8 +943,6 @@ const styles = StyleSheet.create({
   },
   figmaHeaderWrapper: {
     flexShrink: 0,
-    marginHorizontal: -20,
-    marginTop: -20,
     marginBottom: 12,
   },
   figmaScrollView: {
@@ -959,7 +960,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.4)",
+    backgroundColor: "rgba(0, 53, 67, 0.15)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -975,7 +976,7 @@ const styles = StyleSheet.create({
   figmaHeaderTitle: {
     fontSize: 24,
     fontFamily: "Inter-Bold",
-    color: "#FFFFFF",
+    color: "#003543",
   },
   figmaHeaderSubtitle: {
     fontSize: 14,
@@ -1305,63 +1306,68 @@ const styles = StyleSheet.create({
     fontFamily: "Inter-SemiBold",
     color: "#FFFFFF",
   },
+  // Modal styles - Figma design & Maak theme (#003543 primary, #EB9C0C accent)
   modalContainer: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#FFFFFF",
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    paddingBottom: 24,
     backgroundColor: "#FFFFFF",
   },
   modalTitle: {
     fontSize: 20,
-    fontFamily: "Inter-SemiBold",
-    color: "#1E293B",
+    fontFamily: "Inter-Bold",
+    color: "#1A1D1F",
   },
   closeButton: {
     width: 32,
     height: 32,
+    borderRadius: 16,
+    backgroundColor: "#F3F4F6",
     justifyContent: "center",
     alignItems: "center",
   },
   modalContent: {
     flex: 1,
-    padding: 20,
+    paddingHorizontal: 24,
+    paddingBottom: 32,
   },
   fieldContainer: {
     marginBottom: 20,
   },
   fieldLabel: {
-    fontSize: 16,
-    fontFamily: "Inter-Medium",
-    color: "#374151",
+    fontSize: 14,
+    fontFamily: "Inter-SemiBold",
+    color: "#1A1D1F",
     marginBottom: 8,
   },
   textInput: {
     borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     fontSize: 16,
     fontFamily: "Inter-Regular",
     backgroundColor: "#FFFFFF",
+    color: "#1A1D1F",
   },
   textArea: {
     borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     fontSize: 16,
     fontFamily: "Inter-Regular",
     backgroundColor: "#FFFFFF",
+    color: "#1A1D1F",
     textAlignVertical: "top",
     minHeight: 80,
   },
@@ -1374,32 +1380,32 @@ const styles = StyleSheet.create({
   },
   severityOption: {
     backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 12,
   },
   severityOptionSelected: {
-    backgroundColor: "#2563EB",
-    borderColor: "#2563EB",
+    backgroundColor: "rgba(0, 53, 67, 0.05)",
+    borderColor: "#003543",
   },
   severityOptionText: {
     fontSize: 14,
-    fontFamily: "Inter-Medium",
-    color: "#64748B",
+    fontFamily: "Inter-SemiBold",
+    color: "#6C7280",
   },
   severityOptionTextSelected: {
-    color: "#FFFFFF",
+    color: "#003543",
   },
   saveButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#2563EB",
+    backgroundColor: "#003543",
     borderRadius: 12,
     paddingVertical: 16,
-    marginTop: 20,
+    marginTop: 24,
     gap: 8,
   },
   saveButtonDisabled: {
@@ -1414,10 +1420,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 12,
+    padding: 16,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#D1D5DB",
+    borderColor: "#E5E7EB",
     borderRadius: 12,
   },
   memberOptions: {
@@ -1427,28 +1433,28 @@ const styles = StyleSheet.create({
   },
   memberOption: {
     backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 12,
   },
   memberOptionSelected: {
-    backgroundColor: "#2563EB",
-    borderColor: "#2563EB",
+    backgroundColor: "rgba(0, 53, 67, 0.05)",
+    borderColor: "#003543",
   },
   memberOptionText: {
     fontSize: 14,
-    fontFamily: "Inter-Medium",
-    color: "#64748B",
+    fontFamily: "Inter-SemiBold",
+    color: "#6C7280",
   },
   memberOptionTextSelected: {
-    color: "#FFFFFF",
+    color: "#003543",
   },
   helperText: {
     fontSize: 14,
     fontFamily: "Inter-Regular",
-    color: "#64748B",
+    color: "#6C7280",
     fontStyle: "italic",
   },
   examplesContainer: {
@@ -1457,7 +1463,7 @@ const styles = StyleSheet.create({
   examplesLabel: {
     fontSize: 14,
     fontFamily: "Inter-Medium",
-    color: "#64748B",
+    color: "#6C7280",
     marginBottom: 8,
   },
   examplesGrid: {
@@ -1466,16 +1472,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   exampleChip: {
-    backgroundColor: "#F1F5F9",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 2,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 8,
   },
   exampleChipText: {
     fontSize: 13,
-    fontFamily: "Inter-Regular",
-    color: "#475569",
+    fontFamily: "Inter-SemiBold",
+    color: "#003543",
   },
 });

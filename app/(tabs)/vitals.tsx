@@ -140,25 +140,30 @@ export default function VitalsScreen() {
       backgroundColor: theme.colors.background.primary,
     },
     figmaVitalsHeaderWrap: {
-      marginHorizontal: -20,
-      marginTop: -20,
       marginBottom: 12,
     },
     figmaVitalsHeaderContent: {
       paddingHorizontal: 24,
-      paddingTop: 20,
+      paddingTop: 12,
       paddingBottom: 16,
+    },
+    figmaVitalsTopActions: {
+      flexDirection: "row" as const,
+      justifyContent: "flex-end" as const,
+      alignItems: "center" as const,
+      gap: theme.spacing.sm,
     },
     figmaVitalsHeaderRow: {
       flexDirection: "row" as const,
       alignItems: "center" as const,
       gap: theme.spacing.sm,
+      marginTop: 60,
     },
     figmaVitalsBackButton: {
       width: 40,
       height: 40,
       borderRadius: 12,
-      backgroundColor: "rgba(255, 255, 255, 0.5)",
+      backgroundColor: "rgba(0, 53, 67, 0.15)",
       alignItems: "center" as const,
       justifyContent: "center" as const,
     },
@@ -174,7 +179,7 @@ export default function VitalsScreen() {
     figmaVitalsTitle: {
       fontSize: 22,
       fontFamily: "Inter-Bold",
-      color: "#FFFFFF",
+      color: "#003543",
     },
     figmaVitalsSubtitle: {
       fontSize: 13,
@@ -250,7 +255,7 @@ export default function VitalsScreen() {
     syncButton: {
       flexDirection: "row" as const,
       alignItems: "center" as const,
-      backgroundColor: theme.colors.primary.main,
+      backgroundColor: "#EB9C0C",
       paddingHorizontal: theme.spacing.base,
       paddingVertical: theme.spacing.sm,
       borderRadius: theme.borderRadius.md,
@@ -267,45 +272,54 @@ export default function VitalsScreen() {
       paddingVertical: theme.spacing.base,
     },
     permissionCard: {
-      backgroundColor: "#FFF4E6", // Light orange background
-      borderRadius: theme.borderRadius.lg,
+      backgroundColor: "#FFFFFF",
+      borderRadius: 20,
       padding: theme.spacing.xl,
       margin: theme.spacing.lg,
       alignItems: "center" as const,
-      borderWidth: 2,
-      borderColor: "#FF8C42", // Orange border
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      elevation: 4,
     },
     permissionIcon: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
-      backgroundColor: "#FF8C42", // Orange background
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: "rgba(0, 53, 67, 0.1)",
       justifyContent: "center" as const,
       alignItems: "center" as const,
       marginBottom: theme.spacing.lg,
     },
     permissionTitle: {
-      ...getTextStyle(theme, "subheading", "bold", theme.colors.primary.main),
+      fontSize: 20,
+      fontFamily: "Inter-Bold",
+      color: "#1A1D1F",
       textAlign: "center" as const,
-      marginBottom: theme.spacing.base,
+      marginBottom: theme.spacing.sm,
     },
     permissionDescription: {
-      ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
+      fontSize: 14,
+      fontFamily: "Inter-Regular",
+      color: "#6C7280",
       textAlign: "center" as const,
       lineHeight: 22,
       marginBottom: theme.spacing.xl,
     },
     enableButton: {
-      backgroundColor: "#FF8C42", // Orange button
-      paddingHorizontal: theme.spacing.xl,
-      paddingVertical: theme.spacing.base,
-      borderRadius: theme.borderRadius.lg,
+      backgroundColor: "#003543",
+      paddingHorizontal: 28,
+      paddingVertical: 14,
+      borderRadius: 14,
       flexDirection: "row" as const,
       alignItems: "center" as const,
       gap: theme.spacing.sm,
     },
     enableButtonText: {
-      ...getTextStyle(theme, "button", "bold", theme.colors.neutral.white),
+      fontSize: 16,
+      fontFamily: "Inter-SemiBold",
+      color: "#FFFFFF",
     },
     vitalsGrid: {
       paddingTop: theme.spacing.lg,
@@ -1937,7 +1951,7 @@ export default function VitalsScreen() {
             </TouchableOpacity>
           </View>
           <View style={styles.permissionIcon as ViewStyle}>
-            <Heart color={theme.colors.neutral.white} size={40} />
+            <Heart color="#003543" size={36} />
           </View>
           <Text
             style={
@@ -1988,13 +2002,17 @@ export default function VitalsScreen() {
             style={
               [
                 styles.permissionDescription,
-                { marginTop: theme.spacing.lg, fontSize: 12 },
+                {
+                  marginTop: theme.spacing.base,
+                  fontSize: 12,
+                  marginBottom: 0,
+                },
               ] as StyleProp<TextStyle>
             }
           >
             {isRTL
-              ? "انقر للانتقال إلى إعدادات التكامل الصحية في الملف الشخصي"
-              : "Click to go to Health Integrations in your profile settings"}
+              ? "ادمج بياناتك الصحية من أجهزتك المفضلة"
+              : "Connect Apple Health, Google Fit, and more"}
           </Text>
         </View>
         <CoachMark
@@ -2028,13 +2046,43 @@ export default function VitalsScreen() {
     >
       {/* Header */}
       <View style={styles.figmaVitalsHeaderWrap as ViewStyle}>
-        <WavyBackground curve="home" height={210} variant="teal">
+        <WavyBackground curve="home" height={230} variant="teal">
           <View style={styles.figmaVitalsHeaderContent as ViewStyle}>
+            {/* Top actions: info + sync at top-right of wave */}
+            <View style={styles.figmaVitalsTopActions as ViewStyle}>
+              <TouchableOpacity
+                onPress={() => setShowHowTo(true)}
+                style={styles.helpButton as ViewStyle}
+              >
+                <Info color={theme.colors.text.secondary} size={18} />
+              </TouchableOpacity>
+              <View collapsable={false} ref={syncButtonRef}>
+                <TouchableOpacity
+                  disabled={refreshing}
+                  onPress={handleSyncData}
+                  style={styles.syncButton as ViewStyle}
+                >
+                  {refreshing ? (
+                    <ActivityIndicator
+                      color={theme.colors.neutral.white}
+                      size="small"
+                    />
+                  ) : (
+                    <RefreshCw color={theme.colors.neutral.white} size={16} />
+                  )}
+                  <Text style={styles.syncButtonText as StyleProp<TextStyle>}>
+                    {refreshing ? "Syncing..." : "Sync"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Title row: back button + title */}
             <View style={styles.figmaVitalsHeaderRow as ViewStyle}>
               <TouchableOpacity
                 onPress={() =>
                   params.returnTo === "track"
-                    ? router.push("/(tabs)/track")
+                    ? router.replace("/(tabs)/track")
                     : router.back()
                 }
                 style={styles.figmaVitalsBackButton as ViewStyle}
@@ -2051,33 +2099,6 @@ export default function VitalsScreen() {
                 <Text style={styles.figmaVitalsSubtitle as TextStyle}>
                   Monitor your health from multiple sources
                 </Text>
-              </View>
-              <View style={styles.figmaVitalsHeaderActions as ViewStyle}>
-                <TouchableOpacity
-                  onPress={() => setShowHowTo(true)}
-                  style={styles.helpButton as ViewStyle}
-                >
-                  <Info color={theme.colors.text.secondary} size={18} />
-                </TouchableOpacity>
-                <View collapsable={false} ref={syncButtonRef}>
-                  <TouchableOpacity
-                    disabled={refreshing}
-                    onPress={handleSyncData}
-                    style={styles.syncButton as ViewStyle}
-                  >
-                    {refreshing ? (
-                      <ActivityIndicator
-                        color={theme.colors.neutral.white}
-                        size="small"
-                      />
-                    ) : (
-                      <RefreshCw color={theme.colors.neutral.white} size={16} />
-                    )}
-                    <Text style={styles.syncButtonText as StyleProp<TextStyle>}>
-                      {refreshing ? "Syncing..." : "Sync"}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
               </View>
             </View>
             {lastSync ? (

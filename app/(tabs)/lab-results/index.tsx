@@ -3,8 +3,12 @@ import { router, useLocalSearchParams } from "expo-router";
 import {
   ArrowLeft,
   ChevronRight,
+  Download,
   Droplet,
+  Plus,
   TestTube,
+  TrendingDown,
+  TrendingUp,
   X,
 } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
@@ -22,7 +26,10 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Button, Card } from "@/components/design-system";
 import { Badge } from "@/components/design-system/AdditionalComponents";
 import {
@@ -44,6 +51,7 @@ export default function LabResultsScreen() {
   const { i18n } = useTranslation();
   const { user } = useAuth();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ returnTo?: string }>();
   const isRTL = i18n.language === "ar";
 
@@ -52,9 +60,6 @@ export default function LabResultsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedResult, setSelectedResult] = useState<LabResult | null>(null);
-  const [filterType, setFilterType] = useState<LabResult["testType"] | "all">(
-    "all"
-  );
 
   const getResultStatus = (result: LabResult) => {
     const hasFlagged = result.results?.some((entry) => entry.flagged);
@@ -83,8 +88,6 @@ export default function LabResultsScreen() {
       backgroundColor: screenTheme.colors.background.primary,
     },
     figmaLabHeaderWrap: {
-      marginHorizontal: -20,
-      marginTop: -20,
       marginBottom: 12,
     },
     figmaLabHeaderContent: {
@@ -101,7 +104,7 @@ export default function LabResultsScreen() {
       width: 40,
       height: 40,
       borderRadius: 12,
-      backgroundColor: "rgba(255, 255, 255, 0.5)",
+      backgroundColor: "rgba(0, 53, 67, 0.15)",
       alignItems: "center",
       justifyContent: "center",
     },
@@ -117,30 +120,72 @@ export default function LabResultsScreen() {
     figmaLabTitle: {
       fontSize: 22,
       fontFamily: "Inter-Bold",
-      color: "#FFFFFF",
+      color: "#003543",
     },
     figmaLabSubtitle: {
       fontSize: 13,
       fontFamily: "Inter-SemiBold",
       color: "rgba(0, 53, 67, 0.85)",
     },
-    figmaLabAddButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 12,
-      backgroundColor: "#003543",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    figmaLabFilters: {
-      paddingHorizontal: 20,
-      paddingVertical: 12,
-      gap: 8,
-    },
     figmaLabContent: {
-      paddingHorizontal: 20,
-      paddingBottom: 140,
-      gap: 12,
+      paddingHorizontal: 24,
+      paddingTop: 24,
+      paddingBottom: 160,
+      gap: 24,
+    },
+    figmaLabSectionHeader: {
+      flexDirection: "row" as const,
+      justifyContent: "space-between" as const,
+      alignItems: "center" as const,
+      marginBottom: 16,
+    },
+    figmaLabSectionTitle: {
+      fontSize: 18,
+      fontFamily: "Inter-SemiBold",
+      color: "#1A1D1F",
+    },
+    figmaLabViewAllLink: {
+      fontSize: 14,
+      fontFamily: "Inter-Medium",
+      color: "#003543",
+    },
+    figmaLabTipsCard: {
+      backgroundColor: "transparent",
+      borderRadius: 16,
+      padding: 20,
+      overflow: "hidden" as const,
+    },
+    figmaLabTipsCardInner: {
+      padding: 20,
+      borderRadius: 16,
+    },
+    figmaLabTipsTitle: {
+      fontSize: 16,
+      fontFamily: "Inter-SemiBold",
+      color: "#1A1D1F",
+      marginBottom: 8,
+    },
+    figmaLabTipsText: {
+      fontSize: 14,
+      fontFamily: "Inter-Regular",
+      color: "#6C7280",
+      lineHeight: 22,
+    },
+    figmaLabFAB: {
+      position: "absolute" as const,
+      right: 24,
+      bottom: 24,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: "#EB9C0C",
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+      shadowColor: "#0F172A",
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+      elevation: 8,
     },
     content: {
       flex: 1,
@@ -165,31 +210,6 @@ export default function LabResultsScreen() {
       height: 40,
       justifyContent: "center",
       alignItems: "center",
-    },
-    filterContainer: {
-      flexDirection: isRTL ? "row-reverse" : "row",
-      paddingHorizontal: theme.spacing.base,
-      paddingVertical: theme.spacing.sm,
-      gap: theme.spacing.xs,
-    },
-    filterChip: {
-      paddingHorizontal: theme.spacing.base,
-      paddingVertical: theme.spacing.xs,
-      borderRadius: theme.borderRadius.full,
-      borderWidth: 1,
-      borderColor: theme.colors.border.light,
-      backgroundColor: theme.colors.background.secondary,
-    },
-    filterChipActive: {
-      backgroundColor: theme.colors.primary.main,
-      borderColor: theme.colors.primary.main,
-    },
-    filterChipText: {
-      ...getTextStyle(theme, "caption", "medium", theme.colors.text.secondary),
-      fontSize: 12,
-    },
-    filterChipTextActive: {
-      color: theme.colors.neutral.white,
     },
     resultsList: {
       padding: theme.spacing.base,
@@ -429,15 +449,7 @@ export default function LabResultsScreen() {
           setLoading(true);
         }
 
-        let results: LabResult[];
-        if (filterType === "all") {
-          results = await labResultService.getUserLabResults(user.id);
-        } else {
-          results = await labResultService.getLabResultsByType(
-            user.id,
-            filterType
-          );
-        }
+        const results = await labResultService.getUserLabResults(user.id);
 
         setLabResults(results);
       } catch (_error) {
@@ -450,7 +462,7 @@ export default function LabResultsScreen() {
         setRefreshing(false);
       }
     },
-    [user, filterType, isRTL]
+    [user, isRTL]
   );
 
   useEffect(() => {
@@ -516,14 +528,6 @@ export default function LabResultsScreen() {
     return "warning";
   };
 
-  const testTypes = [
-    { value: "all" as const, label: isRTL ? "الكل" : "All" },
-    { value: "blood" as const, label: isRTL ? "فحص الدم" : "Blood" },
-    { value: "urine" as const, label: isRTL ? "فحص البول" : "Urine" },
-    { value: "imaging" as const, label: isRTL ? "التصوير" : "Imaging" },
-    { value: "other" as const, label: isRTL ? "أخرى" : "Other" },
-  ];
-
   if (!user) {
     return (
       <SafeAreaView style={styles.container as StyleProp<ViewStyle>}>
@@ -571,34 +575,6 @@ export default function LabResultsScreen() {
           </View>
         </WavyBackground>
       </View>
-      {/* Filters */}
-      <ScrollView
-        contentContainerStyle={styles.figmaLabFilters as StyleProp<ViewStyle>}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-      >
-        {testTypes.map((type) => (
-          <TouchableOpacity
-            key={type.value}
-            onPress={() => setFilterType(type.value)}
-            style={[
-              styles.filterChip as StyleProp<ViewStyle>,
-              filterType === type.value &&
-                (styles.filterChipActive as StyleProp<ViewStyle>),
-            ]}
-          >
-            <Text
-              style={[
-                styles.filterChipText as StyleProp<TextStyle>,
-                filterType === type.value &&
-                  (styles.filterChipTextActive as StyleProp<TextStyle>),
-              ]}
-            >
-              {type.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
       {/* Results List */}
       {loading ? (
         <View style={styles.emptyContainer as StyleProp<ViewStyle>}>
@@ -629,6 +605,33 @@ export default function LabResultsScreen() {
             title={isRTL ? "إضافة نتيجة مختبر" : "Add Lab Result"}
             variant="primary"
           />
+          <View
+            style={[
+              styles.figmaLabTipsCard as StyleProp<ViewStyle>,
+              { marginTop: 24, marginHorizontal: 20 },
+            ]}
+          >
+            <View
+              style={[
+                styles.figmaLabTipsCardInner as StyleProp<ViewStyle>,
+                { backgroundColor: "rgba(59, 130, 246, 0.1)" },
+              ]}
+            >
+              <Text style={styles.figmaLabTipsTitle as TextStyle}>
+                💡 {isRTL ? "نصائح فحص المختبر" : "Lab Test Tips"}
+              </Text>
+              <Text
+                style={[
+                  styles.figmaLabTipsText as TextStyle,
+                  isRTL && (styles.rtlText as StyleProp<TextStyle>),
+                ]}
+              >
+                {isRTL
+                  ? "• صوم 8-12 ساعة قبل فحوصات الدهون والجلوكوز\n• اشرب الماء قبل سحب الدم\n• أحضر النتائج السابقة للمقارنة\n• ناقش النتائج غير الطبيعية مع طبيبك"
+                  : "• Fast 8-12 hours before lipid and glucose tests\n• Stay hydrated before blood draws\n• Bring previous results for comparison\n• Discuss abnormal results with your doctor"}
+              </Text>
+            </View>
+          </View>
         </ScrollView>
       ) : (
         <ScrollView
@@ -674,6 +677,16 @@ export default function LabResultsScreen() {
                 Needs Review
               </Text>
             </View>
+          </View>
+          <View style={styles.figmaLabSectionHeader as StyleProp<ViewStyle>}>
+            <Text style={styles.figmaLabSectionTitle as TextStyle}>
+              {isRTL ? "الاختبارات الأخيرة" : "Recent Tests"}
+            </Text>
+            <TouchableOpacity>
+              <Text style={styles.figmaLabViewAllLink as TextStyle}>
+                {isRTL ? "عرض الكل" : "View All"}
+              </Text>
+            </TouchableOpacity>
           </View>
           {/* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: card markup includes multiple health-result render branches. */}
           {labResults.map((result) => {
@@ -799,8 +812,42 @@ export default function LabResultsScreen() {
               </Card>
             );
           })}
+          <View style={styles.figmaLabTipsCard as StyleProp<ViewStyle>}>
+            <View
+              style={[
+                styles.figmaLabTipsCardInner as StyleProp<ViewStyle>,
+                {
+                  backgroundColor: "rgba(59, 130, 246, 0.1)",
+                },
+              ]}
+            >
+              <Text style={styles.figmaLabTipsTitle as TextStyle}>
+                💡 {isRTL ? "نصائح فحص المختبر" : "Lab Test Tips"}
+              </Text>
+              <Text
+                style={[
+                  styles.figmaLabTipsText as TextStyle,
+                  isRTL && (styles.rtlText as StyleProp<TextStyle>),
+                ]}
+              >
+                {isRTL
+                  ? "• صوم 8-12 ساعة قبل فحوصات الدهون والجلوكوز\n• اشرب الماء قبل سحب الدم\n• أحضر النتائج السابقة للمقارنة\n• ناقش النتائج غير الطبيعية مع طبيبك"
+                  : "• Fast 8-12 hours before lipid and glucose tests\n• Stay hydrated before blood draws\n• Bring previous results for comparison\n• Discuss abnormal results with your doctor"}
+              </Text>
+            </View>
+          </View>
         </ScrollView>
       )}
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={() => router.push("/(tabs)/lab-results/add")}
+        style={[
+          styles.figmaLabFAB as StyleProp<ViewStyle>,
+          { bottom: Math.max(insets.bottom, 12) + 80 },
+        ]}
+      >
+        <Plus color="#FFFFFF" size={24} />
+      </TouchableOpacity>
       {/* Detail Modal */}
       <Modal
         animationType="slide"
@@ -966,7 +1013,6 @@ export default function LabResultsScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
-      ;
     </GradientScreen>
   );
 }
