@@ -5,6 +5,7 @@ import {
   Image,
   type ImageStyle,
   type StyleProp,
+  StyleSheet,
   Text,
   type TextStyle,
   TouchableOpacity,
