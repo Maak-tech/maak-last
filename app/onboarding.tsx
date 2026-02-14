@@ -1,252 +1,67 @@
-﻿import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Image,
-  type ImageStyle,
-  type StyleProp,
-  Text,
-  type TextStyle,
-  TouchableOpacity,
-  View,
-  type ViewStyle,
-} from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { WatermarkPattern } from "@/components/figma/WatermarkPattern";
+import { Colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
-import { useTheme } from "@/contexts/ThemeContext";
-import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
-// Different onboarding steps based on user role
-const getOnboardingSteps = (userRole: string) => {
-  const isAdmin = userRole === "admin";
+// Figma design: 4-step onboarding with icons
+const STEPS = [
+  {
+    icon: "heart" as const,
+    color: "#EB9C0C",
+  },
+  {
+    icon: "pulse" as const,
+    color: "#003543",
+  },
+  {
+    icon: "notifications" as const,
+    color: "#10B981",
+  },
+  {
+    icon: "chatbubbles" as const,
+    color: "#EB9C0C",
+  },
+];
 
-  if (isAdmin) {
-    // Full onboarding for admin users
-    return [
-      {
-        key: "welcome",
-        image: require("@/assets/images/welcome.png"),
-        titleEn: "Welcome to Maak",
-        titleAr: "مرحباً بك في معك",
-        descEn:
-          "Your family health companion. Keep track of your loved ones health and stay connected.",
-        descAr: "رفيقك الصحي للعائلة. تابع صحة أحبائك وابقَ على تواصل معهم.",
-        onelinerEn: '"Health starts at home"',
-        onelinerAr: '"خليهم دائماً معك"',
-      },
-      {
-        key: "track",
-        image: require("@/assets/images/track-health..png"),
-        titleEn: "Track Health Together",
-        titleAr: "تتبع الصحة معاً",
-        descEn:
-          "Monitor symptoms, medications, and vital signs for your entire family in one place.",
-        descAr:
-          "راقب الأعراض والأدوية والعلامات الحيوية لعائلتك بأكملها في مكان واحد.",
-        onelinerEn: '"Health starts at home"',
-        onelinerAr: '"خليهم دائماً معك"',
-      },
-      {
-        key: "family",
-        image: require("@/assets/images/manage-family.png"),
-        titleEn: "Manage Your Family",
-        titleAr: "إدارة عائلتك",
-        descEn:
-          "Invite family members, share health data, and provide care for each other.",
-        descAr:
-          "ادع أفراد العائلة، وشارك البيانات الصحية، واعتنوا ببعضكم البعض.",
-        onelinerEn: '"Health starts at home"',
-        onelinerAr: '"خليهم دائماً معك"',
-      },
-    ];
-  }
-  // Simplified onboarding for regular users
-  return [
-    {
-      key: "welcome",
-      image: require("@/assets/images/welcome.png"),
-      titleEn: "Welcome to Maak",
-      titleAr: "مرحباً بك في معك",
-      descEn:
-        "Your personal health companion. Track symptoms, medications, and get health insights.",
-      descAr: "رفيقك الصحي الشخصي. تابع الأعراض والأدوية واحصل على رؤى صحية.",
-      onelinerEn: '"Health starts at home"',
-      onelinerAr: '"الصحة تبدأ من المنزل"',
-    },
-    {
-      key: "track",
-      image: require("@/assets/images/track-health..png"),
-      titleEn: "Track Your Health",
-      titleAr: "تابع صحتك",
-      descEn:
-        "Easily log symptoms, manage medications, and monitor your vital signs.",
-      descAr: "سجل الأعراض بسهولة، أدر الأدوية، وراقب العلامات الحيوية.",
-      onelinerEn: '"Stay on top of your health"',
-      onelinerAr: '"ابقَ على اطلاع بصحتك"',
-    },
-    {
-      key: "zeina",
-      image: require("@/assets/images/welcome.png"), // Using welcome image as placeholder
-      titleEn: "Meet Zeina",
-      titleAr: "تعرف على زينة",
-      descEn:
-        "Your AI health assistant is here to help answer questions and provide guidance.",
-      descAr:
-        "مساعدك الصحي الذكي هنا للمساعدة في الإجابة على الأسئلة وتقديم الإرشادات.",
-      onelinerEn: '"Your health companion"',
-      onelinerAr: '"رفيقك الصحي"',
-    },
-  ];
-};
-
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Multi-step onboarding UI intentionally keeps logic co-located.
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { i18n } = useTranslation();
-  const { user, updateUser } = useAuth();
-  const { theme } = useTheme();
-  const [currentStep, setCurrentStep] = useState(0);
+  const { t, i18n } = useTranslation();
+  const { updateUser } = useAuth();
+  const [step, setStep] = useState(0);
   const [isCompleting, setIsCompleting] = useState(false);
-  type RouteTarget = Parameters<typeof router.replace>[0];
 
+  const currentStep = STEPS[step];
+  const isLastStep = step === STEPS.length - 1;
   const isRTL = i18n.language === "ar";
-  const onboardingSteps = getOnboardingSteps(user?.role || "user");
 
-  // biome-ignore lint/nursery/noShadow: Local themed-style callback parameter is intentional and scoped.
-  const styles = createThemedStyles((theme) => ({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background.primary,
-    },
-    header: {
-      flexDirection: "row" as const,
-      justifyContent: "flex-end" as const,
-      paddingHorizontal: theme.spacing.lg,
-      paddingTop: theme.spacing.sm,
-    },
-    skipButton: {
-      paddingVertical: theme.spacing.sm,
-      paddingHorizontal: theme.spacing.md,
-    },
-    skipText: {
-      ...getTextStyle(theme, "body", "medium", theme.colors.text.secondary),
-    },
-    progressContainer: {
-      flexDirection: "row" as const,
-      justifyContent: "center" as const,
-      alignItems: "center" as const,
-      paddingVertical: theme.spacing.lg,
-      gap: theme.spacing.sm,
-    },
-    progressDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: theme.colors.neutral[200],
-    },
-    progressDotActive: {
-      width: 24,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: theme.colors.primary.main,
-    },
-    content: {
-      flex: 1,
-      justifyContent: "space-between" as const,
-      alignItems: "center" as const,
-      paddingHorizontal: theme.spacing.xl,
-      paddingTop: theme.spacing.lg,
-      paddingBottom: theme.spacing.base,
-    },
-    imageSection: {
-      alignItems: "center" as const,
-      flex: 1,
-      justifyContent: "center" as const,
-      maxHeight: "50%",
-    },
-    imageContainer: {
-      width: 260,
-      height: 260,
-      borderRadius: 20,
-      justifyContent: "center" as const,
-      alignItems: "center" as const,
-      backgroundColor: theme.colors.background.secondary,
-      ...theme.shadows.lg,
-    },
-    image: {
-      width: 220,
-      height: 220,
-      borderRadius: 15,
-    },
-    textContainer: {
-      alignItems: "center" as const,
-      paddingHorizontal: theme.spacing.base,
-      flex: 1,
-      justifyContent: "center" as const,
-      minHeight: 200,
-    },
-    title: {
-      ...getTextStyle(theme, "heading", "bold", theme.colors.primary.main),
-      fontSize: 28,
-      textAlign: "center" as const,
-      marginBottom: theme.spacing.lg,
-      lineHeight: 34,
-    },
-    description: {
-      ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
-      textAlign: "center" as const,
-      lineHeight: 22,
-      marginBottom: theme.spacing.xl,
-      fontSize: 16,
-    },
-    oneliner: {
-      ...getTextStyle(
-        theme,
-        "subheading",
-        "semibold",
-        theme.colors.secondary.main
-      ),
-      fontStyle: "italic" as const,
-      textAlign: "center" as const,
-      fontSize: 18,
-    },
-    footer: {
-      paddingHorizontal: theme.spacing.lg,
-      paddingBottom: theme.spacing.lg,
-    },
-    buttonContainer: {
-      flexDirection: "row" as const,
-      gap: theme.spacing.md,
-    },
-    primaryButton: {
-      flex: 1,
-      backgroundColor: theme.colors.primary.main,
-      borderRadius: theme.borderRadius.lg,
-      paddingVertical: theme.spacing.base,
-      alignItems: "center" as const,
-      ...theme.shadows.md,
-    },
-    primaryButtonText: {
-      ...getTextStyle(theme, "button", "bold", theme.colors.neutral.white),
-    },
-    secondaryButton: {
-      paddingVertical: theme.spacing.base,
-      paddingHorizontal: theme.spacing.lg,
-      alignItems: "center" as const,
-    },
-    secondaryButtonText: {
-      ...getTextStyle(theme, "button", "medium", theme.colors.text.secondary),
-    },
-    rtlText: {
-      textAlign: "right" as const,
-    },
-  }))(theme);
-
-  const handleComplete = async () => {
-    if (isCompleting) {
-      return;
+  const handleNext = async () => {
+    if (isLastStep) {
+      if (isCompleting) return;
+      setIsCompleting(true);
+      try {
+        const AsyncStorage = await import(
+          "@react-native-async-storage/async-storage"
+        );
+        await AsyncStorage.default.setItem("triggerDashboardTour", "true");
+        await updateUser({ onboardingCompleted: true });
+        setTimeout(() => {
+          router.replace({ pathname: "/(tabs)", params: { tour: "1" } });
+        }, 300);
+      } catch {
+        setIsCompleting(false);
+      }
+    } else {
+      setStep(step + 1);
     }
+  };
 
+  const handleSkip = async () => {
+    if (isCompleting) return;
     setIsCompleting(true);
     try {
       const AsyncStorage = await import(
@@ -254,160 +69,286 @@ export default function OnboardingScreen() {
       );
       await AsyncStorage.default.setItem("triggerDashboardTour", "true");
       await updateUser({ onboardingCompleted: true });
-      // Small delay to ensure state is updated
       setTimeout(() => {
-        const route: RouteTarget = {
-          pathname: "/(tabs)",
-          params: { tour: "1" },
-        };
-        router.replace(route);
+        router.replace({ pathname: "/(tabs)", params: { tour: "1" } });
       }, 300);
-    } catch (_error) {
-      // Silently handle error
+    } catch {
       setIsCompleting(false);
     }
   };
 
-  const nextStep = () => {
-    if (currentStep < onboardingSteps.length - 1) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      handleComplete();
-    }
+  const toggleLanguage = () => {
+    const newLang = i18n.language === "en" ? "ar" : "en";
+    i18n.changeLanguage(newLang);
   };
 
-  const prevStep = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
-
-  const skip = () => {
-    handleComplete();
-  };
-
-  const currentStepData = onboardingSteps[currentStep];
-  const isLastStep = currentStep === onboardingSteps.length - 1;
-  let primaryButtonLabel = isRTL ? "التالي" : "Next";
-  if (isLastStep && isCompleting) {
-    primaryButtonLabel = isRTL ? "جاري التحميل..." : "Loading...";
-  } else if (isLastStep) {
-    primaryButtonLabel = isRTL ? "ابدأ الآن" : "Get Started";
-  }
+  const titleKey = `onboarding.title.${step + 1}` as const;
+  const subtitleKey = `onboarding.subtitle.${step + 1}` as const;
 
   return (
-    <SafeAreaView style={styles.container as ViewStyle}>
-      {/* Header */}
-      <View style={styles.header as ViewStyle}>
-        <TouchableOpacity onPress={skip} style={styles.skipButton as ViewStyle}>
-          <Text
-            style={
-              [styles.skipText, isRTL && styles.rtlText] as StyleProp<TextStyle>
-            }
-          >
-            {isRTL ? "تخطي" : "Skip"}
-          </Text>
-        </TouchableOpacity>
-      </View>
+    <View style={styles.container}>
+      <WatermarkPattern />
 
-      {/* Progress Indicator */}
-      <View style={styles.progressContainer as ViewStyle}>
-        {onboardingSteps.map((step, index) => (
-          <View
-            key={step.key}
-            style={
-              [
-                styles.progressDot,
-                index === currentStep && styles.progressDotActive,
-              ] as StyleProp<ViewStyle>
-            }
-          />
-        ))}
-      </View>
-
-      {/* Content */}
-      <View style={styles.content as ViewStyle}>
-        {/* Image Section */}
-        <View style={styles.imageSection as ViewStyle}>
-          <View style={styles.imageContainer as ViewStyle}>
-            <Image
-              resizeMode="contain"
-              source={currentStepData.image}
-              style={styles.image as StyleProp<ImageStyle>}
-            />
-          </View>
-        </View>
-
-        {/* Text Section */}
-        <View style={styles.textContainer as ViewStyle}>
-          <Text
-            style={
-              [styles.title, isRTL && styles.rtlText] as StyleProp<TextStyle>
-            }
-          >
-            {isRTL ? currentStepData.titleAr : currentStepData.titleEn}
-          </Text>
-
-          <Text
-            style={
-              [
-                styles.description,
-                isRTL && styles.rtlText,
-              ] as StyleProp<TextStyle>
-            }
-          >
-            {isRTL ? currentStepData.descAr : currentStepData.descEn}
-          </Text>
-
-          <Text
-            style={
-              [styles.oneliner, isRTL && styles.rtlText] as StyleProp<TextStyle>
-            }
-          >
-            {isRTL ? currentStepData.onelinerAr : currentStepData.onelinerEn}
-          </Text>
-        </View>
-      </View>
-
-      {/* Footer */}
-      <View style={styles.footer as ViewStyle}>
-        <View style={styles.buttonContainer as ViewStyle}>
-          {currentStep > 0 && (
-            <TouchableOpacity
-              onPress={prevStep}
-              style={styles.secondaryButton as ViewStyle}
-            >
-              <Text
-                style={
-                  [
-                    styles.secondaryButtonText,
-                    isRTL && styles.rtlText,
-                  ] as StyleProp<TextStyle>
-                }
-              >
-                {isRTL ? "السابق" : "Back"}
-              </Text>
-            </TouchableOpacity>
-          )}
-
+      <SafeAreaView edges={["top"]} style={styles.safeArea}>
+        {/* Language toggle */}
+        <View style={styles.languageRow}>
           <TouchableOpacity
-            disabled={isCompleting}
-            onPress={nextStep}
-            style={styles.primaryButton as ViewStyle}
+            activeOpacity={0.7}
+            onPress={toggleLanguage}
+            style={styles.languageButton}
           >
-            <Text
-              style={
-                [
-                  styles.primaryButtonText,
-                  isRTL && styles.rtlText,
-                ] as StyleProp<TextStyle>
-              }
-            >
-              {primaryButtonLabel}
+            <Ionicons color="#4E5661" name="globe-outline" size={18} />
+            <Text style={styles.languageText}>
+              {i18n.language === "en" ? "العربية" : "English"}
             </Text>
           </TouchableOpacity>
         </View>
-      </View>
-    </SafeAreaView>
+
+        {/* Progress indicators */}
+        <View style={styles.progressRow}>
+          {STEPS.map((_, index) => (
+            <View
+              key={index}
+              style={[
+                styles.progressDot,
+                index === step && styles.progressDotActive,
+                index < step && styles.progressDotCompleted,
+              ]}
+            />
+          ))}
+        </View>
+
+        {/* Content */}
+        <View style={styles.content}>
+          {/* Icon */}
+          <View
+            style={[
+              styles.iconContainer,
+              {
+                backgroundColor:
+                  currentStep.color === "#EB9C0C"
+                    ? "rgba(235,156,12,0.15)"
+                    : currentStep.color === "#003543"
+                      ? "rgba(0,53,67,0.15)"
+                      : "rgba(16,185,129,0.15)",
+              },
+            ]}
+          >
+            <Ionicons
+              color={currentStep.color}
+              name={currentStep.icon}
+              size={48}
+            />
+          </View>
+
+          {/* Logo for first step */}
+          {step === 0 && (
+            <View style={styles.logoRow}>
+              <View style={styles.logoDots}>
+                <View style={[styles.dot, { backgroundColor: "#003543" }]} />
+                <View style={[styles.dot, { backgroundColor: "#EB9C0C" }]} />
+              </View>
+              <Text style={styles.logoText}>{t("app.name")}</Text>
+            </View>
+          )}
+
+          {/* Title and subtitle */}
+          <Text
+            numberOfLines={2}
+            style={[styles.title, isRTL && styles.rtlText]}
+          >
+            {t(titleKey)}
+          </Text>
+          <Text
+            numberOfLines={3}
+            style={[styles.subtitle, isRTL && styles.rtlText]}
+          >
+            {t(subtitleKey)}
+          </Text>
+
+          {/* Illustration placeholder */}
+          <View style={styles.illustrationPlaceholder}>
+            <Ionicons color="#D1D5DB" name={currentStep.icon} size={128} />
+          </View>
+        </View>
+
+        {/* Actions */}
+        <View style={styles.actions}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            disabled={isCompleting}
+            onPress={handleNext}
+            style={styles.primaryButton}
+          >
+            <Text style={styles.primaryButtonText}>
+              {isLastStep ? t("onboarding.get.started") : t("onboarding.next")}
+            </Text>
+            <Ionicons color="#FFFFFF" name="chevron-forward" size={20} />
+          </TouchableOpacity>
+
+          {!isLastStep && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={handleSkip}
+              style={styles.skipButton}
+            >
+              <Text style={styles.skipText}>{t("onboarding.skip")}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </SafeAreaView>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background.primary,
+  },
+  safeArea: {
+    flex: 1,
+    zIndex: 10,
+  },
+  languageRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    paddingHorizontal: 24,
+    paddingTop: 8,
+  },
+  languageButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    backgroundColor: "rgba(255,255,255,0.8)",
+  },
+  languageText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#4E5661",
+  },
+  progressRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 24,
+    paddingTop: 32,
+  },
+  progressDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#D1D5DB",
+  },
+  progressDotActive: {
+    width: 32,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#003543",
+  },
+  progressDotCompleted: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#003543",
+  },
+  content: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    paddingVertical: 48,
+  },
+  iconContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 32,
+  },
+  logoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 24,
+  },
+  logoDots: {
+    flexDirection: "row",
+    gap: 4,
+  },
+  dot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  logoText: {
+    fontSize: 30,
+    fontWeight: "700",
+    color: "#003543",
+  },
+  title: {
+    fontSize: 30,
+    fontWeight: "600",
+    color: "#1A1D1F",
+    textAlign: "center",
+    marginBottom: 16,
+    maxWidth: 340,
+  },
+  subtitle: {
+    fontSize: 18,
+    color: "#6C7280",
+    textAlign: "center",
+    marginBottom: 48,
+    maxWidth: 400,
+    lineHeight: 26,
+  },
+  rtlText: {
+    textAlign: "right",
+  },
+  illustrationPlaceholder: {
+    width: 256,
+    height: 256,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F9FDFE",
+  },
+  actions: {
+    paddingHorizontal: 24,
+    paddingBottom: 32,
+    gap: 12,
+  },
+  primaryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    width: "100%",
+    backgroundColor: "#003543",
+    borderRadius: 12,
+    paddingVertical: 16,
+  },
+  primaryButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  skipButton: {
+    width: "100%",
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  skipText: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#6C7280",
+  },
+});

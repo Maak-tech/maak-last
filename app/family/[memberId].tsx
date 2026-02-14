@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { doc, getDoc } from "firebase/firestore";
 import {
@@ -32,7 +33,6 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  Linking,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -336,6 +336,30 @@ export default function FamilyMemberHealthView() {
           }
         }
 
+        // When viewing your own profile: prefer live Apple Health data for steps/activity
+        // so displayed values match what you see in the Apple Health app.
+        // Firestore data can be stale if sync hasn't run recently.
+        if (memberId === user?.id && loadedVitals) {
+          try {
+            const liveVitals =
+              await healthDataService.getLatestVitalsFromProviders();
+            if (liveVitals?.steps !== undefined && liveVitals.steps !== null) {
+              loadedVitals = {
+                ...loadedVitals,
+                steps: liveVitals.steps,
+                activeEnergy:
+                  liveVitals.activeEnergy ?? loadedVitals.activeEnergy,
+                distanceWalkingRunning:
+                  liveVitals.distanceWalkingRunning ??
+                  loadedVitals.distanceWalkingRunning,
+                timestamp: liveVitals.timestamp ?? loadedVitals.timestamp,
+              };
+            }
+          } catch {
+            // Keep Firestore data if Apple Health fetch fails
+          }
+        }
+
         setVitals(loadedVitals);
       } catch (_error) {
         // Silently handle error
@@ -344,7 +368,7 @@ export default function FamilyMemberHealthView() {
         setRefreshing(false);
       }
     },
-    [memberId]
+    [memberId, user?.id]
   );
 
   const loadMemberInsights = useCallback(
@@ -569,7 +593,7 @@ export default function FamilyMemberHealthView() {
                   onPress={() => router.back()}
                   style={styles.figmaBackButton}
                 >
-                  <ArrowLeft color="#003543" size={20} />
+                  <ArrowLeft color="#03303C" size={20} />
                 </TouchableOpacity>
                 <View style={styles.figmaHeaderTitle}>
                   <Text style={styles.figmaHeaderTitleText}>
@@ -602,7 +626,7 @@ export default function FamilyMemberHealthView() {
                   onPress={() => router.back()}
                   style={styles.figmaBackButton}
                 >
-                  <ArrowLeft color="#003543" size={20} />
+                  <ArrowLeft color="#03303C" size={20} />
                 </TouchableOpacity>
                 <View style={styles.figmaHeaderTitle}>
                   <Text style={styles.figmaHeaderTitleText}>
@@ -678,25 +702,6 @@ export default function FamilyMemberHealthView() {
           : "Medication adherence is good. Continue monitoring."
         : null;
 
-  const handleQuickAction = (
-    action: "call" | "message" | "share" | "report"
-  ) => {
-    const phone = member.phoneNumber;
-    if (action === "call" && phone) {
-      Linking.openURL(`tel:${phone}`);
-    } else if (action === "message" && phone) {
-      Linking.openURL(`sms:${phone}`);
-    } else if (action === "share") {
-      // Share member health summary - placeholder
-      Alert.alert(
-        isRTL ? "مشاركة" : "Share",
-        isRTL ? "مشاركة التقرير الصحي قريباً" : "Share health report coming soon"
-      );
-    } else if (action === "report") {
-      router.push("/(tabs)/analytics");
-    }
-  };
-
   const predictiveInsight = insights.find(
     (insight) =>
       insight.type === "ml" && typeof insight.data?.riskScore === "number"
@@ -709,117 +714,27 @@ export default function FamilyMemberHealthView() {
       style={styles.container}
     >
       <View style={styles.figmaHeaderWrapper}>
-        <WavyBackground curve="home" height={240} variant="teal">
+        <WavyBackground curve="home" height={120} variant="teal">
           <View style={styles.figmaHeaderContent}>
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.figmaBackButton}
-            >
-              <ArrowLeft color="#FFFFFF" size={20} />
-            </TouchableOpacity>
-            <View style={styles.figmaHeaderProfile}>
-              <View
-                style={[
-                  styles.figmaAvatarRing,
-                  {
-                    borderColor:
-                      memberStatus === "critical"
-                        ? "#EF4444"
-                        : memberStatus === "monitor"
-                          ? "#F59E0B"
-                          : "#10B981",
-                  },
-                ]}
+            <View style={styles.figmaHeaderTopRow}>
+              <TouchableOpacity
+                onPress={() => router.back()}
+                style={styles.figmaBackButton}
               >
-                <View style={styles.figmaAvatarInner}>
-                  {member.avatar ? (
-                    <Image
-                      source={
-                        typeof member.avatar === "string"
-                          ? { uri: member.avatar }
-                          : member.avatar
-                      }
-                      style={styles.figmaAvatarImage}
-                    />
-                  ) : (
-                    <Text style={styles.figmaAvatarText}>
-                      {getAvatarInitials(memberName)}
-                    </Text>
-                  )}
-                </View>
-              </View>
-              <View style={styles.figmaHeaderInfo}>
-                <Text style={styles.figmaHeaderTitleText}>{memberName}</Text>
-                <Text
-                  style={[styles.figmaHeaderSubtitle, isRTL && styles.rtlText]}
-                >
-                  {displayRelationship}
+                <ArrowLeft color="#03303C" size={20} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => router.push("/(tabs)/analytics")}
+                style={styles.figmaAnalysisButton}
+              >
+                <Ionicons color="#003543" name="analytics-outline" size={20} />
+                <Text style={styles.figmaAnalysisLabel}>
+                  {isRTL ? "التحليل" : "Analysis"}
                 </Text>
-                <StatusBadge status={memberStatus} />
-              </View>
+              </TouchableOpacity>
             </View>
-            {statusExplanation ? (
-              <View style={styles.statusExplanation}>
-                <Text style={styles.statusExplanationText}>
-                  {statusExplanation}
-                </Text>
-              </View>
-            ) : null}
           </View>
         </WavyBackground>
-      </View>
-
-      {/* Quick actions - Figma Profile style */}
-      <View style={styles.quickActions}>
-        {[
-          {
-            icon: Phone,
-            label: isRTL ? "اتصال" : "Call",
-            action: "call" as const,
-          },
-          {
-            icon: MessageSquare,
-            label: isRTL ? "رسالة" : "Message",
-            action: "message" as const,
-          },
-          {
-            icon: Share2,
-            label: isRTL ? "مشاركة" : "Share",
-            action: "share" as const,
-          },
-          {
-            icon: FileText,
-            label: isRTL ? "تقرير" : "Report",
-            action: "report" as const,
-          },
-        ].map((item) => {
-          const Icon = item.icon;
-          const color =
-            item.action === "call"
-              ? "#10B981"
-              : item.action === "message"
-                ? "#3B82F6"
-                : item.action === "share"
-                  ? "#6C7280"
-                  : "#EB9C0C";
-          return (
-            <TouchableOpacity
-              key={item.action}
-              onPress={() => handleQuickAction(item.action)}
-              style={styles.quickActionButton}
-            >
-              <View
-                style={[
-                  styles.quickActionIconWrap,
-                  { backgroundColor: `${color}15` },
-                ]}
-              >
-                <Icon color={color} size={24} />
-              </View>
-              <Text style={styles.quickActionLabel}>{item.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
       </View>
 
       <ScrollView
@@ -836,7 +751,63 @@ export default function FamilyMemberHealthView() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Member Info Card - Role & actions (avatar/name in header) */}
+        {/* Member profile - avatar & name below header */}
+        <View style={styles.memberProfileSection}>
+          <View
+            style={[
+              styles.figmaAvatarRing,
+              styles.memberProfileAvatarRing,
+              {
+                borderColor:
+                  memberStatus === "critical"
+                    ? "#EF4444"
+                    : memberStatus === "monitor"
+                      ? "#F59E0B"
+                      : "#10B981",
+              },
+            ]}
+          >
+            <View
+              style={[styles.figmaAvatarInner, styles.memberProfileAvatarInner]}
+            >
+              {member.avatar ? (
+                <Image
+                  source={
+                    typeof member.avatar === "string"
+                      ? { uri: member.avatar }
+                      : member.avatar
+                  }
+                  style={styles.figmaAvatarImage}
+                />
+              ) : (
+                <Text
+                  style={[
+                    styles.figmaAvatarText,
+                    styles.memberProfileAvatarText,
+                  ]}
+                >
+                  {getAvatarInitials(memberName)}
+                </Text>
+              )}
+            </View>
+          </View>
+          <Text style={styles.memberProfileName}>{memberName}</Text>
+          <Text
+            style={[styles.memberProfileRelationship, isRTL && styles.rtlText]}
+          >
+            {displayRelationship}
+          </Text>
+          <StatusBadge status={memberStatus} />
+          {statusExplanation ? (
+            <View style={styles.memberProfileStatusExplanation}>
+              <Text style={styles.memberProfileStatusExplanationText}>
+                {statusExplanation}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+
+        {/* Member Info Card - Role & actions */}
         {(user?.role === "admin" && user?.id !== memberId) ||
         (user?.role === "caregiver" && user?.familyId === member?.familyId) ? (
           <View style={styles.memberCard}>
@@ -1640,13 +1611,20 @@ const styles =
         },
         figmaHeaderContent: {
           paddingHorizontal: 24,
-          paddingTop: 56,
+          paddingTop: 88,
           paddingBottom: 16,
         },
         figmaHeaderRow: {
           flexDirection: "row",
           alignItems: "center",
           gap: 12,
+        },
+        figmaHeaderTopRow: {
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 16,
+          paddingTop: 32,
         },
         figmaBackButton: {
           width: 40,
@@ -1655,7 +1633,20 @@ const styles =
           backgroundColor: "rgba(255, 255, 255, 0.2)",
           alignItems: "center",
           justifyContent: "center",
-          marginBottom: 16,
+        },
+        figmaAnalysisButton: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 6,
+          paddingVertical: 8,
+          paddingHorizontal: 12,
+          borderRadius: 12,
+          backgroundColor: "rgba(255, 255, 255, 0.2)",
+        },
+        figmaAnalysisLabel: {
+          fontSize: 14,
+          fontFamily: "Inter-Medium",
+          color: "#003543",
         },
         figmaHeaderProfile: {
           flexDirection: "row",
@@ -1707,39 +1698,6 @@ const styles =
           color: "rgba(255, 255, 255, 0.9)",
           lineHeight: 20,
         },
-        quickActions: {
-          flexDirection: "row",
-          flexWrap: "wrap",
-          justifyContent: "space-between",
-          paddingHorizontal: 24,
-          paddingTop: 16,
-          paddingBottom: 8,
-          gap: 12,
-        },
-        quickActionButton: {
-          flex: 1,
-          minWidth: "22%",
-          alignItems: "center",
-          paddingVertical: 12,
-          paddingHorizontal: 8,
-          borderRadius: 12,
-          borderWidth: 1,
-          borderColor: "#E5E7EB",
-          backgroundColor: "#FFFFFF",
-        },
-        quickActionIconWrap: {
-          width: 48,
-          height: 48,
-          borderRadius: 12,
-          alignItems: "center",
-          justifyContent: "center",
-          marginBottom: 8,
-        },
-        quickActionLabel: {
-          fontSize: 12,
-          fontFamily: "Inter-Medium",
-          color: "#4E5661",
-        },
         figmaHeaderTitle: {
           flex: 1,
         },
@@ -1768,7 +1726,50 @@ const styles =
         },
         figmaContent: {
           paddingHorizontal: 24,
+          paddingTop: 24,
           paddingBottom: 32,
+        },
+        memberProfileSection: {
+          alignItems: "center",
+          marginBottom: 24,
+        },
+        memberProfileAvatarRing: {
+          marginBottom: 12,
+        },
+        memberProfileAvatarInner: {
+          backgroundColor: "#E5E7EB",
+        },
+        memberProfileAvatarText: {
+          color: "#003543",
+        },
+        memberProfileName: {
+          fontSize: 22,
+          fontFamily: "Inter-Bold",
+          color: "#003543",
+          marginBottom: 4,
+          textAlign: "center",
+        },
+        memberProfileRelationship: {
+          fontSize: 14,
+          fontFamily: "Inter-Regular",
+          color: "#6C7280",
+          marginBottom: 12,
+          textAlign: "center",
+        },
+        memberProfileStatusExplanation: {
+          marginTop: 12,
+          padding: 16,
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: "#E5E7EB",
+          backgroundColor: "#F9FAFB",
+          width: "100%",
+        },
+        memberProfileStatusExplanationText: {
+          fontSize: 14,
+          color: "#4E5661",
+          lineHeight: 20,
+          textAlign: "center",
         },
         memberCard: {
           backgroundColor: "#FFFFFF",

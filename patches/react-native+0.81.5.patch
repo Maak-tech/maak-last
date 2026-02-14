@@ -1,0 +1,21 @@
+diff --git a/node_modules/react-native/index.js b/node_modules/react-native/index.js
+index c737c93..2eaf5e5 100644
+--- a/node_modules/react-native/index.js
++++ b/node_modules/react-native/index.js
+@@ -277,8 +277,14 @@ module.exports = {
+         "It can now be installed and imported from '@react-native-community/push-notification-ios' instead of 'react-native'. " +
+         'See https://github.com/react-native-push-notification/ios',
+     );
+-    return require('./Libraries/PushNotificationIOS/PushNotificationIOS')
+-      .default;
++    // Use polyfill in Expo - native module causes NativeEventEmitter error on Android/web
++    try {
++      const polyfill = require('../../lib/polyfills/pushNotificationIOS');
++      return polyfill.default ?? polyfill;
++    } catch (_) {
++      return require('./Libraries/PushNotificationIOS/PushNotificationIOS')
++        .default;
++    }
+   },
+   get processColor() {
+     return require('./Libraries/StyleSheet/processColor').default;

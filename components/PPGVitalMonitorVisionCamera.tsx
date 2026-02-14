@@ -1319,6 +1319,9 @@ export default function PPGVitalMonitorVisionCamera({
     (frame) => {
       "worklet";
 
+      // Skip invalid frames - can happen during camera teardown
+      if (!frame.isValid) return;
+
       // Log first frame processor call for debugging
       if (!frameProcessorInitializedSV.value) {
         frameProcessorInitializedSV.value = true;
@@ -1693,7 +1696,7 @@ export default function PPGVitalMonitorVisionCamera({
                   setError(`Camera error: ${error.message}`);
                   setStatus("error");
                 }}
-                pixelFormat="rgb"
+                pixelFormat="yuv"
                 style={styles.camera as ViewStyle}
                 torch={status === "measuring" ? "on" : "off"}
               />

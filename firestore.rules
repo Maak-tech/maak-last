@@ -282,8 +282,11 @@ service cloud.firestore {
 
     // Escalations collection - PHI protected (alert escalation workflow)
     match /escalations/{escalationId} {
-      // Allow creating escalation for the target user (self or family admin)
-      allow create: if canWritePHI(request.resource.data.userId);
+      // Allow creating escalation: patient (self), family admin, or caregiver (same family)
+      allow create: if isSignedIn() && (
+        request.auth.uid == request.resource.data.userId ||
+        isSameFamily(request.resource.data.userId)
+      );
       // Allow reading escalation records for the target user
       allow read: if canReadPHI(resource.data.userId);
       // Allow updating/deleting escalation records for the target user

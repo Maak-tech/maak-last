@@ -114,7 +114,8 @@ export function extractRedChannelAverage(frame: Frame): number {
       return count > 0 ? sum / count : Number.NaN;
     };
 
-    // Method 1: Try toArrayBuffer()
+    // Method 1: toArrayBuffer() - primary VisionCamera API for pixel access
+    // YUV format is native and more reliable than RGB (avoids conversion, fewer toArrayBuffer issues on Android)
     if (
       extractedValue === null &&
       typeof frameAny.toArrayBuffer === "function"
@@ -122,11 +123,11 @@ export function extractRedChannelAverage(frame: Frame): number {
       try {
         const buffer = frameAny.toArrayBuffer();
         if (buffer) {
-          // buffer can be ArrayBuffer (expected). If it's not, this will throw and get logged below.
           const data = new Uint8Array(buffer);
           if (data.length > 0) {
             if (pixelFormat === "yuv") {
-              extractedValue = extractRedFromYUVBuffer(
+              // YUV: try I420 layout first (Y,U,V planes), then NV12 (Y + interleaved UV)
+              let val = extractRedFromYUVBuffer(
                 data,
                 width,
                 height,
@@ -134,19 +135,40 @@ export function extractRedChannelAverage(frame: Frame): number {
                 centerY,
                 sampleRadius
               );
+              if (isNaN(val) || val < 0 || val > 255) {
+                val = extractRedFromYUVBufferAsNV12(
+                  data,
+                  width,
+                  height,
+                  centerX,
+                  centerY,
+                  sampleRadius
+                );
+              }
+              extractedValue =
+                !isNaN(val) && val >= 0 && val <= 255 ? val : null;
             } else {
               extractedValue = sampleRGB(data, frame.bytesPerRow);
             }
-            extractionMethod = "toArrayBuffer";
-            isFirstFrame = true;
+            if (
+              extractedValue !== null &&
+              !isNaN(extractedValue) &&
+              extractedValue >= 0 &&
+              extractedValue <= 255
+            ) {
+              extractionMethod = "toArrayBuffer";
+              isFirstFrame = true;
+            } else {
+              extractedValue = null;
+            }
           }
         }
       } catch (e) {
-        // Method not available or failed - try next method
+        // toArrayBuffer can fail on some Android devices (SIGSEGV) - try fallbacks
       }
     }
 
-    // Method 2: Try getPlaneData() (some builds expose this non-typed API)
+    // Method 2: Try getPlaneData() if exposed (non-typed API, some builds)
     if (
       extractedValue === null &&
       typeof frameAny.getPlaneData === "function"
@@ -435,7 +457,56 @@ function extractRedFromBuffer(
     }
   }
 
-  return sampleCount > 0 ? redSum / sampleCount : 128;
+  return sampleCount > 0 ? redSum / sampleCount : Number.NaN;
+}
+
+/**
+ * Extract red from NV12 format (common on iOS/Android)
+ * Layout: Y plane (width*height) + interleaved UV plane (width*height/2)
+ */
+function extractRedFromYUVBufferAsNV12(
+  data: Uint8Array,
+  width: number,
+  height: number,
+  centerX: number,
+  centerY: number,
+  radius: number
+): number {
+  "worklet";
+
+  const yPlaneSize = width * height;
+  if (data.length < yPlaneSize) return Number.NaN;
+
+  const minX = Math.max(0, centerX - radius);
+  const maxX = Math.min(width - 1, centerX + radius);
+  const minY = Math.max(0, centerY - radius);
+  const maxY = Math.min(height - 1, centerY + radius);
+
+  let redSum = 0;
+  let sampleCount = 0;
+  const sampleStep = 4;
+
+  for (let y = minY; y <= maxY; y += sampleStep) {
+    for (let x = minX; x <= maxX; x += sampleStep) {
+      const yIndex = y * width + x;
+      if (yIndex >= yPlaneSize) continue;
+
+      const Y = data[yIndex];
+      const uvX = Math.floor(x / 2);
+      const uvY = Math.floor(y / 2);
+      const uvIndex = yPlaneSize + uvY * width + uvX * 2;
+      if (uvIndex + 1 >= data.length) continue;
+
+      const V = data[uvIndex];
+      const U = data[uvIndex + 1];
+      const r = Y + 1.402 * (V - 128);
+      const redValue = Math.max(0, Math.min(255, Math.round(r)));
+      redSum += redValue;
+      sampleCount++;
+    }
+  }
+
+  return sampleCount > 0 ? redSum / sampleCount : Number.NaN;
 }
 
 /**

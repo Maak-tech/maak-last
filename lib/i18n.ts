@@ -74,6 +74,22 @@ const resources = {
       onboardingDesc2: "Keep your entire family healthy with shared monitoring",
       onboardingTitle3: "Smart Alerts",
       onboardingDesc3: "Get timely reminders and emergency notifications",
+      // Figma onboarding (4-step flow)
+      "app.name": "Maak",
+      "onboarding.title.1": "Proactive care for families",
+      "onboarding.subtitle.1":
+        "Monitor health trends and get AI-powered insights for your loved ones",
+      "onboarding.title.2": "Connect health data",
+      "onboarding.subtitle.2":
+        "Link wearables and sensors to track vitals automatically",
+      "onboarding.title.3": "Stay informed, stay calm",
+      "onboarding.subtitle.3":
+        "Get meaningful alerts with context, not just noise",
+      "onboarding.title.4": "Meet Zeina, your care agent",
+      "onboarding.subtitle.4": "AI assistance that turns insights into actions",
+      "onboarding.next": "Next",
+      "onboarding.get.started": "Get Started",
+      "onboarding.skip": "Skip",
 
       // Navigation
       home: "Home",
@@ -1281,6 +1297,23 @@ const resources = {
       onboardingDesc2: "حافظ على صحة عائلتك بالكامل مع المراقبة المشتركة",
       onboardingTitle3: "تنبيهات ذكية",
       onboardingDesc3: "احصل على تذكيرات في الوقت المناسب وإشعارات الطوارئ",
+      // Figma onboarding (4-step flow)
+      "app.name": "مَعَاك",
+      "onboarding.title.1": "رعاية استباقية للعائلات",
+      "onboarding.subtitle.1":
+        "راقب الاتجاهات الصحية واحصل على رؤى مدعومة بالذكاء الاصطناعي لأحبائك",
+      "onboarding.title.2": "ربط البيانات الصحية",
+      "onboarding.subtitle.2":
+        "اربط الأجهزة القابلة للارتداء وأجهزة الاستشعار لتتبع العلامات الحيوية تلقائياً",
+      "onboarding.title.3": "ابق على اطلاع، ابق هادئاً",
+      "onboarding.subtitle.3":
+        "احصل على تنبيهات ذات مغزى مع السياق، وليس مجرد ضوضاء",
+      "onboarding.title.4": "تعرف على زينة، وكيلة الرعاية الخاصة بك",
+      "onboarding.subtitle.4":
+        "مساعدة الذكاء الاصطناعي التي تحول الرؤى إلى إجراءات",
+      "onboarding.next": "التالي",
+      "onboarding.get.started": "ابدأ",
+      "onboarding.skip": "تخطي",
 
       // Navigation
       home: "الرئيسية",
