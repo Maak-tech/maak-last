@@ -1,0 +1,66 @@
+diff --git a/node_modules/react-native/index.js b/node_modules/react-native/index.js
+index 0000000..1111111 100644
+--- a/node_modules/react-native/index.js
++++ b/node_modules/react-native/index.js
+@@ -365,7 +365,52 @@ module.exports = {
+   get PixelRatio(): PixelRatio {
+     return require('./Libraries/Utilities/PixelRatio');
+   },
+-  get PushNotificationIOS(): PushNotificationIOS {
+-    return require('./Libraries/PushNotificationIOS/PushNotificationIOS');
++  // PATCHED: Replace PushNotificationIOS with polyfill to prevent NativeEventEmitter crash in Expo
++  // The native module doesn't exist in Expo, causing "requires a non-null argument" error
++  // This polyfill prevents the crash and allows the app to use expo-notifications instead
++  get PushNotificationIOS() {
++    const noop = () => {};
++    const eventEmitter = {
++      addListener: () => ({ remove: noop }),
++      removeListener: noop,
++      removeAllListeners: noop,
++    };
++    
++    const polyfill = {
++      requestPermissions: (_permissions) =>
++        Promise.resolve({
++          alert: true,
++          badge: true,
++          sound: true,
++        }),
++      addEventListener: (type, handler) => eventEmitter.addListener(type, handler),
++      removeEventListener: (type, handler) => {
++        eventEmitter.removeListener(type, handler);
++      },
++      removeAllListeners: (type) => {
++        eventEmitter.removeAllListeners(type);
++      },
++      getInitialNotification: () => Promise.resolve(null),
++      setApplicationIconBadgeNumber: (_number) => {},
++      getApplicationIconBadgeNumber: (callback) => {
++        if (callback) {
++          callback(0);
++        }
++      },
++      presentLocalNotification: (_notification) => {},
++      scheduleLocalNotification: (_notification) => {},
++      cancelLocalNotifications: (_userInfo) => {},
++      cancelAllLocalNotifications: () => {},
++      getScheduledLocalNotifications: (callback) => {
++        if (callback) {
++          callback([]);
++        }
++      },
++      removeAllDeliveredNotifications: () => {},
++      removeDeliveredNotifications: (_identifiers) => {},
++      getDeliveredNotifications: (callback) => {
++        if (callback) {
++          callback([]);
++        }
++      },
++    };
++    
++    // Critical: Set default property to handle Expo's importAll which accesses .default
++    polyfill.default = polyfill;
++    
++    return polyfill;
+   },
+   get Settings(): Settings {
