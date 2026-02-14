@@ -285,6 +285,7 @@ export default function FamilyScreen() {
     "today" | "upcoming" | "all"
   >("today");
   const [markingTaken, setMarkingTaken] = useState<string | null>(null);
+  const [resolvingAlertId, setResolvingAlertId] = useState<string | null>(null);
 
   const { isEnabled: fallDetectionEnabled, toggleFallDetection } =
     useFallDetectionContext();
@@ -819,6 +820,12 @@ export default function FamilyScreen() {
 
   const handleResolveAlert = async (alertId: string) => {
     if (!user?.id) return;
+    if (resolvingAlertId) return;
+
+    setResolvingAlertId(alertId);
+
+    // Optimistic update: remove from UI immediately
+    setActiveAlerts((prev) => prev.filter((item) => item.alert.id !== alertId));
 
     const startTime = Date.now();
 
@@ -855,10 +862,15 @@ export default function FamilyScreen() {
       const _durationMs = Date.now() - startTime;
       logger.error("Failed to resolve alert", error, "FamilyScreen");
 
+      // Revert optimistic update on failure
+      await loadActiveAlerts(true);
+
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL ? "فشل في حل التنبيه" : "Failed to resolve alert"
       );
+    } finally {
+      setResolvingAlertId(null);
     }
   };
 
@@ -2929,6 +2941,7 @@ export default function FamilyScreen() {
     >
       <ScrollView
         contentContainerStyle={styles.familyContent}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             onRefresh={async () => {
@@ -3198,12 +3211,27 @@ export default function FamilyScreen() {
                         </View>
                       </View>
                       <TouchableOpacity
+                        activeOpacity={0.7}
+                        disabled={resolvingAlertId === item.alert.id}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                         onPress={() => handleResolveAlert(item.alert.id)}
-                        style={styles.resolveAlertButton}
+                        style={[
+                          styles.resolveAlertButton,
+                          resolvingAlertId === item.alert.id &&
+                            styles.resolveAlertButtonDisabled,
+                        ]}
                       >
-                        <Text style={styles.resolveAlertButtonText}>
-                          {isRTL ? "حل" : "Resolve"}
-                        </Text>
+                        {resolvingAlertId === item.alert.id ? (
+                          <ActivityIndicator
+                            color="#FFFFFF"
+                            size="small"
+                            style={styles.resolveAlertSpinner}
+                          />
+                        ) : (
+                          <Text style={styles.resolveAlertButtonText}>
+                            {isRTL ? "حل" : "Resolve"}
+                          </Text>
+                        )}
                       </TouchableOpacity>
                     </View>
                   );
@@ -5502,6 +5530,15 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
     marginLeft: 12,
+    minWidth: 80,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  resolveAlertButtonDisabled: {
+    opacity: 0.7,
+  },
+  resolveAlertSpinner: {
+    marginVertical: 2,
   },
   resolveAlertButtonText: {
     fontSize: 13,

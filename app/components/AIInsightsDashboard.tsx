@@ -1,4 +1,4 @@
-﻿import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   Activity,
   AlertTriangle,
@@ -1086,28 +1086,13 @@ function ActionPlanSection({
   insights: AIInsightsDashboardData;
 }) {
   const { t, i18n } = useTranslation();
-  const [actionPlan, setActionPlan] = useState<ActionPlan | null>(null);
-  const [loading, setLoading] = useState(false);
   const isRTL = i18n.language === "ar";
 
-  const loadActionPlan = async () => {
-    if (!insights.userId) {
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const plan = await aiInsightsService.generateActionPlan(
-        insights.userId,
-        isRTL
-      );
-      setActionPlan(plan);
-    } catch (_error) {
-      // Failed to load action plan
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Build action plan from existing insights (no network call - instant)
+  const actionPlan = aiInsightsService.buildActionPlanFromDashboard(
+    insights,
+    isRTL
+  );
 
   return (
     <Card contentStyle={undefined} onPress={undefined} style={styles.mb4}>
@@ -1117,89 +1102,79 @@ function ActionPlanSection({
           {t("healthActionPlan", "Health Action Plan")}
         </Text>
       </View>
-
-      {actionPlan ? (
-        <View style={styles.mt3}>
-          {actionPlan.immediate.length > 0 ? (
-            <View style={styles.mb3}>
+      <View style={styles.mt3}>
+        {actionPlan.immediate.length > 0 ? (
+          <View style={styles.mb3}>
+            <Text
+              style={[styles.textSm, styles.fontBold, { color: "#EF4444" }]}
+            >
+              {t("immediateActions", "Immediate Actions")}
+            </Text>
+            {actionPlan.immediate.map((action: string) => (
               <Text
-                style={[styles.textSm, styles.fontBold, { color: "#EF4444" }]}
+                key={getStableKey("immediate", action)}
+                style={[styles.text, styles.mt1]}
               >
-                {t("immediateActions", "Immediate Actions")}
+                • {action}
               </Text>
-              {actionPlan.immediate.map((action: string) => (
-                <Text
-                  key={getStableKey("immediate", action)}
-                  style={[styles.text, styles.mt1]}
-                >
-                  • {action}
-                </Text>
-              ))}
-            </View>
-          ) : null}
+            ))}
+          </View>
+        ) : null}
 
-          {actionPlan.shortTerm.length > 0 ? (
-            <View style={styles.mb3}>
+        {actionPlan.shortTerm.length > 0 ? (
+          <View style={styles.mb3}>
+            <Text
+              style={[styles.textSm, styles.fontBold, { color: "#F59E0B" }]}
+            >
+              {t("shortTermGoals", "Short-term Goals")}
+            </Text>
+            {actionPlan.shortTerm.map((action: string) => (
               <Text
-                style={[styles.textSm, styles.fontBold, { color: "#F59E0B" }]}
+                key={getStableKey("short-term", action)}
+                style={[styles.text, styles.mt1]}
               >
-                {t("shortTermGoals", "Short-term Goals")}
+                • {action}
               </Text>
-              {actionPlan.shortTerm.map((action: string) => (
-                <Text
-                  key={getStableKey("short-term", action)}
-                  style={[styles.text, styles.mt1]}
-                >
-                  • {action}
-                </Text>
-              ))}
-            </View>
-          ) : null}
+            ))}
+          </View>
+        ) : null}
 
-          {actionPlan.longTerm.length > 0 ? (
-            <View style={styles.mb3}>
+        {actionPlan.longTerm.length > 0 ? (
+          <View style={styles.mb3}>
+            <Text
+              style={[styles.textSm, styles.fontBold, { color: "#10B981" }]}
+            >
+              {t("longTermGoals", "Long-term Goals")}
+            </Text>
+            {actionPlan.longTerm.map((action: string) => (
               <Text
-                style={[styles.textSm, styles.fontBold, { color: "#10B981" }]}
+                key={getStableKey("long-term", action)}
+                style={[styles.text, styles.mt1]}
               >
-                {t("longTermGoals", "Long-term Goals")}
+                • {action}
               </Text>
-              {actionPlan.longTerm.map((action: string) => (
-                <Text
-                  key={getStableKey("long-term", action)}
-                  style={[styles.text, styles.mt1]}
-                >
-                  • {action}
-                </Text>
-              ))}
-            </View>
-          ) : null}
+            ))}
+          </View>
+        ) : null}
 
-          {actionPlan.monitoring.length > 0 ? (
-            <View>
+        {actionPlan.monitoring.length > 0 ? (
+          <View>
+            <Text
+              style={[styles.textSm, styles.fontBold, { color: "#6C7280" }]}
+            >
+              Ongoing Monitoring
+            </Text>
+            {actionPlan.monitoring.map((item: string) => (
               <Text
-                style={[styles.textSm, styles.fontBold, { color: "#6C7280" }]}
+                key={getStableKey("monitor", item)}
+                style={[styles.text, styles.mt1]}
               >
-                Ongoing Monitoring
+                • {item}
               </Text>
-              {actionPlan.monitoring.map((item: string) => (
-                <Text
-                  key={getStableKey("monitor", item)}
-                  style={[styles.text, styles.mt1]}
-                >
-                  • {item}
-                </Text>
-              ))}
-            </View>
-          ) : null}
-        </View>
-      ) : (
-        <Button
-          loading={loading}
-          onPress={loadActionPlan}
-          style={styles.mt3}
-          title={t("generateActionPlan", "Generate Action Plan")}
-        />
-      )}
+            ))}
+          </View>
+        ) : null}
+      </View>
     </Card>
   );
 }
@@ -1395,8 +1370,8 @@ function MedicationAlertCard({
   };
   const severityColor = severityMap[String(alert.severity)] || "#6C7280";
 
-  return (
-    <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
+  const cardContent = (
+    <Card contentStyle={undefined} onPress={undefined} style={styles.mb2}>
       <View style={styles.row}>
         {getIcon("AlertTriangle", 20, severityColor)}
         <Text style={[styles.cardTitle, styles.ml2]}>{alert.title}</Text>
@@ -1409,6 +1384,19 @@ function MedicationAlertCard({
       ) : null}
     </Card>
   );
+
+  if (onPress) {
+    return (
+      <TouchableOpacity
+        activeOpacity={0.7}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        onPress={onPress}
+      >
+        {cardContent}
+      </TouchableOpacity>
+    );
+  }
+  return cardContent;
 }
 
 function SuggestionCard({
@@ -1418,8 +1406,8 @@ function SuggestionCard({
   suggestion: HealthSuggestion;
   onPress?: () => void;
 }) {
-  return (
-    <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
+  const cardContent = (
+    <Card contentStyle={undefined} onPress={undefined} style={styles.mb2}>
       <View style={styles.row}>
         <Text style={styles.cardTitle}>{suggestion.title}</Text>
         <Badge style={{}}>{suggestion.priority}</Badge>
@@ -1439,6 +1427,19 @@ function SuggestionCard({
       ) : null}
     </Card>
   );
+
+  if (onPress) {
+    return (
+      <TouchableOpacity
+        activeOpacity={0.7}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        onPress={onPress}
+      >
+        {cardContent}
+      </TouchableOpacity>
+    );
+  }
+  return cardContent;
 }
 
 function RecommendationCard({
@@ -1448,22 +1449,48 @@ function RecommendationCard({
   recommendation: string;
   onPress?: () => void;
 }) {
-  return (
-    <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
+  const cardContent = (
+    <Card contentStyle={undefined} onPress={undefined} style={styles.mb2}>
       <Text style={[styles.text, styles.textCenter]}>• {recommendation}</Text>
     </Card>
   );
+
+  if (onPress) {
+    return (
+      <TouchableOpacity
+        activeOpacity={0.7}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        onPress={onPress}
+      >
+        {cardContent}
+      </TouchableOpacity>
+    );
+  }
+  return cardContent;
 }
 
 function TipCard({ tip, onPress }: { tip: string; onPress?: () => void }) {
-  return (
-    <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
+  const cardContent = (
+    <Card contentStyle={undefined} onPress={undefined} style={styles.mb2}>
       <View style={styles.row}>
         {getIcon("Lightbulb", 16, "#F59E0B")}
         <Text style={[styles.text, styles.ml2]}>{tip}</Text>
       </View>
     </Card>
   );
+
+  if (onPress) {
+    return (
+      <TouchableOpacity
+        activeOpacity={0.7}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        onPress={onPress}
+      >
+        {cardContent}
+      </TouchableOpacity>
+    );
+  }
+  return cardContent;
 }
 
 function EmptyState({ message }: { message: string }) {

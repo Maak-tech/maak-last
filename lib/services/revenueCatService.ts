@@ -124,6 +124,39 @@ class RevenueCatService {
     // Create and store the initialization promise
     this.initializationPromise = (async () => {
       try {
+        // Set custom log handler before configure to suppress known config errors
+        // (offerings empty when products aren't in App Store Connect / StoreKit config)
+        const customLogHandler: LogHandler = (level, message) => {
+          const isOfferingsConfigError =
+            typeof message === "string" &&
+            (message.includes("None of the products registered") ||
+              message.includes("why-are-offerings-empty") ||
+              message.includes("There's a problem with your configuration") ||
+              (message.includes("Error fetching offerings") &&
+                message.includes("OfferingsManager")));
+          if (isOfferingsConfigError) {
+            // Downgrade to debug - we handle this gracefully in getOfferings()
+            return;
+          }
+          switch (level) {
+            case Purchases.LOG_LEVEL.DEBUG:
+              logger.debug(message, undefined, "RevenueCat");
+              break;
+            case Purchases.LOG_LEVEL.INFO:
+              logger.info(message, undefined, "RevenueCat");
+              break;
+            case Purchases.LOG_LEVEL.WARN:
+              logger.warn(message, undefined, "RevenueCat");
+              break;
+            case Purchases.LOG_LEVEL.ERROR:
+              logger.error(message, undefined, "RevenueCat");
+              break;
+            default:
+              logger.info(message, undefined, "RevenueCat");
+          }
+        };
+        Purchases.setLogHandler(customLogHandler);
+
         // Ensure RevenueCat cache directory exists before initialization
         // This prevents NSCocoaErrorDomain Code=4 errors on iOS
         if (Platform.OS === "ios") {

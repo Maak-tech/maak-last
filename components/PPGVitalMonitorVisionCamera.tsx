@@ -62,7 +62,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Camera,
-  runAtTargetFps,
   useCameraDevice,
   useCameraFormat,
   useCameraPermission,
@@ -865,6 +864,14 @@ export default function PPGVitalMonitorVisionCamera({
       }
 
       setStatus("measuring");
+
+      // Start capture immediately when camera opens - no second tap required.
+      // Give camera ~400ms to mount and stream first frame, then enable capture.
+      setFingerDetected(true);
+      fingerDetectedRef.current = true;
+      setTimeout(() => {
+        startPPGCapture();
+      }, 400);
     } catch (err: unknown) {
       const errorMessage =
         err instanceof Error ? err.message : "Measurement failed";
@@ -946,9 +953,10 @@ export default function PPGVitalMonitorVisionCamera({
         Math.round((Date.now() - startTimeRef.current) / 1000)
       );
 
+      // Use lower thresholds: real cameras often deliver 15-20 fps, not full 30
       const minFramesRequired = isQuick
-        ? Math.floor(TARGET_FPS * QUICK_HR_MIN_SECONDS)
-        : Math.floor(TARGET_FRAMES * 0.5);
+        ? Math.floor(MIN_ACCEPTABLE_FPS * QUICK_HR_MIN_SECONDS) // ~280 at 14 fps
+        : Math.floor(TARGET_FRAMES * 0.3); // 30% of target (~540 at 30fps)
 
       setIsCapturing(false);
       isCapturingRef.current = false;
@@ -974,7 +982,7 @@ export default function PPGVitalMonitorVisionCamera({
         setError(
           t("insufficientFramesCaptured", {
             captured: ppgSignalRef.current.length,
-            target: isQuick ? minFramesRequired : TARGET_FRAMES,
+            target: minFramesRequired,
           })
         );
         setStatus("error");
@@ -1027,10 +1035,10 @@ export default function PPGVitalMonitorVisionCamera({
         return;
       }
 
-      // Also check if we have enough real frames (at least 50% of target)
+      // Also check if we have enough real frames (at least 30% of target)
       if (!isQuick) {
         const realFramesRatio = ppgSignalRef.current.length / TARGET_FRAMES;
-        if (realFramesRatio < 0.5) {
+        if (realFramesRatio < 0.3) {
           setError(
             t("insufficientRealCameraData", {
               captured: ppgSignalRef.current.length,
@@ -1343,59 +1351,41 @@ export default function PPGVitalMonitorVisionCamera({
         return;
       }
 
-      runAtTargetFps(TARGET_FPS, () => {
-        "worklet";
-        try {
-          // Validate frame dimensions
-          if (
-            !(frame.width && frame.height) ||
-            frame.width <= 0 ||
-            frame.height <= 0
-          ) {
-            // Invalid frame - track failure and skip (don't add fake data)
-            handleFrameProcessingErrorOnJS(frameCountSV.value);
-            return; // Skip this frame - don't add any data
-          }
-
-          // Extract red channel average from center of frame using pixel extractor
-          // CRITICAL: extractRedChannelAverage returns -1 if extraction fails
-          const redAverage = extractRedChannelAverage(frame);
-
-          // Validate extracted value - must be valid real data (0-255 range)
-          // -1 indicates extraction failure - DO NOT treat as valid data
-          if (redAverage < 0 || redAverage > 255 || isNaN(redAverage)) {
-            // Invalid value - track failure and skip (don't add fake data)
-            // This includes -1 (extraction failed) and any out-of-range values
-            handleFrameProcessingErrorOnJS(frameCountSV.value);
-            return; // Skip this frame - don't add any data
-          }
-
-          // Only process if we have REAL valid data from the camera
-          // Reset failure counter on success
-          resetFrameFailureCounterOnJS();
-
-          const batch = frameBatchSV.value;
-          if (batch.length === 0) {
-            frameBatchStartIndexSV.value = frameCountSV.value;
-          }
-          frameBatchSV.value = [...batch, redAverage];
-          frameCountSV.value = frameCountSV.value + 1;
-
-          const newBatch = frameBatchSV.value;
-          if (newBatch.length >= FRAME_BATCH_SIZE) {
-            processPPGFrameBatchDataOnJS(
-              newBatch,
-              frameBatchStartIndexSV.value
-            );
-            frameBatchSV.value = [];
-          }
-        } catch (error) {
-          // Handle frame processing errors - track failure but don't add fake data
+      // Process every frame - runAtTargetFps removed (may have been dropping frames)
+      try {
+        if (
+          !(frame.width && frame.height) ||
+          frame.width <= 0 ||
+          frame.height <= 0
+        ) {
           handleFrameProcessingErrorOnJS(frameCountSV.value);
-          // Don't add any data - skip this frame entirely
           return;
         }
-      });
+
+        const redAverage = extractRedChannelAverage(frame);
+
+        if (redAverage < 0 || redAverage > 255 || isNaN(redAverage)) {
+          handleFrameProcessingErrorOnJS(frameCountSV.value);
+          return;
+        }
+
+        resetFrameFailureCounterOnJS();
+
+        const batch = frameBatchSV.value;
+        if (batch.length === 0) {
+          frameBatchStartIndexSV.value = frameCountSV.value;
+        }
+        frameBatchSV.value = [...batch, redAverage];
+        frameCountSV.value = frameCountSV.value + 1;
+
+        const newBatch = frameBatchSV.value;
+        if (newBatch.length >= FRAME_BATCH_SIZE) {
+          processPPGFrameBatchDataOnJS(newBatch, frameBatchStartIndexSV.value);
+          frameBatchSV.value = [];
+        }
+      } catch (error) {
+        handleFrameProcessingErrorOnJS(frameCountSV.value);
+      }
     },
     [
       FRAME_BATCH_SIZE,
@@ -1992,6 +1982,18 @@ export default function PPGVitalMonitorVisionCamera({
                         duration: MEASUREMENT_DURATION,
                       })}
                     </Text>
+                    {__DEV__ && (frameMeta || !frameProcessorCalled) && (
+                      <Text
+                        style={[
+                          styles.instructionText as StyleProp<TextStyle>,
+                          { fontSize: 10, marginTop: 4, opacity: 0.6 },
+                        ]}
+                      >
+                        {frameProcessorCalled
+                          ? `Frame: ${frameMeta ?? "—"}`
+                          : "Waiting for camera frames…"}
+                      </Text>
+                    )}
                   </>
                 ) : (
                   <>

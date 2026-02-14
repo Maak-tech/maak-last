@@ -99,6 +99,7 @@ export default function HealthInsightsScreen() {
     >
       <ScrollView
         contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             onRefresh={onRefresh}

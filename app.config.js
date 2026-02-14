@@ -116,7 +116,7 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.maaktech.maak",
-      buildNumber: "41",
+      buildNumber: "42",
       jsEngine: "jsc",
       ...(fs.existsSync("./GoogleService-Info.plist") &&
       isValidPlist("./GoogleService-Info.plist")
@@ -164,7 +164,7 @@ export default {
         backgroundColor: "#2563EB",
       },
       package: "com.maaktech.maak",
-      versionCode: 5,
+      versionCode: 6,
       jsEngine: "hermes",
       googleServicesFile: "./google-services.json",
       splash: {

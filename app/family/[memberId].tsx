@@ -1607,7 +1607,12 @@ const styles =
           backgroundColor: "transparent",
         },
         figmaHeaderWrapper: {
-          marginBottom: -40,
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 10,
+          elevation: 10,
         },
         figmaHeaderContent: {
           paddingHorizontal: 24,
@@ -1726,7 +1731,7 @@ const styles =
         },
         figmaContent: {
           paddingHorizontal: 24,
-          paddingTop: 24,
+          paddingTop: 80,
           paddingBottom: 32,
         },
         memberProfileSection: {

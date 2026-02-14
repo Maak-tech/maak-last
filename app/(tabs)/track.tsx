@@ -189,9 +189,7 @@ export default function TrackScreen() {
       icon: Stethoscope,
       label: isRTL ? "???????? ???????" : "Vital Signs",
       color: "#3B82F6",
-      description: isRTL
-        ? "????? ???????? ???????"
-        : "Record vital measurements",
+      description: isRTL ? "???? ???? ????????" : "Real-time vital tracking",
       onPress: navigateToVitals,
     },
     {
@@ -205,8 +203,11 @@ export default function TrackScreen() {
       icon: TrendingUp,
       label: isRTL ? "?????? ????????" : "Vitals Monitor",
       color: "#14B8A6",
-      description: isRTL ? "???? ???? ????????" : "Real-time vital tracking",
+      description: isRTL
+        ? "????? ???????? ???????"
+        : "Record vital measurements",
       onPress: navigateToPPGMeasure,
+      badge: "beta",
     },
     {
       icon: Clock,
@@ -450,11 +451,30 @@ export default function TrackScreen() {
           backgroundColor: "#FFFFFF",
           borderRadius: 18,
           padding: 18,
+          position: "relative" as const,
           shadowColor: "#0F172A",
           shadowOffset: { width: 0, height: 6 },
           shadowOpacity: 0.08,
           shadowRadius: 12,
           elevation: 4,
+        },
+        categoryCardBetaBadge: {
+          position: "absolute" as const,
+          top: 10,
+          right: 10,
+          backgroundColor: "#F97316",
+          paddingHorizontal: 8,
+          paddingVertical: 4,
+          borderRadius: 6,
+        },
+        categoryCardBetaBadgeRTL: {
+          right: undefined,
+          left: 10,
+        },
+        categoryCardBetaText: {
+          fontSize: 10,
+          fontFamily: "Inter-SemiBold",
+          color: "#FFFFFF",
         },
         categoryCardInner: {
           flexDirection: "row" as const,
@@ -1153,6 +1173,8 @@ export default function TrackScreen() {
                 <View style={styles.categoriesGrid as ViewStyle}>
                   {trackingCategories.map((category) => {
                     const Icon = category.icon;
+                    const showBeta =
+                      "badge" in category && category.badge === "beta";
                     return (
                       <TouchableOpacity
                         activeOpacity={0.8}
@@ -1160,6 +1182,18 @@ export default function TrackScreen() {
                         onPress={category.onPress}
                         style={styles.categoryCard as ViewStyle}
                       >
+                        {showBeta ? (
+                          <View
+                            style={[
+                              styles.categoryCardBetaBadge,
+                              isRTL && styles.categoryCardBetaBadgeRTL,
+                            ]}
+                          >
+                            <Text style={styles.categoryCardBetaText}>
+                              {isRTL ? "تجريبي" : "Beta"}
+                            </Text>
+                          </View>
+                        ) : null}
                         <View style={styles.categoryCardInner as ViewStyle}>
                           <View
                             style={[

@@ -85,7 +85,7 @@ export default function AnalyticsScreen() {
           width: 40,
           height: 40,
           borderRadius: 12,
-          backgroundColor: "rgba(255, 255, 255, 0.5)",
+          backgroundColor: "rgba(0, 53, 67, 0.1)",
           alignItems: "center",
           justifyContent: "center",
         },
@@ -101,7 +101,7 @@ export default function AnalyticsScreen() {
         headerTitleText: {
           fontSize: 22,
           fontFamily: "Inter-Bold",
-          color: "#FFFFFF",
+          color: "#003543",
         },
         headerSubtitle: {
           fontSize: 13,
@@ -446,7 +446,7 @@ export default function AnalyticsScreen() {
       style={styles.container as ViewStyle}
     >
       <View style={styles.headerWrap as ViewStyle}>
-        <WavyBackground curve="home" height={180} variant="teal">
+        <WavyBackground curve="home" height={180} variant="light">
           <View style={styles.headerContent as ViewStyle}>
             <View
               style={[
@@ -474,7 +474,12 @@ export default function AnalyticsScreen() {
                   ]}
                 >
                   <Brain color="#EB9C0C" size={20} />
-                  <Text style={styles.headerTitleText as TextStyle}>
+                  <Text
+                    style={[
+                      styles.headerTitleText as TextStyle,
+                      { color: "#003543" },
+                    ]}
+                  >
                     {isRTL ? "التحليلات الصحية والاتجاهات" : "Analytics"}
                   </Text>
                 </View>

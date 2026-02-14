@@ -628,6 +628,8 @@ export const alertService = {
             },
           });
 
+          familyAlertsCache.clear();
+          familyAlertsInFlight.clear();
           return;
         } catch (cloudFunctionError: unknown) {
           // Extract error details using helper function
@@ -889,6 +891,9 @@ export const alertService = {
           resolvedBy: resolverId,
         },
       });
+
+      familyAlertsCache.clear();
+      familyAlertsInFlight.clear();
     } catch (error: unknown) {
       // Extract error details using helper function
       const { code: errorCode, message: errorMessage } =

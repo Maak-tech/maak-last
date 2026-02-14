@@ -802,23 +802,18 @@ class AIInsightsService {
   }
 
   /**
-   * Generate health action plan based on insights
+   * Build action plan from existing dashboard data (no network call).
+   * Use this when insights are already loaded.
    */
-  async generateActionPlan(
-    userId: string,
+  buildActionPlanFromDashboard(
+    dashboard: AIInsightsDashboard,
     isArabic = false
-  ): Promise<{
+  ): {
     immediate: string[];
     shortTerm: string[];
     longTerm: string[];
     monitoring: string[];
-  }> {
-    const dashboard = await this.generateAIInsightsDashboard(
-      userId,
-      false,
-      isArabic
-    );
-
+  } {
     const immediate: string[] = [];
     const shortTerm: string[] = [];
     const longTerm: string[] = [];
@@ -902,6 +897,27 @@ class AIInsightsService {
     }
 
     return { immediate, shortTerm, longTerm, monitoring };
+  }
+
+  /**
+   * Generate health action plan (fetches dashboard first).
+   * Prefer buildActionPlanFromDashboard when insights are already loaded.
+   */
+  async generateActionPlan(
+    userId: string,
+    isArabic = false
+  ): Promise<{
+    immediate: string[];
+    shortTerm: string[];
+    longTerm: string[];
+    monitoring: string[];
+  }> {
+    const dashboard = await this.generateAIInsightsDashboard(
+      userId,
+      false,
+      isArabic
+    );
+    return this.buildActionPlanFromDashboard(dashboard, isArabic);
   }
 
   // Helper methods for data access

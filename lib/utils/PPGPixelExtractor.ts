@@ -115,28 +115,57 @@ export function extractRedChannelAverage(frame: Frame): number {
     };
 
     // Method 1: toArrayBuffer() - primary VisionCamera API for pixel access
-    // YUV format is native and more reliable than RGB (avoids conversion, fewer toArrayBuffer issues on Android)
-    if (
-      extractedValue === null &&
-      typeof frameAny.toArrayBuffer === "function"
-    ) {
+    // YUV format is native and more reliable (avoids RGB conversion issues on Android)
+    // iOS biplanar YUV: toArrayBuffer returns ONLY the Y plane (bytesPerRow*height)
+    // Android YUV_420_888: buffer layout varies - Y plane first is most reliable
+    if (extractedValue === null) {
       try {
-        const buffer = frameAny.toArrayBuffer();
+        const buffer = frame.toArrayBuffer();
         if (buffer) {
           const data = new Uint8Array(buffer);
           if (data.length > 0) {
-            if (pixelFormat === "yuv") {
-              // YUV: try I420 layout first (Y,U,V planes), then NV12 (Y + interleaved UV)
-              let val = extractRedFromYUVBuffer(
-                data,
-                width,
-                height,
-                centerX,
-                centerY,
-                sampleRadius
-              );
-              if (isNaN(val) || val < 0 || val > 255) {
-                val = extractRedFromYUVBufferAsNV12(
+            // Treat "unknown" as yuv (some devices report unknown for native format)
+            const isYuv = pixelFormat === "yuv" || pixelFormat === "unknown";
+            if (isYuv) {
+              // PRIORITY 1: Y plane - use bytesPerRow for correct stride (iOS/Android padding)
+              const bytesPerRow = frame.bytesPerRow || width;
+              const yPlaneSize = bytesPerRow * height;
+              if (data.length >= yPlaneSize) {
+                const yPlane = data.subarray(0, yPlaneSize);
+                const val = extractRedFromYPlaneWithStride(
+                  yPlane,
+                  width,
+                  height,
+                  bytesPerRow,
+                  centerX,
+                  centerY,
+                  sampleRadius
+                );
+                if (!isNaN(val) && val >= 0 && val <= 255) {
+                  extractedValue = val;
+                }
+              }
+              // Fallback: assume contiguous (no row padding)
+              if (extractedValue === null && data.length >= width * height) {
+                const yPlane = data.subarray(0, width * height);
+                const val = extractRedFromYPlane(
+                  yPlane,
+                  width,
+                  height,
+                  centerX,
+                  centerY,
+                  sampleRadius
+                );
+                if (!isNaN(val) && val >= 0 && val <= 255) {
+                  extractedValue = val;
+                }
+              }
+              // PRIORITY 2: Full buffer - try NV12 (Y + interleaved UV) if Y-only failed
+              if (
+                extractedValue === null &&
+                data.length >= width * height + (width * height) / 2
+              ) {
+                const val = extractRedFromYUVBufferAsNV12(
                   data,
                   width,
                   height,
@@ -144,9 +173,24 @@ export function extractRedChannelAverage(frame: Frame): number {
                   centerY,
                   sampleRadius
                 );
+                if (!isNaN(val) && val >= 0 && val <= 255) {
+                  extractedValue = val;
+                }
               }
-              extractedValue =
-                !isNaN(val) && val >= 0 && val <= 255 ? val : null;
+              // PRIORITY 3: I420 layout (Y, U, V planes)
+              if (extractedValue === null) {
+                const val = extractRedFromYUVBuffer(
+                  data,
+                  width,
+                  height,
+                  centerX,
+                  centerY,
+                  sampleRadius
+                );
+                if (!isNaN(val) && val >= 0 && val <= 255) {
+                  extractedValue = val;
+                }
+              }
             } else {
               extractedValue = sampleRGB(data, frame.bytesPerRow);
             }
@@ -583,8 +627,54 @@ function extractRedFromYUVPlanes(
 }
 
 /**
+ * Extract red channel from Y plane with row stride (bytesPerRow).
+ * Handles padded buffers from iOS/Android where bytesPerRow >= width.
+ *
+ * @param yPlane - Y (luminance) plane data
+ * @param width - Frame width
+ * @param height - Frame height
+ * @param bytesPerRow - Row stride in bytes
+ * @param centerX - Center X coordinate
+ * @param centerY - Center Y coordinate
+ * @param radius - Sampling radius
+ * @returns Average luminance (approximation of red channel)
+ */
+function extractRedFromYPlaneWithStride(
+  yPlane: Uint8Array,
+  width: number,
+  height: number,
+  bytesPerRow: number,
+  centerX: number,
+  centerY: number,
+  radius: number
+): number {
+  "worklet";
+
+  let sum = 0;
+  let sampleCount = 0;
+  const sampleStep = 4;
+
+  const minX = Math.max(0, centerX - radius);
+  const maxX = Math.min(width - 1, centerX + radius);
+  const minY = Math.max(0, centerY - radius);
+  const maxY = Math.min(height - 1, centerY + radius);
+
+  for (let y = minY; y <= maxY; y += sampleStep) {
+    for (let x = minX; x <= maxX; x += sampleStep) {
+      const yIndex = y * bytesPerRow + x;
+      if (yIndex >= yPlane.length) continue;
+
+      sum += yPlane[yIndex];
+      sampleCount++;
+    }
+  }
+
+  return sampleCount > 0 ? sum / sampleCount : Number.NaN;
+}
+
+/**
  * Extract red channel from Y plane only (luminance approximation)
- * Used when U/V planes are not available
+ * Used when U/V planes are not available. Assumes contiguous layout (no padding).
  *
  * @param yPlane - Y (luminance) plane data
  * @param width - Frame width
@@ -604,28 +694,15 @@ function extractRedFromYPlane(
 ): number {
   "worklet";
 
-  let sum = 0;
-  let sampleCount = 0;
-  const sampleStep = 4; // Sample every 4th pixel for performance
-
-  // Ensure we don't go out of bounds
-  const minX = Math.max(0, centerX - radius);
-  const maxX = Math.min(width - 1, centerX + radius);
-  const minY = Math.max(0, centerY - radius);
-  const maxY = Math.min(height - 1, centerY + radius);
-
-  for (let y = minY; y <= maxY; y += sampleStep) {
-    for (let x = minX; x <= maxX; x += sampleStep) {
-      const yIndex = y * width + x;
-      if (yIndex >= yPlane.length) continue;
-
-      sum += yPlane[yIndex];
-      sampleCount++;
-    }
-  }
-
-  // Return average luminance (approximation of red channel)
-  return sampleCount > 0 ? sum / sampleCount : 128;
+  return extractRedFromYPlaneWithStride(
+    yPlane,
+    width,
+    height,
+    width,
+    centerX,
+    centerY,
+    radius
+  );
 }
 
 /**
