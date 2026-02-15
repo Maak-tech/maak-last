@@ -179,9 +179,28 @@ function RootLayout() {
     }
   }, [hasBeenActive, fontsLoaded, fontError]);
 
-  // Initialize Crashlytics as early as possible in app lifecycle.
+  // Initialize Crashlytics after ensuring Firebase is ready
+  // Add a small delay to allow native Firebase bridge to fully initialize
   useEffect(() => {
-    initializeCrashlytics().catch(() => {
+    const initializeCrashlyticsWithDelay = async () => {
+      // Wait for native Firebase bridge to be ready on cold starts
+      // This prevents race condition where Crashlytics tries to access Firebase
+      // before the native layer has fully initialized
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      
+      // Additional check: wait for Firebase app to be available
+      let retries = 0;
+      const maxRetries = 10;
+      while (retries < maxRetries && !isFirebaseReady()) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        retries++;
+      }
+      
+      // Initialize Crashlytics now that Firebase should be ready
+      await initializeCrashlytics();
+    };
+
+    initializeCrashlyticsWithDelay().catch(() => {
       // Crashlytics is best-effort and should not block app startup
     });
   }, []);
