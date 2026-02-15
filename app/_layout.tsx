@@ -4,9 +4,10 @@ import "@/lib/polyfills/pushNotificationIOS";
 
 // Initialize reanimated compatibility early to prevent createAnimatedComponent errors
 import "@/lib/utils/reanimatedSetup";
-
-// Patch Text component for Arabic font support
-import "@/lib/patchArabicText";
+// Runtime Text font remap for Arabic (Inter -> NotoSansArabic)
+import "@/lib/patchTextFontRuntime";
+// Remap Inter fonts to Arabic-safe fonts when app language is Arabic.
+import "@/lib/patchInterForArabic";
 
 import {
   Inter_400Regular,
@@ -289,15 +290,31 @@ function RootLayout() {
     }
   }, [hasBeenActive, isAppActive]);
 
-  // Set default font for Arabic so text renders correctly (not as ?)
-  // Must be before early return to satisfy Rules of Hooks
+  // Keep Text defaults neutral. Arabic font handling is patched globally at runtime.
   useEffect(() => {
-    if (!(fontsLoaded || fontError)) return;
+    if (!(fontsLoaded || fontError)) {
+      console.log(
+        "Fonts not loaded yet, fontsLoaded:",
+        fontsLoaded,
+        "fontError:",
+        fontError
+      );
+      return;
+    }
+
+    console.log(
+      "Setting up Arabic font, language:",
+      i18n.language,
+      "fontsLoaded:",
+      fontsLoaded
+    );
+
     RNText.defaultProps = RNText.defaultProps || {};
+    RNText.defaultProps.style = undefined;
+    console.log("✓ Text defaults reset; runtime Arabic patch active");
     if (i18n.language === "ar") {
-      RNText.defaultProps.style = { fontFamily: "NotoSansArabic-Regular" };
-    } else {
-      RNText.defaultProps.style = undefined;
+      console.log("[Arabic Debug] literal:", "مرحباً بالعالم");
+      console.log("[Arabic Debug] t(home):", i18n.t("home"));
     }
   }, [i18n.language, fontsLoaded, fontError]);
 

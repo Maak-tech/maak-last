@@ -10,11 +10,21 @@ import { useTranslation } from "react-i18next";
 import BottomNavBar from "@/components/figma/BottomNavBar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { arabicText } from "@/lib/arabicText";
 
 export default function TabLayout() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { theme } = useTheme();
   const { user } = useAuth();
+
+  // Use hardcoded Arabic if language is Arabic
+  const isArabic = i18n.language === "ar";
+  const getText = (key: string) => {
+    if (isArabic && key in arabicText) {
+      return arabicText[key as keyof typeof arabicText];
+    }
+    return t(key);
+  };
 
   // User role logic
   const isAdmin = user?.role === "admin";
@@ -34,7 +44,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: t("home"),
+          title: getText("home"),
           tabBarIcon: ({ size, color }: { size?: number; color: string }) => (
             <Home color={color} size={size || 24} />
           ),
@@ -45,7 +55,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="track"
         options={{
-          title: t("track"),
+          title: getText("track"),
           tabBarIcon: ({ size, color }: { size?: number; color: string }) => (
             <Activity color={color} size={size || 24} />
           ),
@@ -56,7 +66,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="zeina"
         options={{
-          title: t("zeina"),
+          title: getText("zeina"),
           tabBarIcon: ({ size, color }: { size?: number; color: string }) => (
             <MessageCircle color={color} size={size || 24} />
           ),
@@ -65,7 +75,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="family"
         options={{
-          title: t("family"),
+          title: getText("family"),
           tabBarIcon: ({ size, color }: { size?: number; color: string }) => (
             <Users color={color} size={size || 24} />
           ),
@@ -75,7 +85,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: t("profile"),
+          title: getText("profile"),
           tabBarIcon: ({ size, color }: { size?: number; color: string }) => (
             <User color={color} size={size || 24} />
           ),

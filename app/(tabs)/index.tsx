@@ -1571,7 +1571,7 @@ export default function DashboardScreen() {
                   style={[styles.statGridLabel, isRTL && styles.rtlText]}
                   weight="medium"
                 >
-                  {isRTL ? "??????? ?????????" : "Symptoms This Week"}
+                  {isRTL ? "أعراض هذا الأسبوع" : "Symptoms This Week"}
                 </Text>
               </Card>
 
@@ -1616,7 +1616,7 @@ export default function DashboardScreen() {
                   style={[styles.statGridLabel, isRTL && styles.rtlText]}
                   weight="medium"
                 >
-                  {isRTL ? "???????? ????????" : "Med Compliance"}
+                  {isRTL ? "الالتزام بالأدوية" : "Med Compliance"}
                 </Text>
               </Card>
 
@@ -1679,14 +1679,14 @@ export default function DashboardScreen() {
                   isRTL && { textAlign: "right" as const },
                 ]}
               >
-                {isRTL ? "????? ?????" : "Today's Medications"}
+                {isRTL ? "أدوية اليوم" : "Today's Medications"}
               </Text>
               <TouchableOpacity
                 onPress={navigateToMedications}
                 style={styles.viewAllButton as ViewStyle}
               >
                 <Text style={[styles.viewAllText, isRTL && styles.rtlText]}>
-                  {isRTL ? "??? ????" : "View All"}
+                  {isRTL ? "عرض الكل" : "View All"}
                 </Text>
                 <ChevronRight color={theme.colors.primary.main} size={16} />
               </TouchableOpacity>
@@ -1741,7 +1741,7 @@ export default function DashboardScreen() {
                               ]}
                             >
                               {" • "}
-                              {isRTL ? "??????? ??????: " : "Next: "}
+                              {isRTL ? "التالي: " : "Next: "}
                               {nextReminder.time}
                             </Text>
                           )}
@@ -1792,7 +1792,7 @@ export default function DashboardScreen() {
                 >
                   <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
                     {isRTL
-                      ? "?? ???? ????? ????? - ???? ???????"
+                      ? "لا توجد أدوية لليوم - اضغط للإضافة"
                       : "No medications for today - tap to add"}
                   </Text>
                 </TouchableOpacity>
@@ -1812,14 +1812,14 @@ export default function DashboardScreen() {
                   isRTL && { textAlign: "right" as const },
                 ]}
               >
-                {isRTL ? "??????? ???????" : "Recent Symptoms"}
+                {isRTL ? "الأعراض الأخيرة" : "Recent Symptoms"}
               </Text>
               <TouchableOpacity
                 onPress={navigateToSymptoms}
                 style={styles.viewAllButton as ViewStyle}
               >
                 <Text style={[styles.viewAllText, isRTL && styles.rtlText]}>
-                  {isRTL ? "??? ????" : "View All"}
+                  {isRTL ? "عرض الكل" : "View All"}
                 </Text>
                 <ChevronRight color={theme.colors.primary.main} size={16} />
               </TouchableOpacity>
@@ -1876,7 +1876,7 @@ export default function DashboardScreen() {
                 >
                   <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
                     {isRTL
-                      ? "?? ???? ????? ????? - ???? ???????"
+                      ? "لا توجد أعراض مسجلة - اضغط للإضافة"
                       : "No symptoms recorded - tap to add"}
                   </Text>
                 </TouchableOpacity>

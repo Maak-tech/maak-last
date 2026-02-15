@@ -1,6 +1,6 @@
 {
   "name": "maak-health-app",
-  "main": "expo-router/entry",
+  "main": "index.js",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -33,7 +33,7 @@
     "postinstall": "node -e \"const fs=require('node:fs');const {spawnSync}=require('node:child_process');const patchDir='patches';if(!fs.existsSync(patchDir)||fs.readdirSync(patchDir).filter((file)=>file.endsWith('.patch')).length===0){console.log('No patch-package patches found; skipping.');process.exit(0);}let patchCli;try{patchCli=require.resolve('patch-package/dist/index.js');}catch(error){if(error&&error.code==='MODULE_NOT_FOUND'){console.log('patch-package not installed; skipping postinstall patches.');process.exit(0);}throw error;}console.log('Applying patch-package patches...');const result=spawnSync(process.execPath,[patchCli],{stdio:'inherit'});if(result.status!==0){process.exit(result.status??1);}\""
   },
   "dependencies": {
-    "@expo-google-fonts/cairo": "^0.2.3",
+    "@expo-google-fonts/cairo": "^0.4.2",
     "@expo-google-fonts/inter": "^0.2.3",
     "@expo-google-fonts/noto-sans-arabic": "^0.4.3",
     "@expo/metro": "^54.2.0",

@@ -152,75 +152,77 @@ export default function TrackScreen() {
   const trackingCategories = [
     {
       icon: Activity,
-      label: isRTL ? "???????" : "Tracked Symptoms",
+      label: isRTL ? "الأعراض المتتبعة" : "Tracked Symptoms",
       color: "#EF4444",
-      description: isRTL ? "????? ??????? ??????" : "Log symptoms and severity",
+      description: isRTL ? "سجل الأعراض وشدتها" : "Log symptoms and severity",
       onPress: navigateToSymptoms,
     },
     {
       icon: Pill,
-      label: isRTL ? "???????" : "Medications",
+      label: isRTL ? "الأدوية" : "Medications",
       color: "#10B981",
-      description: isRTL ? "???? ????? ???????" : "Track medication intake",
+      description: isRTL ? "تتبع تناول الأدوية" : "Track medication intake",
       onPress: navigateToMedications,
     },
     {
       icon: Brain,
-      label: isRTL ? "??????" : "Mood",
+      label: isRTL ? "المزاج" : "Mood",
       color: "#8B5CF6",
-      description: isRTL ? "????? ?????? ????????" : "Record emotional state",
+      description: isRTL ? "سجل الحالة المزاجية" : "Record emotional state",
       onPress: navigateToMoods,
     },
     {
       icon: AlertCircle,
-      label: isRTL ? "????????" : "Allergies",
+      label: isRTL ? "الحساسية" : "Allergies",
       color: "#F97316",
-      description: isRTL ? "????? ??????? ????????" : "Manage allergy info",
+      description: isRTL ? "إدارة معلومات الحساسية" : "Manage allergy info",
       onPress: navigateToAllergies,
     },
     {
       icon: Heart,
-      label: isRTL ? "??? ????" : "Blood Pressure",
+      label: isRTL ? "ضغط الدم" : "Blood Pressure",
       color: "#DC2626",
-      description: isRTL ? "????? ?????? ?????" : "Monitor BP readings",
+      description: isRTL ? "مراقبة قراءات الضغط" : "Monitor BP readings",
       onPress: handleBloodPressurePress,
     },
     {
       icon: Stethoscope,
-      label: isRTL ? "???????? ???????" : "Vital Signs",
+      label: isRTL ? "العلامات الحيوية" : "Vital Signs",
       color: "#3B82F6",
-      description: isRTL ? "???? ???? ????????" : "Real-time vital tracking",
+      description: isRTL
+        ? "تتبع العلامات الحيوية المباشر"
+        : "Real-time vital tracking",
       onPress: navigateToVitals,
     },
     {
       icon: FileText,
-      label: isRTL ? "????? ?????" : "Medical History",
+      label: isRTL ? "التاريخ الطبي" : "Medical History",
       color: "#6366F1",
-      description: isRTL ? "????? ????? ?????" : "Document medical records",
+      description: isRTL ? "توثيق السجلات الطبية" : "Document medical records",
       onPress: navigateToMedicalHistory,
     },
     {
       icon: TrendingUp,
-      label: isRTL ? "?????? ????????" : "Vitals Monitor",
+      label: isRTL ? "مراقبة القياسات الحيوية" : "Vitals Monitor",
       color: "#14B8A6",
       description: isRTL
-        ? "????? ???????? ???????"
+        ? "تسجيل القياسات الحيوية"
         : "Record vital measurements",
       onPress: navigateToPPGMeasure,
       badge: "beta",
     },
     {
       icon: Clock,
-      label: isRTL ? "???? ??????" : "Health Timeline",
+      label: isRTL ? "الخط الزمني الصحي" : "Health Timeline",
       color: "#EC4899",
-      description: isRTL ? "??? ?????? ??????" : "View health journey",
+      description: isRTL ? "عرض الرحلة الصحية" : "View health journey",
       onPress: navigateToTimeline,
     },
     {
       icon: Droplet,
-      label: isRTL ? "????? ???????" : "Lab Results",
+      label: isRTL ? "نتائج المختبر" : "Lab Results",
       color: "#0EA5E9",
-      description: isRTL ? "????? ????? ????????" : "Store test results",
+      description: isRTL ? "حفظ نتائج الفحوصات" : "Store test results",
       onPress: navigateToLabResults,
     },
   ];
@@ -1110,7 +1112,7 @@ export default function TrackScreen() {
                 size="large"
               />
               <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
-                {isRTL ? "???? ???????..." : "Loading..."}
+                {isRTL ? "جاري التحميل..." : "Loading..."}
               </Text>
             </View>
           ) : (
@@ -1122,7 +1124,7 @@ export default function TrackScreen() {
                     size="small"
                   />
                   <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
-                    {isRTL ? "???? ???????..." : "Updating..."}
+                    {isRTL ? "جاري التحديث..." : "Updating..."}
                   </Text>
                 </View>
               ) : null}
@@ -1137,7 +1139,7 @@ export default function TrackScreen() {
                     numberOfLines={1}
                     style={[styles.statLabel, isRTL && styles.rtlText]}
                   >
-                    {isRTL ? "??????? ?????" : "Entries Today"}
+                    {isRTL ? "إدخالات اليوم" : "Entries Today"}
                   </Text>
                 </View>
                 <View style={styles.statCard as ViewStyle}>
@@ -1149,7 +1151,7 @@ export default function TrackScreen() {
                     numberOfLines={1}
                     style={[styles.statLabel, isRTL && styles.rtlText]}
                   >
-                    {isRTL ? "??????" : "Categories"}
+                    {isRTL ? "الفئات" : "Categories"}
                   </Text>
                 </View>
                 <View style={styles.statCard as ViewStyle}>
@@ -1161,14 +1163,14 @@ export default function TrackScreen() {
                     numberOfLines={1}
                     style={[styles.statLabel, isRTL && styles.rtlText]}
                   >
-                    {isRTL ? "????????" : "Compliance"}
+                    {isRTL ? "الالتزام" : "Compliance"}
                   </Text>
                 </View>
               </View>
 
               <View style={styles.section as ViewStyle}>
                 <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-                  {isRTL ? "???? ??????" : "Tracking Categories"}
+                  {isRTL ? "فئات المتابعة" : "Tracking Categories"}
                 </Text>
                 <View style={styles.categoriesGrid as ViewStyle}>
                   {trackingCategories.map((category) => {
@@ -1233,14 +1235,14 @@ export default function TrackScreen() {
               <View style={styles.section as ViewStyle}>
                 <View style={styles.sectionHeaderRow as ViewStyle}>
                   <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-                    {isRTL ? "?????? ??????" : "Recent Activity"}
+                    {isRTL ? "النشاط الأخير" : "Recent Activity"}
                   </Text>
                   <TouchableOpacity
                     onPress={navigateToTimeline}
                     style={styles.viewAllButton as ViewStyle}
                   >
                     <Text style={[styles.viewAllText, isRTL && styles.rtlText]}>
-                      {isRTL ? "??? ????" : "View All"}
+                      {isRTL ? "عرض الكل" : "View All"}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -1289,7 +1291,7 @@ export default function TrackScreen() {
                     })
                   ) : (
                     <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-                      {isRTL ? "?? ???? ???? ????" : "No recent activity"}
+                      {isRTL ? "لا يوجد نشاط حديث" : "No recent activity"}
                     </Text>
                   )}
                 </View>
