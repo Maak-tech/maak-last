@@ -523,10 +523,7 @@ export default function FamilyMemberHealthView() {
 
     const familyId = user.familyId;
     if (!familyId) {
-      Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "لا توجد عائلة" : "No family"
-      );
+      Alert.alert(isRTL ? "خطأ" : "Error", t("noFamily"));
       return;
     }
 

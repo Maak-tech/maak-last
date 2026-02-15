@@ -1244,6 +1244,7 @@ function InsightCard({
   insight: unknown;
   onPress?: () => void;
 }) {
+  const { t } = useTranslation();
   const typedInsight = insight as
     | {
         title?: string;
@@ -1261,7 +1262,7 @@ function InsightCard({
       <Text style={[styles.text, styles.mt1]}>
         {typedInsight?.description ||
           typedInsight?.reasoning ||
-          "Details available"}
+          t("detailsAvailable")}
       </Text>
     </Card>
   );

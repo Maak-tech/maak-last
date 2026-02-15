@@ -283,7 +283,7 @@ export default function PersonalInfoScreen() {
             value={
               user?.firstName && user?.lastName
                 ? `${user.firstName} ${user.lastName}`
-                : user?.firstName || (isRTL ? "غير محدد" : "Not specified")
+                : user?.firstName || t("notSpecified")
             }
           />
 
@@ -294,7 +294,7 @@ export default function PersonalInfoScreen() {
             icon={Mail}
             isRTL={isRTL}
             label={isRTL ? "البريد الإلكتروني" : "Email Address"}
-            value={user?.email || (isRTL ? "غير محدد" : "Not specified")}
+            value={user?.email || t("notSpecified")}
           />
 
           <InfoCard
@@ -308,25 +308,13 @@ export default function PersonalInfoScreen() {
           <InfoCard
             description={
               user?.role === "admin"
-                ? isRTL
-                  ? "إدارة العائلة والإعدادات"
-                  : "Manage family and settings"
-                : isRTL
-                  ? "عضو في العائلة"
-                  : "Family member"
+                ? t("manageFamilyAndSettings")
+                : t("familyMember")
             }
             icon={Shield}
             isRTL={isRTL}
             label={isRTL ? "دور المستخدم" : "User Role"}
-            value={
-              user?.role === "admin"
-                ? isRTL
-                  ? "مدير العائلة"
-                  : "Family Admin"
-                : isRTL
-                  ? "عضو"
-                  : "Member"
-            }
+            value={user?.role === "admin" ? t("familyAdmin") : t("member")}
           />
         </View>
 
@@ -351,7 +339,7 @@ export default function PersonalInfoScreen() {
             icon={Phone}
             isRTL={isRTL}
             label={isRTL ? "رقم الهاتف" : "Phone Number"}
-            value={user?.phoneNumber || (isRTL ? "غير محدد" : "Not specified")}
+            value={user?.phoneNumber || t("notSpecified")}
           />
         </View>
 

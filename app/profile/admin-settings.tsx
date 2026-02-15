@@ -198,7 +198,7 @@ export default function AdminSettingsScreen() {
 
   const formatDate = (date: Date | null) => {
     if (!date) {
-      return isRTL ? "غير محدد" : "Not specified";
+      return t("notSpecified");
     }
     return safeFormatDate(date, isRTL ? "ar-u-ca-gregory" : "en-US", {
       year: "numeric",

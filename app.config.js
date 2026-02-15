@@ -207,6 +207,7 @@ export default {
         "android.permission.health.READ_BODY_FAT",
         "android.permission.health.READ_BASAL_METABOLIC_RATE",
         "android.permission.health.READ_FLOORS_CLIMBED",
+        "android.permission.SCHEDULE_EXACT_ALARM",
       ],
     },
     web: {

@@ -91,11 +91,11 @@ function getSeverityText(
   translate: (key: string, options?: { defaultValue?: string }) => string
 ): string {
   const fallbacks: Record<number, string> = {
-    1: "Very mild",
-    2: "Mild",
-    3: "Moderate",
-    4: "Significant",
-    5: "Severe",
+    1: translate("veryMild", { defaultValue: "Very mild" }),
+    2: translate("mild", { defaultValue: "Mild" }),
+    3: translate("moderate", { defaultValue: "Moderate" }),
+    4: translate("significant", { defaultValue: "Significant" }),
+    5: translate("severe", { defaultValue: "Severe" }),
   };
   const level = Math.min(
     5,
@@ -244,7 +244,7 @@ export default function TrackScreen() {
         }
 
         logger.debug(
-          "Loading symptoms",
+          t("loadingSymptoms"),
           {
             userId: user.id,
             filterType: selectedFilter.type,
@@ -997,7 +997,7 @@ export default function TrackScreen() {
                           </View>
                         </View>
                         <Text style={styles.figmaSymptomCardMeta}>
-                          {symptom.description || "No notes"}
+                          {symptom.description || t("noNotes")}
                         </Text>
                         <View style={styles.figmaSymptomCardTimeRow}>
                           <Clock color="#6C7280" size={12} />

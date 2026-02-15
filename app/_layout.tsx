@@ -1,12 +1,12 @@
 /* biome-ignore-all lint/performance/noNamespaceImport: Expo SDK modules in this file intentionally use namespace imports. */
-// TextImpl patch removed due to Bun compatibility issues
-// Reanimated setup handles TextImpl patching through TypeScript
-
 // Polyfill to prevent PushNotificationIOS errors
 import "@/lib/polyfills/pushNotificationIOS";
 
 // Initialize reanimated compatibility early to prevent createAnimatedComponent errors
 import "@/lib/utils/reanimatedSetup";
+
+// Patch Text component for Arabic font support
+import "@/lib/patchArabicText";
 
 import {
   Inter_400Regular,
@@ -25,7 +25,7 @@ import { Stack, useNavigationContainerRef } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
-import { AppState, LogBox, Platform } from "react-native";
+import { AppState, LogBox, Platform, Text as RNText } from "react-native";
 
 // Initialize React Native Firebase early (must be imported before any Firebase operations)
 // This ensures the default Firebase app is initialized from native config files
@@ -44,8 +44,11 @@ import * as Sentry from "@sentry/react-native";
 import { I18nextProvider } from "react-i18next";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import MedicationAlarmModal from "@/components/MedicationAlarmModal";
+import { NotificationListenerSetup } from "@/components/NotificationListenerSetup";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { FallDetectionProvider } from "@/contexts/FallDetectionContext";
+import { MedicationAlarmProvider } from "@/contexts/MedicationAlarmContext";
 import { RealtimeHealthProvider } from "@/contexts/RealtimeHealthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { isFirebaseReady } from "@/lib/firebase";
@@ -286,6 +289,18 @@ function RootLayout() {
     }
   }, [hasBeenActive, isAppActive]);
 
+  // Set default font for Arabic so text renders correctly (not as ?)
+  // Must be before early return to satisfy Rules of Hooks
+  useEffect(() => {
+    if (!(fontsLoaded || fontError)) return;
+    RNText.defaultProps = RNText.defaultProps || {};
+    if (i18n.language === "ar") {
+      RNText.defaultProps.style = { fontFamily: "NotoSansArabic-Regular" };
+    } else {
+      RNText.defaultProps.style = undefined;
+    }
+  }, [i18n.language, fontsLoaded, fontError]);
+
   // If the app launches in background, skip mounting UI until it becomes active.
   if (!(hasBeenActive && (fontsLoaded || fontError))) {
     return null;
@@ -297,38 +312,42 @@ function RootLayout() {
         <I18nextProvider i18n={i18n}>
           <ThemeProvider>
             <AuthProvider>
-              <RealtimeHealthProvider>
-                <FallDetectionProvider>
-                  <StatusBar style="auto" />
-                  <Stack screenOptions={{ headerShown: false }}>
-                    <Stack.Screen
-                      name="index"
-                      options={{ headerShown: false }}
-                    />
-                    <Stack.Screen
-                      name="(tabs)"
-                      options={{ headerShown: false }}
-                    />
-                    <Stack.Screen
-                      name="profile"
-                      options={{ headerShown: false }}
-                    />
-                    <Stack.Screen
-                      name="onboarding"
-                      options={{ headerShown: false }}
-                    />
-                    <Stack.Screen
-                      name="(auth)"
-                      options={{ headerShown: false }}
-                    />
-                    <Stack.Screen
-                      name="family"
-                      options={{ headerShown: false }}
-                    />
-                    <Stack.Screen name="+not-found" />
-                  </Stack>
-                </FallDetectionProvider>
-              </RealtimeHealthProvider>
+              <NotificationListenerSetup />
+              <MedicationAlarmProvider>
+                <RealtimeHealthProvider>
+                  <FallDetectionProvider>
+                    <MedicationAlarmModal />
+                    <StatusBar style="auto" />
+                    <Stack screenOptions={{ headerShown: false }}>
+                      <Stack.Screen
+                        name="index"
+                        options={{ headerShown: false }}
+                      />
+                      <Stack.Screen
+                        name="(tabs)"
+                        options={{ headerShown: false }}
+                      />
+                      <Stack.Screen
+                        name="profile"
+                        options={{ headerShown: false }}
+                      />
+                      <Stack.Screen
+                        name="onboarding"
+                        options={{ headerShown: false }}
+                      />
+                      <Stack.Screen
+                        name="(auth)"
+                        options={{ headerShown: false }}
+                      />
+                      <Stack.Screen
+                        name="family"
+                        options={{ headerShown: false }}
+                      />
+                      <Stack.Screen name="+not-found" />
+                    </Stack>
+                  </FallDetectionProvider>
+                </RealtimeHealthProvider>
+              </MedicationAlarmProvider>
             </AuthProvider>
           </ThemeProvider>
         </I18nextProvider>

@@ -246,7 +246,7 @@ export default function MoodsScreen() {
         }
 
         logger.debug(
-          "Loading moods",
+          t("loadingMoods"),
           {
             userId: user.id,
             filterType: selectedFilter.type,
@@ -339,7 +339,7 @@ export default function MoodsScreen() {
 
         const durationMs = Date.now() - startTime;
         logger.info(
-          "Moods loaded",
+          t("moodsLoaded"),
           {
             userId: user.id,
             filterType: selectedFilter.type,

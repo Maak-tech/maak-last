@@ -103,6 +103,8 @@ export type HealthContext = {
     insights: PatternInsight[];
   }>;
   insightsMetrics: HealthInsightsMetrics | null;
+  /** Full 30-day health insights for Zeina (patterns, trends, ML, correlations) */
+  userDetailedInsights: PatternInsight[];
   recentAlerts: Array<{
     type: string;
     timestamp: Date;
@@ -301,6 +303,7 @@ class HealthContextService {
         )
       ),
       healthInsightsService.getWeeklySummary(uid, undefined, isArabic),
+      healthInsightsService.getAllInsights(uid, isArabic),
     ]);
 
     const [
@@ -311,6 +314,7 @@ class HealthContextService {
       familySnapshot,
       vitalsSnapshot,
       insightsMetricsSummary,
+      userDetailedInsightsResult,
     ] = results;
 
     // Process medications
@@ -453,6 +457,12 @@ class HealthContextService {
       }
     }
 
+    // Process user-level 30-day detailed insights (for Zeina)
+    const userDetailedInsights: PatternInsight[] =
+      userDetailedInsightsResult?.status === "fulfilled"
+        ? userDetailedInsightsResult.value.slice(0, 10)
+        : [];
+
     // Process user-level health insights metrics
     let insightsMetrics: HealthContext["insightsMetrics"] = null;
     if (insightsMetricsSummary.status === "fulfilled") {
@@ -506,7 +516,7 @@ class HealthContextService {
               memberData.role ||
               "Family Member",
             summary,
-            insights: allInsights.slice(0, 2),
+            insights: allInsights.slice(0, 5),
           };
         })
       );
@@ -772,6 +782,7 @@ class HealthContextService {
       familyMembers,
       familyInsights,
       insightsMetrics,
+      userDetailedInsights,
       recentAlerts,
       vitalSigns: latestVitals,
     };
@@ -909,6 +920,19 @@ ${
 ${isArabic ? "WEEKLY HEALTH INSIGHTS METRICS:" : "WEEKLY HEALTH INSIGHTS METRICS:"}
 ${personalInsightsSection}
 
+${
+  context.userDetailedInsights.length > 0
+    ? `
+${isArabic ? "DETAILED HEALTH INSIGHTS (30-day patterns):" : "DETAILED HEALTH INSIGHTS (30-day patterns):"}
+${context.userDetailedInsights
+  .map(
+    (insight) =>
+      `• [${Math.round(insight.confidence)}% | ${insight.type}] ${insight.title}: ${insight.description}${insight.recommendation ? ` — ${isArabic ? "توصية" : "Recommendation"}: ${insight.recommendation}` : ""}`
+  )
+  .join("\n")}`
+    : ""
+}
+
 ${isArabic ? "أفراد العائلة:" : "FAMILY MEMBERS:"}
 ${
   context.familyMembers.length > 0
@@ -999,6 +1023,7 @@ ${
 8. كن متعاطفاً وداعماً مع كونك معلوماتياً
 9. قدم نصائح عملية وقابلة للتنفيذ عند الاقتضاء
 10. إذا لاحظت أنماطاً مقلقة في الأعراض أو العلامات الحيوية، اقترح بلطف استشارة طبية
+11. استخدم رؤى الصحة التفصيلية (أنماط 30 يوماً) عند سؤال المستخدم عن صحته أو أعراضه أو أدويته أو اتجاهاته — هذه الرؤى تتضمن أنماط ML والارتباطات والتوصيات القابلة للتنفيذ
 
 تذكر: أنت مساعد ذكي تقدم معلومات ودعماً، وليس بديلاً عن النصيحة الطبية المهنية. شجع دائماً المستخدمين على طلب المساعدة الطبية المهنية للاهتمامات الخطيرة.`
     : `1. Provide personalized health insights based on the complete medical profile
@@ -1012,6 +1037,7 @@ ${
 9. Provide practical, actionable advice when appropriate
 10. If you notice concerning patterns in symptoms or vital signs, gently suggest medical consultation
 11. Use weekly health insight metrics (symptom trend, adherence, mood trend, and top signals) when relevant
+12. Proactively reference and discuss the detailed health insights (30-day patterns) when the user asks about their health, symptoms, medications, or trends — these insights include ML patterns, correlations, and actionable recommendations
 
 Remember: You are an AI assistant providing information and support, not a replacement for professional medical advice. Always encourage users to seek professional medical help for serious concerns.`
 }`;

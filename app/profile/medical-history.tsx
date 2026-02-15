@@ -61,7 +61,7 @@ const MEDICAL_HISTORY_EXAMPLES = [
 ];
 
 export default function MedicalHistoryScreen() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const router = useRouter();
   const navigation = useNavigation();
@@ -131,12 +131,7 @@ export default function MedicalHistoryScreen() {
       setMedicalHistory(history);
       setSummary(summaryData);
     } catch (_error) {
-      Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL
-          ? "حدث خطأ أثناء تحميل التاريخ الطبي"
-          : "An error occurred while loading medical history"
-      );
+      Alert.alert(t("error"), t("errorLoadingMedicalHistory"));
     } finally {
       setLoading(false);
     }
@@ -182,12 +177,7 @@ export default function MedicalHistoryScreen() {
 
   const handleAddCondition = async () => {
     if (!newCondition.condition.trim()) {
-      Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL
-          ? "يرجى إدخال اسم الحالة الطبية"
-          : "Please enter the medical condition"
-      );
+      Alert.alert(t("error"), t("pleaseEnterMedicalCondition"));
       return;
     }
 
@@ -196,10 +186,7 @@ export default function MedicalHistoryScreen() {
     }
 
     if (newCondition.isFamily && !newCondition.familyMemberId) {
-      Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "يرجى اختيار عضو العائلة" : "Please select a family member"
-      );
+      Alert.alert(t("error"), t("pleaseSelectFamilyMember"));
       return;
     }
 
@@ -249,58 +236,34 @@ export default function MedicalHistoryScreen() {
       setShowAddModal(false);
       await loadMedicalHistory();
 
-      Alert.alert(
-        isRTL ? "تم الحفظ" : "Saved",
-        isRTL
-          ? "تم إضافة السجل الطبي بنجاح"
-          : "Medical record added successfully"
-      );
+      Alert.alert(t("success"), t("medicalRecordAddedSuccessfully"));
     } catch (_error) {
-      Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "حدث خطأ في إضافة السجل الطبي" : "Failed to add medical record"
-      );
+      Alert.alert(t("error"), t("failedToAddMedicalRecord"));
     } finally {
       setAddLoading(false);
     }
   };
 
   const handleDeleteCondition = (id: string) => {
-    Alert.alert(
-      isRTL ? "حذف السجل" : "Delete Record",
-      isRTL
-        ? "هل أنت متأكد من حذف هذا السجل الطبي؟"
-        : "Are you sure you want to delete this medical record?",
-      [
-        {
-          text: isRTL ? "إلغاء" : "Cancel",
-          style: "cancel",
+    Alert.alert(t("deleteRecord"), t("confirmDeleteMedicalRecord"), [
+      {
+        text: t("cancel"),
+        style: "cancel",
+      },
+      {
+        text: t("delete"),
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await medicalHistoryService.deleteMedicalHistory(id);
+            await loadMedicalHistory();
+            Alert.alert(t("deleted"), t("medicalRecordDeletedSuccessfully"));
+          } catch (_error) {
+            Alert.alert(t("error"), t("failedToDeleteMedicalRecord"));
+          }
         },
-        {
-          text: isRTL ? "حذف" : "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await medicalHistoryService.deleteMedicalHistory(id);
-              await loadMedicalHistory();
-              Alert.alert(
-                isRTL ? "تم الحذف" : "Deleted",
-                isRTL
-                  ? "تم حذف السجل الطبي بنجاح"
-                  : "Medical record deleted successfully"
-              );
-            } catch (_error) {
-              Alert.alert(
-                isRTL ? "خطأ" : "Error",
-                isRTL
-                  ? "حدث خطأ في حذف السجل الطبي"
-                  : "Failed to delete medical record"
-              );
-            }
-          },
-        },
-      ]
-    );
+      },
+    ]);
   };
 
   const getSeverityColor = (severity?: string) => {
@@ -318,30 +281,28 @@ export default function MedicalHistoryScreen() {
 
   const getSeverityText = (severity?: string) => {
     const severityMap = {
-      mild: isRTL ? "خفيف" : "Mild",
-      moderate: isRTL ? "متوسط" : "Moderate",
-      severe: isRTL ? "شديد" : "Severe",
+      mild: t("mild", { defaultValue: "Mild" }),
+      moderate: t("moderate", { defaultValue: "Moderate" }),
+      severe: t("severe", { defaultValue: "Severe" }),
     };
     return severityMap[severity as keyof typeof severityMap] || severity;
   };
 
   const getFamilyRelationText = (record: MedicalHistory): string => {
     if (record.familyMemberName) {
-      return isRTL
-        ? `لـ ${record.familyMemberName}`
-        : `for ${record.familyMemberName}`;
+      return `${t("forText")} ${record.familyMemberName}`;
     }
 
     if (record.relation) {
-      return isRTL ? `للـ ${record.relation}` : `for ${record.relation}`;
+      return `${t("forText")} ${record.relation}`;
     }
 
-    return isRTL ? "عائلي" : "Family";
+    return t("familyMember", { defaultValue: "Family" });
   };
 
-  let saveButtonLabel = isRTL ? "حفظ السجل" : "Save Record";
+  let saveButtonLabel = t("saveRecord");
   if (addLoading) {
-    saveButtonLabel = isRTL ? "جاري الحفظ..." : "Saving...";
+    saveButtonLabel = t("saving");
   }
 
   return (
@@ -528,7 +489,7 @@ export default function MedicalHistoryScreen() {
                                   new Date(record.diagnosedDate),
                                   isRTL ? "ar-u-ca-gregory" : "en-US"
                                 )
-                              : "Unknown date"}
+                              : t("unknownDate")}
                           </Text>
                           {record.notes ? (
                             <Text style={styles.figmaCardMeta}>
@@ -630,7 +591,7 @@ export default function MedicalHistoryScreen() {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, isRTL && { textAlign: "left" }]}>
-              {isRTL ? "إضافة سجل طبي" : "Add Medical Record"}
+              {t("addMedicalRecord")}
             </Text>
             <TouchableOpacity
               onPress={() => {
@@ -655,7 +616,7 @@ export default function MedicalHistoryScreen() {
             {/* Condition Field */}
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && { textAlign: "left" }]}>
-                {isRTL ? "الحالة الطبية" : "Medical Condition"} *
+                {t("medicalCondition")} *
               </Text>
               <TextInput
                 onChangeText={(text) =>
@@ -675,7 +636,7 @@ export default function MedicalHistoryScreen() {
                 <Text
                   style={[styles.examplesLabel, isRTL && { textAlign: "left" }]}
                 >
-                  {isRTL ? "أمثلة شائعة:" : "Common Examples:"}
+                  {t("commonExamples")}
                 </Text>
                 <View style={styles.examplesGrid}>
                   {MEDICAL_HISTORY_EXAMPLES.map((example) => (
@@ -706,7 +667,7 @@ export default function MedicalHistoryScreen() {
             {/* Severity Field */}
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && { textAlign: "left" }]}>
-                {isRTL ? "شدة الحالة" : "Severity"}
+                {t("severity")}
               </Text>
               <View style={styles.severityOptions}>
                 {SEVERITY_OPTIONS.map((option) => (
@@ -775,7 +736,7 @@ export default function MedicalHistoryScreen() {
                 <Text
                   style={[styles.fieldLabel, isRTL && { textAlign: "left" }]}
                 >
-                  {isRTL ? "عضو العائلة" : "Family Member"} *
+                  {t("familyMember")} *
                 </Text>
                 {loadingFamilyMembers ? (
                   <ActivityIndicator
@@ -833,8 +794,7 @@ export default function MedicalHistoryScreen() {
                 <Text
                   style={[styles.fieldLabel, isRTL && { textAlign: "left" }]}
                 >
-                  {isRTL ? "صلة القرابة" : "Relationship"} (
-                  {isRTL ? "اختياري" : "Optional"})
+                  {t("relationshipOptional")}
                 </Text>
                 <TextInput
                   onChangeText={(text) =>
@@ -856,7 +816,7 @@ export default function MedicalHistoryScreen() {
             {/* Notes Field */}
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && { textAlign: "left" }]}>
-                {isRTL ? "ملاحظات" : "Notes"} ({isRTL ? "اختياري" : "Optional"})
+                {t("notesOptional")}
               </Text>
               <TextInput
                 multiline
@@ -864,7 +824,7 @@ export default function MedicalHistoryScreen() {
                 onChangeText={(text) =>
                   setNewCondition({ ...newCondition, notes: text })
                 }
-                placeholder={isRTL ? "أضف ملاحظات..." : "Add notes..."}
+                placeholder={t("addNotes")}
                 placeholderTextColor="#94A3B8"
                 style={[styles.textArea, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}

@@ -102,23 +102,28 @@ const parseBloodPressure = (value: unknown) => {
   return null;
 };
 
-const formatRelativeTime = (date: Date) => {
+const formatRelativeTime = (
+  date: Date,
+  t: (key: string, options?: { count?: number }) => string
+) => {
   const diffMs = Date.now() - date.getTime();
   const diffMinutes = Math.max(0, Math.floor(diffMs / 60_000));
   if (diffMinutes < 60) {
-    return diffMinutes <= 1 ? "Just now" : `${diffMinutes} min ago`;
+    return diffMinutes <= 1
+      ? t("justNow")
+      : t("minAgo", { count: diffMinutes });
   }
   const diffHours = Math.floor(diffMinutes / 60);
   if (diffHours < 24) {
-    return `${diffHours} hours ago`;
+    return t("hoursAgo", { count: diffHours });
   }
   const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays} days ago`;
+  return t("daysAgo", { count: diffDays });
 };
 
 export default function BloodPressureScreen() {
   const { user } = useAuth();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const params = useLocalSearchParams<{ returnTo?: string }>();
   const [readings, setReadings] = useState<BloodPressureReading[]>([]);
@@ -189,9 +194,9 @@ export default function BloodPressureScreen() {
     } catch (error) {
       console.error("Failed to load blood pressure readings:", error);
       const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
+        error instanceof Error ? error.message : t("unknownError");
       Alert.alert(
-        "Error",
+        t("error"),
         `Unable to load blood pressure readings. ${errorMessage}`
       );
     } finally {
@@ -408,7 +413,7 @@ export default function BloodPressureScreen() {
                   <Text style={styles.cardLabel}>Latest Reading</Text>
                   <Text style={styles.cardMeta}>
                     {latestReading
-                      ? formatRelativeTime(latestReading.timestamp)
+                      ? formatRelativeTime(latestReading.timestamp, t)
                       : "--"}
                   </Text>
                 </View>
@@ -622,12 +627,12 @@ export default function BloodPressureScreen() {
                     </View>
                     <Text style={styles.readingMeta}>
                       Pulse: {reading.pulse ?? "--"} bpm •{" "}
-                      {reading.note || "No notes"}
+                      {reading.note || t("noNotes")}
                     </Text>
                     <View style={styles.readingTimeRow}>
                       <Clock color="#6C7280" size={12} />
                       <Text style={styles.readingTime}>
-                        {formatRelativeTime(reading.timestamp)}
+                        {formatRelativeTime(reading.timestamp, t)}
                       </Text>
                     </View>
                   </View>

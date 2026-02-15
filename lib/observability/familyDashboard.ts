@@ -252,35 +252,127 @@ class FamilyDashboardService {
   private async getLastVitals(
     userId: string
   ): Promise<Record<string, { value: number; unit: string; timestamp: Date }>> {
-    const vitalTypes = [
-      "heart_rate",
-      "blood_oxygen",
-      "systolic_bp",
-      "diastolic_bp",
-      "blood_glucose",
-      "temperature",
-    ];
-
     const lastVitals: Record<
       string,
       { value: number; unit: string; timestamp: Date }
     > = {};
 
     try {
-      const events = await healthTimelineService.getEventsForUser(userId, {
-        limitCount: 50,
-        eventTypes: ["vital_recorded", "vital_abnormal"],
-      });
+      // Use healthDataService to get latest vitals from Firestore vitals collection
+      // This ensures we're using the actual saved metrics that match what's displayed in the app
+      const vitals =
+        await healthDataService.getLatestVitalsFromFirestore(userId);
 
-      for (const vitalType of vitalTypes) {
-        const vitalEvent = events.find(
-          (e) => e.metadata?.vitalType === vitalType
-        );
-        if (vitalEvent?.metadata) {
-          lastVitals[vitalType] = {
-            value: vitalEvent.metadata.value as number,
-            unit: vitalEvent.metadata.unit as string,
-            timestamp: vitalEvent.timestamp,
+      if (vitals) {
+        // Map VitalSigns to the expected format, including all metrics that are saved
+        if (vitals.heartRate !== undefined) {
+          lastVitals.heart_rate = {
+            value: vitals.heartRate,
+            unit: "bpm",
+            timestamp: vitals.timestamp,
+          };
+        }
+        if (vitals.restingHeartRate !== undefined) {
+          lastVitals.resting_heart_rate = {
+            value: vitals.restingHeartRate,
+            unit: "bpm",
+            timestamp: vitals.timestamp,
+          };
+        }
+        if (vitals.heartRateVariability !== undefined) {
+          lastVitals.heart_rate_variability = {
+            value: vitals.heartRateVariability,
+            unit: "ms",
+            timestamp: vitals.timestamp,
+          };
+        }
+        if (vitals.bloodPressure) {
+          lastVitals.systolic_bp = {
+            value: vitals.bloodPressure.systolic,
+            unit: "mmHg",
+            timestamp: vitals.timestamp,
+          };
+          lastVitals.diastolic_bp = {
+            value: vitals.bloodPressure.diastolic,
+            unit: "mmHg",
+            timestamp: vitals.timestamp,
+          };
+        }
+        if (vitals.respiratoryRate !== undefined) {
+          lastVitals.respiratory_rate = {
+            value: vitals.respiratoryRate,
+            unit: "bpm",
+            timestamp: vitals.timestamp,
+          };
+        }
+        if (vitals.bodyTemperature !== undefined) {
+          lastVitals.temperature = {
+            value: vitals.bodyTemperature,
+            unit: "°C",
+            timestamp: vitals.timestamp,
+          };
+        }
+        if (vitals.oxygenSaturation !== undefined) {
+          lastVitals.blood_oxygen = {
+            value: vitals.oxygenSaturation,
+            unit: "%",
+            timestamp: vitals.timestamp,
+          };
+        }
+        if (vitals.bloodGlucose !== undefined) {
+          lastVitals.blood_glucose = {
+            value: vitals.bloodGlucose,
+            unit: "mg/dL",
+            timestamp: vitals.timestamp,
+          };
+        }
+        if (vitals.weight !== undefined) {
+          lastVitals.weight = {
+            value: vitals.weight,
+            unit: "kg",
+            timestamp: vitals.timestamp,
+          };
+        }
+        if (vitals.height !== undefined) {
+          lastVitals.height = {
+            value: vitals.height,
+            unit: "cm",
+            timestamp: vitals.timestamp,
+          };
+        }
+        if (vitals.bodyMassIndex !== undefined) {
+          lastVitals.bmi = {
+            value: vitals.bodyMassIndex,
+            unit: "",
+            timestamp: vitals.timestamp,
+          };
+        }
+        if (vitals.steps !== undefined) {
+          lastVitals.steps = {
+            value: vitals.steps,
+            unit: "steps",
+            timestamp: vitals.timestamp,
+          };
+        }
+        if (vitals.activeEnergy !== undefined) {
+          lastVitals.active_energy = {
+            value: vitals.activeEnergy,
+            unit: "kcal",
+            timestamp: vitals.timestamp,
+          };
+        }
+        if (vitals.sleepHours !== undefined) {
+          lastVitals.sleep_hours = {
+            value: vitals.sleepHours,
+            unit: "hours",
+            timestamp: vitals.timestamp,
+          };
+        }
+        if (vitals.waterIntake !== undefined) {
+          lastVitals.water_intake = {
+            value: vitals.waterIntake,
+            unit: "ml",
+            timestamp: vitals.timestamp,
           };
         }
       }

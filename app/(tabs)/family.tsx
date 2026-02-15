@@ -87,8 +87,10 @@ import {
   type ReportPrivacySettings,
 } from "@/lib/services/familyHealthReportService";
 import { familyInviteService } from "@/lib/services/familyInviteService";
-import healthContextService from "@/lib/services/healthContextService";
-import type { VitalSigns } from "@/lib/services/healthDataService";
+import {
+  healthDataService,
+  type VitalSigns,
+} from "@/lib/services/healthDataService";
 import { healthScoreService } from "@/lib/services/healthScoreService";
 import { medicationService } from "@/lib/services/medicationService";
 import { revenueCatService } from "@/lib/services/revenueCatService";
@@ -756,20 +758,12 @@ export default function FamilyScreen() {
         "FamilyScreen"
       );
 
-      Alert.alert(
-        isRTL ? "ØªÙ…" : "Success",
-        isRTL ? "ØªÙ… ØªØ£ÙƒÙŠØ¯ Ø§Ù„Ø­Ø¯Ø«" : "Event acknowledged"
-      );
+      Alert.alert(t("success"), t("eventAcknowledged"));
     } catch (error) {
       const _durationMs = Date.now() - startTime;
       logger.error("Failed to acknowledge health event", error, "FamilyScreen");
 
-      Alert.alert(
-        isRTL ? "Ø®Ø·Ø£" : "Error",
-        isRTL
-          ? "ÙØ´Ù„ ÙÙŠ ØªØ£ÙƒÙŠØ¯ Ø§Ù„Ø­Ø¯Ø«"
-          : "Failed to acknowledge event"
-      );
+      Alert.alert(t("error"), t("failedToAcknowledgeEvent"));
     }
   };
 
@@ -803,18 +797,12 @@ export default function FamilyScreen() {
         "FamilyScreen"
       );
 
-      Alert.alert(
-        isRTL ? "ØªÙ…" : "Success",
-        isRTL ? "ØªÙ… Ø­Ù„ Ø§Ù„Ø­Ø¯Ø«" : "Event resolved"
-      );
+      Alert.alert(t("success"), t("eventResolved"));
     } catch (error) {
       const _durationMs = Date.now() - startTime;
       logger.error("Failed to resolve health event", error, "FamilyScreen");
 
-      Alert.alert(
-        isRTL ? "Ø®Ø·Ø£" : "Error",
-        isRTL ? "ÙØ´Ù„ ÙÙŠ Ø­Ù„ Ø§Ù„Ø­Ø¯Ø«" : "Failed to resolve event"
-      );
+      Alert.alert(t("error"), t("failedToResolveEvent"));
     }
   };
 
@@ -854,10 +842,7 @@ export default function FamilyScreen() {
         "FamilyScreen"
       );
 
-      Alert.alert(
-        isRTL ? "تم" : "Success",
-        isRTL ? "تم حل التنبيه" : "Alert resolved"
-      );
+      Alert.alert(t("success"), t("alertResolvedSuccessfully"));
     } catch (error) {
       const _durationMs = Date.now() - startTime;
       logger.error("Failed to resolve alert", error, "FamilyScreen");
@@ -865,10 +850,7 @@ export default function FamilyScreen() {
       // Revert optimistic update on failure
       await loadActiveAlerts(true);
 
-      Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "فشل في حل التنبيه" : "Failed to resolve alert"
-      );
+      Alert.alert(t("error"), t("failedToResolveAlert"));
     } finally {
       setResolvingAlertId(null);
     }
@@ -915,10 +897,7 @@ export default function FamilyScreen() {
                 "FamilyScreen"
               );
 
-              Alert.alert(
-                isRTL ? "ØªÙ…" : "Success",
-                isRTL ? "ØªÙ… ØªØµØ¹ÙŠØ¯ Ø§Ù„Ø­Ø¯Ø«" : "Event escalated"
-              );
+              Alert.alert(t("success"), t("eventEscalated"));
             } catch (error) {
               const _durationMs = Date.now() - startTime;
               logger.error(
@@ -927,12 +906,7 @@ export default function FamilyScreen() {
                 "FamilyScreen"
               );
 
-              Alert.alert(
-                isRTL ? "Ø®Ø·Ø£" : "Error",
-                isRTL
-                  ? "ÙØ´Ù„ ÙÙŠ ØªØµØ¹ÙŠØ¯ Ø§Ù„Ø­Ø¯Ø«"
-                  : "Failed to escalate event"
-              );
+              Alert.alert(t("error"), t("failedToEscalateEvent"));
             }
           },
         },
@@ -950,12 +924,12 @@ export default function FamilyScreen() {
     const diffDays = Math.floor(diffHours / 24);
 
     if (diffHours < 1) {
-      return "Just now";
+      return t("justNow");
     }
     if (diffHours < 24) {
-      return `${diffHours}h ago`;
+      return t("hoursAgo", { count: diffHours });
     }
-    return `${diffDays}d ago`;
+    return t("daysAgo", { count: diffDays });
   };
 
   const getEventStatusColor = (status: HealthEvent["status"]) => {
@@ -1014,9 +988,10 @@ export default function FamilyScreen() {
                 alertService.getActiveAlertsCount(member.id),
                 // Limit allergies to 10 for display
                 allergyService.getUserAllergies(member.id, 10),
-                // Health context (vitals) - only if dashboard view needs it
+                // Get latest vitals from Firestore vitals collection (most accurate)
+                // This uses the actual saved metrics instead of just user document fields
                 viewMode === "dashboard"
-                  ? healthContextService.getUserHealthContext(member.id)
+                  ? healthDataService.getLatestVitalsFromFirestore(member.id)
                   : Promise.resolve(null),
               ]);
 
@@ -1025,7 +1000,7 @@ export default function FamilyScreen() {
                 medicationsResult,
                 alertsResult,
                 allergiesResult,
-                healthContextResult,
+                vitalsResult,
               ] = results;
 
               const symptoms =
@@ -1042,9 +1017,10 @@ export default function FamilyScreen() {
                 allergiesResult.status === "fulfilled"
                   ? allergiesResult.value
                   : null;
-              const healthContext =
-                healthContextResult.status === "fulfilled"
-                  ? healthContextResult.value
+              // Get vitals directly from Firestore vitals collection (most accurate)
+              const vitals: VitalSigns | null =
+                vitalsResult.status === "fulfilled" && vitalsResult.value
+                  ? vitalsResult.value
                   : null;
 
               const healthScore =
@@ -1060,32 +1036,6 @@ export default function FamilyScreen() {
 
               // Count symptoms this week (already limited to recent by getUserSymptoms)
               const symptomsThisWeek = symptoms ? symptoms.length : null;
-
-              // Extract vitals from health context (only if dashboard view)
-              let vitals: VitalSigns | null = null;
-              if (viewMode === "dashboard" && healthContext?.vitalSigns) {
-                const vs = healthContext.vitalSigns;
-                vitals = {
-                  heartRate: vs.heartRate,
-                  bloodPressure: vs.bloodPressure
-                    ? (() => {
-                        const bp = vs.bloodPressure.split("/");
-                        if (bp.length === 2) {
-                          return {
-                            systolic: Number.parseFloat(bp[0]),
-                            diastolic: Number.parseFloat(bp[1]),
-                          };
-                        }
-                        return;
-                      })()
-                    : undefined,
-                  bodyTemperature: vs.temperature,
-                  oxygenSaturation: vs.oxygenLevel,
-                  bloodGlucose: vs.glucoseLevel,
-                  weight: vs.weight,
-                  timestamp: vs.lastUpdated || new Date(),
-                };
-              }
 
               const symptomTimestamp =
                 symptoms && symptoms.length > 0 ? symptoms[0].timestamp : null;
@@ -3031,7 +2981,7 @@ export default function FamilyScreen() {
               caregiverData?.medicationCompliance?.nextDose;
             const appointmentLabel = nextAppointment
               ? safeFormatDate(nextAppointment)
-              : "Not scheduled";
+              : t("notScheduled");
 
             return (
               <TouchableOpacity
@@ -3403,20 +3353,20 @@ export default function FamilyScreen() {
             </View>
             <Text style={styles.addMemberTitle}>Add Family Member</Text>
             <Text style={styles.addMemberSubtitle}>
-              Invite someone to your care circle
+              {t("inviteSomeoneToCareCircle")}
             </Text>
           </TouchableOpacity>
         )}
       </ScrollView>
       <CoachMark
-        body="Tap here to add family members and track their health."
+        body={t("tapToAddFamilyMembers")}
         isRTL={isRTL}
         onClose={() => setShowHowTo(false)}
         onPrimaryAction={() => setShowInviteModal(true)}
-        primaryActionLabel="Invite member"
-        secondaryActionLabel="Got it"
+        primaryActionLabel={t("inviteMember")}
+        secondaryActionLabel={t("gotIt")}
         targetRef={addMemberButtonRef}
-        title="Track family health"
+        title={t("trackFamilyHealth")}
         visible={showHowTo}
       />
 
@@ -3429,9 +3379,7 @@ export default function FamilyScreen() {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
-              {isRTL
-                ? "Ø¯Ø¹ÙˆØ©  ÙØ±Ø¯ Ø¹Ø§Ø¦Ù„Ø© Ø¬Ø¯ÙŠØ¯"
-                : "Invite New Member"}
+              {t("inviteNewMember")}
             </Text>
             <TouchableOpacity
               onPress={() => {
@@ -3451,15 +3399,13 @@ export default function FamilyScreen() {
             {/* Name */}
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "Ø§Ù„Ø§Ø³Ù… Ø§Ù„ÙƒØ§Ù…Ù„" : "Full Name"} *
+                {t("fullName")} *
               </Text>
               <TextInput
                 onChangeText={(text) =>
                   setInviteForm({ ...inviteForm, name: text })
                 }
-                placeholder={
-                  isRTL ? "Ø§Ø¯Ø®Ù„ Ø§Ù„Ø§Ø³Ù… Ø§Ù„ÙƒØ§Ù…Ù„" : "Enter full name"
-                }
+                placeholder={t("enterFullName")}
                 style={[styles.textInput, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={inviteForm.name}
@@ -3469,7 +3415,7 @@ export default function FamilyScreen() {
             {/* Relation */}
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "ØµÙ„Ø© Ø§Ù„Ù‚Ø±Ø§Ø¨Ø©" : "Relationship"} *
+                {t("relationship")} *
               </Text>
               <View style={styles.relationOptions}>
                 {RELATIONS.map((relation) => (
@@ -3855,11 +3801,7 @@ export default function FamilyScreen() {
                 onChangeText={(text) =>
                   setEditMemberForm({ ...editMemberForm, email: text })
                 }
-                placeholder={
-                  isRTL
-                    ? "Ø§Ø¯Ø®Ù„ Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ"
-                    : "Enter email"
-                }
+                placeholder={t("enterEmail")}
                 style={[styles.textInput, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={editMemberForm.email}

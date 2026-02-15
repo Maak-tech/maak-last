@@ -987,33 +987,18 @@ export default function ProfileScreen() {
 
   const handleSaveEvent = async () => {
     if (!user?.id) {
-      Alert.alert(
-        isRTL ? "Ø®Ø·Ø£" : "Error",
-        isRTL
-          ? "ÙŠØ¬Ø¨ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ø£ÙˆÙ„Ø§Ù‹"
-          : "You must be logged in first"
-      );
+      Alert.alert(t("error"), t("mustBeLoggedInFirst"));
       return;
     }
 
     if (!eventTitle.trim()) {
-      Alert.alert(
-        isRTL ? "Ø®Ø·Ø£" : "Error",
-        isRTL
-          ? "ÙŠØ±Ø¬Ù‰ Ø¥Ø¯Ø®Ø§Ù„ Ø¹Ù†ÙˆØ§Ù† Ø§Ù„Ø­Ø¯Ø«"
-          : "Please enter an event title"
-      );
+      Alert.alert(t("error"), t("pleaseEnterEventTitle"));
       return;
     }
 
     // Validate start date - ensure it's a valid Date object
     if (!eventStartDate || Number.isNaN(eventStartDate.getTime())) {
-      Alert.alert(
-        isRTL ? "Ø®Ø·Ø£" : "Error",
-        isRTL
-          ? "ÙŠØ±Ø¬Ù‰ Ø§Ø®ØªÙŠØ§Ø± ØªØ§Ø±ÙŠØ® Ø§Ù„Ø¨Ø¯Ø§ÙŠØ©"
-          : "Please select a start date"
-      );
+      Alert.alert(t("error"), t("pleaseSelectStartDate"));
       return;
     }
 
@@ -1032,12 +1017,7 @@ export default function ProfileScreen() {
 
       // Validate end date if set
       if (finalEndDate && Number.isNaN(finalEndDate.getTime())) {
-        Alert.alert(
-          isRTL ? "Ø®Ø·Ø£" : "Error",
-          isRTL
-            ? "ÙŠØ±Ø¬Ù‰ Ø§Ø®ØªÙŠØ§Ø± ØªØ§Ø±ÙŠØ® Ù†Ù‡Ø§ÙŠØ© ØµØ­ÙŠØ­"
-            : "Please select a valid end date"
-        );
+        Alert.alert(t("error"), t("pleaseSelectValidEndDate"));
         setSavingEvent(false);
         return;
       }
@@ -2806,11 +2786,11 @@ export default function ProfileScreen() {
                 <TypographyText
                   style={{ marginBottom: 8, color: theme.colors.text.primary }}
                 >
-                  {isRTL ? "Ø§Ù„Ø¹Ù†ÙˆØ§Ù†" : "Title"} *
+                  {t("title")} *
                 </TypographyText>
                 <TextInput
                   onChangeText={setEventTitle}
-                  placeholder={isRTL ? "Ø¹Ù†ÙˆØ§Ù† Ø§Ù„Ø­Ø¯Ø«" : "Event title"}
+                  placeholder={t("eventTitle")}
                   placeholderTextColor={theme.colors.text.secondary}
                   style={{
                     borderWidth: 1,
@@ -2831,7 +2811,7 @@ export default function ProfileScreen() {
                 <TypographyText
                   style={{ marginBottom: 8, color: theme.colors.text.primary }}
                 >
-                  {isRTL ? "Ù†ÙˆØ¹ Ø§Ù„Ø­Ø¯Ø«" : "Event Type"} *
+                  {t("eventType")} *
                 </TypographyText>
                 <View
                   style={{
@@ -2843,26 +2823,26 @@ export default function ProfileScreen() {
                   {[
                     {
                       value: "appointment",
-                      label: isRTL ? "Ù…ÙˆØ¹Ø¯" : "Appointment",
+                      label: t("appointment"),
                     },
                     {
                       value: "medication",
-                      label: isRTL ? "Ø¯ÙˆØ§Ø¡" : "Medication",
+                      label: t("medications"),
                     },
-                    { value: "symptom", label: isRTL ? "Ø¹Ø±Ø¶" : "Symptom" },
+                    { value: "symptom", label: t("symptom") },
                     {
                       value: "lab_result",
-                      label: isRTL ? "Ù†ØªÙŠØ¬Ø© Ù…Ø®ØªØ¨Ø±" : "Lab Result",
+                      label: t("labResult"),
                     },
                     {
                       value: "vaccination",
-                      label: isRTL ? "ØªØ·Ø¹ÙŠÙ…" : "Vaccination",
+                      label: t("vaccination"),
                     },
                     {
                       value: "reminder",
-                      label: isRTL ? "ØªØ°ÙƒÙŠØ±" : "Reminder",
+                      label: t("reminder"),
                     },
-                    { value: "other", label: isRTL ? "Ø£Ø®Ø±Ù‰" : "Other" },
+                    { value: "other", label: t("other") },
                   ].map((eventTypeOption) => (
                     <TouchableOpacity
                       key={eventTypeOption.value}
@@ -3113,12 +3093,11 @@ export default function ProfileScreen() {
                 <TypographyText
                   style={{ marginBottom: 8, color: theme.colors.text.primary }}
                 >
-                  {isRTL ? "Ø§Ù„Ù…ÙˆÙ‚Ø¹" : "Location"} (
-                  {isRTL ? "Ø§Ø®ØªÙŠØ§Ø±ÙŠ" : "Optional"})
+                  {t("location")} ({t("optional")})
                 </TypographyText>
                 <TextInput
                   onChangeText={setEventLocation}
-                  placeholder={isRTL ? "Ù…ÙˆÙ‚Ø¹ Ø§Ù„Ø­Ø¯Ø«" : "Event location"}
+                  placeholder={t("eventLocation")}
                   placeholderTextColor={theme.colors.text.secondary}
                   style={{
                     borderWidth: 1,
@@ -3139,16 +3118,13 @@ export default function ProfileScreen() {
                 <TypographyText
                   style={{ marginBottom: 8, color: theme.colors.text.primary }}
                 >
-                  {isRTL ? "Ø§Ù„ÙˆØµÙ" : "Description"} (
-                  {isRTL ? "Ø§Ø®ØªÙŠØ§Ø±ÙŠ" : "Optional"})
+                  {t("description")} ({t("optional")})
                 </TypographyText>
                 <TextInput
                   multiline
                   numberOfLines={4}
                   onChangeText={setEventDescription}
-                  placeholder={
-                    isRTL ? "ÙˆØµÙ Ø§Ù„Ø­Ø¯Ø«..." : "Event description..."
-                  }
+                  placeholder={t("eventDescription")}
                   placeholderTextColor={theme.colors.text.secondary}
                   style={{
                     borderWidth: 1,

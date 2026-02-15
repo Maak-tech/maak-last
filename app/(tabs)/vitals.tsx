@@ -590,12 +590,7 @@ export default function VitalsScreen() {
         // Mark initial load as completed
         initialLoadCompleted.current = true;
       } catch (_error) {
-        Alert.alert(
-          isRTL ? "خطأ" : "Error",
-          isRTL
-            ? "حدث خطأ في تحميل البيانات الصحية"
-            : "Error loading health data"
-        );
+        Alert.alert(t("error"), t("errorLoadingHealthData"));
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -731,19 +726,9 @@ export default function VitalsScreen() {
       if (granted) {
         setHasPermissions(true);
         await loadVitalsData();
-        Alert.alert(
-          isRTL ? "تم التفعيل" : "Enabled",
-          isRTL
-            ? "تم تفعيل دمج البيانات الصحية بنجاح"
-            : "Health data integration enabled successfully"
-        );
+        Alert.alert(t("enabled"), t("healthDataIntegrationEnabled"));
       } else {
-        Alert.alert(
-          isRTL ? "فشل التفعيل" : "Permission Denied",
-          isRTL
-            ? "يرجى السماح بالوصول للبيانات الصحية في الإعدادات"
-            : "Please allow access to health data in Settings"
-        );
+        Alert.alert(t("permissionDenied"), t("pleaseAllowHealthDataAccess"));
       }
     } catch (_error) {
       Alert.alert(
@@ -788,12 +773,7 @@ export default function VitalsScreen() {
 
   const handleAuthorizeMetrics = async () => {
     if (selectedMetrics.size === 0) {
-      Alert.alert(
-        isRTL ? "لا توجد مقاييس محددة" : "No Metrics Selected",
-        isRTL
-          ? "يرجى تحديد مقياس واحد على الأقل للمتابعة"
-          : "Please select at least one metric to continue."
-      );
+      Alert.alert(t("noMetricsSelected"), t("pleaseSelectAtLeastOneMetric"));
       return;
     }
 
@@ -847,9 +827,8 @@ export default function VitalsScreen() {
 
           if (!availability?.available) {
             Alert.alert(
-              isRTL ? "HealthKit غير متاح" : "HealthKit Not Available",
-              availability?.reason ||
-                (isRTL ? "HealthKit غير متاح." : "HealthKit is not available.")
+              t("healthKitNotAvailable"),
+              availability?.reason || t("healthKitNotAvailableMessage")
             );
             return;
           }
@@ -883,15 +862,11 @@ export default function VitalsScreen() {
             errorMsg.includes("bridge");
 
           Alert.alert(
-            isRTL ? "خطأ في HealthKit" : "HealthKit Error",
+            t("healthKitError"),
             isBridgeError
-              ? isRTL
-                ? "جسر React Native غير جاهز. يرجى المحاولة مرة أخرى بعد بضع ثوانٍ أو إعادة بناء التطبيق."
-                : "React Native bridge is not ready. Please try again in a few seconds or rebuild the app."
+              ? t("reactNativeBridgeNotReady")
               : getErrorMessage(healthKitError, "") ||
-                  (isRTL
-                    ? "فشل الاتصال بـ HealthKit."
-                    : "Failed to connect to HealthKit.")
+                  t("failedToConnectHealthKit")
           );
           setAuthorizing(false);
           return;
@@ -917,14 +892,12 @@ export default function VitalsScreen() {
             // Offer to open Play Store
             if (availability.requiresInstall) {
               Alert.alert(
-                isRTL ? "تثبيت Health Connect" : "Install Health Connect",
-                isRTL
-                  ? "هل تريد فتح متجر Play لتثبيت Health Connect؟"
-                  : "Would you like to open Play Store to install Health Connect?",
+                t("installHealthConnect"),
+                t("openPlayStoreToInstall"),
                 [
-                  { text: isRTL ? "إلغاء" : "Cancel", style: "cancel" },
+                  { text: t("cancel"), style: "cancel" },
                   {
-                    text: isRTL ? "فتح" : "Open",
+                    text: t("open"),
                     onPress: () => {
                       const installUrl =
                         availability.installUrl ||
@@ -964,11 +937,9 @@ export default function VitalsScreen() {
           provider = "health_connect";
         } catch (healthConnectError: unknown) {
           Alert.alert(
-            isRTL ? "خطأ في Health Connect" : "Health Connect Error",
+            t("healthConnectError"),
             getErrorMessage(healthConnectError, "") ||
-              (isRTL
-                ? "فشل الاتصال بـ Health Connect."
-                : "Failed to connect to Health Connect.")
+              t("failedToConnectHealthConnect")
           );
           return;
         }
@@ -1010,19 +981,9 @@ export default function VitalsScreen() {
 
       if (expandedGranted.length > 0) {
         await loadVitalsData();
-        Alert.alert(
-          isRTL ? "تم التفعيل" : "Enabled",
-          isRTL
-            ? "تم تفعيل دمج البيانات الصحية بنجاح"
-            : "Health data integration enabled successfully"
-        );
+        Alert.alert(t("enabled"), t("healthDataIntegrationEnabled"));
       } else {
-        Alert.alert(
-          isRTL ? "فشل التفعيل" : "Permission Denied",
-          isRTL
-            ? "يرجى السماح بالوصول للبيانات الصحية في الإعدادات"
-            : "Please allow access to health data in Settings"
-        );
+        Alert.alert(t("permissionDenied"), t("pleaseAllowHealthDataAccess"));
       }
     } catch (error: unknown) {
       Alert.alert(
@@ -1047,12 +1008,7 @@ export default function VitalsScreen() {
       await healthDataService.syncHealthData();
       await loadVitalsData(true);
     } catch (_error) {
-      Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL
-          ? "حدث خطأ في مزامنة البيانات الصحية"
-          : "Error syncing health data"
-      );
+      Alert.alert(t("error"), t("errorSyncingHealthData"));
     }
   };
 
@@ -1604,7 +1560,7 @@ export default function VitalsScreen() {
                 ] as StyleProp<TextStyle>
               }
             >
-              {isRTL ? "اختر المقاييس" : "Select Metrics"}
+              {t("selectMetrics")}
             </Text>
             <Text
               style={
@@ -1851,7 +1807,7 @@ export default function VitalsScreen() {
                                     color: theme.colors.primary.main,
                                   }}
                                 >
-                                  {isRTL ? "اختر" : "Select"}
+                                  {t("select")}
                                 </Text>
                               </TouchableOpacity>
                             ) : null}
@@ -1961,7 +1917,7 @@ export default function VitalsScreen() {
               ] as StyleProp<TextStyle>
             }
           >
-            {isRTL ? "دمج البيانات الصحية" : "Health Data Integration"}
+            {t("healthDataIntegration")}
           </Text>
           <Text
             style={
@@ -1993,7 +1949,7 @@ export default function VitalsScreen() {
                 <Heart color={theme.colors.neutral.white} size={20} />
               )}
               <Text style={styles.enableButtonText as StyleProp<TextStyle>}>
-                {isRTL ? "إعداد التكامل" : "Set Up Integration"}
+                {t("setUpIntegration")}
               </Text>
             </TouchableOpacity>
           </View>
@@ -2024,12 +1980,10 @@ export default function VitalsScreen() {
           isRTL={isRTL}
           onClose={() => setShowHowTo(false)}
           onPrimaryAction={() => router.push("/profile/health-integrations")}
-          primaryActionLabel={isRTL ? "افتح الإعدادات" : "Open setup"}
-          secondaryActionLabel={isRTL ? "تم" : "Got it"}
+          primaryActionLabel={t("openSetup")}
+          secondaryActionLabel={t("gotIt")}
           targetRef={integrationButtonRef}
-          title={
-            isRTL ? "تكامل المؤشرات الحيوية" : "Health vitals integrations"
-          }
+          title={t("healthVitalsIntegrations")}
           visible={showHowTo}
         />
       </SafeAreaView>
@@ -2296,9 +2250,9 @@ export default function VitalsScreen() {
         }
         isRTL={isRTL}
         onClose={() => setShowHowTo(false)}
-        secondaryActionLabel={isRTL ? "تم" : "Got it"}
+        secondaryActionLabel={t("gotIt")}
         targetRef={syncButtonRef}
-        title={isRTL ? "مزامنة المؤشرات الحيوية" : "Sync health vitals"}
+        title={t("syncHealthVitals")}
         visible={showHowTo}
       />
     </GradientScreen>

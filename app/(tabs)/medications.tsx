@@ -375,7 +375,7 @@ export default function MedicationsScreen() {
         }
 
         logger.debug(
-          "Loading medications",
+          t("loadingMedications"),
           {
             userId: user.id,
             filterType: selectedFilter.type,
@@ -482,7 +482,7 @@ export default function MedicationsScreen() {
 
         const durationMs = Date.now() - startTime;
         logger.info(
-          "Medications loaded",
+          t("medicationsLoaded"),
           {
             userId: user.id,
             filterType: selectedFilter.type,
@@ -680,12 +680,7 @@ export default function MedicationsScreen() {
     );
 
     if (invalidReminders.length > 0) {
-      Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL
-          ? "يرجى إدخال أوقات التذكير بالتنسيق الصحيح (مثال: 8:00)"
-          : "Please enter reminder times in correct format (e.g., 8:00)"
-      );
+      Alert.alert(t("error"), t("pleaseEnterReminderTimesFormat"));
       return;
     }
 
@@ -751,38 +746,36 @@ export default function MedicationsScreen() {
         .map((a) => getTranslatedAllergyName(a.name))
         .join(", ");
 
-      const severityText = conflictingAllergies.some(
+      const hasSevereAllergies = conflictingAllergies.some(
         (a) =>
           a.severity === "severe" || a.severity === "severe-life-threatening"
-      )
-        ? isRTL
-          ? "خطيرة"
-          : "severe"
-        : "";
-
-      Alert.alert(
-        isRTL ? "⚠️ تحذير: تعارض مع الحساسية" : "⚠️ Warning: Allergy Conflict",
-        isRTL
-          ? `هذا الدواء قد يتعارض مع الحساسيات التالية: ${allergyNames}${severityText ? `\n\nتحذير: بعض هذه الحساسيات ${severityText}!` : ""}\n\nهل أنت متأكد من رغبتك في المتابعة؟`
-          : `This medication may conflict with the following allergies: ${allergyNames}${severityText ? `\n\nWarning: Some of these allergies are ${severityText}!` : ""}\n\nAre you sure you want to proceed?`,
-        [
-          {
-            text: isRTL ? "إلغاء" : "Cancel",
-            style: "cancel",
-            onPress: () => {
-              // User cancelled, don't proceed
-            },
-          },
-          {
-            text: isRTL ? "المتابعة على أي حال" : "Proceed Anyway",
-            style: "destructive",
-            onPress: async () => {
-              // User confirmed, proceed with saving
-              await proceedWithMedicationSave();
-            },
-          },
-        ]
       );
+      const severityText = hasSevereAllergies ? t("severe") : "";
+
+      const message =
+        t("medicationConflictMessage", { allergies: allergyNames }) +
+        (hasSevereAllergies
+          ? `\n\n${t("severeAllergyWarning", { severity: severityText })}`
+          : "") +
+        `\n\n${t("areYouSureProceed")}`;
+
+      Alert.alert(t("allergyConflictWarning"), message, [
+        {
+          text: t("cancel"),
+          style: "cancel",
+          onPress: () => {
+            // User cancelled, don't proceed
+          },
+        },
+        {
+          text: t("proceedAnyway"),
+          style: "destructive",
+          onPress: async () => {
+            // User confirmed, proceed with saving
+            await proceedWithMedicationSave();
+          },
+        },
+      ]);
       return;
     }
 
@@ -1759,10 +1752,10 @@ export default function MedicationsScreen() {
         isRTL={isRTL}
         onClose={() => setShowHowTo(false)}
         onPrimaryAction={() => setShowAddModal(true)}
-        primaryActionLabel={isRTL ? "إضافة دواء" : "Add medication"}
-        secondaryActionLabel={isRTL ? "تم" : "Got it"}
+        primaryActionLabel={t("addMedication")}
+        secondaryActionLabel={t("gotIt")}
         targetRef={addMedicationButtonRef}
-        title={isRTL ? "تتبع الأدوية" : "Track medications"}
+        title={t("trackMedications")}
         visible={showHowTo}
       />
 
@@ -1912,7 +1905,7 @@ export default function MedicationsScreen() {
                     applyMedicationSuggestions(newMedication.name);
                   }
                 }}
-                placeholder={isRTL ? "اسم الدواء" : "Medication name"}
+                placeholder={t("medicationName")}
                 rightIcon={undefined}
                 style={[styles.input, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
@@ -2259,7 +2252,7 @@ export default function MedicationsScreen() {
                 error={undefined}
                 helperText={undefined}
                 keyboardType="numeric"
-                label={`${isRTL ? "تنبيه قبل" : "Remind me"} (${isRTL ? "أيام" : "days"})`}
+                label={`${t("remindMeDays")} (${t("days")})`}
                 leftIcon={undefined}
                 onChangeText={(text: string) => {
                   const num = text ? Number.parseInt(text, 10) : 7;

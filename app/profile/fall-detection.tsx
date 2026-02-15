@@ -28,7 +28,7 @@ import { safeFormatDateTime } from "@/utils/dateFormat";
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This settings screen intentionally combines status cards, permission state, and localized UI branches.
 export default function FallDetectionSettingsScreen() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const navigation = useNavigation();
   const {
@@ -200,7 +200,7 @@ export default function FallDetectionSettingsScreen() {
       ? "تراقب الحركة بنشاط"
       : "Actively monitoring motion";
   } else if (isInitialized) {
-    monitoringStatusText = isRTL ? "غير نشط" : "Not active";
+    monitoringStatusText = t("notActive");
   }
 
   return (

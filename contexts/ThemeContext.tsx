@@ -5,9 +5,11 @@ import {
   type ReactNode,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 import { Theme } from "@/constants/theme";
+import i18n from "@/lib/i18n";
 
 type ThemeMode = "light" | "dark" | "system";
 
@@ -41,9 +43,41 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // Dark mode is disabled. Keep light mode only.
   const [themeMode, setThemeModeState] = useState<ThemeMode>("light");
   const [isLoaded, setIsLoaded] = useState(false);
+  const [currentLanguage, setCurrentLanguage] = useState(i18n.language || "en");
 
   const isDark = false;
-  const theme = Theme.light;
+  const isArabic = currentLanguage === "ar";
+
+  // Listen for language changes
+  useEffect(() => {
+    const updateLanguage = () => {
+      setCurrentLanguage(i18n.language || "en");
+    };
+    updateLanguage();
+    i18n.on("languageChanged", updateLanguage);
+    return () => {
+      i18n.off("languageChanged", updateLanguage);
+    };
+  }, []);
+
+  // Use Arabic fonts when language is Arabic so Arabic text renders correctly (not as ?)
+  const theme = useMemo(() => {
+    const base = Theme.light;
+    if (currentLanguage !== "ar") return base;
+    return {
+      ...base,
+      typography: {
+        ...base.typography,
+        fontFamily: {
+          ...base.typography.fontFamily,
+          regular: base.typography.fontFamily.arabic,
+          medium: base.typography.fontFamily.arabic,
+          semiBold: "NotoSansArabic-SemiBold",
+          bold: base.typography.fontFamily.arabicBold,
+        },
+      },
+    };
+  }, [currentLanguage]);
 
   // Load saved theme preference on mount
   useEffect(() => {

@@ -1,5 +1,6 @@
 /* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Overlay measurement and placement logic is intentionally centralized for correctness. */
 import { type RefObject, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Modal,
   Pressable,
@@ -42,10 +43,12 @@ export default function CoachMark({
   onClose,
   primaryActionLabel,
   onPrimaryAction,
-  secondaryActionLabel = "Got it",
+  secondaryActionLabel,
   isRTL = false,
 }: CoachMarkProps) {
+  const { t } = useTranslation();
   const { theme } = useTheme();
+  const resolvedSecondaryLabel = secondaryActionLabel ?? t("gotIt");
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const [targetLayout, setTargetLayout] = useState<TargetLayout | null>(null);
   const [tooltipLayout, setTooltipLayout] = useState({ width: 0, height: 0 });
@@ -275,7 +278,7 @@ export default function CoachMark({
             style={[styles.actions, isRTL && { flexDirection: "row-reverse" }]}
           >
             <Pressable onPress={onClose} style={styles.button as ViewStyle}>
-              <Text style={styles.buttonText}>{secondaryActionLabel}</Text>
+              <Text style={styles.buttonText}>{resolvedSecondaryLabel}</Text>
             </Pressable>
             {primaryActionLabel && onPrimaryAction ? (
               <Pressable

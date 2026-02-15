@@ -143,20 +143,50 @@ export const useNotifications = () => {
 
         // Add listeners with error handling
         try {
+          const { emitMedicationAlarm } = await import(
+            "../lib/medicationAlarmEmitter"
+          );
+
           notificationListener.current =
-            Notifications.addNotificationReceivedListener(() => {
-              // Notification received handler
+            Notifications.addNotificationReceivedListener((notification) => {
+              const data = notification.request.content.data;
+              if (data?.type === "medication_reminder") {
+                emitMedicationAlarm({
+                  medicationId: data.medicationId,
+                  medicationName: data.medicationName || "Medication",
+                  dosage: data.dosage,
+                  reminderId: data.reminderId,
+                  reminderTime: data.reminderTime,
+                });
+                // Haptic feedback when app is in foreground
+                try {
+                  const Haptics = require("expo-haptics");
+                  Haptics.notificationAsync(
+                    Haptics.NotificationFeedbackType.Warning
+                  );
+                } catch {
+                  // Haptics not available
+                }
+              }
             });
 
           responseListener.current =
             Notifications.addNotificationResponseReceivedListener(
               (response) => {
-                // Handle quick actions from interactive notifications
                 const { actionIdentifier, notification } = response;
                 const data = notification.request.content.data;
 
+                if (data?.type === "medication_reminder") {
+                  emitMedicationAlarm({
+                    medicationId: data.medicationId,
+                    medicationName: data.medicationName || "Medication",
+                    dosage: data.dosage,
+                    reminderId: data.reminderId,
+                    reminderTime: data.reminderTime,
+                  });
+                }
+
                 if (actionIdentifier && data?.type) {
-                  // Handle quick action
                   const {
                     NotificationResponseHandler,
                   } = require("../lib/services/smartNotificationService");
@@ -541,8 +571,11 @@ export const useNotifications = () => {
 
         const notificationConfig = {
           content: {
-            title: "💊 Medication Reminder",
-            body: `Time to take ${medicationName}${dosage ? ` (${dosage})` : ""}`,
+            title: `💊 ${i18n.t("medicationAlarmTitle")}`,
+            body: i18n.t("medicationAlarmBody", {
+              medicationName,
+              dosage: dosage ? ` (${dosage})` : "",
+            }),
             sound: "default",
             channelId: "medication",
             categoryIdentifier: "MEDICATION",
@@ -830,11 +863,14 @@ async function registerForPushNotificationsAsync(
         lightColor: "#FF231F7C",
       });
       await Notifications.setNotificationChannelAsync("medication", {
-        name: "Medication Reminders",
+        name: "Medication Alarms",
         importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 500, 500, 500],
+        vibrationPattern: [0, 1000, 500, 1000, 500, 1000],
+        enableVibrate: true,
         lightColor: "#10B981",
         sound: "default",
+        lockscreenVisibility:
+          Notifications.AndroidNotificationVisibility.PUBLIC,
       });
     }
 

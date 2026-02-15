@@ -229,17 +229,17 @@ export default function TrackScreen() {
     const diffMs = Date.now() - date.getTime();
     const minutes = Math.floor(diffMs / 60_000);
     if (minutes < 1) {
-      return isRTL ? "????" : "Just now";
+      return t("justNow");
     }
     if (minutes < 60) {
-      return isRTL ? `??? ${minutes} ?????` : `${minutes} min ago`;
+      return t("minAgo", { count: minutes });
     }
     const hours = Math.floor(minutes / 60);
     if (hours < 24) {
-      return isRTL ? `??? ${hours} ????` : `${hours} hours ago`;
+      return t("hoursAgo", { count: hours });
     }
     const days = Math.floor(hours / 24);
-    return isRTL ? `??? ${days} ???` : `${days} days ago`;
+    return t("daysAgo", { count: days });
   };
 
   const entriesToday = () => {
@@ -310,7 +310,7 @@ export default function TrackScreen() {
     recentMedicalHistory.slice(0, 1).forEach((history) => {
       items.push({
         id: `history-${history.id}`,
-        title: history.condition || (isRTL ? "سجل طبي" : "Medical history"),
+        title: history.condition || t("medicalHistory"),
         detail: `${formatRelativeTime(new Date(history.diagnosedDate || new Date()))}`,
         color: "#6366F1",
         icon: FileText,
@@ -320,7 +320,7 @@ export default function TrackScreen() {
     recentAllergies.slice(0, 1).forEach((allergy) => {
       items.push({
         id: `allergy-${allergy.id}`,
-        title: allergy.name || (isRTL ? "حساسية" : "Allergy"),
+        title: allergy.name || t("allergyLabel"),
         detail: `${formatRelativeTime(new Date(allergy.timestamp))}`,
         color: "#F97316",
         icon: AlertCircle,
@@ -1317,7 +1317,7 @@ export default function TrackScreen() {
         onClose={() => setShowHowTo(false)}
         onPrimaryAction={handleBloodPressurePress}
         primaryActionLabel={isRTL ? "إدخال" : "Enter"}
-        secondaryActionLabel={isRTL ? "تم" : "Got it"}
+        secondaryActionLabel={t("gotIt")}
         targetRef={bloodPressureCardRef}
         title={isRTL ? "إدخال المقاييس الصحية" : "Input health metrics"}
         visible={showHowTo}

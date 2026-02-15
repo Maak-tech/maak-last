@@ -1098,7 +1098,7 @@ export default function DashboardScreen() {
           : "Tap SOS to call emergency services or notify family quickly.",
       },
       {
-        title: isRTL ? "بطاقات الإحصاءات" : "Stats cards",
+        title: t("statsCards"),
         body: isRTL
           ? "تعرض نشاطك الأسبوعي والالتزام بالأدوية ولمحة عن العائلة."
           : "See weekly activity, medication compliance, and family overview.",
@@ -1110,19 +1110,19 @@ export default function DashboardScreen() {
           : "Review upcoming meds and mark them as taken in one tap.",
       },
       {
-        title: isRTL ? "الأعراض الحديثة" : "Recent symptoms",
+        title: t("recentSymptomsTitle"),
         body: isRTL
           ? "سجل أعراضك وتابع شدتها وتوقيتها هنا."
           : "Log symptoms and track their timing and severity here.",
       },
       {
-        title: isRTL ? "إجراءات سريعة" : "Quick actions",
+        title: t("quickActions"),
         body: isRTL
           ? "اختصارات لإضافة أعراض، أدوية، العلامات الحيوية، والمزيد."
           : "Shortcuts to log symptoms, manage meds, record vitals, and more.",
       },
       {
-        title: isRTL ? "التنقل بين الأقسام" : "Navigation tabs",
+        title: t("navigationTabs"),
         body: tabsCopy,
       },
     ];
@@ -2368,10 +2368,8 @@ export default function DashboardScreen() {
                                         );
                                       } else {
                                         Alert.alert(
-                                          isRTL ? "نجح" : "Success",
-                                          isRTL
-                                            ? "تم حل التنبيه"
-                                            : "Alert resolved"
+                                          t("success"),
+                                          t("alertResolvedSuccessfully")
                                         );
                                       }
                                     } catch (error: any) {
@@ -2382,7 +2380,7 @@ export default function DashboardScreen() {
                                       );
 
                                       const errorMessage =
-                                        error?.message || "Unknown error";
+                                        error?.message || t("unknownError");
                                       let displayMessage = errorMessage;
 
                                       if (
