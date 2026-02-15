@@ -103,7 +103,7 @@ import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
 import { setClipboardString } from "@/lib/utils/clipboard";
 import { logger } from "@/lib/utils/logger";
-import type { Allergy, User } from "@/types";
+import type { Allergy, EmergencyAlert, User } from "@/types";
 import { safeFormatDate, safeFormatTime } from "@/utils/dateFormat";
 import {
   acknowledgeHealthEvent,
@@ -117,17 +117,17 @@ import {
 import type { HealthEvent } from "../../src/health/events/types";
 
 const RELATIONS = [
-  { key: "father", labelEn: "Father", labelAr: "Ø§Ù„Ø£Ø¨" },
-  { key: "mother", labelEn: "Mother", labelAr: "Ø§Ù„Ø£Ù…" },
-  { key: "spouse", labelEn: "Spouse", labelAr: "Ø§Ù„Ø²ÙˆØ¬/Ø§Ù„Ø²ÙˆØ¬Ø©" },
-  { key: "child", labelEn: "Child", labelAr: "Ø§Ù„Ø·ÙÙ„" },
-  { key: "sibling", labelEn: "Sibling", labelAr: "Ø§Ù„Ø£Ø®/Ø§Ù„Ø£Ø®Øª" },
+  { key: "father", labelEn: "Father", labelAr: "الأب" },
+  { key: "mother", labelEn: "Mother", labelAr: "الأم" },
+  { key: "spouse", labelEn: "Spouse", labelAr: "الزوج/الزوجة" },
+  { key: "child", labelEn: "Child", labelAr: "الطفل" },
+  { key: "sibling", labelEn: "Sibling", labelAr: "الأخ/الأخت" },
   {
     key: "grandparent",
     labelEn: "Grandparent",
-    labelAr: "Ø§Ù„Ø¬Ø¯/Ø§Ù„Ø¬Ø¯Ø©",
+    labelAr: "الجد/الجدة",
   },
-  { key: "other", labelEn: "Other", labelAr: "Ø¢Ø®Ø±" },
+  { key: "other", labelEn: "Other", labelAr: "أخرى" },
 ];
 
 // Allergy keys mapping to translation keys
@@ -291,7 +291,7 @@ export default function FamilyScreen() {
 
   const { isEnabled: fallDetectionEnabled, toggleFallDetection } =
     useFallDetectionContext();
-  const isRTL = i18n.language === "ar";
+  const isRTL = i18n.language.toLowerCase().startsWith("ar");
   const isAdmin = user?.role === "admin" || user?.role === "caregiver";
   const hasFamily = Boolean(user?.familyId);
 
@@ -539,9 +539,9 @@ export default function FamilyScreen() {
         // Only show alert if it's not a timeout (to avoid spam)
         if (error instanceof Error && !error.message.includes("timeout")) {
           Alert.alert(
-            isRTL ? "Ø®Ø·Ø£" : "Error",
+            isRTL ? "خطأ" : "Error",
             isRTL
-              ? "ÙØ´Ù„ ÙÙŠ ØªØ­Ù…ÙŠÙ„ Ø£Ø¹Ø¶Ø§Ø¡ Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©"
+              ? "فشل في تحميل أعضاء العائلة"
               : "Failed to load family members"
           );
         }
@@ -679,7 +679,7 @@ export default function FamilyScreen() {
               const fullName =
                 member.firstName && member.lastName
                   ? `${member.firstName} ${member.lastName}`
-                  : member.firstName || "Member";
+                  : member.firstName || (isRTL ? "عضو" : "Member");
               return alerts.map((alert) => ({
                 alert,
                 memberName: fullName,
@@ -705,7 +705,7 @@ export default function FamilyScreen() {
                 memberName:
                   user.firstName && user.lastName
                     ? `${user.firstName} ${user.lastName}`
-                    : user.firstName || "You",
+                    : user.firstName || (isRTL ? "أنت" : "You"),
               }))
             );
           } catch {
@@ -860,14 +860,12 @@ export default function FamilyScreen() {
     if (!user?.id) return;
 
     Alert.prompt(
-      isRTL ? "ØªØµØ¹ÙŠØ¯ Ø§Ù„Ø­Ø¯Ø«" : "Escalate Event",
-      isRTL
-        ? "Ø£Ø¯Ø®Ù„ Ø³Ø¨Ø¨ Ø§Ù„ØªØµØ¹ÙŠØ¯:"
-        : "Enter reason for escalation:",
+      isRTL ? "تصعيد الحدث" : "Escalate Event",
+      isRTL ? "أدخل سبب التصعيد:" : "Enter reason for escalation:",
       [
-        { text: isRTL ? "Ø¥Ù„ØºØ§Ø¡" : "Cancel", style: "cancel" },
+        { text: isRTL ? "إلغاء" : "Cancel", style: "cancel" },
         {
-          text: isRTL ? "ØªØµØ¹ÙŠØ¯" : "Escalate",
+          text: isRTL ? "تصعيد" : "Escalate",
           onPress: async (reason?: string) => {
             const startTime = Date.now();
 
@@ -932,6 +930,93 @@ export default function FamilyScreen() {
     return t("daysAgo", { count: diffDays });
   };
 
+  const getLocalizedAlertMessage = (alert: EmergencyAlert) => {
+    const message = alert?.message ?? "";
+    if (!isRTL) {
+      return message;
+    }
+
+    // If the message already contains Arabic, keep it.
+    if (/[\u0600-\u06FF]/.test(message)) {
+      return message;
+    }
+
+    const normalized = message.trim().toLowerCase();
+    const byType = () => {
+      switch (alert.type) {
+        case "fall":
+          return "تم اكتشاف سقوط";
+        case "medication":
+          return "تنبيه دواء";
+        case "vitals":
+          return "تنبيه مؤشرات حيوية";
+        case "vital_critical":
+          return "تنبيه مؤشرات حيوية حرِج";
+        case "vital_error":
+          return "خطأ في المؤشرات الحيوية";
+        case "emergency":
+        default:
+          return "تنبيه طارئ";
+      }
+    };
+
+    if (!normalized) {
+      return byType();
+    }
+
+    // Emergency
+    if (
+      normalized.includes("emergency alert from user") ||
+      normalized.includes("needs emergency help")
+    ) {
+      return "تنبيه طارئ من المستخدم";
+    }
+    if (normalized.includes("emergency")) {
+      return "تنبيه طارئ";
+    }
+
+    // Fall
+    if (
+      normalized.includes("fall detected") ||
+      normalized.includes("fall detection") ||
+      normalized.includes("fall alert")
+    ) {
+      return "تم اكتشاف سقوط";
+    }
+
+    // Medication
+    if (
+      normalized.includes("medication reminder") ||
+      normalized.includes("medicine reminder")
+    ) {
+      return "تذكير دواء";
+    }
+    if (
+      normalized.includes("missed dose") ||
+      normalized.includes("missed medication") ||
+      normalized.includes("medication missed")
+    ) {
+      return "تم تفويت جرعة دواء";
+    }
+
+    // Vitals
+    if (
+      normalized.includes("vital") ||
+      normalized.includes("vitals") ||
+      normalized.includes("blood pressure") ||
+      normalized.includes("heart rate") ||
+      normalized.includes("oxygen") ||
+      normalized.includes("spo2") ||
+      normalized.includes("glucose")
+    ) {
+      return alert.type === "vital_critical"
+        ? "تنبيه مؤشرات حيوية حرِج"
+        : "تنبيه مؤشرات حيوية";
+    }
+
+    return byType();
+  };
+
   const getEventStatusColor = (status: HealthEvent["status"]) => {
     switch (status) {
       case "OPEN":
@@ -950,15 +1035,15 @@ export default function FamilyScreen() {
   const getEventStatusText = (status: HealthEvent["status"]) => {
     switch (status) {
       case "OPEN":
-        return "Open";
+        return isRTL ? "مفتوح" : "Open";
       case "ACKED":
-        return "Acknowledged";
+        return isRTL ? "تمت المعالجة" : "Acknowledged";
       case "RESOLVED":
-        return "Resolved";
+        return isRTL ? "تم الحل" : "Resolved";
       case "ESCALATED":
-        return "Escalated";
+        return isRTL ? "تم التصعيد" : "Escalated";
       default:
-        return "Unknown";
+        return isRTL ? "غير معروف" : "Unknown";
     }
   };
 
@@ -1237,10 +1322,10 @@ export default function FamilyScreen() {
 
   const _getHealthStatusText = (status: string) => {
     const statusMap = {
-      excellent: isRTL ? "Ù…Ù…ØªØ§Ø²" : "Excellent",
-      good: isRTL ? "Ø¬ÙŠØ¯" : "Good",
-      attention: isRTL ? "ÙŠØ­ØªØ§Ø¬ Ø§Ù†ØªØ¨Ø§Ù‡" : "Needs Attention",
-      critical: isRTL ? "Ø­Ø±Ø¬" : "Critical",
+      excellent: isRTL ? "ممتاز" : "Excellent",
+      good: isRTL ? "جيد" : "Good",
+      attention: isRTL ? "يحتاج انتباه" : "Needs Attention",
+      critical: isRTL ? "حرج" : "Critical",
     };
     return statusMap[status as keyof typeof statusMap] || status;
   };
@@ -1280,9 +1365,9 @@ export default function FamilyScreen() {
 
     if (!canManage && user.id !== entry.member.id) {
       Alert.alert(
-        isRTL ? "ØºÙŠØ± Ù…Ø³Ù…ÙˆØ­" : "Not Permitted",
+        isRTL ? "غير مسموح" : "Not Permitted",
         isRTL
-          ? "Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ ØµÙ„Ø§Ø­ÙŠØ© Ù„Ø¥Ø¯Ø§Ø±Ø© Ø£Ø¯ÙˆÙŠØ© Ù‡Ø°Ø§ Ø§Ù„Ø¹Ø¶Ùˆ"
+          ? "ليس لديك صلاحية لإدارة أدوية هذا العضو"
           : "You don't have permission to manage this member's medications"
       );
       return;
@@ -1298,19 +1383,17 @@ export default function FamilyScreen() {
       );
 
       Alert.alert(
-        isRTL ? "Ù†Ø¬Ø­" : "Success",
+        isRTL ? "نجح" : "Success",
         isRTL
-          ? `ØªÙ… ØªØ³Ø¬ÙŠÙ„ ØªÙ†Ø§ÙˆÙ„ ${entry.medication.name}`
+          ? `تم تسجيل تناول ${entry.medication.name}`
           : `Marked ${entry.medication.name} as taken`
       );
 
       await loadMedicationSchedule(true);
     } catch (_error) {
       Alert.alert(
-        isRTL ? "Ø®Ø·Ø£" : "Error",
-        isRTL
-          ? "ÙØ´Ù„ ØªØ³Ø¬ÙŠÙ„ ØªÙ†Ø§ÙˆÙ„ Ø§Ù„Ø¯ÙˆØ§Ø¡"
-          : "Failed to mark medication as taken"
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "فشل تسجيل تناول الدواء" : "Failed to mark medication as taken"
       );
     } finally {
       setMarkingTaken(null);
@@ -1349,18 +1432,16 @@ export default function FamilyScreen() {
   const handleInviteMember = async () => {
     if (!(inviteForm.name && inviteForm.relation)) {
       Alert.alert(
-        isRTL ? "Ø®Ø·Ø£" : "Error",
-        isRTL
-          ? "ÙŠØ±Ø¬Ù‰ Ù…Ù„Ø¡ Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ù…Ø·Ù„ÙˆØ¨Ø©"
-          : "Please fill in required fields"
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "يرجى ملء البيانات المطلوبة" : "Please fill in required fields"
       );
       return;
     }
 
     if (!user?.familyId) {
       Alert.alert(
-        isRTL ? "Ø®Ø·Ø£" : "Error",
-        isRTL ? "Ù„Ø§ ØªÙˆØ¬Ø¯ Ø¹Ø§Ø¦Ù„Ø© Ù…ØªØµÙ„Ø©" : "No family found"
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "لا توجد عائلة متصلة" : "No family found"
       );
       return;
     }
@@ -1378,20 +1459,18 @@ export default function FamilyScreen() {
         // Close invite modal first
         setShowInviteModal(false);
         Alert.alert(
+          isRTL ? "تم الوصول للحد الأقصى" : "Member Limit Reached",
           isRTL
-            ? "ØªÙ… Ø§Ù„ÙˆØµÙˆÙ„ Ù„Ù„Ø­Ø¯ Ø§Ù„Ø£Ù‚ØµÙ‰"
-            : "Member Limit Reached",
-          isRTL
-            ? `Ù„Ù‚Ø¯ ÙˆØµÙ„Øª Ø¥Ù„Ù‰ Ø§Ù„Ø­Ø¯ Ø§Ù„Ø£Ù‚ØµÙ‰ Ù„Ø¹Ø¯Ø¯ Ø§Ù„Ø£Ø¹Ø¶Ø§Ø¡ ÙÙŠ Ø§Ù„Ø§Ø´ØªØ±Ø§Ùƒ Ø§Ù„Ø¹Ø§Ø¦Ù„ÙŠ Ø§Ù„Ø®Ø§Øµ Ø¨Ùƒ (${maxMembers} Ø¹Ø¶Ùˆ). Ù‚Ù… Ø¨Ø§Ù„ØªØ±Ù‚ÙŠØ© Ø¥Ù„Ù‰ Ø§Ù„Ø§Ø´ØªØ±Ø§Ùƒ Ø§Ù„Ø¹Ø§Ø¦Ù„ÙŠ Ù„Ø¥Ø¶Ø§ÙØ© Ø§Ù„Ù…Ø²ÙŠØ¯ Ù…Ù† Ø§Ù„Ø£Ø¹Ø¶Ø§Ø¡.`
+            ? `لقد وصلت إلى الحد الأقصى لعدد الأعضاء في اشتراكك (${maxMembers} عضو). قم بالترقية إلى الخطة العائلية لإضافة المزيد من الأعضاء.`
             : `You've reached the maximum number of members for your plan (${maxMembers} members). Upgrade to Family Plan to add more members.`,
           [
             {
-              text: isRTL ? "Ø¥Ù„ØºØ§Ø¡" : "Cancel",
+              text: isRTL ? "إلغاء" : "Cancel",
               style: "cancel",
             },
             {
               text: isRTL
-                ? "ØªØ±Ù‚ÙŠØ© Ø¥Ù„Ù‰ Ø§Ù„Ø§Ø´ØªØ±Ø§Ùƒ Ø§Ù„Ø¹Ø§Ø¦Ù„ÙŠ"
+                ? "الترقية إلى الخطة العائلية"
                 : "Upgrade to Family Plan",
               onPress: () => {
                 setShowPaywall(true);
@@ -1405,19 +1484,17 @@ export default function FamilyScreen() {
       // Close invite modal first
       setShowInviteModal(false);
       Alert.alert(
-        isRTL ? "Ø®Ø·Ø£" : "Premium Required",
+        isRTL ? "خطأ" : "Premium Required",
         isRTL
-          ? "ÙŠØ¬Ø¨ Ø§Ù„Ø§Ø´ØªØ±Ø§Ùƒ Ø¨Ø§Ù„Ø§Ø´ØªØ±Ø§Ùƒ Ø§Ù„Ø¹Ø§Ø¦Ù„ÙŠ Ù„Ø¥Ø¶Ø§ÙØ© Ø£Ø¹Ø¶Ø§Ø¡ Ø¥Ø¶Ø§ÙÙŠÙŠÙ† Ø¥Ù„Ù‰ Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©"
+          ? "يجب الاشتراك في الخطة العائلية لإضافة أعضاء إضافيين إلى العائلة"
           : "A premium subscription is required to add additional family members",
         [
           {
-            text: isRTL ? "Ø¥Ù„ØºØ§Ø¡" : "Cancel",
+            text: isRTL ? "إلغاء" : "Cancel",
             style: "cancel",
           },
           {
-            text: isRTL
-              ? "Ø¹Ø±Ø¶ Ø§Ù„Ø§Ø´ØªØ±Ø§ÙƒØ§Øª Ø§Ù„Ø¹Ø§Ø¦Ù„ÙŠØ©"
-              : "View Family Plans",
+            text: isRTL ? "عرض الخطط العائلية" : "View Family Plans",
             onPress: () => {
               setShowPaywall(true);
             },
@@ -1430,9 +1507,9 @@ export default function FamilyScreen() {
     // Validate user authentication and permissions
     if (!user?.id) {
       Alert.alert(
-        isRTL ? "Ø®Ø·Ø£" : "Error",
+        isRTL ? "خطأ" : "Error",
         isRTL
-          ? "ÙŠØ¬Ø¨ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ø£ÙˆÙ„Ø§Ù‹"
+          ? "يجب تسجيل الدخول أولاً"
           : "You must be logged in to invite members"
       );
       return;
@@ -1440,9 +1517,9 @@ export default function FamilyScreen() {
 
     if (!user.familyId) {
       Alert.alert(
-        isRTL ? "Ø®Ø·Ø£" : "Error",
+        isRTL ? "خطأ" : "Error",
         isRTL
-          ? "ÙŠØ¬Ø¨ Ø£Ù† ØªÙƒÙˆÙ† Ø¬Ø²Ø¡Ø§Ù‹ Ù…Ù† Ø¹Ø§Ø¦Ù„Ø© Ù„Ø¯Ø¹ÙˆØ© Ø£Ø¹Ø¶Ø§Ø¡"
+          ? "يجب أن تكون جزءاً من عائلة لدعوة أعضاء"
           : "You must be part of a family to invite members"
       );
       return;
@@ -1450,9 +1527,9 @@ export default function FamilyScreen() {
 
     if (user.role !== "admin") {
       Alert.alert(
-        isRTL ? "Ø®Ø·Ø£" : "Error",
+        isRTL ? "خطأ" : "Error",
         isRTL
-          ? "ÙŠØ¬Ø¨ Ø£Ù† ØªÙƒÙˆÙ† Ù…Ø¯ÙŠØ±Ø§Ù‹ Ù„Ù„Ø¹Ø§Ø¦Ù„Ø© Ù„Ø¯Ø¹ÙˆØ© Ø£Ø¹Ø¶Ø§Ø¡ Ø¬Ø¯Ø¯"
+          ? "يجب أن تكون مديراً للعائلة لدعوة أعضاء جدد"
           : "You must be a family admin to invite new members"
       );
       return;
@@ -1477,66 +1554,60 @@ export default function FamilyScreen() {
 
       // Prepare sharing message
       const shareMessage = isRTL
-        ? `Ù…Ø±Ø­Ø¨Ø§Ù‹ ${memberName}! ØªÙ… Ø¯Ø¹ÙˆØªÙƒ Ù„Ù„Ø§Ù†Ø¶Ù…Ø§Ù… Ø¥Ù„Ù‰ Ù…Ø¬Ù…ÙˆØ¹Ø© Ø§Ù„Ø¹Ø§Ø¦Ù„Ø© Ø§Ù„ØµØ­ÙŠØ© Ø¹Ù„Ù‰ ØªØ·Ø¨ÙŠÙ‚ Ù…Ø¹Ùƒ.\n\nØ±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ©: ${code}\n\n1. Ø­Ù…Ù„ ØªØ·Ø¨ÙŠÙ‚ Ù…Ø¹Ùƒ\n2. Ø³Ø¬Ù„ Ø¯Ø®ÙˆÙ„Ùƒ Ø£Ùˆ Ø£Ù†Ø´Ø¦ Ø­Ø³Ø§Ø¨ Ø¬Ø¯ÙŠØ¯\n3. Ø§Ø³ØªØ®Ø¯Ù… Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ©: ${code}\n\nÙ‡Ø°Ø§ Ø§Ù„Ø±Ù…Ø² ØµØ§Ù„Ø­ Ù„Ù…Ø¯Ø© 7 Ø£ÙŠØ§Ù….`
+        ? `مرحباً ${memberName}! تمت دعوتك للانضمام إلى مجموعة العائلة الصحية على تطبيق معك.\n\nرمز الدعوة: ${code}\n\n1. حمّل تطبيق معك\n2. سجّل دخولك أو أنشئ حساباً جديداً\n3. استخدم رمز الدعوة: ${code}\n\nهذا الرمز صالح لمدة 7 أيام.`
         : `Hi ${memberName}! You've been invited to join our family health group on Maak app.\n\nInvitation Code: ${code}\n\n1. Download the Maak app\n2. Sign in or create a new account\n3. Use invitation code: ${code}\n\nThis code expires in 7 days.`;
 
       // Show options to share or copy with clearer labels
       Alert.alert(
-        isRTL ? "ØªÙ… Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø¯Ø¹ÙˆØ©" : "Invitation Created",
+        isRTL ? "تم إنشاء الدعوة" : "Invitation Created",
         isRTL
-          ? `ØªÙ… Ø¥Ù†Ø´Ø§Ø¡ Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ© Ù„Ù€ ${memberName}: ${code}\n\nÙ…Ø§ Ø§Ù„Ø°ÙŠ ØªØ±ÙŠØ¯ ÙØ¹Ù„Ù‡ØŸ`
+          ? `تم إنشاء رمز الدعوة لـ ${memberName}: ${code}\n\nماذا تريد أن تفعل؟`
           : `Invitation code created for ${memberName}: ${code}\n\nWhat would you like to do?`,
         [
           {
-            text: isRTL
-              ? "Ù…Ø´Ø§Ø±ÙƒØ© Ø¹Ø¨Ø± Ø§Ù„ØªØ·Ø¨ÙŠÙ‚Ø§Øª"
-              : "Share via Apps",
+            text: isRTL ? "مشاركة عبر التطبيقات" : "Share via Apps",
             onPress: async () => {
               try {
                 await Share.share({
                   message: shareMessage,
                   title: isRTL
-                    ? "Ø¯Ø¹ÙˆØ© Ù„Ù„Ø§Ù†Ø¶Ù…Ø§Ù… Ø¥Ù„Ù‰ Ù…Ø¹Ùƒ"
+                    ? "دعوة للانضمام إلى معك"
                     : "Invitation to join Maak",
                 });
               } catch (_error) {
                 // Fallback to copying to clipboard
                 await setClipboardString(shareMessage);
                 Alert.alert(
-                  isRTL ? "ØªÙ… Ø§Ù„Ù†Ø³Ø®" : "Copied",
+                  isRTL ? "تم النسخ" : "Copied",
                   isRTL
-                    ? "ØªÙ… Ù†Ø³Ø® Ø±Ø³Ø§Ù„Ø© Ø§Ù„Ø¯Ø¹ÙˆØ© Ø¥Ù„Ù‰ Ø§Ù„Ø­Ø§ÙØ¸Ø©"
+                    ? "تم نسخ رسالة الدعوة إلى الحافظة"
                     : "Invitation message copied to clipboard"
                 );
               }
             },
           },
           {
-            text: isRTL
-              ? "Ù†Ø³Ø® Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ© ÙÙ‚Ø·"
-              : "Copy Invitation Code Only",
+            text: isRTL ? "نسخ رمز الدعوة فقط" : "Copy Invitation Code Only",
             onPress: async () => {
               await setClipboardString(code);
               Alert.alert(
-                isRTL ? "ØªÙ… Ø§Ù„Ù†Ø³Ø®" : "Copied",
+                isRTL ? "تم النسخ" : "Copied",
                 isRTL
-                  ? `ØªÙ… Ù†Ø³Ø® Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ©: ${code}`
+                  ? `تم نسخ رمز الدعوة: ${code}`
                   : `Invitation code copied: ${code}`
               );
             },
           },
           {
-            text: isRTL ? "Ø¥Ù„ØºØ§Ø¡" : "Cancel",
+            text: isRTL ? "إلغاء" : "Cancel",
             style: "cancel",
           },
         ]
       );
     } catch (_error) {
       Alert.alert(
-        isRTL ? "Ø®Ø·Ø£" : "Error",
-        isRTL
-          ? "ÙØ´Ù„ ÙÙŠ Ø¥Ù†Ø´Ø§Ø¡ Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ©"
-          : "Failed to generate invite code"
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "فشل في إنشاء رمز الدعوة" : "Failed to generate invite code"
       );
     } finally {
       setInviteLoading(false);
@@ -2192,39 +2263,35 @@ export default function FamilyScreen() {
 
   const handleElderlyEmergency = async () => {
     Alert.alert(
-      isRTL ? "ØªÙ†Ø¨ÙŠÙ‡ Ø·Ø§Ø±Ø¦" : "Emergency Alert",
+      isRTL ? "تنبيه طارئ" : "Emergency Alert",
       isRTL
-        ? "Ù‡Ù„ ØªØ±ÙŠØ¯ Ø¥Ø±Ø³Ø§Ù„ ØªÙ†Ø¨ÙŠÙ‡ Ø·Ø§Ø±Ø¦ Ù„Ù…Ù‚Ø¯Ù…ÙŠ Ø§Ù„Ø±Ø¹Ø§ÙŠØ©ØŸ"
+        ? "هل تريد إرسال تنبيه طارئ لمقدمي الرعاية؟"
         : "Do you want to send an emergency alert to caregivers?",
       [
         {
-          text: isRTL ? "Ø¥Ù„ØºØ§Ø¡" : "Cancel",
+          text: isRTL ? "إلغاء" : "Cancel",
           style: "cancel",
         },
         {
-          text: isRTL ? "Ø¥Ø±Ø³Ø§Ù„" : "Send",
+          text: isRTL ? "إرسال" : "Send",
           style: "destructive",
           onPress: async () => {
             try {
               await caregiverDashboardService.sendEmergencyAlert(
                 user!.id,
                 "medical",
-                isRTL
-                  ? "ØªÙ†Ø¨ÙŠÙ‡ Ø·Ø§Ø±Ø¦ Ù…Ù† Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…"
-                  : "Emergency alert from user"
+                isRTL ? "تنبيه طارئ من المستخدم" : "Emergency alert from user"
               );
               Alert.alert(
-                isRTL ? "ØªÙ… Ø§Ù„Ø¥Ø±Ø³Ø§Ù„" : "Sent",
+                isRTL ? "تم الإرسال" : "Sent",
                 isRTL
-                  ? "ØªÙ… Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„ØªÙ†Ø¨ÙŠÙ‡ Ù„Ù…Ù‚Ø¯Ù…ÙŠ Ø§Ù„Ø±Ø¹Ø§ÙŠØ©"
+                  ? "تم إرسال التنبيه لمقدمي الرعاية"
                   : "Alert sent to caregivers"
               );
             } catch (_error) {
               Alert.alert(
-                isRTL ? "Ø®Ø·Ø£" : "Error",
-                isRTL
-                  ? "ÙØ´Ù„ Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„ØªÙ†Ø¨ÙŠÙ‡"
-                  : "Failed to send alert"
+                isRTL ? "خطأ" : "Error",
+                isRTL ? "فشل إرسال التنبيه" : "Failed to send alert"
               );
             }
           },
@@ -2611,7 +2678,7 @@ export default function FamilyScreen() {
               {isCurrentUser && (
                 <View style={styles.currentUserBadge}>
                   <Text style={styles.currentUserBadgeText}>
-                    {isRTL ? "Ø£Ù†Øª" : "You"}
+                    {isRTL ? "أنت" : "You"}
                   </Text>
                 </View>
               )}
@@ -2935,7 +3002,7 @@ export default function FamilyScreen() {
                   { color: theme.colors.neutral.white },
                 ]}
               >
-                Family Circle
+                {isRTL ? "دائرة العائلة" : "Family Circle"}
               </Text>
               <Text
                 style={[
@@ -2944,7 +3011,7 @@ export default function FamilyScreen() {
                   { color: "rgba(255, 255, 255, 0.85)" },
                 ]}
               >
-                Manage your family circle
+                {isRTL ? "إدارة دائرة العائلة" : "Manage your family circle"}
               </Text>
             </View>
           </WavyBackground>
@@ -2954,14 +3021,14 @@ export default function FamilyScreen() {
           <View style={styles.inlineLoadingContainer}>
             <ActivityIndicator color="#003543" size="small" />
             <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
-              Loading...
+              {isRTL ? "جاري التحميل..." : "Loading..."}
             </Text>
           </View>
         ) : null}
         {!loading && displayMembers.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-              No family members yet
+              {isRTL ? "لا يوجد أفراد عائلة بعد" : "No family members yet"}
             </Text>
           </View>
         ) : (
@@ -2971,17 +3038,23 @@ export default function FamilyScreen() {
             const fullName =
               member.firstName && member.lastName
                 ? `${member.firstName} ${member.lastName}`
-                : member.firstName || "Member";
+                : member.firstName || (isRTL ? "عضو" : "Member");
             const relationship =
               (member as { relationship?: string }).relationship ||
-              (member.role === "admin" ? "Admin" : "Member");
+              (member.role === "admin"
+                ? isRTL
+                  ? "مدير"
+                  : "Admin"
+                : isRTL
+                  ? "عضو"
+                  : "Member");
             const status = getMemberStatus(metric);
             const medications = metric?.activeMedications ?? 0;
             const nextAppointment =
               caregiverData?.medicationCompliance?.nextDose;
             const appointmentLabel = nextAppointment
               ? safeFormatDate(nextAppointment)
-              : t("notScheduled");
+              : t("notScheduled", isRTL ? "غير مجدول" : "Not scheduled");
 
             return (
               <TouchableOpacity
@@ -3046,7 +3119,9 @@ export default function FamilyScreen() {
                       height={32}
                       width={64}
                     />
-                    <Text style={styles.familySparklineLabel}>Heart rate</Text>
+                    <Text style={styles.familySparklineLabel}>
+                      {isRTL ? "نبض القلب" : "Heart rate"}
+                    </Text>
                   </View>
                 </View>
 
@@ -3062,7 +3137,7 @@ export default function FamilyScreen() {
                     </View>
                     <View>
                       <Text style={styles.familyStatLabel}>
-                        Next Appointment
+                        {isRTL ? "الموعد القادم" : "Next Appointment"}
                       </Text>
                       <Text style={styles.familyStatValue}>
                         {appointmentLabel}
@@ -3079,9 +3154,13 @@ export default function FamilyScreen() {
                       <TrendingUp color="#EB9C0C" size={16} />
                     </View>
                     <View>
-                      <Text style={styles.familyStatLabel}>Medications</Text>
+                      <Text style={styles.familyStatLabel}>
+                        {isRTL ? "الأدوية" : "Medications"}
+                      </Text>
                       <Text style={styles.familyStatValue}>
-                        {medications} daily
+                        {isRTL
+                          ? `${medications} يوميًا`
+                          : `${medications} daily`}
                       </Text>
                     </View>
                   </View>
@@ -3150,7 +3229,7 @@ export default function FamilyScreen() {
                               isRTL && styles.rtlText,
                             ]}
                           >
-                            {item.alert.message}
+                            {getLocalizedAlertMessage(item.alert)}
                           </Text>
                           <View style={styles.eventMeta}>
                             <Clock color="#94A3B8" size={12} />
@@ -3351,7 +3430,9 @@ export default function FamilyScreen() {
             <View style={styles.addMemberIcon}>
               <Plus color="#003543" size={28} />
             </View>
-            <Text style={styles.addMemberTitle}>Add Family Member</Text>
+            <Text style={styles.addMemberTitle}>
+              {isRTL ? "إضافة فرد للعائلة" : "Add Family Member"}
+            </Text>
             <Text style={styles.addMemberSubtitle}>
               {t("inviteSomeoneToCareCircle")}
             </Text>
@@ -3472,7 +3553,7 @@ export default function FamilyScreen() {
             {generatedCode && (
               <View style={styles.codeContainer}>
                 <Text style={[styles.codeLabel, isRTL && styles.rtlText]}>
-                  {isRTL ? "Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ© Ù„Ù„Ø¹Ø§Ø¦Ù„Ø©" : "Invite Code"}
+                  {isRTL ? "رمز الدعوة للعائلة" : "Invite Code"}
                 </Text>
                 <Text style={[styles.codeValue, isRTL && styles.rtlText]}>
                   {generatedCode}
@@ -3498,7 +3579,7 @@ export default function FamilyScreen() {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
-              {isRTL ? "Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ø·ÙˆØ§Ø±Ø¦" : "Emergency Settings"}
+              {isRTL ? "إعدادات الطوارئ" : "Emergency Settings"}
             </Text>
             <TouchableOpacity
               onPress={() => setShowEmergencyModal(false)}
@@ -3572,7 +3653,7 @@ export default function FamilyScreen() {
                   onChangeText={(text) =>
                     setNewContact((prev) => ({ ...prev, phone: text }))
                   }
-                  placeholder={isRTL ? "Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ" : "Phone Number"}
+                  placeholder={isRTL ? "رقم الهاتف" : "Phone Number"}
                   style={[
                     styles.textInput,
                     isRTL && styles.rtlInput,
@@ -3629,7 +3710,7 @@ export default function FamilyScreen() {
 
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "ØªÙ†Ø¨ÙŠÙ‡Ø§Øª Ø§Ù„Ø£Ø¯ÙˆÙŠØ©" : "Medication Alerts"}
+                {isRTL ? "تنبيهات الأدوية" : "Medication Alerts"}
               </Text>
               <View style={styles.settingToggle}>
                 <Text style={[styles.settingText, isRTL && styles.rtlText]}>
@@ -3658,7 +3739,7 @@ export default function FamilyScreen() {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
-              {isRTL ? "Ø§Ù„Ø§Ù†Ø¶Ù…Ø§Ù… Ø¥Ù„Ù‰ Ø¹Ø§Ø¦Ù„Ø©" : "Join a Family"}
+              {isRTL ? "الانضمام إلى عائلة" : "Join a Family"}
             </Text>
             <TouchableOpacity
               onPress={() => {
@@ -3674,7 +3755,7 @@ export default function FamilyScreen() {
           <ScrollView style={styles.modalContent}>
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ©" : "Invitation Code"}
+                {isRTL ? "رمز الدعوة" : "Invitation Code"}
               </Text>
               <TextInput
                 keyboardType="numeric"
@@ -3735,7 +3816,7 @@ export default function FamilyScreen() {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
-              {isRTL ? "ØªØ¹Ø¯ÙŠÙ„ ÙØ±Ø¯ Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©" : "Edit Member"}
+              {isRTL ? "تعديل فرد العائلة" : "Edit Member"}
             </Text>
             <TouchableOpacity
               onPress={() => {
@@ -3758,15 +3839,13 @@ export default function FamilyScreen() {
             {/* First Name */}
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "Ø§Ù„Ø§Ø³Ù… Ø§Ù„Ø£ÙˆÙ„" : "First Name"} *
+                {isRTL ? "الاسم الأول" : "First Name"} *
               </Text>
               <TextInput
                 onChangeText={(text) =>
                   setEditMemberForm({ ...editMemberForm, firstName: text })
                 }
-                placeholder={
-                  isRTL ? "Ø§Ø¯Ø®Ù„ Ø§Ù„Ø§Ø³Ù… Ø§Ù„Ø£ÙˆÙ„" : "Enter first name"
-                }
+                placeholder={isRTL ? "أدخل الاسم الأول" : "Enter first name"}
                 style={[styles.textInput, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={editMemberForm.firstName}
@@ -3776,15 +3855,13 @@ export default function FamilyScreen() {
             {/* Last Name */}
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "Ø§Ø³Ù… Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©" : "Last Name"}
+                {isRTL ? "اسم العائلة" : "Last Name"}
               </Text>
               <TextInput
                 onChangeText={(text) =>
                   setEditMemberForm({ ...editMemberForm, lastName: text })
                 }
-                placeholder={
-                  isRTL ? "Ø§Ø¯Ø®Ù„ Ø§Ø³Ù… Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©" : "Enter last name"
-                }
+                placeholder={isRTL ? "أدخل اسم العائلة" : "Enter last name"}
                 style={[styles.textInput, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={editMemberForm.lastName}
@@ -3794,7 +3871,7 @@ export default function FamilyScreen() {
             {/* Email */}
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ" : "Email"} *
+                {isRTL ? "البريد الإلكتروني" : "Email"} *
               </Text>
               <TextInput
                 keyboardType="email-address"
@@ -3813,7 +3890,7 @@ export default function FamilyScreen() {
             {user?.role === "admin" && user.id !== editMemberForm.id && (
               <View style={styles.fieldContainer}>
                 <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                  {isRTL ? "Ø§Ù„Ø¯ÙˆØ±" : "Role"} *
+                  {isRTL ? "الدور" : "Role"} *
                 </Text>
                 <View style={styles.roleOptions}>
                   {["admin", "member"].map((role) => (
@@ -3858,7 +3935,7 @@ export default function FamilyScreen() {
               style={styles.saveButton}
             >
               <Text style={styles.saveButtonText}>
-                {isRTL ? "Ø­ÙØ¸" : "Save"}
+                {isRTL ? "حفظ" : "Save"}
               </Text>
             </TouchableOpacity>
 
@@ -4027,7 +4104,7 @@ export default function FamilyScreen() {
                       color: theme.colors.text.primary,
                     }}
                   >
-                    {isRTL ? "Ø§Ù„Ù…Ù„Ø®Øµ" : "Summary"}
+                    {isRTL ? "الملخص" : "Summary"}
                   </Heading>
                   <View
                     style={{
@@ -4122,7 +4199,7 @@ export default function FamilyScreen() {
                         }}
                       >
                         {isRTL
-                          ? "Ø§Ù„Ø£Ø¯ÙˆÙŠØ© Ø§Ù„ÙØ¹Ø§Ù„Ø© Ù„Ù„Ø¹Ø§Ø¦Ù„Ø©"
+                          ? "الأدوية النشطة للعائلة"
                           : "Active Medications"}
                       </Caption>
                       <Text
@@ -4290,7 +4367,7 @@ export default function FamilyScreen() {
                               ),
                             }}
                           >
-                            {isRTL ? "Ø§Ù„Ù†Ù‚Ø§Ø·" : "Score"}:{" "}
+                            {isRTL ? "النقاط" : "Score"}:{" "}
                             {memberReport.healthScore}
                           </Caption>
                         </Badge>
@@ -4301,17 +4378,15 @@ export default function FamilyScreen() {
                           numberOfLines={1}
                           style={{ color: theme.colors.text.secondary }}
                         >
-                          {isRTL ? "Ø§Ù„Ø£Ø¹Ø±Ø§Ø¶ Ø§Ù„ØµØ­ÙŠØ© " : "Symptoms"}:{" "}
+                          {isRTL ? "الأعراض الصحية" : "Symptoms"}:{" "}
                           {memberReport.symptoms.total}
                         </Caption>
                         <Caption
                           numberOfLines={1}
                           style={{ color: theme.colors.text.secondary }}
                         >
-                          {isRTL
-                            ? "Ø§Ù„Ø£Ø¯ÙˆÙŠØ© Ø§Ù„ÙØ¹Ø§Ù„Ø©"
-                            : "Active Medications"}
-                          : {memberReport.medications.active}
+                          {isRTL ? "الأدوية النشطة" : "Active Medications"}:{" "}
+                          {memberReport.medications.active}
                         </Caption>
                         {memberReport.medications.complianceRate !==
                           undefined && (
@@ -4319,10 +4394,8 @@ export default function FamilyScreen() {
                             numberOfLines={1}
                             style={{ color: theme.colors.text.secondary }}
                           >
-                            {isRTL
-                              ? "Ø§Ù„Ø§Ù„ØªØ²Ø§Ù… Ø¨Ø§Ù„Ø£Ø¯ÙˆÙŠØ©"
-                              : "Compliance"}
-                            : {memberReport.medications.complianceRate}%
+                            {isRTL ? "الالتزام بالأدوية" : "Compliance"}:{" "}
+                            {memberReport.medications.complianceRate}%
                           </Caption>
                         )}
                       </View>
@@ -4402,7 +4475,7 @@ export default function FamilyScreen() {
                   <Text
                     style={{ fontSize: 18, color: theme.colors.primary.main }}
                   >
-                    {isRTL ? "Ø¥ØºÙ„Ø§Ù‚" : "Close"}
+                    {isRTL ? "إغلاق" : "Close"}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -4411,49 +4484,45 @@ export default function FamilyScreen() {
                   {
                     key: "includeSymptoms",
                     label: isRTL
-                      ? "Ø¶Ù… Ø£Ø¹Ø±Ø§Ø¶ Ø§Ù„ØµØ­Ø© ÙÙŠ Ø§Ù„ØªÙ‚Ø±ÙŠØ±"
+                      ? "تضمين الأعراض الصحية في التقرير"
                       : "Include Symptoms",
                   },
                   {
                     key: "includeMedications",
                     label: isRTL
-                      ? "Ø¶Ù… Ø£Ø¯ÙˆÙŠØ© Ø§Ù„Ø¹Ø§Ø¦Ù„Ø© ÙÙŠ Ø§Ù„ØªÙ‚Ø±ÙŠØ±"
+                      ? "تضمين الأدوية في التقرير"
                       : "Include Medications",
                   },
                   {
                     key: "includeMoods",
-                    label: isRTL
-                      ? "Ø¶Ù… Ø­Ø§Ù„Ø§Øª Ù†ÙØ³ÙŠØ© ÙÙŠ Ø§Ù„ØªÙ‚Ø±ÙŠØ±"
-                      : "Include Moods",
+                    label: isRTL ? "تضمين المزاج في التقرير" : "Include Moods",
                   },
                   {
                     key: "includeAllergies",
-                    label: isRTL
-                      ? "Ø¶Ù… Ø§Ù„Ø­Ø³Ø§Ø³ÙŠØ©"
-                      : "Include Allergies",
+                    label: isRTL ? "تضمين الحساسية" : "Include Allergies",
                   },
                   {
                     key: "includeMedicalHistory",
                     label: isRTL
-                      ? "Ø¶Ù… Ø§Ù„ØªØ§Ø±ÙŠØ® Ø§Ù„Ø·Ø¨ÙŠ ÙÙŠ Ø§Ù„ØªÙ‚Ø±ÙŠØ±"
+                      ? "تضمين التاريخ الطبي في التقرير"
                       : "Include Medical History",
                   },
                   {
                     key: "includeLabResults",
                     label: isRTL
-                      ? "Ø¶Ù… Ù†ØªØ§Ø¦Ø¬ Ø§Ù„Ù…Ø®ØªØ¨Ø±"
+                      ? "تضمين نتائج المختبر"
                       : "Include Lab Results",
                   },
                   {
                     key: "includeVitals",
                     label: isRTL
-                      ? "Ø¶Ù… Ø§Ù„Ù…Ø¤Ø´Ø±Ø§Øª Ø§Ù„Ø­ÙŠÙˆÙŠØ© ÙÙŠ Ø§Ù„ØªÙ‚Ø±ÙŠØ±"
+                      ? "تضمين العلامات الحيوية في التقرير"
                       : "Include Vitals",
                   },
                   {
                     key: "includeComplianceData",
                     label: isRTL
-                      ? "Ø¶Ù… Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„ØªØ²Ø§Ù… Ø¨Ø§Ù„Ø£Ø¯ÙˆÙŠØ© ÙÙŠ Ø§Ù„ØªÙ‚Ø±ÙŠØ±"
+                      ? "تضمين بيانات الالتزام بالأدوية في التقرير"
                       : "Include Compliance Data",
                   },
                 ].map((option) => (

@@ -102,7 +102,7 @@ export default function DashboardScreen() {
   const params = useLocalSearchParams<{ tour?: string }>();
   const { width, height } = useWindowDimensions();
 
-  const isRTL = i18n.language === "ar";
+  const isRTL = i18n.language.toLowerCase().startsWith("ar");
   const isAdmin = user?.role === "admin";
   const _hasFamily = Boolean(user?.familyId);
   const isIphone16Pro =
@@ -149,11 +149,18 @@ export default function DashboardScreen() {
         welcomeText: {
           ...getTextStyle(theme, "heading", "bold", theme.colors.neutral.white),
           marginBottom: theme.spacing.xs,
-          fontSize: 34,
+          fontSize: 30,
+          lineHeight: 38,
+          flexShrink: 1,
+        },
+        welcomeTextRTL: {
+          fontSize: 26,
+          lineHeight: 34,
         },
         dateText: {
           ...getTextStyle(theme, "body", "bold", theme.colors.primary.main),
           fontSize: 18,
+          lineHeight: 28,
         },
         dateTextRTL: {
           alignSelf: "flex-start" as const,
@@ -173,13 +180,16 @@ export default function DashboardScreen() {
         },
         wavyHeaderTopRow: {
           flexDirection: isRTL ? "row-reverse" : "row",
-          alignItems: "center" as const,
+          alignItems: "flex-start" as const,
           justifyContent: "space-between" as const,
         },
         wavyHeaderActions: {
           flexDirection: isRTL ? "row-reverse" : "row",
           alignItems: "center" as const,
           gap: theme.spacing.md,
+        },
+        wavyHeaderActionsRTL: {
+          gap: theme.spacing.sm,
         },
         headerDateRow: {
           marginTop: theme.spacing.lg,
@@ -220,8 +230,8 @@ export default function DashboardScreen() {
           ...theme.shadows.md,
         },
         statGridCardHorizontal: {
-          width: 150,
-          height: 180,
+          width: 166,
+          minHeight: 194,
         },
         statGridIconWrap: {
           width: 44,
@@ -239,10 +249,18 @@ export default function DashboardScreen() {
             "bold",
             theme.colors.secondary.main
           ),
-          fontSize: 36,
-          lineHeight: 40,
+          fontSize: 32,
+          lineHeight: 36,
           marginBottom: theme.spacing.xs,
           textAlign: "center" as const,
+        },
+        statGridValueRTL: {
+          // Arabic numerals/% glyphs can clip with tight line-height on Android.
+          lineHeight: 48,
+          minHeight: 48,
+          paddingTop: 6,
+          paddingBottom: 2,
+          includeFontPadding: true,
         },
         statGridLabel: {
           ...getTextStyle(
@@ -253,6 +271,16 @@ export default function DashboardScreen() {
           ),
           textAlign: "center" as const,
           fontSize: 14,
+          lineHeight: 20,
+          width: "100%",
+          flexShrink: 1,
+          paddingHorizontal: theme.spacing.xs,
+        },
+        statGridLabelRTL: {
+          fontSize: 12,
+          lineHeight: 18,
+          textAlign: "center" as const,
+          writingDirection: "rtl" as const,
         },
         alertCard: {
           backgroundColor: "#FEE2E2",
@@ -414,11 +442,13 @@ export default function DashboardScreen() {
         },
         medicationInfo: {
           flex: 1,
+          minWidth: 0,
         },
         medicationName: {
           ...getTextStyle(theme, "body", "semibold", theme.colors.text.primary),
           marginBottom: 4,
           fontSize: 18,
+          lineHeight: 26,
         },
         medicationNameRTL: {
           textAlign: "right" as const,
@@ -430,6 +460,7 @@ export default function DashboardScreen() {
             "regular",
             theme.colors.text.secondary
           ),
+          lineHeight: 20,
         },
         medicationDosageRTL: {
           textAlign: "right" as const,
@@ -498,6 +529,7 @@ export default function DashboardScreen() {
         },
         rtlText: {
           textAlign: "right" as const,
+          writingDirection: "rtl" as const,
         },
         memberIndicator: {
           ...getTextStyle(
@@ -510,6 +542,16 @@ export default function DashboardScreen() {
         },
         headerContent: {
           flex: 1,
+          minWidth: 0,
+          flexShrink: 1,
+          flexGrow: 1,
+          flexBasis: 0,
+          paddingEnd: theme.spacing.sm,
+          paddingStart: theme.spacing.xs,
+        },
+        headerContentRTL: {
+          paddingEnd: 0,
+          paddingStart: theme.spacing.sm,
         },
         sosHeaderButton: {
           backgroundColor: theme.colors.accent.error,
@@ -521,6 +563,9 @@ export default function DashboardScreen() {
           alignItems: "center" as const,
           gap: theme.spacing.sm,
           ...theme.shadows.md,
+        },
+        sosHeaderButtonRTL: {
+          paddingHorizontal: theme.spacing.md,
         },
         sosHeaderText: {
           ...getTextStyle(theme, "body", "bold", theme.colors.neutral.white),
@@ -1078,10 +1123,10 @@ export default function DashboardScreen() {
   const tourSteps = useMemo(() => {
     const tabsCopy = isAdmin
       ? isRTL
-        ? "استخدم الشريط السفلي للتنقل بين الصفحة الرئيسية، التتبع، زينا، العائلة، والملف الشخصي."
+        ? "استخدم الشريط السفلي للتنقل بين الصفحة الرئيسية، التتبع، زينة، العائلة، والملف الشخصي."
         : "Use the bottom tabs to switch between Home, Track, Zeina, Family, and Profile."
       : isRTL
-        ? "استخدم الشريط السفلي للتنقل بين الصفحة الرئيسية، زينا، والملف الشخصي."
+        ? "استخدم الشريط السفلي للتنقل بين الصفحة الرئيسية، زينة، والملف الشخصي."
         : "Use the bottom tabs to switch between Home, Zeina, and Profile.";
 
     return [
@@ -1560,18 +1605,22 @@ export default function DashboardScreen() {
                   size="large"
                   style={[
                     styles.statGridValue,
-                    { marginTop: theme.spacing.lg },
-                    isRTL && styles.rtlText,
+                    isRTL && styles.statGridValueRTL,
+                    { marginTop: theme.spacing.sm },
                   ]}
                   weight="bold"
                 >
                   {stats.symptomsThisWeek}
                 </Text>
                 <Text
-                  style={[styles.statGridLabel, isRTL && styles.rtlText]}
+                  numberOfLines={2}
+                  style={[
+                    styles.statGridLabel,
+                    isRTL && styles.statGridLabelRTL,
+                  ]}
                   weight="medium"
                 >
-                  {isRTL ? "أعراض هذا الأسبوع" : "Symptoms This Week"}
+                  {isRTL ? "أعراض الأسبوع" : "Symptoms This Week"}
                 </Text>
               </Card>
 
@@ -1605,18 +1654,22 @@ export default function DashboardScreen() {
                   size="large"
                   style={[
                     styles.statGridValue,
-                    { marginTop: theme.spacing.lg },
-                    isRTL && styles.rtlText,
+                    isRTL && styles.statGridValueRTL,
+                    { marginTop: theme.spacing.sm },
                   ]}
                   weight="bold"
                 >
                   {stats.medicationCompliance}%
                 </Text>
                 <Text
-                  style={[styles.statGridLabel, isRTL && styles.rtlText]}
+                  numberOfLines={2}
+                  style={[
+                    styles.statGridLabel,
+                    isRTL && styles.statGridLabelRTL,
+                  ]}
                   weight="medium"
                 >
-                  {isRTL ? "الالتزام بالأدوية" : "Med Compliance"}
+                  {isRTL ? "التزام الدواء" : "Med Compliance"}
                 </Text>
               </Card>
 
@@ -1650,18 +1703,22 @@ export default function DashboardScreen() {
                   size="large"
                   style={[
                     styles.statGridValue,
-                    { marginTop: theme.spacing.lg },
-                    isRTL && styles.rtlText,
+                    isRTL && styles.statGridValueRTL,
+                    { marginTop: theme.spacing.sm },
                   ]}
                   weight="bold"
                 >
                   {familyMembersCount}
                 </Text>
                 <Text
-                  style={[styles.statGridLabel, isRTL && styles.rtlText]}
+                  numberOfLines={2}
+                  style={[
+                    styles.statGridLabel,
+                    isRTL && styles.statGridLabelRTL,
+                  ]}
                   weight="medium"
                 >
-                  {isRTL ? "أفراد العائلة" : "Family Members"}
+                  {isRTL ? "العائلة" : "Family Members"}
                 </Text>
               </Card>
             </ScrollView>
@@ -1715,6 +1772,7 @@ export default function DashboardScreen() {
                       </View>
                       <View style={styles.medicationInfo as ViewStyle}>
                         <Text
+                          numberOfLines={2}
                           style={[
                             styles.medicationName,
                             isRTL && styles.medicationNameRTL,
@@ -1724,6 +1782,7 @@ export default function DashboardScreen() {
                           {medication.name}
                         </Text>
                         <Text
+                          numberOfLines={2}
                           style={[
                             styles.medicationDosage,
                             isRTL && styles.medicationDosageRTL,
@@ -2060,11 +2119,21 @@ export default function DashboardScreen() {
             <WavyBackground curve="home" height={240} variant="teal">
               <View style={styles.wavyHeaderContent as ViewStyle}>
                 <View style={styles.wavyHeaderTopRow as ViewStyle}>
-                  <View style={styles.headerContent as ViewStyle}>
+                  <View
+                    style={[
+                      styles.headerContent as ViewStyle,
+                      isRTL && (styles.headerContentRTL as ViewStyle),
+                    ]}
+                  >
                     <Heading
                       color={theme.colors.neutral.white}
                       level={2}
-                      style={[styles.welcomeText, isRTL && styles.rtlText]}
+                      numberOfLines={isRTL ? 3 : 2}
+                      style={[
+                        styles.welcomeText,
+                        isRTL && styles.welcomeTextRTL,
+                        isRTL && styles.rtlText,
+                      ]}
                     >
                       {isRTL
                         ? `مرحباً، ${user.firstName || "User"}`
@@ -2072,12 +2141,20 @@ export default function DashboardScreen() {
                     </Heading>
                   </View>
 
-                  <View style={styles.wavyHeaderActions as ViewStyle}>
+                  <View
+                    style={[
+                      styles.wavyHeaderActions as ViewStyle,
+                      isRTL && (styles.wavyHeaderActionsRTL as ViewStyle),
+                    ]}
+                  >
                     <TouchableOpacity
                       activeOpacity={0.7}
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                       onPress={handleSOS}
-                      style={styles.sosHeaderButton as ViewStyle}
+                      style={[
+                        styles.sosHeaderButton as ViewStyle,
+                        isRTL && (styles.sosHeaderButtonRTL as ViewStyle),
+                      ]}
                     >
                       <Phone color={theme.colors.neutral.white} size={18} />
                       <Text
@@ -2109,7 +2186,7 @@ export default function DashboardScreen() {
                 <View style={styles.headerDateRow as ViewStyle}>
                   <Text
                     color={theme.colors.primary.main}
-                    numberOfLines={1}
+                    numberOfLines={isRTL ? 2 : 1}
                     size="medium"
                     style={[styles.dateText, isRTL && styles.rtlText]}
                     weight="bold"

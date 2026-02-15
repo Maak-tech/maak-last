@@ -4,10 +4,14 @@
 import {
   addDoc,
   collection,
+  type DocumentData,
   getDocs,
   limit,
   orderBy,
+  type QueryConstraint,
+  type QueryDocumentSnapshot,
   query,
+  startAfter,
   Timestamp,
   where,
 } from "firebase/firestore";
@@ -53,7 +57,74 @@ export type HealthTimelineEvent = {
 
 const TIMELINE_COLLECTION = "health_timeline";
 
+const isMissingIndexError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const maybeError = error as { code?: unknown; message?: unknown };
+  const code = typeof maybeError.code === "string" ? maybeError.code : "";
+  const message =
+    typeof maybeError.message === "string" ? maybeError.message : "";
+
+  return (
+    code === "failed-precondition" &&
+    message.toLowerCase().includes("requires an index")
+  );
+};
+
 class HealthTimelineService {
+  private mapDocsToEvents(
+    docs: QueryDocumentSnapshot<DocumentData>[]
+  ): HealthTimelineEvent[] {
+    return docs
+      .map((doc: { id: string; data: () => Record<string, unknown> }) => {
+        const data = doc.data();
+        const ts = data.timestamp as { toDate?: () => Date } | undefined;
+        if (!ts || typeof ts.toDate !== "function") {
+          return null;
+        }
+        return {
+          id: doc.id,
+          ...data,
+          timestamp: ts.toDate(),
+        } as HealthTimelineEvent;
+      })
+      .filter((event): event is HealthTimelineEvent => event !== null);
+  }
+
+  private applyInMemoryFilters(
+    events: HealthTimelineEvent[],
+    options: {
+      startDate?: Date;
+      endDate?: Date;
+      eventTypes?: TimelineEventType[];
+    }
+  ): HealthTimelineEvent[] {
+    let filteredEvents = events;
+
+    if (options.startDate) {
+      const startDate = options.startDate;
+      filteredEvents = filteredEvents.filter(
+        (event) => event.timestamp >= startDate
+      );
+    }
+    if (options.endDate) {
+      const endDate = options.endDate;
+      filteredEvents = filteredEvents.filter(
+        (event) => event.timestamp <= endDate
+      );
+    }
+    if (options.eventTypes && options.eventTypes.length > 0) {
+      const eventTypes = options.eventTypes;
+      filteredEvents = filteredEvents.filter((event) =>
+        eventTypes.includes(event.eventType)
+      );
+    }
+
+    return filteredEvents;
+  }
+
   /**
    * Recursively removes undefined values from an object
    * Firebase doesn't support undefined values, so we need to filter them out
@@ -118,35 +189,96 @@ class HealthTimelineService {
     } = {}
   ): Promise<HealthTimelineEvent[]> {
     try {
-      const q = query(
-        collection(db, TIMELINE_COLLECTION),
-        where("userId", "==", userId),
-        orderBy("timestamp", "desc"),
-        limit(options.limitCount || 50)
-      );
-
-      const querySnapshot = await getDocs(q);
-      let events = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        timestamp: doc.data().timestamp.toDate(),
-      })) as HealthTimelineEvent[];
-
-      const startDate = options.startDate;
-      const endDate = options.endDate;
+      const targetLimit = options.limitCount || 50;
       const eventTypes = options.eventTypes;
+      const canFilterEventTypesInDb =
+        !!eventTypes && eventTypes.length > 0 && eventTypes.length <= 10;
 
-      if (startDate) {
-        events = events.filter((e) => e.timestamp >= startDate);
+      const queryConstraints: QueryConstraint[] = [
+        where("userId", "==", userId),
+      ];
+
+      if (options.startDate) {
+        queryConstraints.push(
+          where("timestamp", ">=", Timestamp.fromDate(options.startDate))
+        );
       }
-      if (endDate) {
-        events = events.filter((e) => e.timestamp <= endDate);
+      if (options.endDate) {
+        queryConstraints.push(
+          where("timestamp", "<=", Timestamp.fromDate(options.endDate))
+        );
       }
-      if (eventTypes && eventTypes.length > 0) {
-        events = events.filter((e) => eventTypes.includes(e.eventType));
+      if (canFilterEventTypesInDb && eventTypes) {
+        queryConstraints.push(where("eventType", "in", eventTypes));
       }
 
-      return events;
+      queryConstraints.push(orderBy("timestamp", "desc"));
+
+      const pageSize = Math.max(targetLimit, 50);
+      const needsInMemoryEventTypeFilter =
+        !!eventTypes && eventTypes.length > 0 && !canFilterEventTypesInDb;
+
+      const collectedEvents: HealthTimelineEvent[] = [];
+      let cursor: QueryDocumentSnapshot<DocumentData> | undefined;
+
+      try {
+        while (collectedEvents.length < targetLimit) {
+          const pagingConstraints = [...queryConstraints, limit(pageSize)];
+          if (cursor) {
+            pagingConstraints.push(startAfter(cursor));
+          }
+
+          const querySnapshot = await getDocs(
+            query(collection(db, TIMELINE_COLLECTION), ...pagingConstraints)
+          );
+          const pageEvents = this.mapDocsToEvents(querySnapshot.docs);
+          const filteredPageEvents = needsInMemoryEventTypeFilter
+            ? pageEvents.filter((event) =>
+                eventTypes?.includes(event.eventType)
+              )
+            : pageEvents;
+
+          collectedEvents.push(...filteredPageEvents);
+
+          if (querySnapshot.docs.length < pageSize) {
+            break;
+          }
+
+          const lastDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
+          if (!lastDoc) {
+            break;
+          }
+          cursor = lastDoc;
+        }
+      } catch (error) {
+        if (!isMissingIndexError(error)) {
+          throw error;
+        }
+
+        logger.warn(
+          "Timeline index missing, falling back to non-indexed query",
+          { userId },
+          "HealthTimeline"
+        );
+
+        const fallbackQuery = query(
+          collection(db, TIMELINE_COLLECTION),
+          where("userId", "==", userId)
+        );
+        const fallbackSnapshot = await getDocs(fallbackQuery);
+        const fallbackEvents = this.mapDocsToEvents(fallbackSnapshot.docs);
+        const filteredFallbackEvents = this.applyInMemoryFilters(
+          fallbackEvents,
+          options
+        );
+
+        filteredFallbackEvents.sort(
+          (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+        );
+        return filteredFallbackEvents.slice(0, targetLimit);
+      }
+
+      return collectedEvents.slice(0, targetLimit);
     } catch (error) {
       logger.error(
         "Failed to get timeline events",
@@ -172,41 +304,63 @@ class HealthTimelineService {
 
       const batchSize = 10;
       const allEvents: HealthTimelineEvent[] = [];
+      const targetLimit = options.limitCount || 100;
 
       for (let i = 0; i < userIds.length; i += batchSize) {
         const batch = userIds.slice(i, i + batchSize);
-        const q = query(
-          collection(db, TIMELINE_COLLECTION),
+        const indexedConstraints: QueryConstraint[] = [
           where("userId", "in", batch),
+        ];
+        if (options.startDate) {
+          indexedConstraints.push(
+            where("timestamp", ">=", Timestamp.fromDate(options.startDate))
+          );
+        }
+        if (options.endDate) {
+          indexedConstraints.push(
+            where("timestamp", "<=", Timestamp.fromDate(options.endDate))
+          );
+        }
+        indexedConstraints.push(
           orderBy("timestamp", "desc"),
-          limit(options.limitCount || 100)
+          limit(targetLimit)
         );
 
-        const querySnapshot = await getDocs(q);
-        const events = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          timestamp: doc.data().timestamp.toDate(),
-        })) as HealthTimelineEvent[];
+        let events: HealthTimelineEvent[] = [];
+        try {
+          const querySnapshot = await getDocs(
+            query(collection(db, TIMELINE_COLLECTION), ...indexedConstraints)
+          );
+          events = this.mapDocsToEvents(querySnapshot.docs);
+        } catch (error) {
+          if (!isMissingIndexError(error)) {
+            throw error;
+          }
+          logger.warn(
+            "Family timeline index missing, falling back to non-indexed query",
+            { batchSize: batch.length },
+            "HealthTimeline"
+          );
+
+          const fallbackQuery = query(
+            collection(db, TIMELINE_COLLECTION),
+            where("userId", "in", batch)
+          );
+          const fallbackSnapshot = await getDocs(fallbackQuery);
+          const fallbackEvents = this.mapDocsToEvents(fallbackSnapshot.docs);
+          events = this.applyInMemoryFilters(fallbackEvents, options);
+        }
 
         allEvents.push(...events);
       }
 
-      let filteredEvents = allEvents;
-      const startDate = options.startDate;
-      const endDate = options.endDate;
-      if (startDate) {
-        filteredEvents = filteredEvents.filter((e) => e.timestamp >= startDate);
-      }
-      if (endDate) {
-        filteredEvents = filteredEvents.filter((e) => e.timestamp <= endDate);
-      }
+      const filteredEvents = this.applyInMemoryFilters(allEvents, options);
 
       filteredEvents.sort(
         (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
       );
 
-      return filteredEvents.slice(0, options.limitCount || 100);
+      return filteredEvents.slice(0, targetLimit);
     } catch (error) {
       logger.error(
         "Failed to get family timeline events",

@@ -1221,9 +1221,18 @@ export default function MedicationsScreen() {
       Math.round((target.getTime() - now.getTime()) / 60_000)
     );
     if (diffMinutes < 60) {
-      return `${diffMinutes} min`;
+      return isRTL ? `${diffMinutes} د` : `${diffMinutes} min`;
     }
     const diffHours = Math.round(diffMinutes / 60);
+    if (isRTL) {
+      if (diffHours === 1) {
+        return "ساعة واحدة";
+      }
+      if (diffHours === 2) {
+        return "ساعتان";
+      }
+      return diffHours <= 10 ? `${diffHours} ساعات` : `${diffHours} ساعة`;
+    }
     return `${diffHours} hour${diffHours === 1 ? "" : "s"}`;
   };
 
@@ -1242,7 +1251,7 @@ export default function MedicationsScreen() {
       ? medication.reminders
       : [];
     if (reminders.length === 0) {
-      return "No reminders set";
+      return isRTL ? "لا توجد تذكيرات" : "No reminders set";
     }
 
     const now = new Date();
@@ -1251,7 +1260,7 @@ export default function MedicationsScreen() {
     );
 
     if (todayReminders.length === 0) {
-      return "All doses taken today";
+      return isRTL ? "تم تناول كل الجرعات اليوم" : "All doses taken today";
     }
 
     const nextReminder = todayReminders[0];
@@ -1377,10 +1386,14 @@ export default function MedicationsScreen() {
                 <View style={styles.figmaMedicationHeaderTitle}>
                   <View style={styles.figmaMedicationTitleRow}>
                     <Pill color="#EB9C0C" size={24} />
-                    <Text style={styles.figmaMedicationTitle}>Medications</Text>
+                    <Text style={styles.figmaMedicationTitle}>
+                      {isRTL ? "الأدوية" : "Medications"}
+                    </Text>
                   </View>
                   <Text style={styles.figmaMedicationSubtitle}>
-                    Manage medication schedule
+                    {isRTL
+                      ? "إدارة جدول الأدوية"
+                      : "Manage medication schedule"}
                   </Text>
                 </View>
               </View>
@@ -1401,11 +1414,18 @@ export default function MedicationsScreen() {
             <AlertCircle color="#DC2626" size={18} />
             <View style={styles.figmaMedicationAlertTextWrap}>
               <Text style={styles.figmaMedicationAlertTitle}>
-                Doses due today
+                {isRTL ? "جرعات مستحقة اليوم" : "Doses due today"}
               </Text>
               <Text style={styles.figmaMedicationAlertText}>
-                You have {dueToday} dose{dueToday === 1 ? "" : "s"} to take
-                today.
+                {isRTL
+                  ? dueToday === 1
+                    ? "لديك جرعة واحدة مستحقة اليوم."
+                    : dueToday === 2
+                      ? "لديك جرعتان مستحقتان اليوم."
+                      : dueToday <= 10
+                        ? `لديك ${dueToday} جرعات مستحقة اليوم.`
+                        : `لديك ${dueToday} جرعة مستحقة اليوم.`
+                  : `You have ${dueToday} dose${dueToday === 1 ? "" : "s"} to take today.`}
               </Text>
             </View>
           </View>
@@ -1416,7 +1436,9 @@ export default function MedicationsScreen() {
             <Text style={styles.figmaMedicationStatValue}>
               {activeMedsCount}
             </Text>
-            <Text style={styles.figmaMedicationStatLabel}>Active Meds</Text>
+            <Text style={styles.figmaMedicationStatLabel}>
+              {isRTL ? "أدوية نشطة" : "Active Meds"}
+            </Text>
           </View>
           <View style={styles.figmaMedicationStatCard}>
             <View style={styles.figmaMedicationStatTrendRow}>
@@ -1427,21 +1449,27 @@ export default function MedicationsScreen() {
                 {adherence}%
               </Text>
             </View>
-            <Text style={styles.figmaMedicationStatLabel}>Adherence</Text>
+            <Text style={styles.figmaMedicationStatLabel}>
+              {isRTL ? "الالتزام" : "Adherence"}
+            </Text>
           </View>
           <View style={styles.figmaMedicationStatCard}>
             <Text style={styles.figmaMedicationStatValue}>{dueToday}</Text>
-            <Text style={styles.figmaMedicationStatLabel}>Due Today</Text>
+            <Text style={styles.figmaMedicationStatLabel}>
+              {isRTL ? "مستحق اليوم" : "Due Today"}
+            </Text>
           </View>
         </View>
 
         <View style={styles.figmaMedicationSection}>
           <View style={styles.figmaMedicationSectionHeader}>
             <Text style={styles.figmaMedicationSectionTitle}>
-              Active Medications
+              {isRTL ? "الأدوية النشطة" : "Active Medications"}
             </Text>
             <View style={styles.figmaMedicationSectionMeta}>
-              <Text style={styles.figmaMedicationSectionLink}>Manage</Text>
+              <Text style={styles.figmaMedicationSectionLink}>
+                {isRTL ? "إدارة" : "Manage"}
+              </Text>
               <ChevronRight color="#94A3B8" size={16} />
             </View>
           </View>
@@ -1624,7 +1652,7 @@ export default function MedicationsScreen() {
                       ]}
                     >
                       <Text style={styles.figmaMedicationMarkButtonText}>
-                        Mark Taken
+                        {isRTL ? "تحديد كمتناول" : "Mark Taken"}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -1632,14 +1660,16 @@ export default function MedicationsScreen() {
               })}
             </View>
           ) : (
-            <Text style={styles.figmaMedicationEmpty}>No upcoming doses</Text>
+            <Text style={styles.figmaMedicationEmpty}>
+              {isRTL ? "لا توجد جرعات قادمة" : "No upcoming doses"}
+            </Text>
           )}
         </View>
 
         <View style={styles.figmaMedicationSection}>
           <View style={styles.figmaMedicationSectionHeader}>
             <Text style={styles.figmaMedicationSectionTitle}>
-              Recent History
+              {isRTL ? "السجل الأخير" : "Recent History"}
             </Text>
             <Calendar color="#003543" size={18} />
           </View>
@@ -1651,7 +1681,13 @@ export default function MedicationsScreen() {
                   selectedFilter.type === "personal"
                     ? ""
                     : ` - ${getMemberName(medication.userId)}`;
-                const status = reminder.taken ? "Taken" : "Missed";
+                const status = reminder.taken
+                  ? isRTL
+                    ? "تم التناول"
+                    : "Taken"
+                  : isRTL
+                    ? "فاتت"
+                    : "Missed";
                 return (
                   <View
                     key={`${medication.id}-${reminder.time}-taken`}
@@ -1702,7 +1738,9 @@ export default function MedicationsScreen() {
               })}
             </View>
           ) : (
-            <Text style={styles.figmaMedicationEmpty}>No recent doses</Text>
+            <Text style={styles.figmaMedicationEmpty}>
+              {isRTL ? "لا توجد جرعات حديثة" : "No recent doses"}
+            </Text>
           )}
         </View>
 

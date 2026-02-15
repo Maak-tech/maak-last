@@ -682,7 +682,7 @@ export default function TrackScreen() {
 
   const formatSymptomLabel = (symptomType: string) => {
     if (!symptomType) {
-      return "Symptom";
+      return isRTL ? "عرض صحي" : "Symptom";
     }
     return symptomType
       .replace(/([A-Z])/g, " $1")
@@ -827,11 +827,13 @@ export default function TrackScreen() {
                   <View style={styles.figmaSymptomTitleRow}>
                     <Activity color="#EB9C0C" size={20} />
                     <Text style={styles.figmaSymptomTitle}>
-                      Tracked Symptoms
+                      {isRTL ? "الأعراض المتتبعة" : "Tracked Symptoms"}
                     </Text>
                   </View>
                   <Text style={styles.figmaSymptomSubtitle}>
-                    Monitor symptoms over time
+                    {isRTL
+                      ? "راقب الأعراض الصحية مع مرور الوقت"
+                      : "Monitor symptoms over time"}
                   </Text>
                 </View>
               </View>
@@ -854,7 +856,9 @@ export default function TrackScreen() {
               <Text style={styles.figmaSymptomStatValue}>
                 {symptomsThisWeek}
               </Text>
-              <Text style={styles.figmaSymptomStatLabel}>This Week</Text>
+              <Text style={styles.figmaSymptomStatLabel}>
+                {isRTL ? "هذا الأسبوع" : "This Week"}
+              </Text>
             </View>
             <View style={styles.figmaSymptomStatCard}>
               <Text
@@ -862,7 +866,9 @@ export default function TrackScreen() {
               >
                 {avgSeverityThisWeek.toFixed(1)}
               </Text>
-              <Text style={styles.figmaSymptomStatLabel}>Avg Severity</Text>
+              <Text style={styles.figmaSymptomStatLabel}>
+                {isRTL ? "متوسط الشدة" : "Avg Severity"}
+              </Text>
             </View>
             <View style={styles.figmaSymptomStatCard}>
               <View style={styles.figmaSymptomTrendRow}>
@@ -873,17 +879,21 @@ export default function TrackScreen() {
                   {improvementPercent}%
                 </Text>
               </View>
-              <Text style={styles.figmaSymptomStatLabel}>Improving</Text>
+              <Text style={styles.figmaSymptomStatLabel}>
+                {isRTL ? "تحسّن" : "Improving"}
+              </Text>
             </View>
           </View>
 
           <View style={styles.figmaSymptomSection}>
             <View style={styles.figmaSymptomSectionHeader}>
               <Text style={styles.figmaSymptomSectionTitle}>
-                Severity Trend
+                {isRTL ? "اتجاه الشدة" : "Severity Trend"}
               </Text>
               <TouchableOpacity>
-                <Text style={styles.figmaSymptomSectionLink}>7 Days</Text>
+                <Text style={styles.figmaSymptomSectionLink}>
+                  {isRTL ? "7 أيام" : "7 Days"}
+                </Text>
               </TouchableOpacity>
             </View>
             <HealthChart
@@ -896,16 +906,18 @@ export default function TrackScreen() {
             />
             <View style={styles.figmaSymptomTrendFootnote}>
               <Text style={styles.figmaSymptomTrendFootnoteText}>
-                1 = Minimal
+                {isRTL ? "1 = خفيف جدًا" : "1 = Minimal"}
               </Text>
               <Text style={styles.figmaSymptomTrendFootnoteText}>
-                5 = Severe
+                {isRTL ? "5 = شديد" : "5 = Severe"}
               </Text>
             </View>
           </View>
 
           <View style={styles.figmaSymptomSection}>
-            <Text style={styles.figmaSymptomSectionTitle}>Quick Add</Text>
+            <Text style={styles.figmaSymptomSectionTitle}>
+              {isRTL ? "إضافة سريعة" : "Quick Add"}
+            </Text>
             <View style={styles.figmaSymptomQuickAddGrid}>
               {["nausea", "headache", "fatigue", "dizziness"].map((key) => (
                 <TouchableOpacity
@@ -928,22 +940,24 @@ export default function TrackScreen() {
           <View style={styles.figmaSymptomSection}>
             <View style={styles.figmaSymptomSectionHeader}>
               <Text style={styles.figmaSymptomSectionTitle}>
-                Recent Entries
+                {isRTL ? "المدخلات الأخيرة" : "Recent Entries"}
               </Text>
               <TouchableOpacity>
-                <Text style={styles.figmaSymptomSectionLink}>View All</Text>
+                <Text style={styles.figmaSymptomSectionLink}>
+                  {isRTL ? "عرض الكل" : "View All"}
+                </Text>
               </TouchableOpacity>
             </View>
             {loading ? (
               <View style={styles.figmaSymptomEmptyState}>
                 <Text style={styles.figmaSymptomEmptyText}>
-                  Loading symptoms...
+                  {isRTL ? "جارٍ تحميل الأعراض..." : "Loading symptoms..."}
                 </Text>
               </View>
             ) : recentSymptoms.length === 0 ? (
               <View style={styles.figmaSymptomEmptyState}>
                 <Text style={styles.figmaSymptomEmptyText}>
-                  No symptoms recorded
+                  {isRTL ? "لا توجد أعراض مسجلة" : "No symptoms recorded"}
                 </Text>
               </View>
             ) : (

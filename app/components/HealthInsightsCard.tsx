@@ -44,7 +44,7 @@ export default function HealthInsightsCard({
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const { theme } = useTheme();
-  const isRTL = i18n.language === "ar";
+  const isRTL = i18n.language.toLowerCase().startsWith("ar");
 
   const [weeklySummary, setWeeklySummary] = useState<WeeklySummary | null>(
     null
@@ -341,7 +341,9 @@ export default function HealthInsightsCard({
           <Caption numberOfLines={2} style={styles.loadingText}>
             {t(
               "noInsightsAvailable",
-              "No insights available yet. Add more health data to generate insights."
+              isRTL
+                ? "لا توجد رؤى متاحة بعد. أضف المزيد من البيانات الصحية للحصول على رؤى."
+                : "No insights available yet. Add more health data to generate insights."
             )}
           </Caption>
         </View>

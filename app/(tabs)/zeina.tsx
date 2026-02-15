@@ -51,7 +51,7 @@ import CoachMark from "../components/CoachMark";
 
 /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Screen orchestrates chat, voice IO, onboarding tips, and settings in one component. */
 export default function ZeinaScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { theme } = useTheme();
   const params = useLocalSearchParams<{ tour?: string }>();
   const scrollViewRef = useRef<ScrollView>(null);
@@ -83,12 +83,20 @@ export default function ZeinaScreen() {
     Math.round(Math.max(width, height)) === 852;
   const contentPadding = isIphone16Pro ? 24 : theme.spacing.lg;
   const headerPadding = isIphone16Pro ? 28 : theme.spacing.xl;
-  const quickActions = [
-    "Medication reminders",
-    "Weekly health summary",
-    "Schedule appointment",
-    "Emergency contacts",
-  ];
+  const isRTL = i18n.language.toLowerCase().startsWith("ar");
+  const quickActions = isRTL
+    ? [
+        { label: "تذكيرات الدواء", prompt: "تذكيرات الدواء" },
+        { label: "ملخص الصحة الأسبوعي", prompt: "ملخص الصحة الأسبوعي" },
+        { label: "جدولة موعد", prompt: "جدولة موعد" },
+        { label: "جهات اتصال الطوارئ", prompt: "جهات اتصال الطوارئ" },
+      ]
+    : [
+        { label: "Medication reminders", prompt: "Medication reminders" },
+        { label: "Weekly health summary", prompt: "Weekly health summary" },
+        { label: "Schedule appointment", prompt: "Schedule appointment" },
+        { label: "Emergency contacts", prompt: "Emergency contacts" },
+      ];
 
   const formatMessageTime = (timestamp?: Date) => {
     if (!timestamp) {
@@ -598,7 +606,7 @@ export default function ZeinaScreen() {
                         { color: theme.colors.neutral.white },
                       ]}
                     >
-                      Zeina AI
+                      {isRTL ? "زينة الذكية" : "Zeina AI"}
                     </Text>
                     <Text
                       style={[
@@ -606,7 +614,9 @@ export default function ZeinaScreen() {
                         { color: "rgba(255, 255, 255, 0.85)" },
                       ]}
                     >
-                      {t("zeinaSubtitle", "Your health assistant")}
+                      {isRTL
+                        ? "مساعدك الصحي"
+                        : t("zeinaSubtitle", "Your health assistant")}
                     </Text>
                   </View>
                 </View>
@@ -646,7 +656,9 @@ export default function ZeinaScreen() {
                         {!isUser && (
                           <View style={styles.figmaMessageHeader}>
                             <Sparkles color="#EB9C0C" size={14} />
-                            <Text style={styles.figmaMessageSender}>Zeina</Text>
+                            <Text style={styles.figmaMessageSender}>
+                              {isRTL ? "زينة" : "Zeina"}
+                            </Text>
                           </View>
                         )}
                         <Text
@@ -675,15 +687,19 @@ export default function ZeinaScreen() {
                 })}
 
               <View style={styles.figmaQuickActionsSection}>
-                <Text style={styles.figmaQuickActionsTitle}>Quick actions</Text>
+                <Text style={styles.figmaQuickActionsTitle}>
+                  {isRTL ? "إجراءات سريعة" : "Quick actions"}
+                </Text>
                 <View style={styles.figmaQuickActionsGrid}>
                   {quickActions.map((action) => (
                     <TouchableOpacity
-                      key={action}
-                      onPress={() => handleSend(action)}
+                      key={action.prompt}
+                      onPress={() => handleSend(action.prompt)}
                       style={styles.figmaQuickActionCard}
                     >
-                      <Text style={styles.figmaQuickActionText}>{action}</Text>
+                      <Text style={styles.figmaQuickActionText}>
+                        {action.label}
+                      </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -695,10 +711,12 @@ export default function ZeinaScreen() {
         <View style={styles.figmaDisclaimer}>
           <AlertTriangle color="#F59E0B" size={14} />
           <Text style={styles.figmaDisclaimerText}>
-            {t(
-              "zeina.disclaimer",
-              "Zeina provides general wellness guidance and is not a substitute for professional medical advice."
-            )}
+            {isRTL
+              ? "تقدم زينة إرشادات صحية عامة ولا تُعد بديلاً عن الاستشارة الطبية المتخصصة."
+              : t(
+                  "zeina.disclaimer",
+                  "Zeina provides general wellness guidance and is not a substitute for professional medical advice."
+                )}
           </Text>
         </View>
 
@@ -721,14 +739,19 @@ export default function ZeinaScreen() {
                 editable={!isStreaming}
                 multiline
                 onChangeText={setInputText}
-                placeholder={t(
-                  "zeina.ask.placeholder",
-                  "Ask Zeina about your health..."
-                )}
+                placeholder={
+                  isRTL
+                    ? "اسأل زينة عن صحتك..."
+                    : t(
+                        "zeina.ask.placeholder",
+                        "Ask Zeina about your health..."
+                      )
+                }
                 placeholderTextColor="#999"
                 ref={inputRef}
                 scrollEnabled
                 style={styles.figmaTextInput}
+                textAlign={isRTL ? "right" : "left"}
                 textAlignVertical="top"
                 value={inputText}
               />
@@ -929,7 +952,7 @@ export default function ZeinaScreen() {
                     <Text style={styles.languageButtonText}>
                       {voiceLanguage === "en-US"
                         ? t("english", "English")
-                        : t("arabic", "Ø§Ù„Ø¹Ø±Ø¨ÙŠØ©")}
+                        : t("arabic", "العربية")}
                     </Text>
                   </TouchableOpacity>
                 </View>

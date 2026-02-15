@@ -339,10 +339,12 @@ export default function MedicalHistoryScreen() {
               <View style={styles.figmaHeaderText}>
                 <View style={styles.figmaHeaderTitleRow}>
                   <FileText color="#EB9C0C" size={24} />
-                  <Text style={styles.figmaHeaderTitle}>Medical History</Text>
+                  <Text style={styles.figmaHeaderTitle}>
+                    {isRTL ? "التاريخ الطبي" : "Medical History"}
+                  </Text>
                 </View>
                 <Text style={styles.figmaHeaderSubtitle}>
-                  Complete health record
+                  {isRTL ? "السجل الصحي الكامل" : "Complete health record"}
                 </Text>
               </View>
             </View>
@@ -365,10 +367,13 @@ export default function MedicalHistoryScreen() {
             <>
               <View style={styles.figmaTabs}>
                 {[
-                  { id: "conditions", label: "Conditions" },
-                  { id: "surgeries", label: "Surgeries" },
-                  { id: "vaccinations", label: "Vaccines" },
-                  { id: "family", label: "Family" },
+                  { id: "conditions", label: isRTL ? "الحالات" : "Conditions" },
+                  { id: "surgeries", label: isRTL ? "العمليات" : "Surgeries" },
+                  {
+                    id: "vaccinations",
+                    label: isRTL ? "اللقاحات" : "Vaccines",
+                  },
+                  { id: "family", label: isRTL ? "العائلة" : "Family" },
                 ].map((tab) => (
                   <TouchableOpacity
                     key={tab.id}
@@ -468,10 +473,14 @@ export default function MedicalHistoryScreen() {
 
               {activeTab === "surgeries" && (
                 <View style={styles.figmaSection}>
-                  <Text style={styles.figmaSectionTitle}>Surgical History</Text>
+                  <Text style={styles.figmaSectionTitle}>
+                    {isRTL ? "التاريخ الجراحي" : "Surgical History"}
+                  </Text>
                   {surgeryHistory.length === 0 ? (
                     <Text style={styles.figmaEmptyText}>
-                      No surgeries recorded yet.
+                      {isRTL
+                        ? "لا توجد عمليات جراحية مسجلة بعد."
+                        : "No surgeries recorded yet."}
                     </Text>
                   ) : (
                     surgeryHistory.map((record) => (
@@ -523,13 +532,15 @@ export default function MedicalHistoryScreen() {
                             {translateCondition(record.condition)}
                           </Text>
                           <Text style={styles.figmaCardMeta}>
-                            Last:{" "}
+                            {isRTL ? "آخر تحديث: " : "Last: "}
                             {record.diagnosedDate
                               ? safeFormatDate(
                                   new Date(record.diagnosedDate),
                                   isRTL ? "ar-u-ca-gregory" : "en-US"
                                 )
-                              : "Unknown"}
+                              : isRTL
+                                ? "غير معروف"
+                                : "Unknown"}
                           </Text>
                           {record.notes ? (
                             <Text style={styles.figmaCardMeta}>
@@ -546,11 +557,13 @@ export default function MedicalHistoryScreen() {
               {activeTab === "family" && (
                 <View style={styles.figmaSection}>
                   <Text style={styles.figmaSectionTitle}>
-                    Family Health History
+                    {isRTL ? "التاريخ الصحي للعائلة" : "Family Health History"}
                   </Text>
                   {familyHistory.length === 0 ? (
                     <Text style={styles.figmaEmptyText}>
-                      No family history recorded yet.
+                      {isRTL
+                        ? "لم يتم تسجيل تاريخ عائلي بعد."
+                        : "No family history recorded yet."}
                     </Text>
                   ) : (
                     familyHistory.map((record) => (

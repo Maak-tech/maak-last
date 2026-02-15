@@ -126,7 +126,7 @@ export default function VitalsScreen() {
   const getErrorMessage = (error: unknown, fallback: string) =>
     error instanceof Error ? error.message : fallback;
 
-  const isRTL = i18n.language === "ar";
+  const isRTL = i18n.language.toLowerCase().startsWith("ar");
 
   useEffect(() => {
     if (params.tour === "1") {
@@ -1430,7 +1430,9 @@ export default function VitalsScreen() {
       >
         <View style={styles.loadingContainer as ViewStyle}>
           <Text style={styles.loadingText as StyleProp<TextStyle>}>
-            Please log in to view vitals
+            {isRTL
+              ? "يرجى تسجيل الدخول لعرض المؤشرات الحيوية"
+              : "Please log in to view vitals"}
           </Text>
         </View>
       </SafeAreaView>
@@ -2025,7 +2027,13 @@ export default function VitalsScreen() {
                     <RefreshCw color={theme.colors.neutral.white} size={16} />
                   )}
                   <Text style={styles.syncButtonText as StyleProp<TextStyle>}>
-                    {refreshing ? "Syncing..." : "Sync"}
+                    {refreshing
+                      ? isRTL
+                        ? "جارٍ المزامنة..."
+                        : "Syncing..."
+                      : isRTL
+                        ? "مزامنة"
+                        : "Sync"}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -2047,11 +2055,13 @@ export default function VitalsScreen() {
                 <View style={styles.figmaVitalsTitleRow as ViewStyle}>
                   <Activity color="#0F766E" size={20} />
                   <Text style={styles.figmaVitalsTitle as TextStyle}>
-                    Vital Signs
+                    {isRTL ? "المؤشرات الحيوية" : "Vital Signs"}
                   </Text>
                 </View>
                 <Text style={styles.figmaVitalsSubtitle as TextStyle}>
-                  Monitor your health from multiple sources
+                  {isRTL
+                    ? "راقب صحتك من مصادر متعددة"
+                    : "Monitor your health from multiple sources"}
                 </Text>
               </View>
             </View>
@@ -2059,11 +2069,15 @@ export default function VitalsScreen() {
               <View style={styles.figmaVitalsSyncRow as ViewStyle}>
                 <CheckCircle color="#0F766E" size={12} />
                 <Text style={styles.figmaVitalsSyncText as TextStyle}>
-                  Last sync:{" "}
-                  {safeFormatTime(lastSync, "en-US", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {isRTL ? "آخر مزامنة: " : "Last sync: "}
+                  {safeFormatTime(
+                    lastSync,
+                    isRTL ? "ar-u-ca-gregory" : "en-US",
+                    {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }
+                  )}
                 </Text>
               </View>
             ) : null}

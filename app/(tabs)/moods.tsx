@@ -221,11 +221,36 @@ export default function MoodsScreen() {
   }, [topMoodDistribution, t]);
 
   const quickMoodFigmaOptions = [
-    { value: "veryHappy", label: "Great", emoji: "😊", color: "#10B981" },
-    { value: "happy", label: "Good", emoji: "🙂", color: "#3B82F6" },
-    { value: "neutral", label: "Neutral", emoji: "😐", color: "#FBBF24" },
-    { value: "sad", label: "Low", emoji: "🙁", color: "#F97316" },
-    { value: "verySad", label: "Bad", emoji: "😢", color: "#EF4444" },
+    {
+      value: "veryHappy",
+      label: isRTL ? "ممتاز" : "Great",
+      emoji: "😊",
+      color: "#10B981",
+    },
+    {
+      value: "happy",
+      label: isRTL ? "جيد" : "Good",
+      emoji: "🙂",
+      color: "#3B82F6",
+    },
+    {
+      value: "neutral",
+      label: isRTL ? "محايد" : "Neutral",
+      emoji: "😐",
+      color: "#FBBF24",
+    },
+    {
+      value: "sad",
+      label: isRTL ? "منخفض" : "Low",
+      emoji: "🙁",
+      color: "#F97316",
+    },
+    {
+      value: "verySad",
+      label: isRTL ? "سيئ" : "Bad",
+      emoji: "😢",
+      color: "#EF4444",
+    },
   ] as const;
 
   const loadMoods = useCallback(
@@ -744,7 +769,7 @@ export default function MoodsScreen() {
 
   const formatMoodLabel = (moodType: string) => {
     if (!moodType) {
-      return "Mood";
+      return isRTL ? "مزاج" : "Mood";
     }
     return moodType
       .replace(/([A-Z])/g, " $1")
@@ -857,10 +882,14 @@ export default function MoodsScreen() {
                 <View style={styles.figmaMoodHeaderTitle}>
                   <View style={styles.figmaMoodTitleRow}>
                     <Brain color="#EB9C0C" size={20} />
-                    <Text style={styles.figmaMoodTitle}>Mood Tracking</Text>
+                    <Text style={styles.figmaMoodTitle}>
+                      {isRTL ? "تتبع المزاج" : "Mood Tracking"}
+                    </Text>
                   </View>
                   <Text style={styles.figmaMoodSubtitle}>
-                    Monitor emotional wellbeing
+                    {isRTL
+                      ? "راقب الحالة النفسية"
+                      : "Monitor emotional wellbeing"}
                   </Text>
                 </View>
               </View>
@@ -882,7 +911,9 @@ export default function MoodsScreen() {
             <Text style={styles.figmaMoodStatValue}>
               {stats.avgIntensity.toFixed(1)}
             </Text>
-            <Text style={styles.figmaMoodStatLabel}>Avg Mood</Text>
+            <Text style={styles.figmaMoodStatLabel}>
+              {isRTL ? "متوسط المزاج" : "Avg Mood"}
+            </Text>
           </View>
           <View style={styles.figmaMoodStatCard}>
             <View style={styles.figmaMoodStatTrendRow}>
@@ -891,19 +922,27 @@ export default function MoodsScreen() {
                 {improvementPercent}%
               </Text>
             </View>
-            <Text style={styles.figmaMoodStatLabel}>Improved</Text>
+            <Text style={styles.figmaMoodStatLabel}>
+              {isRTL ? "تحسّن" : "Improved"}
+            </Text>
           </View>
           <View style={styles.figmaMoodStatCard}>
             <Text style={styles.figmaMoodStatValue}>{totalEntries}</Text>
-            <Text style={styles.figmaMoodStatLabel}>Entries</Text>
+            <Text style={styles.figmaMoodStatLabel}>
+              {isRTL ? "المدخلات" : "Entries"}
+            </Text>
           </View>
         </View>
 
         <View style={styles.figmaMoodSection}>
           <View style={styles.figmaMoodSectionHeader}>
-            <Text style={styles.figmaMoodSectionTitle}>Mood Trend</Text>
+            <Text style={styles.figmaMoodSectionTitle}>
+              {isRTL ? "اتجاه المزاج" : "Mood Trend"}
+            </Text>
             <TouchableOpacity>
-              <Text style={styles.figmaMoodSectionLink}>7 Days</Text>
+              <Text style={styles.figmaMoodSectionLink}>
+                {isRTL ? "7 أيام" : "7 Days"}
+              </Text>
             </TouchableOpacity>
           </View>
           <HealthChart
@@ -917,7 +956,9 @@ export default function MoodsScreen() {
         </View>
 
         <View style={styles.figmaMoodSection}>
-          <Text style={styles.figmaMoodSectionTitle}>Mood Distribution</Text>
+          <Text style={styles.figmaMoodSectionTitle}>
+            {isRTL ? "توزيع المزاج" : "Mood Distribution"}
+          </Text>
           <View style={styles.figmaMoodDistributionCard}>
             <View style={styles.figmaMoodDistributionChart}>
               {moodDistributionPie.length > 0 ? (
@@ -932,7 +973,9 @@ export default function MoodsScreen() {
                   width={140}
                 />
               ) : (
-                <Text style={styles.figmaMoodEmptyText}>No mood data yet</Text>
+                <Text style={styles.figmaMoodEmptyText}>
+                  {isRTL ? "لا توجد بيانات مزاج بعد" : "No mood data yet"}
+                </Text>
               )}
             </View>
             <View style={styles.figmaMoodDistributionLegend}>
@@ -967,7 +1010,9 @@ export default function MoodsScreen() {
         </View>
 
         <View style={styles.figmaMoodSection}>
-          <Text style={styles.figmaMoodSectionTitle}>How are you feeling?</Text>
+          <Text style={styles.figmaMoodSectionTitle}>
+            {isRTL ? "كيف تشعر الآن؟" : "How are you feeling?"}
+          </Text>
           <View style={styles.figmaMoodQuickGrid}>
             {quickMoodFigmaOptions.map((option) => (
               <TouchableOpacity
@@ -994,18 +1039,26 @@ export default function MoodsScreen() {
 
         <View style={styles.figmaMoodSection}>
           <View style={styles.figmaMoodSectionHeader}>
-            <Text style={styles.figmaMoodSectionTitle}>Recent Entries</Text>
+            <Text style={styles.figmaMoodSectionTitle}>
+              {isRTL ? "المدخلات الأخيرة" : "Recent Entries"}
+            </Text>
             <TouchableOpacity>
-              <Text style={styles.figmaMoodSectionLink}>View All</Text>
+              <Text style={styles.figmaMoodSectionLink}>
+                {isRTL ? "عرض الكل" : "View All"}
+              </Text>
             </TouchableOpacity>
           </View>
           {loading ? (
             <View style={styles.figmaMoodEmptyState}>
-              <Text style={styles.figmaMoodEmptyText}>Loading moods...</Text>
+              <Text style={styles.figmaMoodEmptyText}>
+                {isRTL ? "جاري تحميل حالات المزاج..." : "Loading moods..."}
+              </Text>
             </View>
           ) : recentMoods.length === 0 ? (
             <View style={styles.figmaMoodEmptyState}>
-              <Text style={styles.figmaMoodEmptyText}>No moods recorded</Text>
+              <Text style={styles.figmaMoodEmptyText}>
+                {isRTL ? "لا توجد حالات مزاج مسجلة" : "No moods recorded"}
+              </Text>
             </View>
           ) : (
             <View style={styles.figmaMoodEntryList}>
@@ -1072,7 +1125,7 @@ export default function MoodsScreen() {
                             ))
                           ) : (
                             <Text style={styles.figmaMoodEntryTagEmpty}>
-                              No notes
+                              {isRTL ? "لا توجد ملاحظات" : "No notes"}
                             </Text>
                           )}
                         </View>
@@ -1086,7 +1139,9 @@ export default function MoodsScreen() {
                           style={styles.figmaMoodActionItem}
                         >
                           <Edit color="#64748B" size={16} />
-                          <Text style={styles.figmaMoodActionText}>Edit</Text>
+                          <Text style={styles.figmaMoodActionText}>
+                            {isRTL ? "تعديل" : "Edit"}
+                          </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           onPress={() => handleDeleteMood(mood)}
@@ -1099,7 +1154,7 @@ export default function MoodsScreen() {
                               styles.figmaMoodActionDelete,
                             ]}
                           >
-                            Delete
+                            {isRTL ? "حذف" : "Delete"}
                           </Text>
                         </TouchableOpacity>
                       </View>
@@ -1193,7 +1248,7 @@ export default function MoodsScreen() {
                               : "You"
                             : member.firstName && member.lastName
                               ? `${member.firstName} ${member.lastName}`
-                              : member.firstName || "User"}
+                              : member.firstName || (isRTL ? "مستخدم" : "User")}
                         </Text>
                         {member.role === "admin" && (
                           <Text

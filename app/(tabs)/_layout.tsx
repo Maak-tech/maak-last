@@ -18,7 +18,7 @@ export default function TabLayout() {
   const { user } = useAuth();
 
   // Use hardcoded Arabic if language is Arabic
-  const isArabic = i18n.language === "ar";
+  const isArabic = i18n.language.toLowerCase().startsWith("ar");
   const getText = (key: string) => {
     if (isArabic && key in arabicText) {
       return arabicText[key as keyof typeof arabicText];

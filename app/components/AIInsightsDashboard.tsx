@@ -261,7 +261,7 @@ function AIInsightsDashboard({
 }: AIInsightsDashboardProps) {
   const { user } = useAuth();
   const { t, i18n } = useTranslation();
-  const isRTL = i18n.language === "ar";
+  const isRTL = i18n.language.toLowerCase().startsWith("ar");
   const [insights, setInsights] = useState<AIInsightsDashboardData | null>(
     null
   );
@@ -817,7 +817,8 @@ function OverviewContent({
   insights: AIInsightsDashboardData;
   onInsightPress?: (insight: unknown) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language.toLowerCase().startsWith("ar");
   const topInsights: unknown[] = [
     ...(insights.medicationAlerts || []).slice(0, 2),
     ...(insights.symptomAnalysis?.diagnosisSuggestions || []).slice(0, 2),
@@ -838,7 +839,9 @@ function OverviewContent({
         <EmptyState
           message={t(
             "insightsNoDataYet",
-            "No insights available yet. Add more health data to generate insights."
+            isRTL
+              ? "لا توجد رؤى متاحة بعد. أضف المزيد من البيانات الصحية للحصول على رؤى."
+              : "No insights available yet. Add more health data to generate insights."
           )}
         />
       ) : null}
@@ -935,7 +938,7 @@ function RiskContent({
   onInsightPress?: (insight: unknown) => void;
 }) {
   const { t, i18n } = useTranslation();
-  const isRTL = i18n.language === "ar";
+  const isRTL = i18n.language.toLowerCase().startsWith("ar");
   const risk = insights.riskAssessment || {
     id: "fallback",
     userId: "unknown",
@@ -1086,7 +1089,7 @@ function ActionPlanSection({
   insights: AIInsightsDashboardData;
 }) {
   const { t, i18n } = useTranslation();
-  const isRTL = i18n.language === "ar";
+  const isRTL = i18n.language.toLowerCase().startsWith("ar");
 
   // Build action plan from existing insights (no network call - instant)
   const actionPlan = aiInsightsService.buildActionPlanFromDashboard(

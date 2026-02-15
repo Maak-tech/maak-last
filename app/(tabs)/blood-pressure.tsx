@@ -57,12 +57,20 @@ const STATUS_COLORS: Record<BloodPressureReading["status"], string> = {
   critical: "#EF4444",
 };
 
-const STATUS_LABELS: Record<BloodPressureReading["status"], string> = {
-  normal: "Normal",
-  elevated: "Elevated",
-  high: "High",
-  critical: "Critical",
+const STATUS_LABELS: Record<
+  BloodPressureReading["status"],
+  { en: string; ar: string }
+> = {
+  normal: { en: "Normal", ar: "طبيعي" },
+  elevated: { en: "Elevated", ar: "مرتفع قليلًا" },
+  high: { en: "High", ar: "مرتفع" },
+  critical: { en: "Critical", ar: "حرج" },
 };
+
+const getStatusLabel = (
+  status: BloodPressureReading["status"],
+  isRTL: boolean
+) => (isRTL ? STATUS_LABELS[status].ar : STATUS_LABELS[status].en);
 
 const getStatus = (systolic: number, diastolic: number) => {
   if (systolic >= 180 || diastolic >= 120) {
@@ -305,17 +313,29 @@ export default function BloodPressureScreen() {
 
     if (!(sys && dia) || Number.isNaN(sys) || Number.isNaN(dia)) {
       Alert.alert(
-        "Invalid Input",
-        "Please enter valid systolic and diastolic values."
+        isRTL ? "إدخال غير صالح" : "Invalid Input",
+        isRTL
+          ? "يرجى إدخال قيم انقباضي وانبساطي صحيحة."
+          : "Please enter valid systolic and diastolic values."
       );
       return;
     }
     if (sys <= dia) {
-      Alert.alert("Invalid Input", "Systolic must be greater than diastolic.");
+      Alert.alert(
+        isRTL ? "إدخال غير صالح" : "Invalid Input",
+        isRTL
+          ? "يجب أن يكون الضغط الانقباضي أكبر من الانبساطي."
+          : "Systolic must be greater than diastolic."
+      );
       return;
     }
     if (!user?.id) {
-      Alert.alert("Error", "Please log in to save readings.");
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL
+          ? "يرجى تسجيل الدخول لحفظ القراءات."
+          : "Please log in to save readings."
+      );
       return;
     }
 
@@ -352,7 +372,12 @@ export default function BloodPressureScreen() {
       setShowAddModal(false);
       await loadReadings();
     } catch (_error) {
-      Alert.alert("Error", "Unable to save blood pressure reading.");
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL
+          ? "تعذر حفظ قراءة ضغط الدم."
+          : "Unable to save blood pressure reading."
+      );
     } finally {
       setSaving(false);
     }
@@ -391,10 +416,14 @@ export default function BloodPressureScreen() {
               <View style={styles.headerTitleWrap}>
                 <View style={styles.headerTitleRow}>
                   <Heart color="#EB9C0C" size={24} />
-                  <Text style={styles.headerTitle}>Blood Pressure</Text>
+                  <Text style={styles.headerTitle}>
+                    {isRTL ? "ضغط الدم" : "Blood Pressure"}
+                  </Text>
                 </View>
                 <Text style={styles.headerSubtitle}>
-                  Monitor BP readings over time
+                  {isRTL
+                    ? "راقب قراءات ضغط الدم مع مرور الوقت"
+                    : "Monitor BP readings over time"}
                 </Text>
               </View>
             </View>
@@ -410,7 +439,9 @@ export default function BloodPressureScreen() {
             <>
               <View style={styles.card}>
                 <View style={styles.cardHeader}>
-                  <Text style={styles.cardLabel}>Latest Reading</Text>
+                  <Text style={styles.cardLabel}>
+                    {isRTL ? "أحدث قراءة" : "Latest Reading"}
+                  </Text>
                   <Text style={styles.cardMeta}>
                     {latestReading
                       ? formatRelativeTime(latestReading.timestamp, t)
@@ -452,13 +483,15 @@ export default function BloodPressureScreen() {
                             { color: STATUS_COLORS[latestReading.status] },
                           ]}
                         >
-                          {STATUS_LABELS[latestReading.status]}
+                          {getStatusLabel(latestReading.status, isRTL)}
                         </Text>
                       </View>
                     </View>
                   </View>
                 ) : (
-                  <Text style={styles.emptyText}>No readings yet</Text>
+                  <Text style={styles.emptyText}>
+                    {isRTL ? "لا توجد قراءات بعد" : "No readings yet"}
+                  </Text>
                 )}
               </View>
 
@@ -467,13 +500,17 @@ export default function BloodPressureScreen() {
                   <Text style={styles.quickStatValue}>
                     {averages.systolic || "--"}
                   </Text>
-                  <Text style={styles.quickStatLabel}>Avg Systolic</Text>
+                  <Text style={styles.quickStatLabel}>
+                    {isRTL ? "متوسط الانقباضي" : "Avg Systolic"}
+                  </Text>
                 </View>
                 <View style={styles.quickStatCard}>
                   <Text style={styles.quickStatValue}>
                     {averages.diastolic || "--"}
                   </Text>
-                  <Text style={styles.quickStatLabel}>Avg Diastolic</Text>
+                  <Text style={styles.quickStatLabel}>
+                    {isRTL ? "متوسط الانبساطي" : "Avg Diastolic"}
+                  </Text>
                 </View>
                 <View style={styles.quickStatCard}>
                   <View style={styles.trendRow}>
@@ -499,18 +536,28 @@ export default function BloodPressureScreen() {
                   </View>
                   <Text style={styles.quickStatLabel}>
                     {trend.direction === "down"
-                      ? "Improving"
+                      ? isRTL
+                        ? "يتحسن"
+                        : "Improving"
                       : trend.direction === "up"
-                        ? "Rising"
-                        : "Stable"}
+                        ? isRTL
+                          ? "يرتفع"
+                          : "Rising"
+                        : isRTL
+                          ? "مستقر"
+                          : "Stable"}
                   </Text>
                 </View>
               </View>
 
               <View style={styles.card}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Pressure Trend</Text>
-                  <Text style={styles.sectionAction}>7 Days</Text>
+                  <Text style={styles.sectionTitle}>
+                    {isRTL ? "اتجاه الضغط" : "Pressure Trend"}
+                  </Text>
+                  <Text style={styles.sectionAction}>
+                    {isRTL ? "7 أيام" : "7 Days"}
+                  </Text>
                 </View>
                 <LineChart
                   chartConfig={{
@@ -534,15 +581,21 @@ export default function BloodPressureScreen() {
                   withShadow={false}
                 />
                 <View style={styles.chartLegend}>
-                  <Text style={styles.chartLegendText}>Normal: &lt;120/80</Text>
                   <Text style={styles.chartLegendText}>
-                    Elevated: 120-129/&lt;80
+                    {isRTL ? "طبيعي: أقل من 120/80" : "Normal: <120/80"}
+                  </Text>
+                  <Text style={styles.chartLegendText}>
+                    {isRTL
+                      ? "مرتفع قليلًا: 120-129/<80"
+                      : "Elevated: 120-129/<80"}
                   </Text>
                 </View>
               </View>
 
               <View style={styles.card}>
-                <Text style={styles.sectionTitle}>Reference Ranges</Text>
+                <Text style={styles.sectionTitle}>
+                  {isRTL ? "النطاقات المرجعية" : "Reference Ranges"}
+                </Text>
                 <View style={styles.referenceItem}>
                   <View style={styles.referenceLeft}>
                     <View
@@ -551,7 +604,9 @@ export default function BloodPressureScreen() {
                         { backgroundColor: "#10B981" },
                       ]}
                     />
-                    <Text style={styles.referenceLabel}>Normal</Text>
+                    <Text style={styles.referenceLabel}>
+                      {isRTL ? "طبيعي" : "Normal"}
+                    </Text>
                   </View>
                   <Text style={styles.referenceValue}>&lt;120/80 mmHg</Text>
                 </View>
@@ -563,7 +618,9 @@ export default function BloodPressureScreen() {
                         { backgroundColor: "#FBBF24" },
                       ]}
                     />
-                    <Text style={styles.referenceLabel}>Elevated</Text>
+                    <Text style={styles.referenceLabel}>
+                      {isRTL ? "مرتفع قليلًا" : "Elevated"}
+                    </Text>
                   </View>
                   <Text style={styles.referenceValue}>120-129/&lt;80 mmHg</Text>
                 </View>
@@ -575,7 +632,9 @@ export default function BloodPressureScreen() {
                         { backgroundColor: "#F97316" },
                       ]}
                     />
-                    <Text style={styles.referenceLabel}>High Stage 1</Text>
+                    <Text style={styles.referenceLabel}>
+                      {isRTL ? "مرتفع - المرحلة 1" : "High Stage 1"}
+                    </Text>
                   </View>
                   <Text style={styles.referenceValue}>130-139/80-89 mmHg</Text>
                 </View>
@@ -587,15 +646,21 @@ export default function BloodPressureScreen() {
                         { backgroundColor: "#EF4444" },
                       ]}
                     />
-                    <Text style={styles.referenceLabel}>High Stage 2</Text>
+                    <Text style={styles.referenceLabel}>
+                      {isRTL ? "مرتفع - المرحلة 2" : "High Stage 2"}
+                    </Text>
                   </View>
                   <Text style={styles.referenceValue}>≥140/90 mmHg</Text>
                 </View>
               </View>
 
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Recent Readings</Text>
-                <Text style={styles.sectionAction}>View All</Text>
+                <Text style={styles.sectionTitle}>
+                  {isRTL ? "القراءات الأخيرة" : "Recent Readings"}
+                </Text>
+                <Text style={styles.sectionAction}>
+                  {isRTL ? "عرض الكل" : "View All"}
+                </Text>
               </View>
               {readings.slice(0, 5).map((reading) => (
                 <View key={reading.id} style={styles.readingCard}>
@@ -621,12 +686,13 @@ export default function BloodPressureScreen() {
                             { color: STATUS_COLORS[reading.status] },
                           ]}
                         >
-                          {STATUS_LABELS[reading.status]}
+                          {getStatusLabel(reading.status, isRTL)}
                         </Text>
                       </View>
                     </View>
                     <Text style={styles.readingMeta}>
-                      Pulse: {reading.pulse ?? "--"} bpm •{" "}
+                      {isRTL ? "النبض" : "Pulse"}: {reading.pulse ?? "--"}{" "}
+                      {isRTL ? "نبضة/د" : "bpm"} •{" "}
                       {reading.note || t("noNotes")}
                     </Text>
                     <View style={styles.readingTimeRow}>
@@ -661,7 +727,9 @@ export default function BloodPressureScreen() {
         <View style={styles.modalOverlay}>
           <SafeAreaView style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Log Blood Pressure</Text>
+              <Text style={styles.modalTitle}>
+                {isRTL ? "تسجيل ضغط الدم" : "Log Blood Pressure"}
+              </Text>
               <TouchableOpacity
                 onPress={() => setShowAddModal(false)}
                 style={styles.modalClose}
@@ -673,7 +741,9 @@ export default function BloodPressureScreen() {
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={styles.modalRow}>
                 <View style={styles.modalField}>
-                  <Text style={styles.modalLabel}>Systolic</Text>
+                  <Text style={styles.modalLabel}>
+                    {isRTL ? "الانقباضي" : "Systolic"}
+                  </Text>
                   <TextInput
                     keyboardType="number-pad"
                     onChangeText={setSystolic}
@@ -681,10 +751,14 @@ export default function BloodPressureScreen() {
                     style={styles.modalInput}
                     value={systolic}
                   />
-                  <Text style={styles.modalHint}>mmHg</Text>
+                  <Text style={styles.modalHint}>
+                    {isRTL ? "مم زئبق" : "mmHg"}
+                  </Text>
                 </View>
                 <View style={styles.modalField}>
-                  <Text style={styles.modalLabel}>Diastolic</Text>
+                  <Text style={styles.modalLabel}>
+                    {isRTL ? "الانبساطي" : "Diastolic"}
+                  </Text>
                   <TextInput
                     keyboardType="number-pad"
                     onChangeText={setDiastolic}
@@ -692,12 +766,16 @@ export default function BloodPressureScreen() {
                     style={styles.modalInput}
                     value={diastolic}
                   />
-                  <Text style={styles.modalHint}>mmHg</Text>
+                  <Text style={styles.modalHint}>
+                    {isRTL ? "مم زئبق" : "mmHg"}
+                  </Text>
                 </View>
               </View>
 
               <View style={styles.modalField}>
-                <Text style={styles.modalLabel}>Pulse Rate (Optional)</Text>
+                <Text style={styles.modalLabel}>
+                  {isRTL ? "معدل النبض (اختياري)" : "Pulse Rate (Optional)"}
+                </Text>
                 <TextInput
                   keyboardType="number-pad"
                   onChangeText={setPulse}
@@ -705,11 +783,13 @@ export default function BloodPressureScreen() {
                   style={styles.modalInput}
                   value={pulse}
                 />
-                <Text style={styles.modalHint}>bpm</Text>
+                <Text style={styles.modalHint}>{isRTL ? "نبضة/د" : "bpm"}</Text>
               </View>
 
               <View style={styles.modalField}>
-                <Text style={styles.modalLabel}>Time</Text>
+                <Text style={styles.modalLabel}>
+                  {isRTL ? "الوقت" : "Time"}
+                </Text>
                 <TextInput
                   onChangeText={setTime}
                   placeholder="08:00"
@@ -719,11 +799,15 @@ export default function BloodPressureScreen() {
               </View>
 
               <View style={styles.modalField}>
-                <Text style={styles.modalLabel}>Notes (Optional)</Text>
+                <Text style={styles.modalLabel}>
+                  {isRTL ? "ملاحظات (اختياري)" : "Notes (Optional)"}
+                </Text>
                 <TextInput
                   multiline
                   onChangeText={setNote}
-                  placeholder="e.g., After breakfast"
+                  placeholder={
+                    isRTL ? "مثال: بعد الإفطار" : "e.g., After breakfast"
+                  }
                   style={[styles.modalInput, styles.modalTextArea]}
                   value={note}
                 />
@@ -737,7 +821,9 @@ export default function BloodPressureScreen() {
                 {saving ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.modalSaveText}>Save Reading</Text>
+                  <Text style={styles.modalSaveText}>
+                    {isRTL ? "حفظ القراءة" : "Save Reading"}
+                  </Text>
                 )}
               </TouchableOpacity>
             </ScrollView>

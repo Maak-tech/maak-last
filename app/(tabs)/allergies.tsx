@@ -132,13 +132,6 @@ export default function AllergiesScreen() {
     severe: "#EF4444",
     "severe-life-threatening": "#DC2626",
   };
-  const severityLabels: Record<string, string> = {
-    mild: "Mild",
-    moderate: "Moderate",
-    severe: "Severe",
-    "severe-life-threatening": "Severe",
-  };
-
   const classifyAllergy = (name: string) => {
     const normalized = name.toLowerCase();
     if (
@@ -185,7 +178,7 @@ export default function AllergiesScreen() {
     allergies.map((allergy) => classifyAllergy(allergy.name).type)
   ).size;
 
-  const isRTL = i18n.language === "ar";
+  const isRTL = i18n.language.toLowerCase().startsWith("ar");
   const isAdmin = user?.role === "admin";
   const hasFamily = Boolean(user?.familyId);
 
@@ -449,7 +442,7 @@ export default function AllergiesScreen() {
       return `${member.firstName} ${member.lastName}`;
     }
 
-    return member.firstName || "User";
+    return member.firstName || (isRTL ? "مستخدم" : "User");
   };
 
   const getSubmitButtonTitle = (): string => {
@@ -466,6 +459,25 @@ export default function AllergiesScreen() {
     );
 
     return matchedOption ? t(matchedOption.labelKey) : severityValue;
+  };
+
+  const getLocalizedAllergyType = (type: string): string => {
+    if (!isRTL) {
+      return type;
+    }
+
+    switch (type) {
+      case "Medication":
+        return "دواء";
+      case "Food":
+        return "غذاء";
+      case "Environmental":
+        return "بيئية";
+      case "Insect":
+        return "حشرة";
+      default:
+        return "أخرى";
+    }
   };
 
   const renderAllergiesContent = () => {
@@ -621,11 +633,14 @@ export default function AllergiesScreen() {
       fontSize: 22,
       fontFamily: "Inter-Bold",
       color: "#003543",
+      flexShrink: 1,
     },
     figmaAllergySubtitle: {
       fontSize: 13,
       fontFamily: "Inter-SemiBold",
       color: "rgba(0, 53, 67, 0.85)",
+      lineHeight: 20,
+      flexShrink: 1,
     },
     figmaAllergyAddButton: {
       width: 40,
@@ -674,6 +689,8 @@ export default function AllergiesScreen() {
       backgroundColor: "#FFFFFF",
       borderRadius: 16,
       paddingVertical: 16,
+      paddingHorizontal: 8,
+      minHeight: 96,
       alignItems: "center",
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 4 },
@@ -691,6 +708,10 @@ export default function AllergiesScreen() {
       fontSize: 12,
       fontFamily: "Inter-Regular",
       color: "#6C7280",
+      textAlign: "center",
+      lineHeight: 18,
+      flexShrink: 1,
+      width: "100%",
     },
     figmaAllergySection: {
       marginBottom: 24,
@@ -705,11 +726,14 @@ export default function AllergiesScreen() {
       fontSize: 18,
       fontFamily: "Inter-Bold",
       color: "#1A1D1F",
+      flexShrink: 1,
+      marginEnd: 8,
     },
     figmaAllergySectionLink: {
       fontSize: 14,
       fontFamily: "Inter-Medium",
       color: "#003543",
+      flexShrink: 1,
     },
     figmaAllergyList: {
       gap: 12,
@@ -746,6 +770,8 @@ export default function AllergiesScreen() {
       fontSize: 16,
       fontFamily: "Inter-SemiBold",
       color: "#1A1D1F",
+      flex: 1,
+      minWidth: 0,
     },
     figmaAllergySeverityBadge: {
       paddingHorizontal: 8,
@@ -761,12 +787,14 @@ export default function AllergiesScreen() {
       fontFamily: "Inter-Regular",
       color: "#6C7280",
       marginBottom: 4,
+      flexShrink: 1,
     },
     figmaAllergyReactionText: {
       fontSize: 12,
       fontFamily: "Inter-Regular",
       color: "#003543",
       marginBottom: 4,
+      flexShrink: 1,
     },
     figmaAllergyReactionLabel: {
       fontFamily: "Inter-SemiBold",
@@ -775,6 +803,7 @@ export default function AllergiesScreen() {
       fontSize: 11,
       fontFamily: "Inter-Regular",
       color: "#6C7280",
+      flexShrink: 1,
     },
     figmaAllergyPlanCard: {
       backgroundColor: "rgba(249, 115, 22, 0.08)",
@@ -1243,11 +1272,12 @@ export default function AllergiesScreen() {
             <AlertCircle color="#EF4444" size={18} />
             <View style={styles.figmaAllergyAlertTextWrap}>
               <Text style={styles.figmaAllergyAlertTitle}>
-                Critical Allergies Alert
+                {isRTL ? "تنبيه حساسية خطيرة" : "Critical Allergies Alert"}
               </Text>
               <Text style={styles.figmaAllergyAlertText}>
-                You have {severeCount} severe allergy. Always carry emergency
-                medication and inform healthcare providers.
+                {isRTL
+                  ? `لديك ${severeCount} حالة حساسية شديدة. احمل دواء الطوارئ دائمًا وأبلغ مقدمي الرعاية الصحية.`
+                  : `You have ${severeCount} severe allergy. Always carry emergency medication and inform healthcare providers.`}
               </Text>
             </View>
           </View>
@@ -1256,27 +1286,42 @@ export default function AllergiesScreen() {
         <View style={styles.figmaAllergyStatsRow}>
           <View style={styles.figmaAllergyStatCard}>
             <Text style={styles.figmaAllergyStatValue}>{allergies.length}</Text>
-            <Text style={styles.figmaAllergyStatLabel}>Total</Text>
+            <Text style={styles.figmaAllergyStatLabel}>
+              {isRTL ? "الإجمالي" : "Total"}
+            </Text>
           </View>
           <View style={styles.figmaAllergyStatCard}>
             <Text style={[styles.figmaAllergyStatValue, { color: "#EF4444" }]}>
               {severeCount}
             </Text>
-            <Text style={styles.figmaAllergyStatLabel}>Severe</Text>
+            <Text style={styles.figmaAllergyStatLabel}>
+              {isRTL ? "شديدة" : "Severe"}
+            </Text>
           </View>
           <View style={styles.figmaAllergyStatCard}>
             <Text style={styles.figmaAllergyStatValue}>{categoryCount}</Text>
-            <Text style={styles.figmaAllergyStatLabel}>Categories</Text>
+            <Text style={styles.figmaAllergyStatLabel}>
+              {isRTL ? "الفئات" : "Categories"}
+            </Text>
           </View>
         </View>
 
         <View style={styles.figmaAllergySection}>
           <View style={styles.figmaAllergySectionHeader}>
-            <Text style={styles.figmaAllergySectionTitle}>Known Allergies</Text>
+            <Text style={styles.figmaAllergySectionTitle}>
+              {isRTL ? "أنواع الحساسية" : "Known Allergies"}
+            </Text>
             <TouchableOpacity
-              onPress={() => Alert.alert("Export", "Export coming soon")}
+              onPress={() =>
+                Alert.alert(
+                  isRTL ? "تصدير" : "Export",
+                  isRTL ? "سيتوفر التصدير قريبًا" : "Export coming soon"
+                )
+              }
             >
-              <Text style={styles.figmaAllergySectionLink}>Export List</Text>
+              <Text style={styles.figmaAllergySectionLink}>
+                {isRTL ? "تصدير" : "Export List"}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -1325,7 +1370,13 @@ export default function AllergiesScreen() {
                       </View>
                       <View style={styles.figmaAllergyCardInfo}>
                         <View style={styles.figmaAllergyCardTitleRow}>
-                          <Text style={styles.figmaAllergyCardTitle}>
+                          <Text
+                            numberOfLines={2}
+                            style={[
+                              styles.figmaAllergyCardTitle,
+                              isRTL && styles.rtlText,
+                            ]}
+                          >
                             {getTranslatedAllergyName(allergy.name)}
                           </Text>
                           <View
@@ -1340,22 +1391,42 @@ export default function AllergiesScreen() {
                                 { color: severityColor },
                               ]}
                             >
-                              {severityLabels[allergy.severity] || "Moderate"}
+                              {getSeverityLabel(allergy.severity)}
                             </Text>
                           </View>
                         </View>
-                        <Text style={styles.figmaAllergyTypeText}>{type}</Text>
-                        <Text style={styles.figmaAllergyReactionText}>
-                          <Text style={styles.figmaAllergyReactionLabel}>
-                            Reaction:
-                          </Text>{" "}
-                          {allergy.reaction || "Not specified"}
+                        <Text
+                          style={[
+                            styles.figmaAllergyTypeText,
+                            isRTL && styles.rtlText,
+                          ]}
+                        >
+                          {getLocalizedAllergyType(type)}
                         </Text>
-                        <Text style={styles.figmaAllergyDiagnosedText}>
-                          Diagnosed:{" "}
+                        <Text
+                          style={[
+                            styles.figmaAllergyReactionText,
+                            isRTL && styles.rtlText,
+                          ]}
+                        >
+                          <Text style={styles.figmaAllergyReactionLabel}>
+                            {isRTL ? "رد الفعل:" : "Reaction:"}
+                          </Text>{" "}
+                          {allergy.reaction ||
+                            (isRTL ? "غير محدد" : "Not specified")}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.figmaAllergyDiagnosedText,
+                            isRTL && styles.rtlText,
+                          ]}
+                        >
+                          {isRTL ? "التشخيص:" : "Diagnosed:"}{" "}
                           {diagnosedDate
                             ? safeFormatDate(diagnosedDate)
-                            : "N/A"}
+                            : isRTL
+                              ? "غير متاح"
+                              : "N/A"}
                         </Text>
                       </View>
                       <View style={styles.figmaAllergyCardActions}>
@@ -1408,12 +1479,13 @@ export default function AllergiesScreen() {
         </View>
 
         <View style={styles.figmaAllergyPlanCard}>
-          <Text style={styles.figmaAllergyPlanTitle}>
-            Emergency Action Plan
+          <Text style={[styles.figmaAllergyPlanTitle, isRTL && styles.rtlText]}>
+            {isRTL ? "خطة الطوارئ" : "Emergency Action Plan"}
           </Text>
-          <Text style={styles.figmaAllergyPlanText}>
-            Keep your allergy action plan updated and share it with caregivers
-            and medical professionals.
+          <Text style={[styles.figmaAllergyPlanText, isRTL && styles.rtlText]}>
+            {isRTL
+              ? "حافظ على تحديث خطة الطوارئ الخاصة بالحساسية وشاركها مع مقدمي الرعاية والطاقم الطبي."
+              : "Keep your allergy action plan updated and share it with caregivers and medical professionals."}
           </Text>
         </View>
       </ScrollView>

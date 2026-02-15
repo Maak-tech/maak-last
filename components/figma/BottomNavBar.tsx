@@ -12,6 +12,7 @@ import type React from "react";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { arabicText } from "@/lib/arabicText";
 
 type TabConfig = {
   key: string;
@@ -21,34 +22,36 @@ type TabConfig = {
 
 const TAB_GRADIENT = ["#003543", "#004552", "#00667A"];
 
-const getTabConfig = (t: (key: string, defaultValue?: string) => string) => ({
+const getTabConfig = (
+  getText: (key: string, defaultValue: string) => string
+) => ({
   index: {
     key: "index",
-    label: t("home", "Home"),
+    label: getText("home", "Home"),
     icon: (color: string, size: number) => <Home color={color} size={size} />,
   },
   track: {
     key: "track",
-    label: t("track", "Track"),
+    label: getText("track", "Track"),
     icon: (color: string, size: number) => (
       <Activity color={color} size={size} />
     ),
   },
   zeina: {
     key: "zeina",
-    label: t("zeina", "Zeina"),
+    label: getText("zeina", "Zeina"),
     icon: (color: string, size: number) => (
       <MessageCircle color={color} size={size} />
     ),
   },
   family: {
     key: "family",
-    label: t("family", "Family"),
+    label: getText("family", "Family"),
     icon: (color: string, size: number) => <Users color={color} size={size} />,
   },
   profile: {
     key: "profile",
-    label: t("profile", "Profile"),
+    label: getText("profile", "Profile"),
     icon: (color: string, size: number) => <User color={color} size={size} />,
   },
 });
@@ -59,8 +62,15 @@ export default function BottomNavBar({
   navigation,
 }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const { t } = useTranslation();
-  const config = getTabConfig(t);
+  const { t, i18n } = useTranslation();
+  const isArabic = i18n.language.toLowerCase().startsWith("ar");
+  const getText = (key: string, defaultValue: string) => {
+    if (isArabic && key in arabicText) {
+      return arabicText[key as keyof typeof arabicText];
+    }
+    return t(key, defaultValue);
+  };
+  const config = getTabConfig(getText);
 
   return (
     <View style={[styles.wrapper, { paddingBottom: insets.bottom }]}>
@@ -127,6 +137,9 @@ export default function BottomNavBar({
               <View style={styles.tabContent}>
                 {tab.icon(isFocused ? "#FFFFFF" : "#9CA3AF", 22)}
                 <Text
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}
+                  numberOfLines={1}
                   style={[styles.tabLabel, isFocused && styles.tabLabelActive]}
                 >
                   {tab.label}
@@ -157,14 +170,15 @@ const styles = StyleSheet.create({
   },
   container: {
     flexDirection: "row",
-    justifyContent: "space-around",
+    justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 8,
     paddingVertical: 6,
   },
   tabButton: {
-    minWidth: 60,
-    paddingHorizontal: 10,
+    flex: 1,
+    minWidth: 0,
+    paddingHorizontal: 6,
     paddingVertical: 6,
     borderRadius: 16,
     alignItems: "center",
@@ -177,9 +191,11 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   tabLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: "#9CA3AF",
     fontWeight: "600",
+    textAlign: "center",
+    includeFontPadding: false,
   },
   tabLabelActive: {
     color: "#FFFFFF",

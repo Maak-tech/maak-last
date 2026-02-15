@@ -564,11 +564,13 @@ export default function LabResultsScreen() {
                 <View style={styles.figmaLabTitleRow as StyleProp<ViewStyle>}>
                   <Droplet color="#EB9C0C" size={20} />
                   <Text style={styles.figmaLabTitle as TextStyle}>
-                    Lab Results
+                    {isRTL ? "نتائج المختبر" : "Lab Results"}
                   </Text>
                 </View>
                 <Text style={styles.figmaLabSubtitle as TextStyle}>
-                  Track and store test results
+                  {isRTL
+                    ? "تتبع نتائج الفحوصات وحفظها"
+                    : "Track and store test results"}
                 </Text>
               </View>
             </View>
@@ -650,7 +652,7 @@ export default function LabResultsScreen() {
                 {labResults.length}
               </Text>
               <Text style={styles.figmaLabStatLabel as TextStyle}>
-                Recent Tests
+                {isRTL ? "فحوصات حديثة" : "Recent Tests"}
               </Text>
             </View>
             <View style={styles.figmaLabStatCard as StyleProp<ViewStyle>}>
@@ -662,7 +664,9 @@ export default function LabResultsScreen() {
               >
                 {normalCount}
               </Text>
-              <Text style={styles.figmaLabStatLabel as TextStyle}>Normal</Text>
+              <Text style={styles.figmaLabStatLabel as TextStyle}>
+                {isRTL ? "طبيعي" : "Normal"}
+              </Text>
             </View>
             <View style={styles.figmaLabStatCard as StyleProp<ViewStyle>}>
               <Text
@@ -674,7 +678,7 @@ export default function LabResultsScreen() {
                 {reviewCount}
               </Text>
               <Text style={styles.figmaLabStatLabel as TextStyle}>
-                Needs Review
+                {isRTL ? "تحتاج مراجعة" : "Needs Review"}
               </Text>
             </View>
           </View>
@@ -692,7 +696,8 @@ export default function LabResultsScreen() {
           {labResults.map((result) => {
             const status = getResultStatus(result);
             const statusColor = status === "normal" ? "#10B981" : "#F97316";
-            const facilityLabel = result.facility || result.orderedBy || "Lab";
+            const facilityLabel =
+              result.facility || result.orderedBy || (isRTL ? "مختبر" : "Lab");
             const resultsPreview = result.results?.slice(0, 4) ?? [];
             return (
               <Card
@@ -731,7 +736,13 @@ export default function LabResultsScreen() {
                           { color: statusColor },
                         ]}
                       >
-                        {status === "normal" ? "Normal" : "Review"}
+                        {status === "normal"
+                          ? isRTL
+                            ? "طبيعي"
+                            : "Normal"
+                          : isRTL
+                            ? "مراجعة"
+                            : "Review"}
                       </Text>
                     </View>
                     <TouchableOpacity

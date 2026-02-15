@@ -235,7 +235,7 @@ export default function ProfileScreen() {
     queueLength: number;
   }>({ isOnline: true, queueLength: 0 });
 
-  const isRTL = i18n.language === "ar";
+  const isRTL = i18n.language.toLowerCase().startsWith("ar");
   const isAdmin = user?.role === "admin";
 
   const checkSyncStatus = useCallback(async () => {
@@ -396,18 +396,7 @@ export default function ProfileScreen() {
 
   // Helper function to convert Western numerals to Arabic numerals
   const toArabicNumerals = (num: number): string => {
-    const arabicNumerals = [
-      "Ù ",
-      "Ù¡",
-      "Ù¢",
-      "Ù£",
-      "Ù¤",
-      "Ù¥",
-      "Ù¦",
-      "Ù§",
-      "Ù¨",
-      "Ù©",
-    ];
+    const arabicNumerals = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
     return num
       .toString()
       .replace(/\d/g, (digit) => arabicNumerals[Number.parseInt(digit, 10)]);
@@ -880,8 +869,8 @@ export default function ProfileScreen() {
         setCalendarEvents(userEvents);
       } catch (_error) {
         Alert.alert(
-          isRTL ? "Ø®Ø·Ø£" : "Error",
-          isRTL ? "ÙØ´Ù„ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ø£Ø­Ø¯Ø§Ø«" : "Failed to load events"
+          isRTL ? "خطأ" : "Error",
+          isRTL ? "فشل تحميل الأحداث" : "Failed to load events"
         );
       } finally {
         setCalendarLoading(false);
@@ -922,7 +911,7 @@ export default function ProfileScreen() {
 
   const getWeekDays = () => {
     const days = isRTL
-      ? ["Ø­", "Ù†", "Ø«", "Ø±", "Ø®", "Ø¬", "Ø³"]
+      ? ["ح", "ن", "ث", "ر", "خ", "ج", "س"]
       : ["S", "M", "T", "W", "T", "F", "S"];
     return days;
   };
@@ -961,13 +950,13 @@ export default function ProfileScreen() {
 
   const getEventTypeLabel = (type: CalendarEvent["type"]) => {
     const labels: Record<CalendarEvent["type"], { en: string; ar: string }> = {
-      appointment: { en: "Appointment", ar: "Ù…ÙˆØ¹Ø¯" },
-      medication: { en: "Medication", ar: "Ø¯ÙˆØ§Ø¡" },
-      symptom: { en: "Symptom", ar: "Ø¹Ø±Ø¶" },
-      lab_result: { en: "Lab Result", ar: "Ù†ØªÙŠØ¬Ø© Ù…Ø®ØªØ¨Ø±" },
-      vaccination: { en: "Vaccination", ar: "ØªØ·Ø¹ÙŠÙ…" },
-      reminder: { en: "Reminder", ar: "ØªØ°ÙƒÙŠØ±" },
-      other: { en: "Other", ar: "Ø£Ø®Ø±Ù‰" },
+      appointment: { en: "Appointment", ar: "موعد" },
+      medication: { en: "Medication", ar: "دواء" },
+      symptom: { en: "Symptom", ar: "عرض" },
+      lab_result: { en: "Lab Result", ar: "نتيجة مختبر" },
+      vaccination: { en: "Vaccination", ar: "تطعيم" },
+      reminder: { en: "Reminder", ar: "تذكير" },
+      other: { en: "Other", ar: "أخرى" },
     };
     return isRTL ? labels[type].ar : labels[type].en;
   };
@@ -1054,13 +1043,11 @@ export default function ProfileScreen() {
       );
 
       Alert.alert(
-        isRTL ? "Ù†Ø¬Ø­" : "Success",
-        isRTL
-          ? "ØªÙ… Ø¥Ø¶Ø§ÙØ© Ø§Ù„Ø­Ø¯Ø« Ø¨Ù†Ø¬Ø§Ø­"
-          : "Event added successfully",
+        isRTL ? "نجح" : "Success",
+        isRTL ? "تمت إضافة الحدث بنجاح" : "Event added successfully",
         [
           {
-            text: isRTL ? "Ø­Ø³Ù†Ø§Ù‹" : "OK",
+            text: isRTL ? "حسنًا" : "OK",
             onPress: () => {
               setShowAddEventModal(false);
               resetEventForm();
@@ -1072,9 +1059,9 @@ export default function ProfileScreen() {
       );
     } catch (error: any) {
       Alert.alert(
-        isRTL ? "Ø®Ø·Ø£" : "Error",
+        isRTL ? "خطأ" : "Error",
         isRTL
-          ? `ÙØ´Ù„ Ø¥Ø¶Ø§ÙØ© Ø§Ù„Ø­Ø¯Ø«: ${error?.message || "Ø®Ø·Ø£ ØºÙŠØ± Ù…Ø¹Ø±ÙˆÙ"}`
+          ? `فشل إضافة الحدث: ${error?.message || "خطأ غير معروف"}`
           : `Failed to add event: ${error?.message || "Unknown error"}`
       );
     } finally {
@@ -1322,14 +1309,22 @@ export default function ProfileScreen() {
         },
         {
           icon: RefreshCw,
-          label: t("syncData", "Sync Data"),
+          label: isRTL ? "مزامنة البيانات" : t("syncData", "Sync Data"),
           value: syncing
-            ? t("syncing", "Syncing...")
+            ? isRTL
+              ? "جارٍ المزامنة..."
+              : t("syncing", "Syncing...")
             : syncStatus.queueLength > 0
-              ? `${syncStatus.queueLength} ${t("pending", "pending")}`
+              ? isRTL
+                ? `${syncStatus.queueLength} قيد الانتظار`
+                : `${syncStatus.queueLength} ${t("pending", "pending")}`
               : syncStatus.isOnline
-                ? t("synced", "Synced")
-                : t("offline", "Offline"),
+                ? isRTL
+                  ? "تمت المزامنة"
+                  : t("synced", "Synced")
+                : isRTL
+                  ? "غير متصل"
+                  : t("offline", "Offline"),
           onPress: handleSync,
         },
       ],
@@ -1371,7 +1366,7 @@ export default function ProfileScreen() {
   const fullName =
     user?.firstName && user?.lastName
       ? `${user.firstName} ${user.lastName}`
-      : user?.firstName || "User";
+      : user?.firstName || (isRTL ? "مستخدم" : "User");
   const getAvatarInitials = (name: string) => {
     const parts = name.trim().split(/\s+/).filter(Boolean);
     if (parts.length === 0) return "?";
@@ -1380,24 +1375,30 @@ export default function ProfileScreen() {
   };
   const roleLabel =
     user?.role === "admin"
-      ? "Primary Caregiver"
+      ? isRTL
+        ? "مقدم رعاية أساسي"
+        : "Primary Caregiver"
       : user?.role === "caregiver"
-        ? "Caregiver"
-        : "Member";
+        ? isRTL
+          ? "مقدم رعاية"
+          : "Caregiver"
+        : isRTL
+          ? "عضو"
+          : "Member";
   const activeMedications = healthData.medications.filter(
     (med) => med.isActive
   );
   const quickStats = [
     {
-      label: "Medications",
+      label: isRTL ? "الأدوية" : "Medications",
       value: activeMedications.length,
     },
     {
-      label: "Symptoms",
+      label: isRTL ? "الأعراض" : "Symptoms",
       value: healthData.symptoms.length,
     },
     {
-      label: "Health Score",
+      label: isRTL ? "نقاط الصحة" : "Health Score",
       value: `${Math.min(100, Math.round(healthData.healthScore))}%`,
     },
   ];
@@ -1448,9 +1449,13 @@ export default function ProfileScreen() {
   const vitalsOverview = [
     {
       icon: Heart,
-      label: "Heart Rate",
+      label: isRTL ? "نبض القلب" : "Heart Rate",
       value:
-        heartRateValue !== null ? `${Math.round(heartRateValue)} bpm` : "N/A",
+        heartRateValue !== null
+          ? `${Math.round(heartRateValue)} ${isRTL ? "نبضة/د" : "bpm"}`
+          : isRTL
+            ? "غير متاح"
+            : "N/A",
       trend:
         heartRateValue !== null && (vitalsSparklines.hasHeartRateData ?? false)
           ? getInsightLabel(hrTrend.direction, hrTrend.percent)
@@ -1462,8 +1467,13 @@ export default function ProfileScreen() {
     },
     {
       icon: Moon,
-      label: "Sleep",
-      value: sleepValue !== null ? `${sleepValue.toFixed(1)} hrs` : "N/A",
+      label: isRTL ? "النوم" : "Sleep",
+      value:
+        sleepValue !== null
+          ? `${sleepValue.toFixed(1)} ${isRTL ? "ساعة" : "hrs"}`
+          : isRTL
+            ? "غير متاح"
+            : "N/A",
       trend:
         sleepValue !== null && (vitalsSparklines.hasSleepData ?? false)
           ? getInsightLabel(sleepTrend.direction, sleepTrend.percent)
@@ -1475,11 +1485,13 @@ export default function ProfileScreen() {
     },
     {
       icon: Activity,
-      label: "Activity",
+      label: isRTL ? "النشاط" : "Activity",
       value:
         stepsValue !== null
           ? `${safeFormatNumber(Math.round(stepsValue))} ${t("stepsToday", "steps today")}`
-          : "N/A",
+          : isRTL
+            ? "غير متاح"
+            : "N/A",
       trend:
         stepsValue !== null && (vitalsSparklines.hasStepsData ?? false)
           ? getInsightLabel(stepsTrend.direction, stepsTrend.percent)
@@ -1530,7 +1542,9 @@ export default function ProfileScreen() {
           },
         },
         {
-          label: t("connectedDevices", "Connected Devices"),
+          label: isRTL
+            ? "الأجهزة المتصلة"
+            : t("connectedDevices", "Connected Devices"),
           icon: Activity,
           onPress: () => router.push("/profile/health-integrations"),
         },
@@ -1579,7 +1593,7 @@ export default function ProfileScreen() {
           onPress: () => setLanguagePickerVisible(true),
         },
         {
-          label: t("syncData", "Sync Data"),
+          label: isRTL ? "مزامنة البيانات" : t("syncData", "Sync Data"),
           icon: RefreshCw,
           onPress: handleSync,
         },
@@ -1675,22 +1689,30 @@ export default function ProfileScreen() {
             style={styles.figmaQuickActionButton}
           >
             <Phone color="#10B981" size={18} />
-            <Text style={styles.figmaQuickActionText}>Emergency Contact</Text>
+            <Text style={styles.figmaQuickActionText}>
+              {isRTL ? "جهة اتصال طوارئ" : "Emergency Contact"}
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setShowCareTeamModal(true)}
             style={styles.figmaQuickActionButton}
           >
             <MessageSquare color="#3B82F6" size={18} />
-            <Text style={styles.figmaQuickActionText}>Care Team</Text>
+            <Text style={styles.figmaQuickActionText}>
+              {isRTL ? "فريق الرعاية" : "Care Team"}
+            </Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.figmaSection}>
           <View style={styles.figmaSectionHeader}>
-            <Text style={styles.figmaSectionTitle}>Health Overview</Text>
+            <Text style={styles.figmaSectionTitle}>
+              {isRTL ? "نظرة عامة صحية" : "Health Overview"}
+            </Text>
             <TouchableOpacity onPress={() => router.push("/health-summary")}>
-              <Text style={styles.figmaSectionLink}>View Details -&gt;</Text>
+              <Text style={styles.figmaSectionLink}>
+                {isRTL ? "عرض التفاصيل <-" : "View Details ->"}
+              </Text>
             </TouchableOpacity>
           </View>
           <View style={styles.figmaCardStack}>
@@ -1779,7 +1801,9 @@ export default function ProfileScreen() {
         </TouchableOpacity>
 
         <View style={styles.figmaVersion}>
-          <Text style={styles.figmaVersionText}>Maak v1.0.0</Text>
+          <Text style={styles.figmaVersionText}>
+            {isRTL ? "ماك v1.0.0" : "Maak v1.0.0"}
+          </Text>
         </View>
       </ScrollView>
 
@@ -1800,37 +1824,45 @@ export default function ProfileScreen() {
               onPress={() => handleLanguageChange("en")}
               style={[
                 styles.languageOption,
-                i18n.language === "en" && styles.selectedLanguage,
+                i18n.language.toLowerCase().startsWith("en") &&
+                  styles.selectedLanguage,
               ]}
             >
               <Text
                 style={[
                   styles.languageText,
-                  i18n.language === "en" && styles.selectedLanguageText,
+                  i18n.language.toLowerCase().startsWith("en") &&
+                    styles.selectedLanguageText,
                 ]}
               >
                 {t("english")}
               </Text>
-              {i18n.language === "en" && <Check color="#2563EB" size={20} />}
+              {i18n.language.toLowerCase().startsWith("en") && (
+                <Check color="#2563EB" size={20} />
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => handleLanguageChange("ar")}
               style={[
                 styles.languageOption,
-                i18n.language === "ar" && styles.selectedLanguage,
+                i18n.language.toLowerCase().startsWith("ar") &&
+                  styles.selectedLanguage,
               ]}
             >
               <Text
                 style={[
                   styles.languageText,
                   styles.rtlText,
-                  i18n.language === "ar" && styles.selectedLanguageText,
+                  i18n.language.toLowerCase().startsWith("ar") &&
+                    styles.selectedLanguageText,
                 ]}
               >
                 {t("arabic")}
               </Text>
-              {i18n.language === "ar" && <Check color="#2563EB" size={20} />}
+              {i18n.language.toLowerCase().startsWith("ar") && (
+                <Check color="#2563EB" size={20} />
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -1940,9 +1972,7 @@ export default function ProfileScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, isRTL && { textAlign: "left" }]}>
-                {isRTL
-                  ? "ØªÙØ§ØµÙŠÙ„ Ù†Ù‚Ø§Ø· Ø§Ù„ØµØ­Ø©"
-                  : "Health Score Breakdown"}
+                {isRTL ? "تفاصيل نقاط الصحة" : "Health Score Breakdown"}
               </Text>
               <TouchableOpacity
                 onPress={() => setHealthScoreModalVisible(false)}
@@ -1973,7 +2003,7 @@ export default function ProfileScreen() {
                           isRTL && { textAlign: "left" },
                         ]}
                       >
-                        {isRTL ? "Ù…Ù† 100" : "out of 100"}
+                        {isRTL ? "من 100" : "out of 100"}
                       </Text>
                       <View style={styles.ratingBadge}>
                         <Text
@@ -1983,15 +2013,15 @@ export default function ProfileScreen() {
                           ]}
                         >
                           {healthData.healthScoreResult.rating ===
-                            "excellent" && (isRTL ? "Ù…Ù…ØªØ§Ø²" : "Excellent")}
+                            "excellent" && (isRTL ? "ممتاز" : "Excellent")}
                           {healthData.healthScoreResult.rating === "good" &&
-                            (isRTL ? "Ø¬ÙŠØ¯" : "Good")}
+                            (isRTL ? "جيد" : "Good")}
                           {healthData.healthScoreResult.rating === "fair" &&
-                            (isRTL ? "Ù…Ù‚Ø¨ÙˆÙ„" : "Fair")}
+                            (isRTL ? "مقبول" : "Fair")}
                           {healthData.healthScoreResult.rating === "poor" &&
-                            (isRTL ? "Ø¶Ø¹ÙŠÙ" : "Poor")}
+                            (isRTL ? "ضعيف" : "Poor")}
                           {healthData.healthScoreResult.rating === "critical" &&
-                            (isRTL ? "Ø­Ø±Ø¬" : "Critical")}
+                            (isRTL ? "حرج" : "Critical")}
                         </Text>
                       </View>
                     </View>
@@ -2006,7 +2036,7 @@ export default function ProfileScreen() {
                       ]}
                     >
                       {isRTL
-                        ? "ÙƒÙŠÙ ØªÙ… Ø­Ø³Ø§Ø¨ Ø§Ù„Ù†Ù‚Ø§Ø·"
+                        ? "كيف تم حساب النقاط"
                         : "How Your Score Was Calculated"}
                     </Text>
 
@@ -2018,7 +2048,7 @@ export default function ProfileScreen() {
                           isRTL && { textAlign: "left" },
                         ]}
                       >
-                        {isRTL ? "Ø§Ù„Ù†Ù‚Ø§Ø· Ø§Ù„Ø£Ø³Ø§Ø³ÙŠØ©" : "Base Score"}
+                        {isRTL ? "النقاط الأساسية" : "Base Score"}
                       </Text>
                       <Text
                         style={[
@@ -2040,9 +2070,7 @@ export default function ProfileScreen() {
                             isRTL && { textAlign: "left" },
                           ]}
                         >
-                          {isRTL
-                            ? " Ø®ØµÙ… Ø§Ù„Ø£Ø¹Ø±Ø§Ø¶ Ø§Ù„ØµØ­ÙŠØ©"
-                            : "Symptom Penalty"}
+                          {isRTL ? "خصم الأعراض الصحية" : "Symptom Penalty"}
                         </Text>
                         <Text
                           style={[
@@ -2068,9 +2096,7 @@ export default function ProfileScreen() {
                             isRTL && { textAlign: "left" },
                           ]}
                         >
-                          {isRTL
-                            ? "Ù…ÙƒØ§ÙØ£Ø© Ø§Ù„Ø£Ø¯ÙˆÙŠØ©"
-                            : "Medication Bonus"}
+                          {isRTL ? "مكافأة الأدوية" : "Medication Bonus"}
                         </Text>
                         <Text
                           style={[
@@ -2101,9 +2127,7 @@ export default function ProfileScreen() {
                           isRTL && { textAlign: "left" },
                         ]}
                       >
-                        {isRTL
-                          ? "Ø§Ù„Ù†Ù‚Ø§Ø· Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠØ©"
-                          : "Final Score"}
+                        {isRTL ? "النقاط النهائية" : "Final Score"}
                       </Text>
                       <Text
                         style={[
@@ -2125,9 +2149,7 @@ export default function ProfileScreen() {
                         isRTL && { textAlign: "left" },
                       ]}
                     >
-                      {isRTL
-                        ? "Ø§Ù„Ø¹ÙˆØ§Ù…Ù„ Ø§Ù„Ù…Ø¤Ø«Ø±Ø©"
-                        : "Contributing Factors"}
+                      {isRTL ? "العوامل المؤثرة" : "Contributing Factors"}
                     </Text>
 
                     <View style={styles.factorRow}>
@@ -2138,7 +2160,7 @@ export default function ProfileScreen() {
                         ]}
                       >
                         {isRTL
-                          ? "Ø§Ù„Ø£Ø¹Ø±Ø§Ø¶ Ø§Ù„ØµØ­ÙŠØ© Ø§Ù„Ø£Ø®ÙŠØ±Ø© (7 Ø£ÙŠØ§Ù…)"
+                          ? "الأعراض الصحية الأخيرة (7 أيام)"
                           : "Recent Symptoms (7 days)"}
                       </Text>
                       <Text
@@ -2161,7 +2183,7 @@ export default function ProfileScreen() {
                           ]}
                         >
                           {isRTL
-                            ? "Ù…ØªÙˆØ³Ø· Ø´Ø¯Ø© Ø§Ù„Ø£Ø¹Ø±Ø§Ø¶ Ø§Ù„ØµØ­ÙŠØ©"
+                            ? "متوسط شدة الأعراض الصحية"
                             : "Average Symptom Severity"}
                         </Text>
                         <Text
@@ -2185,9 +2207,7 @@ export default function ProfileScreen() {
                           isRTL && { textAlign: "left" },
                         ]}
                       >
-                        {isRTL
-                          ? "Ø§Ù„Ø£Ø¯ÙˆÙŠØ© Ø§Ù„ÙØ¹Ø§Ù„Ø©"
-                          : "Active Medications"}
+                        {isRTL ? "الأدوية النشطة" : "Active Medications"}
                       </Text>
                       <Text
                         style={[
@@ -2209,7 +2229,7 @@ export default function ProfileScreen() {
                           ]}
                         >
                           {isRTL
-                            ? "Ø§Ù„Ø§Ù„ØªØ²Ø§Ù… Ø¨Ø§Ù„Ø£Ø¯ÙˆÙŠØ©"
+                            ? "الالتزام بالأدوية"
                             : "Medication Compliance"}
                         </Text>
                         <Text
@@ -2238,7 +2258,7 @@ export default function ProfileScreen() {
                       ]}
                     >
                       {isRTL
-                        ? "ÙŠØªÙ… Ø­Ø³Ø§Ø¨ Ù†Ù‚Ø§Ø· Ø§Ù„ØµØ­Ø© Ø¨Ù†Ø§Ø¡Ù‹ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ø¹Ø±Ø§Ø¶ Ø§Ù„ØµØ­ÙŠØ© Ø§Ù„Ø£Ø®ÙŠØ±Ø© (Ø¢Ø®Ø± 7 Ø£ÙŠØ§Ù…) ÙˆØ§Ù„Ø§Ù„ØªØ²Ø§Ù… Ø¨Ø§Ù„Ø£Ø¯ÙˆÙŠØ©. Ø§Ù„Ù†Ù‚Ø§Ø· Ø§Ù„Ø£Ø³Ø§Ø³ÙŠØ© Ù‡ÙŠ 100ØŒ ÙˆØªÙØ®ØµÙ… Ø§Ù„Ù†Ù‚Ø§Ø· Ø¨Ø³Ø¨Ø¨ Ø§Ù„Ø£Ø¹Ø±Ø§Ø¶ ÙˆØªÙØ¶Ø§Ù Ø§Ù„Ù…ÙƒØ§ÙØ¢Øª Ù„Ù„Ø§Ù„ØªØ²Ø§Ù… Ø§Ù„Ø¬ÙŠØ¯ Ø¨Ø§Ù„Ø£Ø¯ÙˆÙŠØ©."
+                        ? "يتم حساب نقاط الصحة بناءً على الأعراض الصحية الأخيرة (آخر 7 أيام) والالتزام بالأدوية. النقاط الأساسية هي 100، وتُخصم النقاط بسبب الأعراض وتُضاف المكافآت للالتزام الجيد بالأدوية."
                         : "Your health score is calculated based on recent symptoms (last 7 days) and medication compliance. Base score is 100, with points deducted for symptoms and bonuses added for good medication adherence."}
                     </Text>
                   </View>
@@ -2249,9 +2269,7 @@ export default function ProfileScreen() {
                   <Text
                     style={[styles.loadingText, isRTL && { textAlign: "left" }]}
                   >
-                    {isRTL
-                      ? "Ø¬Ø§Ø±ÙŠ ØªØ­Ù…ÙŠÙ„ Ø§Ù„ØªÙØ§ØµÙŠÙ„..."
-                      : "Loading details..."}
+                    {isRTL ? "جاري تحميل التفاصيل..." : "Loading details..."}
                   </Text>
                 </View>
               )}
@@ -2295,7 +2313,7 @@ export default function ProfileScreen() {
             >
               <CalendarIcon color={theme.colors.primary.main} size={24} />
               <Heading level={4} style={{ fontSize: 20 }}>
-                {isRTL ? "Ø§Ù„ØªÙ‚ÙˆÙŠÙ… Ø§Ù„ØµØ­ÙŠ" : "HEALTH CALENDAR"}
+                {isRTL ? "التقويم الصحي" : "HEALTH CALENDAR"}
               </Heading>
             </View>
             <View
@@ -2506,7 +2524,7 @@ export default function ProfileScreen() {
           >
             <Heading level={6} style={{ marginBottom: 16 }}>
               {isRTL
-                ? `Ø§Ù„Ø£Ø­Ø¯Ø§Ø« ÙÙŠ ${safeFormatDate(calendarSelectedDate, "ar-u-ca-gregory", { day: "numeric", month: "long", year: "numeric" })}`
+                ? `الأحداث في ${safeFormatDate(calendarSelectedDate, "ar-u-ca-gregory", { day: "numeric", month: "long", year: "numeric" })}`
                 : `Events on ${safeFormatDate(calendarSelectedDate, "en-US", { day: "numeric", month: "long", year: "numeric" })}`}
             </Heading>
 
@@ -2533,7 +2551,7 @@ export default function ProfileScreen() {
                   }}
                 >
                   {isRTL
-                    ? "Ù„Ø§ ØªÙˆØ¬Ø¯ Ø£Ø­Ø¯Ø§Ø« ØµØ­ÙŠØ© ÙÙŠ Ù‡Ø°Ø§ Ø§Ù„ØªØ§Ø±ÙŠØ®"
+                    ? "لا توجد أحداث صحية في هذا التاريخ"
                     : "No events on this date"}
                 </Text>
               </View>
@@ -2592,7 +2610,7 @@ export default function ProfileScreen() {
                     <Caption numberOfLines={1} style={{}}>
                       {event.allDay
                         ? isRTL
-                          ? "Ø·ÙˆØ§Ù„ Ø§Ù„ÙŠÙˆÙ…"
+                          ? "طوال اليوم"
                           : "All Day"
                         : formatTime(event.startDate)}
                     </Caption>
@@ -2646,7 +2664,7 @@ export default function ProfileScreen() {
               }}
             >
               <Text style={{ fontSize: 18, color: theme.colors.primary.main }}>
-                {isRTL ? "Ø¥ØºÙ„Ø§Ù‚" : "Close"}
+                {isRTL ? "إغلاق" : "Close"}
               </Text>
             </TouchableOpacity>
           </View>
@@ -2661,7 +2679,7 @@ export default function ProfileScreen() {
                 {selectedEvent.description && (
                   <View style={{ marginBottom: 16 }}>
                     <TypographyText style={{}} weight="semibold">
-                      {isRTL ? "Ø§Ù„ÙˆØµÙ" : "Description"}
+                      {isRTL ? "الوصف" : "Description"}
                     </TypographyText>
                     <Caption numberOfLines={10} style={{}}>
                       {selectedEvent.description}
@@ -2670,7 +2688,7 @@ export default function ProfileScreen() {
                 )}
                 <View style={{ marginBottom: 16 }}>
                   <TypographyText style={{}} weight="semibold">
-                    {isRTL ? "Ø§Ù„ØªØ§Ø±ÙŠØ® ÙˆØ§Ù„ÙˆÙ‚Øª" : "Date & Time"}
+                    {isRTL ? "التاريخ والوقت" : "Date & Time"}
                   </TypographyText>
                   <Caption numberOfLines={1} style={{}}>
                     {safeFormatDateTime(
@@ -2684,7 +2702,7 @@ export default function ProfileScreen() {
                 {selectedEvent.location && (
                   <View style={{ marginBottom: 16 }}>
                     <TypographyText style={{}} weight="semibold">
-                      {isRTL ? "Ø§Ù„Ù…ÙˆÙ‚Ø¹" : "Location"}
+                      {isRTL ? "الموقع" : "Location"}
                     </TypographyText>
                     <Caption numberOfLines={1} style={{}}>
                       {selectedEvent.location}
@@ -2694,9 +2712,7 @@ export default function ProfileScreen() {
                 {selectedEvent.familyId && (
                   <View style={{ marginBottom: 16 }}>
                     <TypographyText style={{}} weight="semibold">
-                      {isRTL
-                        ? "Ù…Ø´Ø§Ø±Ùƒ Ù…Ø¹ Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©"
-                        : "Shared with Family"}
+                      {isRTL ? "مشارك مع العائلة" : "Shared with Family"}
                     </TypographyText>
                   </View>
                 )}
@@ -2759,7 +2775,7 @@ export default function ProfileScreen() {
               }}
             >
               <Heading level={5} style={{ color: theme.colors.text.primary }}>
-                {isRTL ? "Ø¥Ø¶Ø§ÙØ© Ø­Ø¯Ø«" : "Add Event"}
+                {isRTL ? "إضافة حدث" : "Add Event"}
               </Heading>
               <TouchableOpacity
                 onPress={() => {
@@ -2895,7 +2911,7 @@ export default function ProfileScreen() {
                 }}
               >
                 <TypographyText style={{ color: theme.colors.text.primary }}>
-                  {isRTL ? "Ø·ÙˆØ§Ù„ Ø§Ù„ÙŠÙˆÙ…" : "All Day"}
+                  {isRTL ? "طوال اليوم" : "All Day"}
                 </TypographyText>
                 <Switch
                   onValueChange={setEventAllDay}
@@ -2916,10 +2932,7 @@ export default function ProfileScreen() {
                 <TypographyText
                   style={{ marginBottom: 8, color: theme.colors.text.primary }}
                 >
-                  {isRTL
-                    ? "ØªØ§Ø±ÙŠØ® ÙˆÙˆÙ‚Øª Ø§Ù„Ø¨Ø¯Ø§ÙŠØ©"
-                    : "Start Date & Time"}{" "}
-                  *
+                  {isRTL ? "تاريخ ووقت البداية" : "Start Date & Time"} *
                 </TypographyText>
                 <View
                   style={{
@@ -3002,10 +3015,8 @@ export default function ProfileScreen() {
                       color: theme.colors.text.primary,
                     }}
                   >
-                    {isRTL
-                      ? "ØªØ§Ø±ÙŠØ® ÙˆÙˆÙ‚Øª Ø§Ù„Ù†Ù‡Ø§ÙŠØ©"
-                      : "End Date & Time"}{" "}
-                    ({isRTL ? "Ø§Ø®ØªÙŠØ§Ø±ÙŠ" : "Optional"})
+                    {isRTL ? "تاريخ ووقت النهاية" : "End Date & Time"} (
+                    {isRTL ? "اختياري" : "Optional"})
                   </TypographyText>
                   <View
                     style={{
@@ -3051,7 +3062,7 @@ export default function ProfileScreen() {
                               }
                             )
                           : isRTL
-                            ? "Ø§Ø®ØªØ± Ø§Ù„ØªØ§Ø±ÙŠØ®"
+                            ? "اختر التاريخ"
                             : "Select Date"}
                       </Text>
                     </TouchableOpacity>
@@ -3153,9 +3164,7 @@ export default function ProfileScreen() {
                   }}
                 >
                   <TypographyText style={{ color: theme.colors.text.primary }}>
-                    {isRTL
-                      ? "Ù…Ø´Ø§Ø±ÙƒØ© Ù…Ø¹ Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©"
-                      : "Share with Family"}
+                    {isRTL ? "مشاركة مع العائلة" : "Share with Family"}
                   </TypographyText>
                   <Switch
                     onValueChange={setEventShareWithFamily}
@@ -3202,7 +3211,7 @@ export default function ProfileScreen() {
                 textStyle={{
                   color: theme.colors.primary.main,
                 }}
-                title={isRTL ? "Ø¥Ù„ØºØ§Ø¡" : "Cancel"}
+                title={isRTL ? "إلغاء" : "Cancel"}
                 variant="outline"
               />
               <Button
@@ -3221,10 +3230,10 @@ export default function ProfileScreen() {
                 title={
                   savingEvent
                     ? isRTL
-                      ? "Ø¬Ø§Ø±ÙŠ Ø§Ù„Ø­ÙØ¸..."
+                      ? "جاري الحفظ..."
                       : "Saving..."
                     : isRTL
-                      ? "Ø­ÙØ¸"
+                      ? "حفظ"
                       : "Save"
                 }
                 variant="primary"
@@ -3265,9 +3274,7 @@ export default function ProfileScreen() {
               }}
             >
               <Heading level={5} style={{}}>
-                {isRTL
-                  ? "Ø§Ø®ØªØ± ØªØ§Ø±ÙŠØ® Ø§Ù„Ø¨Ø¯Ø§ÙŠØ©"
-                  : "Select Start Date"}
+                {isRTL ? "اختر تاريخ البداية" : "Select Start Date"}
               </Heading>
               <TouchableOpacity onPress={() => setShowStartDatePicker(false)}>
                 <X color={theme.colors.text.primary} size={24} />
@@ -3354,7 +3361,7 @@ export default function ProfileScreen() {
               }}
             >
               <Heading level={5} style={{}}>
-                {isRTL ? "Ø§Ø®ØªØ± ÙˆÙ‚Øª Ø§Ù„Ø¨Ø¯Ø§ÙŠØ©" : "Select Start Time"}
+                {isRTL ? "اختر وقت البداية" : "Select Start Time"}
               </Heading>
               <TouchableOpacity onPress={() => setShowStartTimePicker(false)}>
                 <X color={theme.colors.text.primary} size={24} />
@@ -3369,7 +3376,7 @@ export default function ProfileScreen() {
             >
               <View style={{ flex: 1 }}>
                 <TypographyText style={{ marginBottom: 8 }}>
-                  {isRTL ? "Ø³Ø§Ø¹Ø©" : "Hour"}
+                  {isRTL ? "ساعة" : "Hour"}
                 </TypographyText>
                 <ScrollView style={{ maxHeight: 200 }}>
                   {Array.from({ length: 24 }, (_, i) => {
@@ -3409,7 +3416,7 @@ export default function ProfileScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <TypographyText style={{ marginBottom: 8 }}>
-                  {isRTL ? "Ø¯Ù‚ÙŠÙ‚Ø©" : "Minute"}
+                  {isRTL ? "دقيقة" : "Minute"}
                 </TypographyText>
                 <ScrollView style={{ maxHeight: 200 }}>
                   {Array.from({ length: 60 }, (_, i) => {
@@ -3450,7 +3457,7 @@ export default function ProfileScreen() {
             </View>
             <Button
               onPress={() => setShowStartTimePicker(false)}
-              title={isRTL ? "ØªÙ…" : "Done"}
+              title={isRTL ? "تم" : "Done"}
               variant="primary"
             />
           </View>
@@ -3488,9 +3495,7 @@ export default function ProfileScreen() {
               }}
             >
               <Heading level={5} style={{}}>
-                {isRTL
-                  ? "Ø§Ø®ØªØ± ØªØ§Ø±ÙŠØ® Ø§Ù„Ù†Ù‡Ø§ÙŠØ©"
-                  : "Select End Date"}
+                {isRTL ? "اختر تاريخ النهاية" : "Select End Date"}
               </Heading>
               <TouchableOpacity onPress={() => setShowEndDatePicker(false)}>
                 <X color={theme.colors.text.primary} size={24} />
@@ -3583,7 +3588,7 @@ export default function ProfileScreen() {
               }}
             >
               <Heading level={5} style={{}}>
-                {isRTL ? "Ø§Ø®ØªØ± ÙˆÙ‚Øª Ø§Ù„Ù†Ù‡Ø§ÙŠØ©" : "Select End Time"}
+                {isRTL ? "اختر وقت النهاية" : "Select End Time"}
               </Heading>
               <TouchableOpacity onPress={() => setShowEndTimePicker(false)}>
                 <X color={theme.colors.text.primary} size={24} />
@@ -3598,7 +3603,7 @@ export default function ProfileScreen() {
             >
               <View style={{ flex: 1 }}>
                 <TypographyText style={{ marginBottom: 8 }}>
-                  {isRTL ? "Ø³Ø§Ø¹Ø©" : "Hour"}
+                  {isRTL ? "ساعة" : "Hour"}
                 </TypographyText>
                 <ScrollView style={{ maxHeight: 200 }}>
                   {Array.from({ length: 24 }, (_, i) => {
@@ -3645,7 +3650,7 @@ export default function ProfileScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <TypographyText style={{ marginBottom: 8 }}>
-                  {isRTL ? "Ø¯Ù‚ÙŠÙ‚Ø©" : "Minute"}
+                  {isRTL ? "دقيقة" : "Minute"}
                 </TypographyText>
                 <ScrollView style={{ maxHeight: 200 }}>
                   {Array.from({ length: 60 }, (_, i) => {
@@ -3693,7 +3698,7 @@ export default function ProfileScreen() {
             </View>
             <Button
               onPress={() => setShowEndTimePicker(false)}
-              title={isRTL ? "ØªÙ…" : "Done"}
+              title={isRTL ? "تم" : "Done"}
               variant="primary"
             />
           </View>
