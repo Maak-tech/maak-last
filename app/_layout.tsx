@@ -23,28 +23,14 @@ import {
   NotoSansArabic_600SemiBold,
   NotoSansArabic_700Bold,
 } from "@expo-google-fonts/noto-sans-arabic";
+import * as Sentry from "@sentry/react-native";
 import * as Notifications from "expo-notifications";
 import { Stack, useNavigationContainerRef } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
-import { AppState, LogBox, Platform, Text as RNText } from "react-native";
-
-// Initialize React Native Firebase early (must be imported before any Firebase operations)
-// This ensures the default Firebase app is initialized from native config files
-// React Native Firebase auto-initializes from GoogleService-Info.plist (iOS) and google-services.json (Android)
-if (Platform.OS !== "web") {
-  try {
-    // Import React Native Firebase app module - this initializes Firebase from native config
-    require("@react-native-firebase/app");
-  } catch (_error) {
-    // React Native Firebase not available (e.g., in Expo Go or web)
-    // This is expected and will be handled gracefully in AuthContext
-  }
-}
-
-import * as Sentry from "@sentry/react-native";
 import { I18nextProvider } from "react-i18next";
+import { AppState, LogBox, Platform, Text as RNText } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import MedicationAlarmModal from "@/components/MedicationAlarmModal";

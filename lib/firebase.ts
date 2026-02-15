@@ -20,33 +20,11 @@ import { getFunctions } from "firebase/functions";
 import { getStorage } from "firebase/storage";
 import { Platform } from "react-native";
 
-type RNFirebaseAppModule = {
-  default?: unknown;
-};
-
 const hasErrorCode = (error: unknown, code: string): boolean =>
   typeof error === "object" &&
   error !== null &&
   "code" in error &&
   (error as { code?: string }).code === code;
-
-// Initialize React Native Firebase early for native platforms
-// This ensures the default Firebase app is initialized from native config files
-// before any Firebase operations are attempted
-let rnFirebaseApp: RNFirebaseAppModule | null = null;
-if (Platform.OS !== "web") {
-  try {
-    // Import React Native Firebase app module - this auto-initializes Firebase
-    // from GoogleService-Info.plist (iOS) and google-services.json (Android)
-    const rnFirebase = require("@react-native-firebase/app") as {
-      default?: RNFirebaseAppModule;
-    };
-    rnFirebaseApp = rnFirebase.default ?? null;
-  } catch (_error) {
-    // React Native Firebase not available (e.g., in Expo Go or web)
-    // This is expected and will be handled gracefully
-  }
-}
 
 // Default Firebase configuration
 // Note: For native iOS/Android, GoogleService-Info.plist and google-services.json
@@ -194,14 +172,8 @@ try {
   try {
     app = getApp();
   } catch {
-    // On native platforms, React Native Firebase might be the only option
-    if (Platform.OS !== "web" && rnFirebaseApp) {
-      // Continue with a guarded fallback web app initialization below.
-      // Do not crash startup.
-    } else {
-      // Continue with a guarded fallback web app initialization below.
-      // Do not crash startup.
-    }
+    // Continue with a guarded fallback web app initialization below.
+    // Do not crash startup.
   }
 }
 

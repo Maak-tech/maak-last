@@ -4,13 +4,7 @@ import { Platform } from "react-native";
 // Set EXPO_PUBLIC_ENABLE_CRASHLYTICS=false to force-disable.
 function isCrashlyticsEnabled(): boolean {
   const envToggle = process.env.EXPO_PUBLIC_ENABLE_CRASHLYTICS;
-  if (envToggle === "true") {
-    return true;
-  }
-  if (envToggle === "false") {
-    return false;
-  }
-  return process.env.NODE_ENV === "production";
+  return envToggle === "true";
 }
 
 type CrashlyticsLike = {
