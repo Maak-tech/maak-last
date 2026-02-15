@@ -7,6 +7,9 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "env": {
+        "SENTRY_ALLOW_FAILURE": "true"
+      },
       "ios": {
         "resourceClass": "m-medium",
         "simulator": false,
@@ -18,6 +21,9 @@
     },
     "preview": {
       "distribution": "internal",
+      "env": {
+        "SENTRY_ALLOW_FAILURE": "true"
+      },
       "ios": {
         "resourceClass": "m-medium",
         "simulator": false,
@@ -29,6 +35,9 @@
       }
     },
     "production": {
+      "env": {
+        "SENTRY_ALLOW_FAILURE": "true"
+      },
       "ios": {
         "resourceClass": "m-medium",
         "buildConfiguration": "Release",
