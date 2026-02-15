@@ -19,8 +19,46 @@ type CrashlyticsLike = {
   recordError: (error: Error, jsErrorName?: string) => void;
 };
 
+/**
+ * Checks if React Native Firebase app is ready by verifying the default app exists.
+ * This prevents the race condition where Crashlytics tries to access Firebase before initialization.
+ */
+function isRNFirebaseReady(): boolean {
+  if (Platform.OS === "web") {
+    return false;
+  }
+
+  try {
+    // Try to access the React Native Firebase app module
+    const rnFirebaseApp = require("@react-native-firebase/app");
+    
+    // Check if the default Firebase app exists
+    if (typeof rnFirebaseApp === "function") {
+      const app = rnFirebaseApp();
+      return app != null;
+    }
+    
+    if (typeof rnFirebaseApp?.default === "function") {
+      const app = rnFirebaseApp.default();
+      return app != null;
+    }
+    
+    // If we can require the module, assume it's initialized
+    return true;
+  } catch {
+    // Firebase app module not available or not initialized
+    return false;
+  }
+}
+
 function getCrashlytics(): CrashlyticsLike | null {
   if (Platform.OS === "web" || !isCrashlyticsEnabled()) {
+    return null;
+  }
+
+  // Ensure Firebase is ready before attempting to load Crashlytics
+  // This prevents the "No Firebase App '[DEFAULT]' has been created" error
+  if (!isRNFirebaseReady()) {
     return null;
   }
 
@@ -40,31 +78,34 @@ function getCrashlytics(): CrashlyticsLike | null {
 }
 
 export async function initializeCrashlytics(): Promise<boolean> {
-  const crashlytics = getCrashlytics();
-  if (!crashlytics) {
-    return false;
-  }
-
   try {
+    const crashlytics = getCrashlytics();
+    if (!crashlytics) {
+      return false;
+    }
+
     await crashlytics.setCrashlyticsCollectionEnabled(true);
     crashlytics.log("Crashlytics initialized");
     return true;
-  } catch {
+  } catch (error) {
+    // Silently handle initialization errors - Crashlytics should never crash the app
+    // This includes Firebase app not being ready or other initialization issues
     return false;
   }
 }
 
 export function recordCrashlyticsError(error: unknown, source = "js_error") {
-  const crashlytics = getCrashlytics();
-  if (!crashlytics) {
-    return;
-  }
-
   try {
+    const crashlytics = getCrashlytics();
+    if (!crashlytics) {
+      return;
+    }
+
     const normalizedError =
       error instanceof Error ? error : new Error(String(error));
     crashlytics.recordError(normalizedError, source);
   } catch {
     // Never throw from error reporter.
+    // This includes cases where Firebase is not ready or Crashlytics fails to record
   }
 }
