@@ -8,6 +8,8 @@ import "@/lib/utils/reanimatedSetup";
 import "@/lib/patchTextFontRuntime";
 // Remap Inter fonts to Arabic-safe fonts when app language is Arabic.
 import "@/lib/patchInterForArabic";
+// Ensure Firebase JS SDK initializes before consumers import services.
+import "@/lib/firebase";
 
 import {
   Inter_400Regular,
@@ -187,7 +189,7 @@ function RootLayout() {
       // This prevents race condition where Crashlytics tries to access Firebase
       // before the native layer has fully initialized
       await new Promise((resolve) => setTimeout(resolve, 100));
-      
+
       // Additional check: wait for Firebase app to be available
       let retries = 0;
       const maxRetries = 10;
@@ -195,7 +197,7 @@ function RootLayout() {
         await new Promise((resolve) => setTimeout(resolve, 100));
         retries++;
       }
-      
+
       // Initialize Crashlytics now that Firebase should be ready
       await initializeCrashlytics();
     };

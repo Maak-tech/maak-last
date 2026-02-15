@@ -1,5 +1,5 @@
 import ReactNativeAsyncStorage from "@react-native-async-storage/async-storage";
-import { type Analytics, getAnalytics } from "firebase/analytics";
+import type { Analytics } from "firebase/analytics";
 import { getApp, getApps, initializeApp } from "firebase/app";
 import {
   type Auth,
@@ -309,12 +309,15 @@ setLogLevel("error");
 // Initialize Analytics only for web platform (not supported in React Native)
 let analytics: Analytics | undefined;
 if (Platform.OS === "web" && typeof window !== "undefined") {
-  try {
-    analytics = getAnalytics(initializedApp);
-  } catch {
-    // Analytics may already be initialized or window may not be available
-    // Silently handle initialization errors
-  }
+  void (async () => {
+    try {
+      const { getAnalytics } = await import("firebase/analytics");
+      analytics = getAnalytics(initializedApp);
+    } catch {
+      // Analytics may already be initialized or may be unavailable in this runtime.
+      // Silently handle initialization errors.
+    }
+  })();
 }
 
 export { analytics };

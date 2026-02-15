@@ -31,18 +31,18 @@ function isRNFirebaseReady(): boolean {
   try {
     // Try to access the React Native Firebase app module
     const rnFirebaseApp = require("@react-native-firebase/app");
-    
+
     // Check if the default Firebase app exists
     if (typeof rnFirebaseApp === "function") {
       const app = rnFirebaseApp();
       return app != null;
     }
-    
+
     if (typeof rnFirebaseApp?.default === "function") {
       const app = rnFirebaseApp.default();
       return app != null;
     }
-    
+
     // If we can require the module, assume it's initialized
     return true;
   } catch {
