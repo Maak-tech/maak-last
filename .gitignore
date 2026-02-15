@@ -72,3 +72,11 @@ google-services.json
 pglite-debug.log
 
 .env.local
+
+# Local design prototypes / figma exports
+/.design-figma/
+/.design-figma-zip/
+
+# Local design prototypes / figma exports
+/.design-figma/
+/.design-figma-zip/

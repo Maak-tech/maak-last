@@ -1,5 +1,5 @@
 import { useNavigation, useRouter } from "expo-router";
-import { getFunctions, httpsCallable } from "firebase/functions";
+import { httpsCallable } from "firebase/functions";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -29,6 +29,7 @@ import GradientScreen from "@/components/figma/GradientScreen";
 import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/hooks/useNotifications";
+import { functions as cloudFunctions } from "@/lib/firebase";
 import { pushNotificationService } from "@/lib/services/pushNotificationService";
 import { userService } from "@/lib/services/userService";
 
@@ -118,9 +119,8 @@ export default function NotificationSettingsScreen() {
       setSaving(true);
 
       // Update settings in Firestore via Cloud Function
-      const functions = getFunctions();
       const updatePreferences = httpsCallable(
-        functions,
+        cloudFunctions,
         "updateNotificationPreferences"
       );
 
@@ -227,9 +227,8 @@ export default function NotificationSettingsScreen() {
 
     try {
       // Update settings in Firestore via Cloud Function
-      const functions = getFunctions();
       const updatePreferences = httpsCallable(
-        functions,
+        cloudFunctions,
         "updateNotificationPreferences"
       );
 

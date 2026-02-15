@@ -834,54 +834,55 @@ export default function DashboardScreen() {
   }, []);
 
   const trackingTabs = useMemo(
-    () => [
-      {
-        id: "symptoms",
-        label: isRTL ? "الأعراض الصحية" : "Symptoms",
-        description: isRTL ? "تسجيل الأعراض الصحية" : "Log health symptoms",
-        ctaLabel: isRTL ? "تسجيل" : "Log",
-        icon: Activity,
-        iconColor: theme.colors.primary.main,
-        iconBackground: theme.colors.primary[50],
-        ctaColor: theme.colors.primary.main,
-        onPress: navigateToSymptoms,
-      },
-      {
-        id: "medications",
-        label: isRTL ? "الأدوية" : "Medications",
-        description: isRTL
-          ? "إدارة الأدوية والتذكيرات"
-          : "Manage meds & reminders",
-        ctaLabel: isRTL ? "إدارة" : "Manage",
-        icon: Pill,
-        iconColor: theme.colors.accent.success,
-        iconBackground: `${theme.colors.accent.success}20`,
-        ctaColor: theme.colors.accent.success,
-        onPress: navigateToMedications,
-      },
-      {
-        id: "moods",
-        label: isRTL ? "الحالة النفسية" : "Mood",
-        description: isRTL ? "تسجيل المزاج اليومي" : "Track daily mood",
-        ctaLabel: isRTL ? "تسجيل" : "Log",
-        icon: Smile,
-        iconColor: theme.colors.accent.warning,
-        iconBackground: `${theme.colors.accent.warning}20`,
-        ctaColor: theme.colors.accent.warning,
-        onPress: navigateToMoods,
-      },
-      {
-        id: "vitals",
-        label: isRTL ? "العلامات الحيوية" : "Vitals",
-        description: isRTL ? "قياس الضغط والنبض" : "Blood pressure & pulse",
-        ctaLabel: isRTL ? "قياس" : "Measure",
-        icon: Heart,
-        iconColor: theme.colors.accent.info,
-        iconBackground: `${theme.colors.accent.info}20`,
-        ctaColor: theme.colors.accent.info,
-        onPress: navigateToVitals,
-      },
-    ],
+    () =>
+      [
+        {
+          id: "symptoms",
+          label: isRTL ? "الأعراض الصحية" : "Symptoms",
+          description: isRTL ? "تسجيل الأعراض الصحية" : "Log health symptoms",
+          ctaLabel: isRTL ? "تسجيل" : "Log",
+          icon: Activity,
+          iconColor: theme.colors.primary.main,
+          iconBackground: theme.colors.primary[50],
+          ctaColor: theme.colors.primary.main,
+          onPress: navigateToSymptoms,
+        },
+        {
+          id: "medications",
+          label: isRTL ? "الأدوية" : "Medications",
+          description: isRTL
+            ? "إدارة الأدوية والتذكيرات"
+            : "Manage meds & reminders",
+          ctaLabel: isRTL ? "إدارة" : "Manage",
+          icon: Pill,
+          iconColor: theme.colors.accent.success,
+          iconBackground: `${theme.colors.accent.success}20`,
+          ctaColor: theme.colors.accent.success,
+          onPress: navigateToMedications,
+        },
+        {
+          id: "moods",
+          label: isRTL ? "الحالة النفسية" : "Mood",
+          description: isRTL ? "تسجيل المزاج اليومي" : "Track daily mood",
+          ctaLabel: isRTL ? "تسجيل" : "Log",
+          icon: Smile,
+          iconColor: theme.colors.accent.warning,
+          iconBackground: `${theme.colors.accent.warning}20`,
+          ctaColor: theme.colors.accent.warning,
+          onPress: navigateToMoods,
+        },
+        {
+          id: "vitals",
+          label: isRTL ? "العلامات الحيوية" : "Vitals",
+          description: isRTL ? "قياس الضغط والنبض" : "Blood pressure & pulse",
+          ctaLabel: isRTL ? "قياس" : "Measure",
+          icon: Heart,
+          iconColor: theme.colors.accent.info,
+          iconBackground: `${theme.colors.accent.info}20`,
+          ctaColor: theme.colors.accent.info,
+          onPress: navigateToVitals,
+        },
+      ] as const,
     [
       isRTL,
       theme,

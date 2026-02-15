@@ -423,7 +423,6 @@ const resources = {
       eventResolved: "Event resolved",
       eventEscalated: "Event escalated",
       inviteMember: "Invite member",
-      addMedication: "Add medication",
       trackMedications: "Track medications",
       openSetup: "Open setup",
       doctorName: "Doctor name",
@@ -520,7 +519,6 @@ const resources = {
       addMedicalRecord: "Add Medical Record",
       medicalCondition: "Medical Condition",
       commonExamples: "Common Examples:",
-      severity: "Severity",
       familyMember: "Family Member",
       relationshipOptional: "Relationship (Optional)",
       notesOptional: "Notes (Optional)",
@@ -557,7 +555,6 @@ const resources = {
       member: "Member",
       location: "Location",
       optional: "Optional",
-      description: "Description",
       eventDescription: "Event description...",
 
       // Admin Settings
@@ -616,9 +613,7 @@ const resources = {
       customAllergy: "Custom Allergy",
       orEnterCustomAllergy: "Or enter custom allergy",
       reaction: "Reaction",
-      optional: "Optional",
       reactionOptional: "Reaction (optional)",
-      notesOptional: "Notes (optional)",
       // Allergy names
       allergyPeanuts: "Peanuts",
       allergyTreeNuts: "Tree Nuts",
@@ -656,7 +651,6 @@ const resources = {
       systolic: "Systolic",
       diastolic: "Diastolic",
       exportToHealthKit: "Export to HealthKit",
-      saving: "Saving...",
       invalidInput: "Invalid Input",
       pleaseEnterBothValues: "Please enter both systolic and diastolic values.",
       pleaseEnterValidNumbers: "Please enter valid numbers.",
@@ -666,7 +660,6 @@ const resources = {
         "Diastolic pressure should be between 30 and 150 mmHg.",
       systolicMustBeGreater:
         "Systolic pressure must be greater than diastolic pressure.",
-      permissionDenied: "Permission Denied",
       healthKitPermissionMessage:
         "Please grant write permissions for blood pressure in Settings > Privacy & Security > Health > [App Name] > Blood Pressure.",
       exportFailed: "Export Failed",
@@ -688,7 +681,6 @@ const resources = {
       enter: "Enter",
       vitalSigns: "Vital Signs",
       view: "View",
-      medicalHistory: "Medical History",
       labResults: "Lab Results",
       healthTimeline: "Health Timeline",
       healthData: "Health Data",
@@ -829,7 +821,6 @@ const resources = {
       accountDetails: "Account Details",
       uniqueAccountIdentifier: "Unique account identifier",
       userId: "User ID",
-      notSpecified: "Not specified",
       preferredLanguage: "Preferred Language",
       appInterfaceLanguage: "App interface language",
       forEmergenciesAndNotifications: "For emergencies and notifications",
@@ -857,9 +848,6 @@ const resources = {
       newPassword: "New Password",
       enterNewPassword: "Enter new password",
       send: "Send",
-      noMetricsSelected: "No Metrics Selected",
-      pleaseSelectAtLeastOneMetric:
-        "Please select at least one metric to continue.",
       notificationSent: "Notification Sent",
       emergencyNotificationSent:
         "Emergency notification sent to all family members",
@@ -1011,9 +999,6 @@ const resources = {
       quickActionCheckAlerts: "🚨 Check Alerts",
       quickActionSendReminders: "📱 Send Reminders",
       pleaseLogInToViewDashboard: "Please log in to view your dashboard",
-      familyAdmin: "Family Admin",
-      member: "Member",
-      manageFamilyAndSettings: "Manage family and settings",
       man: "Man",
       woman: "Woman",
       boy: "Boy",
@@ -1097,10 +1082,8 @@ const resources = {
       dataEncryptedSynced: "• Data is encrypted and securely synced",
       usedForCaregiving:
         "• Used only for caregiving insights and health tracking",
-      notNow: "Not Now",
       appleHealthOnlyIOS: "Apple Health is only available on iOS devices.",
       // Apple Health Permissions
-      selectMetrics: "Select Metrics",
       chooseHealthMetricsToSync:
         "Choose which health metrics to sync from Apple Health",
       selectAll: "Select All",
@@ -1192,7 +1175,6 @@ const resources = {
       goBack: "Go Back",
 
       // Voice Agent - Quick Actions UI
-      quickActions: "Quick Actions",
       hideQuickActions: "Hide Quick Actions",
       quickActionLogSymptom: "Log Symptom",
       quickActionMyMedications: "My Medications",
@@ -1797,7 +1779,6 @@ const resources = {
       eventResolved: "تم حل الحدث",
       eventEscalated: "تم تصعيد الحدث",
       inviteMember: "دعوة عضو",
-      addMedication: "إضافة دواء",
       trackMedications: "تتبع الأدوية",
       openSetup: "افتح الإعدادات",
       addNotes: "أضف ملاحظات...",
@@ -1889,11 +1870,8 @@ const resources = {
       addMedicalRecord: "إضافة سجل طبي",
       medicalCondition: "الحالة الطبية",
       commonExamples: "أمثلة شائعة:",
-      severity: "شدة الحالة",
-      familyMember: "عضو العائلة",
       relationshipOptional: "صلة القرابة (اختياري)",
       notesOptional: "ملاحظات (اختياري)",
-      addNotes: "أضف ملاحظات...",
       forText: "لـ",
       selectMetrics: "اختر المقاييس",
       select: "اختر",
@@ -1924,7 +1902,6 @@ const resources = {
       member: "عضو",
       location: "الموقع",
       optional: "اختياري",
-      description: "الوصف",
       eventDescription: "وصف الحدث...",
 
       // Admin Settings
@@ -1983,9 +1960,7 @@ const resources = {
       customAllergy: "حساسية مخصصة",
       orEnterCustomAllergy: "أو أدخل حساسية مخصصة",
       reaction: "رد الفعل",
-      optional: "اختياري",
       reactionOptional: "رد الفعل (اختياري)",
-      notesOptional: "ملاحظات (اختياري)",
       // Allergy names
       allergyPeanuts: "الفول السوداني",
       allergyTreeNuts: "المكسرات",
@@ -2022,7 +1997,6 @@ const resources = {
       systolic: "الانقباضي",
       diastolic: "الانبساطي",
       exportToHealthKit: "تصدير إلى HealthKit",
-      saving: "جاري الحفظ...",
       invalidInput: "إدخال غير صحيح",
       pleaseEnterBothValues: "يرجى إدخال قيم الانقباضي والانبساطي.",
       pleaseEnterValidNumbers: "يرجى إدخال أرقام صحيحة.",
@@ -2032,7 +2006,6 @@ const resources = {
         "يجب أن يكون ضغط الدم الانبساطي بين 30 و 150 ملم زئبق.",
       systolicMustBeGreater:
         "يجب أن يكون ضغط الدم الانقباضي أكبر من الانبساطي.",
-      permissionDenied: "تم رفض الإذن",
       healthKitPermissionMessage:
         "يرجى منح أذونات الكتابة لضغط الدم في الإعدادات > الخصوصية والأمان > الصحة > [اسم التطبيق] > ضغط الدم.",
       exportFailed: "فشل التصدير",
@@ -2051,7 +2024,6 @@ const resources = {
       enter: "إدخال",
       vitalSigns: "المؤشرات الحيوية",
       view: "عرض",
-      medicalHistory: "التاريخ الطبي",
       labResults: "نتائج المختبر",
       healthTimeline: "الخط الزمني الصحي",
       healthData: "البيانات الصحية",
@@ -2138,7 +2110,6 @@ const resources = {
       accountDetails: "تفاصيل الحساب",
       uniqueAccountIdentifier: "معرف فريد للحساب",
       userId: "معرف المستخدم",
-      notSpecified: "غير محدد",
       preferredLanguage: "اللغة المفضلة",
       appInterfaceLanguage: "لغة واجهة التطبيق",
       forEmergenciesAndNotifications: "للطوارئ والإشعارات",
@@ -2166,8 +2137,6 @@ const resources = {
       newPassword: "كلمة المرور الجديدة",
       enterNewPassword: "أدخل كلمة المرور الجديدة",
       send: "إرسال",
-      noMetricsSelected: "لا توجد مقاييس محددة",
-      pleaseSelectAtLeastOneMetric: "يرجى تحديد مقياس واحد على الأقل للمتابعة",
       notificationSent: "تم إرسال الإشعار",
       emergencyNotificationSent: "تم إرسال إشعار طوارئ لجميع أفراد العائلة",
       failedToSendNotification: "فشل إرسال الإشعار. حاول مرة أخرى.",
@@ -2315,10 +2284,6 @@ const resources = {
       quickActionCheckAlerts: "🚨 فحص التنبيهات",
       quickActionSendReminders: "📱 إرسال تذكيرات",
       pleaseLogInToViewDashboard: "يرجى تسجيل الدخول لعرض لوحة التحكم",
-      familyAdmin: "مدير العائلة",
-      member: "عضو",
-      manageFamilyAndSettings: "إدارة العائلة والإعدادات",
-      familyMember: "عضو في العائلة",
       man: "رجل",
       woman: "امرأة",
       boy: "صبي",
@@ -2399,10 +2364,8 @@ const resources = {
       readOnlyAccess: "• وصول للقراءة فقط - لا نكتب أبداً في بياناتك الصحية",
       dataEncryptedSynced: "• البيانات مشفرة ومزامنة بشكل آمن",
       usedForCaregiving: "• تُستخدم فقط لرؤى الرعاية وتتبع الصحة",
-      notNow: "ليس الآن",
       appleHealthOnlyIOS: "Apple Health متاح فقط على أجهزة iOS.",
       // Apple Health Permissions
-      selectMetrics: "اختر المقاييس",
       chooseHealthMetricsToSync:
         "اختر مقاييس الصحة التي تريد مزامنتها من Apple Health",
       selectAll: "تحديد الكل",
@@ -2494,7 +2457,6 @@ const resources = {
       goBack: "العودة",
 
       // Voice Agent - Quick Actions UI
-      quickActions: "إجراءات سريعة",
       hideQuickActions: "إخفاء الإجراءات السريعة",
       quickActionLogSymptom: "تسجيل عرض",
       quickActionMyMedications: "أدويتي",

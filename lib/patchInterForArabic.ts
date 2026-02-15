@@ -43,10 +43,10 @@ if (
   (StyleSheet as unknown as { __maakArabicPatch?: boolean }).__maakArabicPatch =
     true;
 
-  StyleSheet.create = ((styles: Record<string, unknown>) => {
+  StyleSheet.create = ((styles: any) => {
     if (!shouldUseArabicFont()) {
-      return originalCreate(styles);
+      return originalCreate(styles as any);
     }
-    return originalCreate(remapFontFamily(styles) as Record<string, object>);
-  }) as typeof StyleSheet.create;
+    return originalCreate(remapFontFamily(styles) as any);
+  }) as any;
 }

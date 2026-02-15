@@ -12,6 +12,14 @@ export type EmergencyContact = {
   phone: string;
 };
 
+export type CareTeamMember = {
+  id: string;
+  name: string;
+  specialty: string;
+  phone?: string;
+  email?: string;
+};
+
 export type User = {
   id: string;
   email?: string;
@@ -30,6 +38,7 @@ export type User = {
     language: "en" | "ar";
     notifications: boolean;
     emergencyContacts: EmergencyContact[];
+    careTeam?: CareTeamMember[];
   };
 };
 

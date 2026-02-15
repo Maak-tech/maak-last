@@ -142,7 +142,7 @@ export default function WavyBackground({
   return (
     <View style={[styles.container, { height }]}>
       <ExpoLinearGradient
-        colors={colors.gradient}
+        colors={colors.gradient as [string, string, ...string[]]}
         end={{ x: 1, y: 1 }}
         start={{ x: 0, y: 0 }}
         style={StyleSheet.absoluteFill}

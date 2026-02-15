@@ -20,7 +20,7 @@ type TabConfig = {
   icon: (color: string, size: number) => React.ReactNode;
 };
 
-const TAB_GRADIENT = ["#003543", "#004552", "#00667A"];
+const TAB_GRADIENT = ["#003543", "#004552", "#00667A"] as const;
 
 const getTabConfig = (
   getText: (key: string, defaultValue: string) => string
@@ -78,10 +78,10 @@ export default function BottomNavBar({
       <View style={styles.container}>
         {state.routes.map((route, index) => {
           const options = descriptors[route.key]?.options;
-          if (
-            options?.tabBarStyle?.display === "none" ||
-            options?.href === null
-          ) {
+          const tabBarDisplay = StyleSheet.flatten(
+            options?.tabBarStyle as any
+          )?.display;
+          if (tabBarDisplay === "none" || (options as any)?.href === null) {
             return null;
           }
 

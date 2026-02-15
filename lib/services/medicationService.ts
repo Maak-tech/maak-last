@@ -77,16 +77,7 @@ const dismissMedicationReminderNotifications = async (options: {
 
   try {
     const Notifications = await import("expo-notifications");
-    const getPresented =
-      Notifications.getPresentedNotificationsAsync ||
-      Notifications.getDeliveredNotificationsAsync;
-    const dismiss = Notifications.dismissNotificationAsync;
-
-    if (!(getPresented && dismiss)) {
-      return;
-    }
-
-    const presented = await getPresented();
+    const presented = await Notifications.getPresentedNotificationsAsync();
     for (const notification of presented as any[]) {
       const request = notification.request || notification;
       const content = request?.content || notification.content;
@@ -121,7 +112,7 @@ const dismissMedicationReminderNotifications = async (options: {
       const identifier = notification.identifier || request?.identifier;
       if (identifier) {
         try {
-          await dismiss(identifier);
+          await Notifications.dismissNotificationAsync(identifier);
         } catch {
           // Silently handle dismissal error
         }

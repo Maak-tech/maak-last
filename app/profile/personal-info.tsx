@@ -89,7 +89,7 @@ function InfoCard({
 }
 
 export default function PersonalInfoScreen() {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const { user, updateUser } = useAuth();
   const router = useRouter();
   const navigation = useNavigation();

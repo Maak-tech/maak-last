@@ -8,11 +8,11 @@ import {
 
 type GradientScreenProps = SafeAreaViewProps & {
   containerStyle?: StyleProp<ViewStyle>;
-  gradientColors?: string[];
-  gradientLocations?: number[];
+  gradientColors?: readonly string[];
+  gradientLocations?: readonly number[];
 };
 
-const DEFAULT_GRADIENT = ["#F0FAFB", "#F9FDFE", "#E6F7F9"];
+const DEFAULT_GRADIENT = ["#F0FAFB", "#F9FDFE", "#E6F7F9"] as const;
 
 export default function GradientScreen({
   children,
@@ -22,10 +22,19 @@ export default function GradientScreen({
   gradientLocations,
   ...rest
 }: GradientScreenProps) {
+  const resolvedColors =
+    gradientColors.length >= 2 ? gradientColors : [...DEFAULT_GRADIENT];
+  const resolvedLocations =
+    gradientLocations && gradientLocations.length >= 2
+      ? gradientLocations
+      : undefined;
+
   return (
     <LinearGradient
-      colors={gradientColors}
-      locations={gradientLocations}
+      colors={resolvedColors as [string, string, ...string[]]}
+      locations={
+        resolvedLocations as [number, number, ...number[]] | null | undefined
+      }
       style={[styles.container, containerStyle]}
     >
       <SafeAreaView {...rest} style={[styles.safeArea, style]}>

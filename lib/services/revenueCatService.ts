@@ -13,6 +13,8 @@ import { ensureRevenueCatDirectory } from "@/modules/expo-revenuecat-directory";
 
 const IS_DEV = process.env.NODE_ENV !== "production";
 
+type LogHandler = Parameters<typeof Purchases.setLogHandler>[0];
+
 // RevenueCat API Key - Load from environment variables
 // Use production key in production builds, test key in development
 const getRevenueCatApiKey = (): string => {

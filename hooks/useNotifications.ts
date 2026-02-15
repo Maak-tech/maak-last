@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { Platform } from "react-native";
 import { useAuth } from "@/contexts/AuthContext";
+import i18n from "@/lib/i18n";
 import { userService } from "@/lib/services/userService";
 import { logger } from "@/lib/utils/logger";
 
@@ -149,14 +150,38 @@ export const useNotifications = () => {
 
           notificationListener.current =
             Notifications.addNotificationReceivedListener((notification) => {
-              const data = notification.request.content.data;
+              const data = notification.request.content.data as Record<
+                string,
+                unknown
+              >;
               if (data?.type === "medication_reminder") {
+                const medicationId =
+                  typeof data.medicationId === "string"
+                    ? data.medicationId
+                    : null;
+                if (!medicationId) {
+                  return;
+                }
                 emitMedicationAlarm({
-                  medicationId: data.medicationId,
-                  medicationName: data.medicationName || "Medication",
-                  dosage: data.dosage,
-                  reminderId: data.reminderId,
-                  reminderTime: data.reminderTime,
+                  medicationId,
+                  medicationName:
+                    typeof data.medicationName === "string"
+                      ? data.medicationName
+                      : "Medication",
+                  dosage:
+                    typeof data.dosage === "string"
+                      ? data.dosage
+                      : data.dosage != null
+                        ? String(data.dosage)
+                        : undefined,
+                  reminderId:
+                    typeof data.reminderId === "string"
+                      ? data.reminderId
+                      : undefined,
+                  reminderTime:
+                    typeof data.reminderTime === "string"
+                      ? data.reminderTime
+                      : undefined,
                 });
                 // Haptic feedback when app is in foreground
                 try {
@@ -174,15 +199,39 @@ export const useNotifications = () => {
             Notifications.addNotificationResponseReceivedListener(
               (response) => {
                 const { actionIdentifier, notification } = response;
-                const data = notification.request.content.data;
+                const data = notification.request.content.data as Record<
+                  string,
+                  unknown
+                >;
 
                 if (data?.type === "medication_reminder") {
+                  const medicationId =
+                    typeof data.medicationId === "string"
+                      ? data.medicationId
+                      : null;
+                  if (!medicationId) {
+                    return;
+                  }
                   emitMedicationAlarm({
-                    medicationId: data.medicationId,
-                    medicationName: data.medicationName || "Medication",
-                    dosage: data.dosage,
-                    reminderId: data.reminderId,
-                    reminderTime: data.reminderTime,
+                    medicationId,
+                    medicationName:
+                      typeof data.medicationName === "string"
+                        ? data.medicationName
+                        : "Medication",
+                    dosage:
+                      typeof data.dosage === "string"
+                        ? data.dosage
+                        : data.dosage != null
+                          ? String(data.dosage)
+                          : undefined,
+                    reminderId:
+                      typeof data.reminderId === "string"
+                        ? data.reminderId
+                        : undefined,
+                    reminderTime:
+                      typeof data.reminderTime === "string"
+                        ? data.reminderTime
+                        : undefined,
                   });
                 }
 

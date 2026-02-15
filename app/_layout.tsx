@@ -309,8 +309,8 @@ function RootLayout() {
       fontsLoaded
     );
 
-    RNText.defaultProps = RNText.defaultProps || {};
-    RNText.defaultProps.style = undefined;
+    (RNText as any).defaultProps = (RNText as any).defaultProps || {};
+    (RNText as any).defaultProps.style = undefined;
     console.log("✓ Text defaults reset; runtime Arabic patch active");
     if (i18n.language === "ar") {
       console.log("[Arabic Debug] literal:", "مرحباً بالعالم");

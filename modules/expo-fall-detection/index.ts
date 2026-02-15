@@ -17,7 +17,7 @@ export type StartFallDetectionOptions = {
   minConfidence?: number;
 };
 
-const emitter = new EventEmitter(ExpoFallDetectionModule);
+const emitter = new EventEmitter(ExpoFallDetectionModule as any);
 
 export function isAvailable(): Promise<FallDetectionAvailability> {
   if (typeof ExpoFallDetectionModule.isAvailable !== "function") {
@@ -69,7 +69,7 @@ export function clearPendingEvents(): Promise<boolean> {
 export function addFallDetectedListener(
   listener: (event: BackgroundFallDetectionEvent) => void
 ) {
-  return emitter.addListener("onFallDetected", listener);
+  return (emitter as any).addListener("onFallDetected", listener);
 }
 
 export default {

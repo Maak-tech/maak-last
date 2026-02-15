@@ -8,6 +8,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { healthDataService } from "@/lib/services/healthDataService";
 import { logger } from "@/lib/utils/logger";
 import type { HealthScore, RiskAssessment } from "./healthAnalytics";
 import {

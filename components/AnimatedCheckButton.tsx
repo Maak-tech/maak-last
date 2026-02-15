@@ -1,5 +1,5 @@
 import { ImpactFeedbackStyle, impactAsync } from "expo-haptics";
-import { Circle } from "lucide-react-native";
+import { Circle, CircleDot } from "lucide-react-native";
 import type React from "react";
 import { useEffect } from "react";
 import {

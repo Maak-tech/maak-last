@@ -706,6 +706,9 @@ export default function TrackScreen() {
         return new Date(); // Fallback to current date
       }
     }
+    if (typeof value === "object") {
+      return null;
+    }
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) {
       return null;

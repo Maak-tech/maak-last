@@ -13,6 +13,7 @@ import {
   observabilityEmitter,
   type VitalReading,
 } from "@/lib/observability";
+import { createHealthEvent } from "@/src/health/events/createHealthEvent";
 import { alertService } from "./alertService";
 import { dexcomService } from "./dexcomService";
 import { freestyleLibreService } from "./freestyleLibreService";

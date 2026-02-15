@@ -60,6 +60,7 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   InteractionManager,
   Modal,
   Platform,
@@ -110,6 +111,7 @@ import { userService } from "@/lib/services/userService";
 import type {
   AvatarType,
   CalendarEvent,
+  CareTeamMember,
   Medication,
   RecurrencePattern,
   Symptom,
@@ -197,15 +199,7 @@ export default function ProfileScreen() {
   const [includeFamily, _setIncludeFamily] = useState(true);
   const [showAddEventModal, setShowAddEventModal] = useState(false);
   const [showCareTeamModal, setShowCareTeamModal] = useState(false);
-  const [careTeam, setCareTeam] = useState<
-    Array<{
-      id: string;
-      name: string;
-      specialty: string;
-      phone: string;
-      email: string;
-    }>
-  >([]);
+  const [careTeam, setCareTeam] = useState<CareTeamMember[]>([]);
   const [newDoctor, setNewDoctor] = useState({
     name: "",
     specialty: "",
@@ -612,6 +606,9 @@ export default function ProfileScreen() {
               heartRate: number[];
               sleepHours: number[];
               steps: number[];
+              hasHeartRateData: boolean;
+              hasStepsData: boolean;
+              hasSleepData: boolean;
             }>,
           ];
 
@@ -626,7 +623,14 @@ export default function ProfileScreen() {
                     { status: "fulfilled", value: null },
                     {
                       status: "fulfilled",
-                      value: { heartRate: [], sleepHours: [], steps: [] },
+                      value: {
+                        heartRate: [],
+                        sleepHours: [],
+                        steps: [],
+                        hasHeartRateData: false,
+                        hasStepsData: false,
+                        hasSleepData: false,
+                      },
                     },
                   ]),
                 8000 // Reduced to 8 second timeout
@@ -644,7 +648,7 @@ export default function ProfileScreen() {
             medicationService.getUserMedications(user.id), // Medications are usually fewer
             healthDataService.getLatestVitals(),
             fetchVitalsSparklines(user.id),
-          ]);
+          ] as const);
 
           const results = await Promise.race([dataPromise, timeoutPromise]);
 
@@ -1510,6 +1514,7 @@ export default function ProfileScreen() {
       label: t("healthInsights", "Health Insights"),
       value: isRTL ? "ملخص ذكي" : "AI Summary",
       trend: isRTL ? "اضغط للعرض" : "Tap to view",
+      trendDirection: "stable" as const,
       sparkline: [2, 3, 2, 4, 3, 5, 4],
       color: "#6366F1",
       onPress: handleHealthInsightsPress,

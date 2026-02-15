@@ -91,18 +91,21 @@ export const pushNotificationService = {
       const isMedicationReminder =
         notification.data?.type === "medication_reminder";
 
+      const content: any = {
+        title: notification.title,
+        body: notification.body,
+        data: notification.data,
+        sound: notification.sound || "default",
+        priority: notification.priority === "high" ? "high" : "normal",
+        badge: notification.badge || 1,
+        color: notification.color || "#2563EB",
+        // Android-only (typed loosely due to expo-notifications version differences)
+        channelId: isMedicationReminder ? "medication" : undefined,
+        categoryIdentifier: isMedicationReminder ? "MEDICATION" : undefined,
+      };
+
       await Notifications.scheduleNotificationAsync({
-        content: {
-          title: notification.title,
-          body: notification.body,
-          data: notification.data,
-          sound: notification.sound || "default",
-          priority: notification.priority === "high" ? "high" : "normal",
-          badge: notification.badge || 1,
-          color: notification.color || "#2563EB",
-          channelId: isMedicationReminder ? "medication" : undefined,
-          categoryIdentifier: isMedicationReminder ? "MEDICATION" : undefined,
-        },
+        content,
         trigger: null, // Send immediately
       });
     } catch (_error) {

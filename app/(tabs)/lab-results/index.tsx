@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Modal,
   RefreshControl,
   ScrollView,
@@ -747,8 +748,16 @@ export default function LabResultsScreen() {
                     </View>
                     <TouchableOpacity
                       onPress={() => {
-                        if (result.attachments && result.attachments[0]) {
-                          router.push(result.attachments[0]);
+                        const url = result.attachments?.[0];
+                        if (url) {
+                          Linking.openURL(url).catch(() => {
+                            Alert.alert(
+                              isRTL ? "خطأ" : "Error",
+                              isRTL
+                                ? "تعذر فتح الملف."
+                                : "Unable to open attachment."
+                            );
+                          });
                         }
                       }}
                       style={styles.figmaLabDownloadButton as ViewStyle}

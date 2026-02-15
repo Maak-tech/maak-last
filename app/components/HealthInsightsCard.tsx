@@ -16,6 +16,7 @@ import {
 import { Card } from "@/components/design-system";
 import { Badge } from "@/components/design-system/AdditionalComponents";
 import { Caption, Heading, Text } from "@/components/design-system/Typography";
+import Sparkline from "@/components/figma/Sparkline";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import {

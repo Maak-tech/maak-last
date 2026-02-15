@@ -429,20 +429,6 @@ export default function TrackScreen() {
           alignItems: "center" as const,
           marginBottom: 12,
         },
-        sectionTitle: {
-          fontSize: 18,
-          fontFamily: "Inter-Bold",
-          color: "#0F172A",
-        },
-        viewAllButton: {
-          flexDirection: "row" as const,
-          alignItems: "center" as const,
-        },
-        viewAllText: {
-          fontSize: 12,
-          fontFamily: "Inter-SemiBold",
-          color: "#0F766E",
-        },
         categoriesGrid: {
           flexDirection: "row" as const,
           flexWrap: "wrap" as const,
@@ -707,6 +693,11 @@ export default function TrackScreen() {
             "regular",
             theme.colors.text.secondary
           ),
+        },
+        emptyText: {
+          ...getTextStyle(theme, "body", "medium", theme.colors.text.secondary),
+          textAlign: "center" as const,
+          paddingVertical: theme.spacing.md,
         },
         viewAllButton: {
           flexDirection: "row" as const,

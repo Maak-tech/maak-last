@@ -58,35 +58,87 @@ function isValidPlist(filePath) {
   }
 }
 
-if (!isConfigIntrospection) {
-  if (process.env.GOOGLE_SERVICES_JSON) {
-    try {
-      const decoded = Buffer.from(process.env.GOOGLE_SERVICES_JSON, "base64");
-      fs.writeFileSync("./google-services.json", decoded);
-    } catch (_error) {
-      // Silently handle restore error
-    }
+/**
+ * Restore Firebase native config files from EAS environment variables.
+ *
+ * IMPORTANT:
+ * EAS Build uses an "introspect" config pass to read `googleServicesFile`.
+ * If we skip restoration during introspection, iOS builds may end up missing
+ * `GoogleService-Info.plist`, causing React Native Firebase modules (e.g. Crashlytics)
+ * to crash at runtime with "initializeApp() missing" / missing default app errors.
+ *
+ * To keep builds resilient:
+ * - Always attempt restoration (even during introspection)
+ * - Only write files after validating decoded content
+ * - Accept either raw file content or base64-encoded content
+ */
+const maybeDecodeBase64 = (value) => {
+  if (typeof value !== "string") {
+    return "";
   }
-  if (process.env.GOOGLE_SERVICE_INFO_PLIST) {
-    try {
-      const decoded = Buffer.from(
-        process.env.GOOGLE_SERVICE_INFO_PLIST,
-        "base64"
-      );
-      // Validate it's valid XML/plist before writing
-      const decodedStr = decoded.toString("utf8");
-      if (
-        decodedStr.includes("<?xml") ||
-        decodedStr.includes("<!DOCTYPE plist") ||
-        decodedStr.includes("<plist")
-      ) {
-        fs.writeFileSync("./GoogleService-Info.plist", decoded);
-      }
-    } catch (_error) {
-      // Silently handle restore error
-    }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
   }
-}
+  // If it already looks like raw JSON or XML, return as-is.
+  if (
+    trimmed.startsWith("{") ||
+    trimmed.startsWith("<?xml") ||
+    trimmed.includes("<plist")
+  ) {
+    return trimmed;
+  }
+  try {
+    return Buffer.from(trimmed, "base64").toString("utf8").trim();
+  } catch {
+    return "";
+  }
+};
+
+const restoreGoogleServicesJson = () => {
+  const secret = readFirstSecret("GOOGLE_SERVICES_JSON");
+  if (!secret) {
+    return;
+  }
+  const decoded = maybeDecodeBase64(secret);
+  if (!decoded) {
+    return;
+  }
+  try {
+    // Validate JSON before writing to disk.
+    JSON.parse(decoded);
+    fs.writeFileSync("./google-services.json", decoded);
+  } catch {
+    // Ignore invalid JSON (prevents writing corrupted files that can break builds)
+  }
+};
+
+const restoreGoogleServiceInfoPlist = () => {
+  // Support both commonly used key spellings.
+  const secret = readFirstSecret(
+    "GOOGLE_SERVICE_INFO_PLIST",
+    "GOOGLE_SERVICES_INFO_PLIST"
+  );
+  if (!secret) {
+    return;
+  }
+  const decoded = maybeDecodeBase64(secret);
+  if (!decoded) {
+    return;
+  }
+  // Validate it's valid XML/plist before writing.
+  if (
+    decoded.includes("<?xml") ||
+    decoded.includes("<!DOCTYPE plist") ||
+    decoded.includes("<plist")
+  ) {
+    fs.writeFileSync("./GoogleService-Info.plist", decoded);
+  }
+};
+
+// Always run restorations (even during config introspection).
+restoreGoogleServicesJson();
+restoreGoogleServiceInfoPlist();
 
 // Remove corrupted plist file if it exists and is invalid
 const plistPath = path.join(__dirname, "GoogleService-Info.plist");

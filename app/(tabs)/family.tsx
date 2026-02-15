@@ -39,6 +39,8 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
+  type AlertButton,
+  Image,
   InteractionManager,
   Keyboard,
   Linking,
@@ -1623,9 +1625,9 @@ export default function FamilyScreen() {
 
     if (!canEdit) {
       Alert.alert(
-        isRTL ? "ØºÙŠØ± Ù…Ø³Ù…ÙˆØ­" : "Not Permitted",
+        isRTL ? "غير مسموح" : "Not Permitted",
         isRTL
-          ? "Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ ØµÙ„Ø§Ø­ÙŠØ© Ù„ØªØ¹Ø¯ÙŠÙ„ Ù‡Ø°Ø§ Ø§Ù„Ø¹Ø¶Ùˆ"
+          ? "ليس لديك صلاحية لتعديل هذا العضو"
           : "You do not have permission to edit this member"
       );
       return;
@@ -1644,10 +1646,8 @@ export default function FamilyScreen() {
   const handleSaveEditMember = async () => {
     if (!editMemberForm.firstName.trim()) {
       Alert.alert(
-        isRTL ? "Ø®Ø·Ø£" : "Error",
-        isRTL
-          ? "ÙŠØ±Ø¬Ù‰ Ø¥Ø¯Ø®Ø§Ù„ Ø§Ù„Ø§Ø³Ù… Ø§Ù„Ø£ÙˆÙ„"
-          : "Please enter a first name"
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "يرجى إدخال الاسم الأول" : "Please enter a first name"
       );
       return;
     }
@@ -1673,10 +1673,8 @@ export default function FamilyScreen() {
           editMemberForm.role !== "caregiver"
         ) {
           Alert.alert(
-            isRTL ? "Ø®Ø·Ø£" : "Error",
-            isRTL
-              ? "ÙŠØ±Ø¬Ù‰ Ø§Ø®ØªÙŠØ§Ø± Ø¯ÙˆØ± ØµØ­ÙŠØ­"
-              : "Please select a valid role"
+            isRTL ? "خطأ" : "Error",
+            isRTL ? "يرجى اختيار دور صحيح" : "Please select a valid role"
           );
           return;
         }
@@ -1698,17 +1696,13 @@ export default function FamilyScreen() {
       });
 
       Alert.alert(
-        isRTL ? "ØªÙ… Ø§Ù„Ø­ÙØ¸" : "Saved",
-        isRTL
-          ? "ØªÙ… ØªØ­Ø¯ÙŠØ« Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø¹Ø¶Ùˆ Ø¨Ù†Ø¬Ø§Ø­"
-          : "Member updated successfully"
+        isRTL ? "تم الحفظ" : "Saved",
+        isRTL ? "تم تحديث بيانات العضو بنجاح" : "Member updated successfully"
       );
     } catch (_error) {
       Alert.alert(
-        isRTL ? "Ø®Ø·Ø£" : "Error",
-        isRTL
-          ? "ÙØ´Ù„ ÙÙŠ ØªØ­Ø¯ÙŠØ« Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø¹Ø¶Ùˆ"
-          : "Failed to update member"
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "فشل في تحديث بيانات العضو" : "Failed to update member"
       );
     } finally {
       setEditLoading(false);
@@ -1719,9 +1713,9 @@ export default function FamilyScreen() {
     // Check permissions: only admins can delete members, and members can't delete themselves
     if (user?.role !== "admin") {
       Alert.alert(
-        isRTL ? "ØºÙŠØ± Ù…Ø³Ù…ÙˆØ­" : "Not Permitted",
+        isRTL ? "غير مسموح" : "Not Permitted",
         isRTL
-          ? "Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ ØµÙ„Ø§Ø­ÙŠØ© Ù„Ø­Ø°Ù Ø£Ø¹Ø¶Ø§Ø¡ Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©"
+          ? "ليس لديك صلاحية لحذف أعضاء العائلة"
           : "You do not have permission to remove family members"
       );
       return;
@@ -1730,26 +1724,26 @@ export default function FamilyScreen() {
     // Prevent deleting yourself
     if (member.id === user?.id) {
       Alert.alert(
-        isRTL ? "ØºÙŠØ± Ù…Ø³Ù…ÙˆØ­" : "Not Permitted",
+        isRTL ? "غير مسموح" : "Not Permitted",
         isRTL
-          ? "Ù„Ø§ ÙŠÙ…ÙƒÙ†Ùƒ Ø­Ø°Ù Ù†ÙØ³Ùƒ Ù…Ù† Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©"
+          ? "لا يمكنك حذف نفسك من العائلة"
           : "You cannot remove yourself from the family"
       );
       return;
     }
 
     Alert.alert(
-      isRTL ? "Ø­Ø°Ù Ø§Ù„Ø¹Ø¶Ùˆ" : "Remove Member",
+      isRTL ? "حذف العضو" : "Remove Member",
       isRTL
-        ? `Ù‡Ù„ Ø£Ù†Øª Ù…ØªØ£ÙƒØ¯ Ù…Ù† Ø±ØºØ¨ØªÙƒ ÙÙŠ Ø¥Ø²Ø§Ù„Ø© ${member.firstName && member.lastName ? `${member.firstName} ${member.lastName}` : member.firstName || "User"} Ù…Ù† Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©ØŸ`
+        ? `هل أنت متأكد من رغبتك في إزالة ${member.firstName && member.lastName ? `${member.firstName} ${member.lastName}` : member.firstName || "User"} من العائلة؟`
         : `Are you sure you want to remove ${member.firstName && member.lastName ? `${member.firstName} ${member.lastName}` : member.firstName || "User"} from the family?`,
       [
         {
-          text: isRTL ? "Ø¥Ù„ØºØ§Ø¡" : "Cancel",
+          text: isRTL ? "إلغاء" : "Cancel",
           style: "cancel",
         },
         {
-          text: isRTL ? "Ø¥Ø²Ø§Ù„Ø©" : "Remove",
+          text: isRTL ? "إزالة" : "Remove",
           style: "destructive",
           onPress: async () => {
             try {
@@ -1765,17 +1759,15 @@ export default function FamilyScreen() {
               await loadFamilyMembers();
 
               Alert.alert(
-                isRTL ? "ØªÙ… Ø§Ù„Ø¥Ø²Ø§Ù„Ø©" : "Removed",
+                isRTL ? "تمت الإزالة" : "Removed",
                 isRTL
-                  ? "ØªÙ… Ø¥Ø²Ø§Ù„Ø© Ø§Ù„Ø¹Ø¶Ùˆ Ù…Ù† Ø§Ù„Ø¹Ø§Ø¦Ù„Ø© Ø¨Ù†Ø¬Ø§Ø­"
+                  ? "تمت إزالة العضو من العائلة بنجاح"
                   : "Member removed from family successfully"
               );
             } catch (_error) {
               Alert.alert(
-                isRTL ? "Ø®Ø·Ø£" : "Error",
-                isRTL
-                  ? "ÙØ´Ù„ ÙÙŠ Ø¥Ø²Ø§Ù„Ø© Ø§Ù„Ø¹Ø¶Ùˆ"
-                  : "Failed to remove member"
+                isRTL ? "خطأ" : "Error",
+                isRTL ? "فشل في إزالة العضو" : "Failed to remove member"
               );
             } finally {
               setLoading(false);
@@ -1799,10 +1791,8 @@ export default function FamilyScreen() {
       );
     } catch (_error) {
       Alert.alert(
-        isRTL ? "Ø®Ø·Ø£" : "Error",
-        isRTL
-          ? "ÙØ´Ù„ ÙÙŠ ØªØ­Ø¯ÙŠØ« Ø§Ù„Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª"
-          : "Failed to update settings"
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "فشل في تحديث الإعدادات" : "Failed to update settings"
       );
     }
   };
@@ -1817,11 +1807,11 @@ export default function FamilyScreen() {
       if (!(nameValue && phoneValue)) {
         setTimeout(() => {
           Alert.alert(
-            isRTL ? "Ø®Ø·Ø£" : "Error",
+            isRTL ? "خطأ" : "Error",
             isRTL
-              ? "ÙŠØ±Ø¬Ù‰ Ù…Ù„Ø¡ Ø¬Ù…ÙŠØ¹ Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ù…Ø·Ù„ÙˆØ¨Ø©"
+              ? "يرجى ملء جميع البيانات المطلوبة"
               : "Please fill in all fields",
-            [{ text: isRTL ? "Ø­Ø³Ù†Ø§Ù‹" : "OK" }],
+            [{ text: isRTL ? "حسنًا" : "OK" }],
             { cancelable: true }
           );
         }, 100);
@@ -1832,11 +1822,11 @@ export default function FamilyScreen() {
       if (!phoneRegex.test(phoneValue)) {
         setTimeout(() => {
           Alert.alert(
-            isRTL ? "Ø®Ø·Ø£" : "Error",
+            isRTL ? "خطأ" : "Error",
             isRTL
-              ? "ÙŠØ±Ø¬Ù‰ Ø¥Ø¯Ø®Ø§Ù„ Ø±Ù‚Ù… Ù‡Ø§ØªÙ ØµØ­ÙŠØ­"
+              ? "يرجى إدخال رقم هاتف صحيح"
               : "Please enter a valid phone number",
-            [{ text: isRTL ? "Ø­Ø³Ù†Ø§Ù‹" : "OK" }],
+            [{ text: isRTL ? "حسنًا" : "OK" }],
             { cancelable: true }
           );
         }, 100);
@@ -1860,11 +1850,11 @@ export default function FamilyScreen() {
 
       setTimeout(() => {
         Alert.alert(
-          isRTL ? "ØªÙ… Ø§Ù„Ø­ÙØ¸" : "Saved",
+          isRTL ? "تم الحفظ" : "Saved",
           isRTL
-            ? "ØªÙ… Ø¥Ø¶Ø§ÙØ© Ø¬Ù‡Ø© Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ù†Ø¬Ø§Ø­"
+            ? "تمت إضافة جهة الاتصال بنجاح"
             : "Emergency contact added successfully",
-          [{ text: isRTL ? "Ø­Ø³Ù†Ø§Ù‹" : "OK" }],
+          [{ text: isRTL ? "حسنًا" : "OK" }],
           { cancelable: true }
         );
       }, 200);
@@ -1872,11 +1862,11 @@ export default function FamilyScreen() {
       Keyboard.dismiss();
       setTimeout(() => {
         Alert.alert(
-          isRTL ? "Ø®Ø·Ø£" : "Error",
+          isRTL ? "خطأ" : "Error",
           isRTL
-            ? "Ø­Ø¯Ø« Ø®Ø·Ø£ Ø£Ø«Ù†Ø§Ø¡ Ø¥Ø¶Ø§ÙØ© Ø¬Ù‡Ø© Ø§Ù„Ø§ØªØµØ§Ù„"
+            ? "حدث خطأ أثناء إضافة جهة الاتصال"
             : "An error occurred while adding the contact",
-          [{ text: isRTL ? "Ø­Ø³Ù†Ø§Ù‹" : "OK" }],
+          [{ text: isRTL ? "حسنًا" : "OK" }],
           { cancelable: true }
         );
       }, 100);
@@ -1885,17 +1875,17 @@ export default function FamilyScreen() {
 
   const handleDeleteEmergencyContact = (contactId: string) => {
     Alert.alert(
-      isRTL ? "Ø­Ø°Ù Ø¬Ù‡Ø© Ø§Ù„Ø§ØªØµØ§Ù„" : "Delete Contact",
+      isRTL ? "حذف جهة الاتصال" : "Delete Contact",
       isRTL
-        ? "Ù‡Ù„ Ø£Ù†Øª Ù…ØªØ£ÙƒØ¯ Ù…Ù† Ø­Ø°Ù Ø¬Ù‡Ø© Ø§Ù„Ø§ØªØµØ§Ù„ Ù‡Ø°Ù‡ØŸ"
+        ? "هل أنت متأكد من حذف جهة الاتصال هذه؟"
         : "Are you sure you want to delete this contact?",
       [
         {
-          text: isRTL ? "Ø¥Ù„ØºØ§Ø¡" : "Cancel",
+          text: isRTL ? "إلغاء" : "Cancel",
           style: "cancel",
         },
         {
-          text: isRTL ? "Ø­Ø°Ù" : "Delete",
+          text: isRTL ? "حذف" : "Delete",
           style: "destructive",
           onPress: async () => {
             try {
@@ -1909,16 +1899,16 @@ export default function FamilyScreen() {
                 });
               }
               Alert.alert(
-                isRTL ? "ØªÙ… Ø§Ù„Ø­Ø°Ù" : "Deleted",
+                isRTL ? "تم الحذف" : "Deleted",
                 isRTL
-                  ? "ØªÙ… Ø­Ø°Ù Ø¬Ù‡Ø© Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ù†Ø¬Ø§Ø­"
+                  ? "تم حذف جهة الاتصال بنجاح"
                   : "Emergency contact deleted successfully"
               );
             } catch (_error) {
               Alert.alert(
-                isRTL ? "Ø®Ø·Ø£" : "Error",
+                isRTL ? "خطأ" : "Error",
                 isRTL
-                  ? "ÙØ´Ù„ ÙÙŠ ØªØ­Ø¯ÙŠØ« Ø¬Ù‡Ø© Ø§Ù„Ø§ØªØµØ§Ù„"
+                  ? "فشل في تحديث جهة الاتصال"
                   : "Failed to update emergency contact"
               );
             }
@@ -1945,8 +1935,8 @@ export default function FamilyScreen() {
       setShowPrivacyModal(false);
     } catch (_error) {
       Alert.alert(
-        isRTL ? "Ø®Ø·Ø£" : "Error",
-        isRTL ? "ÙØ´Ù„ Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„ØªÙ‚Ø±ÙŠØ±" : "Failed to generate report"
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "فشل إنشاء التقرير" : "Failed to generate report"
       );
     } finally {
       setGeneratingReport(false);
@@ -1974,17 +1964,15 @@ export default function FamilyScreen() {
         await Sharing.shareAsync(uri);
       } else {
         Alert.alert(
-          isRTL ? "Ø®Ø·Ø£" : "Error",
-          isRTL
-            ? "Ù…Ø´Ø§Ø±ÙƒØ© Ø§Ù„Ù…Ù„Ù ØºÙŠØ± Ù…ØªØ§Ø­Ø©"
-            : "File sharing not available"
+          isRTL ? "خطأ" : "Error",
+          isRTL ? "مشاركة الملف غير متاحة" : "File sharing not available"
         );
       }
     } catch (error) {
       Alert.alert(
-        isRTL ? "Ø®Ø·Ø£" : "Error",
+        isRTL ? "خطأ" : "Error",
         isRTL
-          ? `ÙØ´Ù„ ØªØµØ¯ÙŠØ± Ø§Ù„ØªÙ‚Ø±ÙŠØ±: ${error instanceof Error ? error.message : "Ø®Ø·Ø£ ØºÙŠØ± Ù…Ø¹Ø±ÙˆÙ"}`
+          ? `فشل تصدير التقرير: ${error instanceof Error ? error.message : "خطأ غير معروف"}`
           : `Failed to export report: ${error instanceof Error ? error.message : "Unknown error"}`
       );
     }
@@ -2028,8 +2016,8 @@ export default function FamilyScreen() {
         setElderlyDashboardData(data);
       } catch (_error) {
         Alert.alert(
-          isRTL ? "Ø®Ø·Ø£" : "Error",
-          isRTL ? "ÙØ´Ù„ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª" : "Failed to load data"
+          isRTL ? "خطأ" : "Error",
+          isRTL ? "فشل تحميل البيانات" : "Failed to load data"
         );
       } finally {
         setLoadingElderlyDashboard(false);
@@ -2314,9 +2302,9 @@ export default function FamilyScreen() {
     // Validate user authentication and permissions
     if (!user?.id) {
       Alert.alert(
-        isRTL ? "Ø®Ø·Ø£" : "Error",
+        isRTL ? "خطأ" : "Error",
         isRTL
-          ? "ÙŠØ¬Ø¨ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ø£ÙˆÙ„Ø§Ù‹"
+          ? "يجب تسجيل الدخول أولاً"
           : "You must be logged in to generate invite codes"
       );
       return;
@@ -2324,17 +2312,17 @@ export default function FamilyScreen() {
 
     if (!user.familyId) {
       Alert.alert(
-        isRTL ? "Ø®Ø·Ø£" : "Error",
-        isRTL ? "Ù„Ø§ ØªÙˆØ¬Ø¯ Ø¹Ø§Ø¦Ù„Ø© Ù…ØªØµÙ„Ø© Ø¨Ùƒ" : "No family found"
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "لا توجد عائلة متصلة بك" : "No family found"
       );
       return;
     }
 
     if (user.role !== "admin") {
       Alert.alert(
-        isRTL ? "Ø®Ø·Ø£" : "Error",
+        isRTL ? "خطأ" : "Error",
         isRTL
-          ? "ÙŠØ¬Ø¨ Ø£Ù† ØªÙƒÙˆÙ† Ù…Ø¯ÙŠØ±Ø§Ù‹ Ù„Ù„Ø¹Ø§Ø¦Ù„Ø© Ù„Ø¥Ù†Ø´Ø§Ø¡ Ø±Ù…ÙˆØ² Ø§Ù„Ø¯Ø¹ÙˆØ©"
+          ? "يجب أن تكون مديراً للعائلة لإنشاء رموز الدعوة"
           : "You must be a family admin to generate invite codes"
       );
       return;
@@ -2343,17 +2331,17 @@ export default function FamilyScreen() {
     // Check if user has premium subscription
     if (!isPremium) {
       Alert.alert(
-        isRTL ? "Ø§Ø´ØªØ±Ø§Ùƒ Ù…Ø·Ù„ÙˆØ¨" : "Premium Required",
+        isRTL ? "اشتراك مطلوب" : "Premium Required",
         isRTL
-          ? "ÙŠØ¬Ø¨ Ø£Ù† ÙŠÙƒÙˆÙ† Ù„Ø¯ÙŠÙƒ Ø§Ø´ØªØ±Ø§Ùƒ Ù…Ù…ÙŠØ² Ù„Ø¥Ù†Ø´Ø§Ø¡ Ø±Ù…ÙˆØ² Ø§Ù„Ø¯Ø¹ÙˆØ©"
+          ? "يجب أن يكون لديك اشتراك مميز لإنشاء رموز الدعوة"
           : "You need a premium subscription to generate invite codes",
         [
           {
-            text: isRTL ? "Ø¥Ù„ØºØ§Ø¡" : "Cancel",
+            text: isRTL ? "إلغاء" : "Cancel",
             style: "cancel",
           },
           {
-            text: isRTL ? "Ø¹Ø±Ø¶ Ø§Ù„Ø®Ø·Ø·" : "View Plans",
+            text: isRTL ? "عرض الخطط" : "View Plans",
             onPress: () => setShowPaywall(true),
           },
         ]
@@ -2371,66 +2359,60 @@ export default function FamilyScreen() {
       );
 
       const shareMessage = isRTL
-        ? `Ù…Ø±Ø­Ø¨Ø§Ù‹! ØªÙ… Ø¯Ø¹ÙˆØªÙƒ Ù„Ù„Ø§Ù†Ø¶Ù…Ø§Ù… Ø¥Ù„Ù‰ Ù…Ø¬Ù…ÙˆØ¹Ø© Ø§Ù„Ø¹Ø§Ø¦Ù„Ø© Ø§Ù„ØµØ­ÙŠØ© Ø¹Ù„Ù‰ ØªØ·Ø¨ÙŠÙ‚ Ù…Ø¹Ùƒ.\n\nØ±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ©: ${code}\n\n1. Ø­Ù…Ù„ ØªØ·Ø¨ÙŠÙ‚ Ù…Ø¹Ùƒ\n2. Ø³Ø¬Ù„ Ø¯Ø®ÙˆÙ„Ùƒ Ø£Ùˆ Ø£Ù†Ø´Ø¦ Ø­Ø³Ø§Ø¨ Ø¬Ø¯ÙŠØ¯\n3. Ø§Ø³ØªØ®Ø¯Ù… Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ©: ${code}\n\nÙ‡Ø°Ø§ Ø§Ù„Ø±Ù…Ø² ØµØ§Ù„Ø­ Ù„Ù…Ø¯Ø© 7 Ø£ÙŠØ§Ù….`
+        ? `مرحباً! تمت دعوتك للانضمام إلى مجموعة العائلة الصحية على تطبيق معك.\n\nرمز الدعوة: ${code}\n\n1. حمّل تطبيق معك\n2. سجّل دخولك أو أنشئ حساباً جديداً\n3. استخدم رمز الدعوة: ${code}\n\nهذا الرمز صالح لمدة 7 أيام.`
         : `Hi! You've been invited to join our family health group on Maak app.\n\nInvitation Code: ${code}\n\n1. Download the Maak app\n2. Sign in or create a new account\n3. Use invitation code: ${code}\n\nThis code expires in 7 days.`;
 
       // Show options to share or copy with clearer labels
       Alert.alert(
-        isRTL ? "Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ© Ø¬Ø§Ù‡Ø²" : "Invitation Code Ready",
+        isRTL ? "رمز الدعوة جاهز" : "Invitation Code Ready",
         isRTL
-          ? `Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ©: ${code}\n\nØ§Ø®ØªØ± Ø·Ø±ÙŠÙ‚Ø© Ø§Ù„Ù…Ø´Ø§Ø±ÙƒØ©:`
+          ? `رمز الدعوة: ${code}\n\nاختر طريقة المشاركة:`
           : `Invitation Code: ${code}\n\nChoose how to share:`,
         [
           {
-            text: isRTL
-              ? "Ù…Ø´Ø§Ø±ÙƒØ© Ø¹Ø¨Ø± Ø§Ù„ØªØ·Ø¨ÙŠÙ‚Ø§Øª"
-              : "Share via Apps",
+            text: isRTL ? "مشاركة عبر التطبيقات" : "Share via Apps",
             onPress: async () => {
               try {
                 await Share.share({
                   message: shareMessage,
                   title: isRTL
-                    ? "Ø¯Ø¹ÙˆØ© Ù„Ù„Ø§Ù†Ø¶Ù…Ø§Ù… Ø¥Ù„Ù‰ Ù…Ø¹Ùƒ"
+                    ? "دعوة للانضمام إلى معك"
                     : "Invitation to join Maak",
                 });
               } catch (_error) {
                 // Fallback to copying to clipboard
                 await setClipboardString(shareMessage);
                 Alert.alert(
-                  isRTL ? "ØªÙ… Ø§Ù„Ù†Ø³Ø®" : "Copied",
+                  isRTL ? "تم النسخ" : "Copied",
                   isRTL
-                    ? "ØªÙ… Ù†Ø³Ø® Ø±Ø³Ø§Ù„Ø© Ø§Ù„Ø¯Ø¹ÙˆØ© Ø¥Ù„Ù‰ Ø§Ù„Ø­Ø§ÙØ¸Ø©"
+                    ? "تم نسخ رسالة الدعوة إلى الحافظة"
                     : "Invitation message copied to clipboard"
                 );
               }
             },
           },
           {
-            text: isRTL
-              ? "Ù†Ø³Ø® Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ© ÙÙ‚Ø·"
-              : "Copy Invitation Code Only",
+            text: isRTL ? "نسخ رمز الدعوة فقط" : "Copy Invitation Code Only",
             onPress: async () => {
               await setClipboardString(code);
               Alert.alert(
-                isRTL ? "ØªÙ… Ø§Ù„Ù†Ø³Ø®" : "Copied",
+                isRTL ? "تم النسخ" : "Copied",
                 isRTL
-                  ? `ØªÙ… Ù†Ø³Ø® Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ©: ${code}`
+                  ? `تم نسخ رمز الدعوة: ${code}`
                   : `Invitation code copied: ${code}`
               );
             },
           },
           {
-            text: isRTL ? "Ø¥Ù„ØºØ§Ø¡" : "Cancel",
+            text: isRTL ? "إلغاء" : "Cancel",
             style: "cancel",
           },
         ]
       );
     } catch (_error) {
       Alert.alert(
-        isRTL ? "Ø®Ø·Ø£" : "Error",
-        isRTL
-          ? "ÙØ´Ù„ ÙÙŠ Ø¥Ù†Ø´Ø§Ø¡ Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ©"
-          : "Failed to generate invitation code"
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "فشل في إنشاء رمز الدعوة" : "Failed to generate invitation code"
       );
     }
   };
@@ -2438,20 +2420,16 @@ export default function FamilyScreen() {
   const handleJoinFamily = async () => {
     if (!joinFamilyCode.trim()) {
       Alert.alert(
-        isRTL ? "Ø®Ø·Ø£" : "Error",
-        isRTL
-          ? "ÙŠØ±Ø¬Ù‰ Ø¥Ø¯Ø®Ø§Ù„ Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ©"
-          : "Please enter the invitation code"
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "يرجى إدخال رمز الدعوة" : "Please enter the invitation code"
       );
       return;
     }
 
     if (!user) {
       Alert.alert(
-        isRTL ? "Ø®Ø·Ø£" : "Error",
-        isRTL
-          ? "ÙŠØ¬Ø¨ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ø£ÙˆÙ„Ø§Ù‹"
-          : "You must be logged in first"
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "يجب تسجيل الدخول أولاً" : "You must be logged in first"
       );
       return;
     }
@@ -2477,10 +2455,8 @@ export default function FamilyScreen() {
 
         if (!adminUser) {
           Alert.alert(
-            isRTL ? "Ø®Ø·Ø£" : "Error",
-            isRTL
-              ? "Ù„Ù… ÙŠØªÙ… Ø§Ù„Ø¹Ø«ÙˆØ± Ø¹Ù„Ù‰ Ù…Ø¯ÙŠØ± Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©"
-              : "Family admin not found"
+            isRTL ? "خطأ" : "Error",
+            isRTL ? "لم يتم العثور على مدير العائلة" : "Family admin not found"
           );
           setJoinLoading(false);
           return;
@@ -2514,15 +2490,13 @@ export default function FamilyScreen() {
 
         if (currentMemberCount >= adminMaxMembers) {
           Alert.alert(
+            isRTL ? "تم الوصول للحد الأقصى" : "Family at Capacity",
             isRTL
-              ? "ØªÙ… Ø§Ù„ÙˆØµÙˆÙ„ Ù„Ù„Ø­Ø¯ Ø§Ù„Ø£Ù‚ØµÙ‰"
-              : "Family at Capacity",
-            isRTL
-              ? `Ù„Ù‚Ø¯ ÙˆØµÙ„Øª Ù‡Ø°Ù‡ Ø§Ù„Ø¹Ø§Ø¦Ù„Ø© Ø¥Ù„Ù‰ Ø§Ù„Ø­Ø¯ Ø§Ù„Ø£Ù‚ØµÙ‰ Ù„Ø¹Ø¯Ø¯ Ø§Ù„Ø£Ø¹Ø¶Ø§Ø¡ ÙÙŠ Ø§Ù„Ø§Ø´ØªØ±Ø§Ùƒ Ø§Ù„Ø¹Ø§Ø¦Ù„ÙŠ Ø§Ù„Ø®Ø§Øµ Ø¨Ø§Ù„Ù…Ø¯ÙŠØ± (${adminMaxMembers} Ø¹Ø¶Ùˆ).`
+              ? `لقد وصلت هذه العائلة إلى الحد الأقصى لعدد الأعضاء في اشتراك المدير (${adminMaxMembers} عضو).`
               : `This family has reached the maximum number of members allowed by the admin's plan (${adminMaxMembers} members).`,
             [
               {
-                text: isRTL ? "Ù…ÙˆØ§ÙÙ‚" : "OK",
+                text: isRTL ? "موافق" : "OK",
                 style: "cancel",
               },
             ]
@@ -2537,17 +2511,17 @@ export default function FamilyScreen() {
 
         if (!hasPremium && currentMemberCount >= 1) {
           Alert.alert(
-            isRTL ? "Ø®Ø·Ø£" : "Premium Required",
+            isRTL ? "خطأ" : "Premium Required",
             isRTL
-              ? "ÙŠØ¬Ø¨ Ø§Ù„Ø§Ø´ØªØ±Ø§Ùƒ Ø¨Ø§Ù„Ø§Ø´ØªØ±Ø§Ùƒ Ø§Ù„Ø¹Ø§Ø¦Ù„ÙŠ Ù„Ù„Ø§Ù†Ø¶Ù…Ø§Ù… Ø¥Ù„Ù‰ Ø¹Ø§Ø¦Ù„Ø© ØªØ­ØªÙˆÙŠ Ø¹Ù„Ù‰ Ø£Ø¹Ø¶Ø§Ø¡"
+              ? "يجب الاشتراك في الخطة العائلية للانضمام إلى عائلة تحتوي على أعضاء"
               : "A premium subscription is required to join a family that already has members",
             [
               {
-                text: isRTL ? "Ø¥Ù„ØºØ§Ø¡" : "Cancel",
+                text: isRTL ? "إلغاء" : "Cancel",
                 style: "cancel",
               },
               {
-                text: isRTL ? "Ø¹Ø±Ø¶ Ø§Ù„Ø®Ø·Ø·" : "View Plans",
+                text: isRTL ? "عرض الخطط" : "View Plans",
                 onPress: () => setShowPaywall(true),
               },
             ]
@@ -2566,11 +2540,9 @@ export default function FamilyScreen() {
         setShowJoinFamilyModal(false);
 
         Alert.alert(
+          isRTL ? "مرحباً بك في العائلة!" : "Welcome to the Family!",
           isRTL
-            ? "Ù…Ø±Ø­Ø¨Ø§Ù‹ Ø¨Ùƒ ÙÙŠ Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©!"
-            : "Welcome to the Family!",
-          isRTL
-            ? "ØªÙ… Ø§Ù†Ø¶Ù…Ø§Ù…Ùƒ Ø¨Ù†Ø¬Ø§Ø­! ÙŠÙ…ÙƒÙ†Ùƒ Ø§Ù„Ø¢Ù† Ø±Ø¤ÙŠØ© Ø£Ø¹Ø¶Ø§Ø¡ Ø¹Ø§Ø¦Ù„ØªÙƒ Ø§Ù„Ø¬Ø¯Ø¯ ÙÙŠ Ø§Ù„Ø£Ø³ÙÙ„."
+            ? "تم انضمامك بنجاح! يمكنك الآن رؤية أفراد عائلتك الجدد في الأسفل."
             : "You have successfully joined! You can now see your new family members below."
         );
 
@@ -2579,17 +2551,12 @@ export default function FamilyScreen() {
           await loadFamilyMembers();
         }, 1000);
       } else {
-        Alert.alert(
-          isRTL ? "Ø±Ù…Ø² ØºÙŠØ± ØµØ­ÙŠØ­" : "Invalid Code",
-          result.message
-        );
+        Alert.alert(isRTL ? "رمز غير صحيح" : "Invalid Code", result.message);
       }
     } catch (_error) {
       Alert.alert(
-        isRTL ? "Ø®Ø·Ø£" : "Error",
-        isRTL
-          ? "ÙØ´Ù„ ÙÙŠ Ø§Ù„Ø§Ù†Ø¶Ù…Ø§Ù… Ù„Ù„Ø¹Ø§Ø¦Ù„Ø©"
-          : "Failed to join family"
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "فشل في الانضمام للعائلة" : "Failed to join family"
       );
     } finally {
       setJoinLoading(false);
@@ -2697,9 +2664,7 @@ export default function FamilyScreen() {
                 <Text
                   style={[styles.dashboardMetricLabel, isRTL && styles.rtlText]}
                 >
-                  {isRTL
-                    ? "Ø¬Ø§Ø±ÙŠ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª..."
-                    : "Loading health data..."}
+                  {isRTL ? "جاري تحميل البيانات..." : "Loading health data..."}
                 </Text>
               </View>
             </View>
@@ -2800,33 +2765,44 @@ export default function FamilyScreen() {
           ? `${metric.user.firstName} ${metric.user.lastName}`
           : metric.user.firstName || "User";
 
+      const healthScore =
+        typeof metric.healthScore === "number" ? metric.healthScore : null;
+      const alertsCount =
+        typeof metric.alertsCount === "number" ? metric.alertsCount : 0;
+      const symptomsThisWeek =
+        typeof metric.symptomsThisWeek === "number"
+          ? metric.symptomsThisWeek
+          : 0;
+
       // Determine trend based on health score (lower is worse)
       let healthTrend: "up" | "down" | "stable" = "stable";
-      if (metric.healthScore < 60) {
-        healthTrend = "down"; // Critical - trending down
-      } else if (metric.healthScore < 80) {
-        healthTrend = "down"; // Needs attention - trending down
+      if (healthScore !== null) {
+        if (healthScore < 60) {
+          healthTrend = "down"; // Critical - trending down
+        } else if (healthScore < 80) {
+          healthTrend = "down"; // Needs attention - trending down
+        }
       }
 
       // Check for critical health score
-      if (metric.healthScore < 60) {
+      if (healthScore !== null && healthScore < 60) {
         attentionItems.push({
           memberId: metric.user.id,
           memberName: fullName,
           reason: isRTL
-            ? `Ù†Ù‚Ø§Ø· Ø§Ù„ØµØ­Ø© Ù…Ù†Ø®ÙØ¶Ø© (${metric.healthScore})`
-            : `Low health score (${metric.healthScore})`,
+            ? `نقاط الصحة منخفضة (${healthScore})`
+            : `Low health score (${healthScore})`,
           severity: "high",
           icon: "health",
           trend: healthTrend,
         });
-      } else if (metric.healthScore < 80) {
+      } else if (healthScore !== null && healthScore < 80) {
         attentionItems.push({
           memberId: metric.user.id,
           memberName: fullName,
           reason: isRTL
-            ? `Ù†Ù‚Ø§Ø· Ø§Ù„ØµØ­Ø© ØªØ­ØªØ§Ø¬ Ø§Ù†ØªØ¨Ø§Ù‡ (${metric.healthScore})`
-            : `Health score needs attention (${metric.healthScore})`,
+            ? `نقاط الصحة تحتاج انتباه (${healthScore})`
+            : `Health score needs attention (${healthScore})`,
           severity: "medium",
           icon: "health",
           trend: healthTrend,
@@ -2834,30 +2810,30 @@ export default function FamilyScreen() {
       }
 
       // Check for active alerts
-      if (metric.alertsCount > 0) {
+      if (alertsCount > 0) {
         attentionItems.push({
           memberId: metric.user.id,
           memberName: fullName,
           reason: isRTL
-            ? `${metric.alertsCount} ${metric.alertsCount === 1 ? "ØªÙ†Ø¨ÙŠÙ‡ Ù†Ø´Ø·" : "ØªÙ†Ø¨ÙŠÙ‡Ø§Øª Ù†Ø´Ø·Ø©"}`
-            : `${metric.alertsCount} active ${metric.alertsCount === 1 ? "alert" : "alerts"}`,
-          severity: metric.alertsCount > 2 ? "high" : "medium",
+            ? `${alertsCount} ${alertsCount === 1 ? "تنبيه نشط" : "تنبيهات نشطة"}`
+            : `${alertsCount} active ${alertsCount === 1 ? "alert" : "alerts"}`,
+          severity: alertsCount > 2 ? "high" : "medium",
           icon: "alert",
-          trend: metric.alertsCount > 2 ? "up" : "stable", // More alerts = trending up
+          trend: alertsCount > 2 ? "up" : "stable", // More alerts = trending up
         });
       }
 
       // Check for high symptom count
-      if (metric.symptomsThisWeek > 3) {
+      if (symptomsThisWeek > 3) {
         attentionItems.push({
           memberId: metric.user.id,
           memberName: fullName,
           reason: isRTL
-            ? `${metric.symptomsThisWeek} ${metric.symptomsThisWeek === 1 ? "Ø¹Ø±Ø¶ ØµØ­ÙŠ Ù‡Ø°Ø§ Ø§Ù„Ø£Ø³Ø¨ÙˆØ¹" : "Ø£Ø¹Ø±Ø§Ø¶ Ø§Ù„ØµØ­ÙŠØ© Ù‡Ø°Ø§ Ø§Ù„Ø£Ø³Ø¨ÙˆØ¹"}`
-            : `${metric.symptomsThisWeek} ${metric.symptomsThisWeek === 1 ? "symptom" : "symptoms"} this week`,
-          severity: metric.symptomsThisWeek > 5 ? "high" : "medium",
+            ? `${symptomsThisWeek} ${symptomsThisWeek === 1 ? "عرض صحي هذا الأسبوع" : "أعراض صحية هذا الأسبوع"}`
+            : `${symptomsThisWeek} ${symptomsThisWeek === 1 ? "symptom" : "symptoms"} this week`,
+          severity: symptomsThisWeek > 5 ? "high" : "medium",
           icon: "symptom",
-          trend: metric.symptomsThisWeek > 5 ? "up" : "stable", // More symptoms = trending up
+          trend: symptomsThisWeek > 5 ? "up" : "stable", // More symptoms = trending up
         });
       }
 
@@ -2866,9 +2842,7 @@ export default function FamilyScreen() {
         attentionItems.push({
           memberId: metric.user.id,
           memberName: fullName,
-          reason: isRTL
-            ? "Ø¹Ù„Ø§Ù…Ø§Øª Ø­ÙŠÙˆÙŠØ© ØºÙŠØ± Ø·Ø¨ÙŠØ¹ÙŠØ©"
-            : "Abnormal vital signs",
+          reason: isRTL ? "علامات حيوية غير طبيعية" : "Abnormal vital signs",
           severity: "high",
           icon: "vitals",
           trend: "down", // Abnormal vitals = trending down
@@ -2914,10 +2888,15 @@ export default function FamilyScreen() {
     if (!metric) {
       return "unknown";
     }
-    if (metric.alertsCount > 1 || metric.healthScore < 60) {
+    const alertsCount =
+      typeof metric.alertsCount === "number" ? metric.alertsCount : 0;
+    const healthScore =
+      typeof metric.healthScore === "number" ? metric.healthScore : 100;
+
+    if (alertsCount > 1 || healthScore < 60) {
       return "critical";
     }
-    if (metric.alertsCount > 0 || metric.healthScore < 75) {
+    if (alertsCount > 0 || healthScore < 75) {
       return "monitor";
     }
     return "stable";
@@ -3323,27 +3302,53 @@ export default function FamilyScreen() {
                       activeOpacity={0.7}
                       key={event.id}
                       onPress={() => {
+                        if (!event.id) {
+                          Alert.alert(
+                            isRTL ? "خطأ" : "Error",
+                            isRTL
+                              ? "هذا الحدث لا يحتوي على معرّف صالح."
+                              : "This event is missing a valid id."
+                          );
+                          return;
+                        }
+                        const eventId = event.id;
+
+                        const buttons: AlertButton[] = [
+                          {
+                            text: isRTL ? "إلغاء" : "Cancel",
+                            style: "cancel",
+                          },
+                          ...(event.status === "OPEN"
+                            ? [
+                                {
+                                  text: isRTL ? "تأكيد" : "Acknowledge",
+                                  onPress: () =>
+                                    handleAcknowledgeEvent(eventId),
+                                },
+                              ]
+                            : []),
+                          ...(event.status !== "RESOLVED"
+                            ? [
+                                {
+                                  text: isRTL ? "حل" : "Resolve",
+                                  onPress: () => handleResolveEvent(eventId),
+                                },
+                              ]
+                            : []),
+                          ...(event.status === "OPEN"
+                            ? [
+                                {
+                                  text: isRTL ? "تصعيد" : "Escalate",
+                                  onPress: () => handleEscalateEvent(eventId),
+                                },
+                              ]
+                            : []),
+                        ];
+
                         Alert.alert(
                           isRTL ? "تفاصيل الحدث" : "Event Details",
                           `${isRTL ? "الحالة" : "Status"}: ${getEventStatusText(event.status)}\n${isRTL ? "النوع" : "Type"}: ${event.type}\n${isRTL ? "الأسباب" : "Reasons"}: ${event.reasons.join(", ") || "N/A"}`,
-                          [
-                            {
-                              text: isRTL ? "إلغاء" : "Cancel",
-                              style: "cancel",
-                            },
-                            event.status === "OPEN" && {
-                              text: isRTL ? "تأكيد" : "Acknowledge",
-                              onPress: () => handleAcknowledgeEvent(event.id),
-                            },
-                            event.status !== "RESOLVED" && {
-                              text: isRTL ? "حل" : "Resolve",
-                              onPress: () => handleResolveEvent(event.id),
-                            },
-                            event.status === "OPEN" && {
-                              text: isRTL ? "تصعيد" : "Escalate",
-                              onPress: () => handleEscalateEvent(event.id),
-                            },
-                          ].filter(Boolean)
+                          buttons
                         );
                       }}
                       style={styles.eventItem}
@@ -3420,23 +3425,23 @@ export default function FamilyScreen() {
         </View>
 
         {isAdmin && (
-          <TouchableOpacity
-            activeOpacity={0.9}
-            collapsable={false}
-            onPress={() => setShowInviteModal(true)}
-            ref={addMemberButtonRef}
-            style={styles.addMemberCard}
-          >
-            <View style={styles.addMemberIcon}>
-              <Plus color="#003543" size={28} />
-            </View>
-            <Text style={styles.addMemberTitle}>
-              {isRTL ? "إضافة فرد للعائلة" : "Add Family Member"}
-            </Text>
-            <Text style={styles.addMemberSubtitle}>
-              {t("inviteSomeoneToCareCircle")}
-            </Text>
-          </TouchableOpacity>
+          <View collapsable={false} ref={addMemberButtonRef}>
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => setShowInviteModal(true)}
+              style={styles.addMemberCard}
+            >
+              <View style={styles.addMemberIcon}>
+                <Plus color="#003543" size={28} />
+              </View>
+              <Text style={styles.addMemberTitle}>
+                {isRTL ? "إضافة فرد للعائلة" : "Add Family Member"}
+              </Text>
+              <Text style={styles.addMemberSubtitle}>
+                {t("inviteSomeoneToCareCircle")}
+              </Text>
+            </TouchableOpacity>
+          </View>
         )}
       </ScrollView>
       <CoachMark
@@ -3542,10 +3547,10 @@ export default function FamilyScreen() {
               <Text style={styles.inviteButtonText}>
                 {inviteLoading
                   ? isRTL
-                    ? "Ø¬Ø§Ø±ÙŠ Ø§Ù„Ø¥Ø±Ø³Ø§Ù„..."
+                    ? "جاري الإرسال..."
                     : "Sending..."
                   : isRTL
-                    ? "Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„Ø¯Ø¹ÙˆØ© Ù„Ù„Ø¹Ø§Ø¦Ù„Ø©"
+                    ? "إرسال الدعوة للعائلة"
                     : "Send Invitation"}
               </Text>
             </TouchableOpacity>
@@ -3592,15 +3597,13 @@ export default function FamilyScreen() {
           <ScrollView style={styles.modalContent}>
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL
-                  ? "Ø¬Ù‡Ø§Øª Ø§Ù„Ø§ØªØµØ§Ù„ ÙÙŠ Ø­Ø§Ù„Ø§Øª Ø§Ù„Ø·ÙˆØ§Ø±Ø¦"
-                  : "Emergency Contacts"}
+                {isRTL ? "جهات الاتصال في حالات الطوارئ" : "Emergency Contacts"}
               </Text>
               <Text
                 style={[styles.emergencyDescription, isRTL && styles.rtlText]}
               >
                 {isRTL
-                  ? "Ø³ÙŠØªÙ… Ø¥Ø´Ø¹Ø§Ø± Ø¬Ù‡Ø§Øª Ø§Ù„Ø§ØªØµØ§Ù„ Ù‡Ø°Ù‡ ÙÙŠ Ø­Ø§Ù„Ø© Ø§Ù„Ø·ÙˆØ§Ø±Ø¦"
+                  ? "سيتم إشعار جهات الاتصال هذه في حالة الطوارئ"
                   : "These contacts will be notified in case of emergency"}
               </Text>
 
@@ -3629,9 +3632,7 @@ export default function FamilyScreen() {
               {/* Add New Contact Form */}
               <View style={styles.addContactForm}>
                 <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                  {isRTL
-                    ? "Ø¥Ø¶Ø§ÙØ© Ø¬Ù‡Ø© Ø§ØªØµØ§Ù„ Ø¬Ø¯ÙŠØ¯Ø©"
-                    : "Add New Contact"}
+                  {isRTL ? "إضافة جهة اتصال جديدة" : "Add New Contact"}
                 </Text>
 
                 <TextInput
@@ -3639,9 +3640,7 @@ export default function FamilyScreen() {
                     setNewContact((prev) => ({ ...prev, name: text }))
                   }
                   placeholder={
-                    isRTL
-                      ? "Ø§Ø³Ù… Ø¬Ù‡Ø© Ø§ØªØµØ§Ù„ ÙÙŠ Ø­Ø§Ù„Ø© Ø§Ù„Ø·ÙˆØ§Ø±Ø¦"
-                      : "Contact Name"
+                    isRTL ? "اسم جهة اتصال في حالة الطوارئ" : "Contact Name"
                   }
                   style={[styles.textInput, isRTL && styles.rtlInput]}
                   textAlign={isRTL ? "right" : "left"}
@@ -3678,7 +3677,7 @@ export default function FamilyScreen() {
                         style={[styles.addContactText, isRTL && styles.rtlText]}
                       >
                         {isRTL
-                          ? "Ø¥Ø¶Ø§ÙØ© Ø¬Ù‡Ø© Ø§ØªØµØ§Ù„ ÙÙŠ Ø­Ø§Ù„Ø© Ø§Ù„Ø·ÙˆØ§Ø±Ø¦"
+                          ? "إضافة جهة اتصال في حالة الطوارئ"
                           : "Add Contact"}
                       </Text>
                     </>
@@ -3689,14 +3688,12 @@ export default function FamilyScreen() {
 
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL
-                  ? "ÙƒØ´Ù Ø§Ù„Ø³Ù‚ÙˆØ· Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠ"
-                  : "Fall Detection"}
+                {isRTL ? "كشف السقوط التلقائي" : "Fall Detection"}
               </Text>
               <View style={styles.settingToggle}>
                 <Text style={[styles.settingText, isRTL && styles.rtlText]}>
                   {isRTL
-                    ? "ØªÙØ¹ÙŠÙ„ ÙƒØ´Ù Ø§Ù„Ø³Ù‚ÙˆØ· Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠ Ù„Ù„Ø¹Ø§Ø¦Ù„Ø©"
+                    ? "تفعيل كشف السقوط التلقائي للعائلة"
                     : "Enable automatic fall detection"}
                 </Text>
                 <Switch
@@ -3715,7 +3712,7 @@ export default function FamilyScreen() {
               <View style={styles.settingToggle}>
                 <Text style={[styles.settingText, isRTL && styles.rtlText]}>
                   {isRTL
-                    ? "Ø¥Ø±Ø³Ø§Ù„ ØªÙ†Ø¨ÙŠÙ‡Ø§Øª Ø§Ù„Ø£Ø¯ÙˆÙŠØ© Ø§Ù„ÙØ§Ø¦ØªØ© Ù„Ù„Ø¹Ø§Ø¦Ù„Ø©"
+                    ? "إرسال تنبيهات الأدوية الفائتة للعائلة"
                     : "Send missed medication alerts"}
                 </Text>
                 <Switch
@@ -3763,7 +3760,7 @@ export default function FamilyScreen() {
                 onChangeText={setJoinFamilyCode}
                 placeholder={
                   isRTL
-                    ? "Ø£Ø¯Ø®Ù„ Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ© (6 Ø£Ø±Ù‚Ø§Ù…)"
+                    ? "أدخل رمز الدعوة (6 أرقام)"
                     : "Enter invitation code (6 digits)"
                 }
                 style={[styles.textInput, isRTL && styles.rtlInput]}
@@ -3774,7 +3771,7 @@ export default function FamilyScreen() {
                 style={[styles.emergencyDescription, isRTL && styles.rtlText]}
               >
                 {isRTL
-                  ? "Ø£Ø¯Ø®Ù„ Ø±Ù…Ø² Ø§Ù„Ø¯Ø¹ÙˆØ© Ø§Ù„Ù…Ø±Ø³Ù„ Ø¥Ù„ÙŠÙƒ Ù…Ù† Ø£Ø­Ø¯ Ø£ÙØ±Ø§Ø¯ Ø§Ù„Ø¹Ø§Ø¦Ù„Ø© Ù„Ù„Ø§Ù†Ø¶Ù…Ø§Ù… Ø¥Ù„Ù‰ Ù…Ø¬Ù…ÙˆØ¹ØªÙ‡Ù… Ø§Ù„ØµØ­ÙŠØ©"
+                  ? "أدخل رمز الدعوة المرسل إليك من أحد أفراد العائلة للانضمام إلى مجموعتهم الصحية"
                   : "Enter the invitation code sent to you by a family member to join their health group"}
               </Text>
             </View>
@@ -3790,10 +3787,10 @@ export default function FamilyScreen() {
               <Text style={styles.inviteButtonText}>
                 {joinLoading
                   ? isRTL
-                    ? "Ø¬Ø§Ø±ÙŠ Ø§Ù„Ø§Ù†Ø¶Ù…Ø§Ù…..."
+                    ? "جاري الانضمام..."
                     : "Joining..."
                   : isRTL
-                    ? "Ø§Ù†Ø¶Ù… Ù„Ù„Ø¹Ø§Ø¦Ù„Ø©"
+                    ? "انضم للعائلة"
                     : "Join Family"}
               </Text>
             </TouchableOpacity>
@@ -3918,10 +3915,10 @@ export default function FamilyScreen() {
                       >
                         {role === "admin"
                           ? isRTL
-                            ? "Ù…Ø¯ÙŠØ±"
+                            ? "مدير"
                             : "Admin"
                           : isRTL
-                            ? "Ø¹Ø¶Ùˆ"
+                            ? "عضو"
                             : "Member"}
                       </Text>
                     </TouchableOpacity>
@@ -3958,9 +3955,7 @@ export default function FamilyScreen() {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
-              {isRTL
-                ? " Ø§Ù„Ø§Ù†Ø¶Ù…Ø§Ù… Ø¥Ù„Ù‰ Ø§Ù„Ø§Ø´ØªØ±Ø§Ùƒ Ø§Ù„Ø¹Ø§Ø¦Ù„ÙŠ "
-                : "Upgrade to Premium"}
+              {isRTL ? "الترقية إلى الاشتراك العائلي" : "Upgrade to Premium"}
             </Text>
             <TouchableOpacity
               onPress={() => setShowPaywall(false)}
@@ -4012,9 +4007,7 @@ export default function FamilyScreen() {
                 { color: theme.colors.text.primary },
               ]}
             >
-              {isRTL
-                ? "ØªÙ‚Ø§Ø±ÙŠØ± Ø§Ù„ØµØ­Ø© Ø§Ù„Ø¹Ø§Ø¦Ù„ÙŠØ©"
-                : "Family Health Reports"}
+              {isRTL ? "تقارير الصحة العائلية" : "Family Health Reports"}
             </Text>
             <TouchableOpacity
               onPress={() => {
@@ -4047,16 +4040,14 @@ export default function FamilyScreen() {
                 level={6}
                 style={{ marginBottom: 12, color: theme.colors.text.primary }}
               >
-                {isRTL
-                  ? "Ø¥Ù†Ø´Ø§Ø¡ ØªÙ‚Ø±ÙŠØ± ØµØ­ÙŠ Ø¬Ø¯ÙŠØ¯"
-                  : "Generate New Report"}
+                {isRTL ? "إنشاء تقرير صحي جديد" : "Generate New Report"}
               </Heading>
               <Caption
                 numberOfLines={2}
                 style={{ marginBottom: 16, color: theme.colors.text.secondary }}
               >
                 {isRTL
-                  ? "Ø§Ø®ØªØ± Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ø®ØµÙˆØµÙŠØ© ÙˆØ§Ù„ÙØªØ±Ø© Ø§Ù„Ø²Ù…Ù†ÙŠØ© Ù„Ø¥Ù†Ø´Ø§Ø¡ ØªÙ‚Ø±ÙŠØ± Ø´Ø§Ù…Ù„ Ø¹Ù† ØµØ­Ø© Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©"
+                  ? "اختر إعدادات الخصوصية والفترة الزمنية لإنشاء تقرير شامل عن صحة العائلة"
                   : "Select privacy settings and time period to generate a comprehensive family health report"}
               </Caption>
               <View
@@ -4071,7 +4062,7 @@ export default function FamilyScreen() {
                   textStyle={{}}
                   title={
                     isRTL
-                      ? "Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ø®ØµÙˆØµÙŠØ© Ù„ØªÙ‚Ø±ÙŠØ± ØµØ­ÙŠ"
+                      ? "إعدادات الخصوصية للتقرير الصحي"
                       : "Privacy Settings"
                   }
                   variant="outline"
@@ -4082,11 +4073,7 @@ export default function FamilyScreen() {
                   onPress={handleGenerateHealthReport}
                   style={{ flex: 1 }}
                   textStyle={{}}
-                  title={
-                    isRTL
-                      ? "Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„ØªÙ‚Ø±ÙŠØ± Ø§Ù„ØµØ­ÙŠ"
-                      : "Generate Report"
-                  }
+                  title={isRTL ? "إنشاء التقرير الصحي" : "Generate Report"}
                   variant="primary"
                 />
               </View>
@@ -4132,9 +4119,7 @@ export default function FamilyScreen() {
                           color: theme.colors.text.secondary,
                         }}
                       >
-                        {isRTL
-                          ? "Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø£Ø¹Ø¶Ø§Ø¡ Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©"
-                          : "Total Members"}
+                        {isRTL ? "إجمالي أعضاء العائلة" : "Total Members"}
                       </Caption>
                       <Text
                         style={{
@@ -4164,9 +4149,7 @@ export default function FamilyScreen() {
                           color: theme.colors.text.secondary,
                         }}
                       >
-                        {isRTL
-                          ? "Ù…ØªÙˆØ³Ø· Ø§Ù„Ù†Ù‚Ø§Ø· Ø§Ù„ØµØ­ÙŠØ©"
-                          : "Avg Health Score"}
+                        {isRTL ? "متوسط النقاط الصحية" : "Avg Health Score"}
                       </Caption>
                       <Text
                         style={{
@@ -4231,7 +4214,7 @@ export default function FamilyScreen() {
                         }}
                       >
                         {isRTL
-                          ? " Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ø£Ø¹Ø±Ø§Ø¶ Ø§Ù„ØµØ­ÙŠØ© Ù„Ù„Ø¹Ø§Ø¦Ù„Ø©"
+                          ? "إجمالي الأعراض الصحية للعائلة"
                           : "Total Symptoms"}
                       </Caption>
                       <Text
@@ -4256,9 +4239,7 @@ export default function FamilyScreen() {
                           color: theme.colors.text.primary,
                         }}
                       >
-                        {isRTL
-                          ? "Ø§Ù„ØªÙ†Ø¨ÙŠÙ‡Ø§Øª Ø§Ù„ØµØ­ÙŠØ© Ù„Ù„Ø¹Ø§Ø¦Ù„Ø©"
-                          : "Alerts"}
+                        {isRTL ? "التنبيهات الصحية للعائلة" : "Alerts"}
                       </Heading>
                       {healthReport.summary.alerts.map((alert, index) => (
                         <Card
@@ -4298,7 +4279,7 @@ export default function FamilyScreen() {
                       textStyle={{}}
                       title={
                         isRTL
-                          ? "ØªØµØ¯ÙŠØ± Ø§Ù„ØªÙ‚Ø±ÙŠØ± Ø§Ù„ØµØ­ÙŠ ÙƒÙ€ PDF"
+                          ? "تصدير التقرير الصحي كـ PDF"
                           : "Export Report as PDF"
                       }
                       variant="outline"
@@ -4315,9 +4296,7 @@ export default function FamilyScreen() {
                       color: theme.colors.text.primary,
                     }}
                   >
-                    {isRTL
-                      ? "ØªÙØ§ØµÙŠÙ„ Ø£ÙØ±Ø§Ø¯ Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©"
-                      : "Member Details"}
+                    {isRTL ? "تفاصيل أفراد العائلة" : "Member Details"}
                   </Heading>
                   {healthReport.members.map((memberReport) => (
                     <Card
@@ -4413,16 +4392,13 @@ export default function FamilyScreen() {
                           numberOfLines={1}
                           style={{ color: theme.colors.text.secondary }}
                         >
-                          {isRTL
-                            ? "Ø§ØªØ¬Ø§Ù‡ Ø§Ù„Ø£Ø¹Ø±Ø§Ø¶ Ø§Ù„ØµØ­ÙŠØ©"
-                            : "Symptom Trend"}
-                          :{" "}
+                          {isRTL ? "اتجاه الأعراض الصحية" : "Symptom Trend"}:{" "}
                           {isRTL
                             ? memberReport.trends.symptomTrend === "improving"
-                              ? "ÙŠØªØ­Ø³Ù†"
+                              ? "يتحسن"
                               : memberReport.trends.symptomTrend === "worsening"
-                                ? "ÙŠØªØ¯Ù‡ÙˆØ±"
-                                : "Ù…Ø³ØªÙ‚Ø±"
+                                ? "يتدهور"
+                                : "مستقر"
                             : memberReport.trends.symptomTrend}
                         </Caption>
                       </View>
@@ -4450,7 +4426,7 @@ export default function FamilyScreen() {
                   }}
                 >
                   {isRTL
-                    ? "Ù‚Ù… Ø¨Ø¥Ù†Ø´Ø§Ø¡ ØªÙ‚Ø±ÙŠØ± ØµØ­ÙŠ Ù„Ù„Ø¹Ø§Ø¦Ù„Ø© Ù„Ø¹Ø±Ø¶ Ø§Ù„Ù…Ù„Ø®Øµ ÙˆØ§Ù„Ø¥Ø­ØµØ§Ø¦ÙŠØ§Øª"
+                    ? "قم بإنشاء تقرير صحي للعائلة لعرض الملخص والإحصائيات"
                     : "Generate a family health report to view summary and statistics"}
                 </Text>
               </View>
@@ -4467,9 +4443,7 @@ export default function FamilyScreen() {
             <SafeAreaView style={styles.modalContainer}>
               <View style={styles.modalHeader}>
                 <Heading level={5} style={{ color: theme.colors.text.primary }}>
-                  {isRTL
-                    ? "Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ø®ØµÙˆØµÙŠØ©"
-                    : "Privacy Settings"}
+                  {isRTL ? "إعدادات الخصوصية" : "Privacy Settings"}
                 </Heading>
                 <TouchableOpacity onPress={() => setShowPrivacyModal(false)}>
                   <Text
@@ -5583,105 +5557,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
-  },
-  eventsList: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  eventCard: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
-  },
-  eventHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  eventType: {
-    fontSize: 16,
-    fontFamily: "Inter-SemiBold",
-    color: "#1E293B",
-  },
-  eventMemberName: {
-    fontSize: 13,
-    fontFamily: "Inter-Medium",
-    color: "#64748B",
-    marginTop: 2,
-  },
-  eventStatus: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusBadgeText: {
-    fontSize: 10,
-    fontFamily: "Inter-Bold",
-    color: "#FFFFFF",
-  },
-  eventReasons: {
-    marginBottom: 8,
-  },
-  reasonItem: {
-    fontSize: 14,
-    fontFamily: "Inter-Regular",
-    color: "#64748B",
-    marginBottom: 4,
-  },
-  eventFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  eventTime: {
-    fontSize: 12,
-    fontFamily: "Inter-Regular",
-    color: "#94A3B8",
-  },
-  actionButtons: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  eventActionButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  acknowledgeButton: {
-    backgroundColor: "#F59E0B",
-  },
-  resolveButton: {
-    backgroundColor: "#10B981",
-  },
-  escalateButton: {
-    backgroundColor: "#EF4444",
-  },
-  actionButtonText: {
-    fontSize: 12,
-    fontFamily: "Inter-Bold",
-    color: "#FFFFFF",
-  },
-  viewAllButton: {
-    padding: 16,
-    alignItems: "center",
-    backgroundColor: "#F8FAFC",
-    borderTopWidth: 1,
-    borderTopColor: "#F1F5F9",
-  },
-  viewAllText: {
-    fontSize: 14,
-    fontFamily: "Inter-Medium",
-    color: "#003543",
   },
 });
