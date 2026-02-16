@@ -16,7 +16,22 @@ const pushNotificationPolyfillPath = path.resolve(
   __dirname,
   "lib/polyfills/pushNotificationIOS.js"
 );
+
+let hasLoggedBundleMode = false;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (!hasLoggedBundleMode) {
+    hasLoggedBundleMode = true;
+    const devFlag = context?.dev;
+    const mode = devFlag === true ? "dev" : "non-dev";
+    // This runs in the Metro/Node process (build time), not inside the app runtime.
+    // Useful for debugging EAS builds where env vars can be misleading.
+    // eslint-disable-next-line no-console
+    console.log(
+      `[metro] bundle mode: ${mode} (context.dev=${String(devFlag)}) platform=${String(
+        platform
+      )}`
+    );
+  }
   // Intercept PushNotificationIOS - react-native uses relative require from its index.js
   const isPushNotificationIOS =
     moduleName === "@react-native/push-notification-ios" ||
