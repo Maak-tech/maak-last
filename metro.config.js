@@ -32,6 +32,28 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     };
   }
 
+  // Exclude expo-dev-client and related development modules from production bundles
+  // This prevents "DevMenu TurboModule not found" errors in production/release builds
+  const isProduction = process.env.NODE_ENV === "production" || process.env.EXPO_PUBLIC_ENVIRONMENT === "production";
+  if (isProduction) {
+    const isDevelopmentModule =
+      moduleName === "expo-dev-client" ||
+      moduleName === "expo-dev-launcher" ||
+      moduleName === "expo-dev-menu" ||
+      moduleName === "expo-dev-menu-interface" ||
+      moduleName.startsWith("expo-dev-client/") ||
+      moduleName.startsWith("expo-dev-launcher/") ||
+      moduleName.startsWith("expo-dev-menu/");
+    
+    if (isDevelopmentModule) {
+      // Return an empty module to prevent bundling dev-only modules in production
+      return {
+        filePath: path.resolve(__dirname, "lib/polyfills/emptyModule.js"),
+        type: "sourceFile",
+      };
+    }
+  }
+
   // Use Metro's default resolver for everything else
   return context.resolveRequest(context, moduleName, platform);
 };
