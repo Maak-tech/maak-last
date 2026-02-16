@@ -32,10 +32,15 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     };
   }
 
-  // Exclude expo-dev-client and related development modules from production bundles
-  // This prevents "DevMenu TurboModule not found" errors in production/release builds
-  const isProduction = process.env.NODE_ENV === "production" || process.env.EXPO_PUBLIC_ENVIRONMENT === "production";
-  if (isProduction) {
+  // Exclude expo-dev-client modules in non-dev bundles.
+  // Metro's context.dev is the most reliable signal across EAS build/update pipelines.
+  const isDevBundle =
+    typeof context.dev === "boolean"
+      ? context.dev
+      : process.env.NODE_ENV !== "production" &&
+        process.env.BABEL_ENV !== "production" &&
+        process.env.EXPO_PUBLIC_ENVIRONMENT !== "production";
+  if (!isDevBundle) {
     const isDevelopmentModule =
       moduleName === "expo-dev-client" ||
       moduleName === "expo-dev-launcher" ||
@@ -44,7 +49,7 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
       moduleName.startsWith("expo-dev-client/") ||
       moduleName.startsWith("expo-dev-launcher/") ||
       moduleName.startsWith("expo-dev-menu/");
-    
+
     if (isDevelopmentModule) {
       // Return an empty module to prevent bundling dev-only modules in production
       return {
