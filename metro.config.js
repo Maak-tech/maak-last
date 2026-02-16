@@ -33,13 +33,14 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   }
 
   // Exclude expo-dev-client modules in non-dev bundles.
-  // Metro's context.dev is the most reliable signal across EAS build/update pipelines.
-  const isDevBundle =
-    typeof context.dev === "boolean"
-      ? context.dev
-      : process.env.NODE_ENV !== "production" &&
-        process.env.BABEL_ENV !== "production" &&
-        process.env.EXPO_PUBLIC_ENVIRONMENT !== "production";
+  //
+  // IMPORTANT:
+  // - In EAS build/update pipelines, env vars like NODE_ENV/BABEL_ENV may be unset or misleading.
+  // - Metro's resolver context provides `dev` (true for dev server bundles, false for release bundles).
+  //
+  // So we ONLY treat it as a dev bundle when Metro explicitly says `context.dev === true`.
+  // Anything else (false/undefined) is treated as non-dev and will have dev-client modules stubbed out.
+  const isDevBundle = context?.dev === true;
   if (!isDevBundle) {
     const isDevelopmentModule =
       moduleName === "expo-dev-client" ||
