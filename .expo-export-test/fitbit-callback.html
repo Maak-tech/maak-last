@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fitbit Authorization</title>
+    <style>
+    body {
+      font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+        Cantarell, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      background: linear-gradient(135deg, #00b0b9 0%, #00a0b0 100%);
+      color: white;
+    }
+    .container {
+      text-align: center;
+      padding: 2rem;
+    }
+    .spinner {
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-top: 4px solid white;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
+    }
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="spinner"></div>
+      <h1>Completing Authorization...</h1>
+      <p>Please wait while we redirect you back to the app.</p>
+    </div>
+    <script>
+    "use strict";
+    // Extract code and state from URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get("code");
+    const error = urlParams.get("error");
+    const state = urlParams.get("state");
+
+    // Redirect to app deep link with the authorization code
+    if (code) {
+      // Redirect to app using deep link scheme
+      const appScheme = "maak://fitbit-callback";
+      const redirectUrl = `${appScheme}?code=${encodeURIComponent(code)}${state ? `&state=${encodeURIComponent(state)}` : ""}`;
+
+      // Try to open the app
+      window.location.href = redirectUrl;
+
+      // Fallback: if app doesn't open, show message
+      setTimeout(() => {
+        document.querySelector(".container").innerHTML = `
+                    <h1>Authorization Complete</h1>
+                    <p>You can close this window and return to the Maak Health app.</p>
+                    <p style="font-size: 0.9em; opacity: 0.8;">If the app didn't open automatically, please return to the app manually.</p>
+                `;
+      }, 2000);
+    } else if (error) {
+      // Handle error
+      document.querySelector(".container").innerHTML = `
+                <h1>Authorization Failed</h1>
+                <p>Error: ${error}</p>
+                <p style="font-size: 0.9em; opacity: 0.8;">Please try again from the Maak Health app.</p>
+            `;
+    } else {
+      // No code or error - unexpected state
+      document.querySelector(".container").innerHTML = `
+                <h1>Invalid Request</h1>
+                <p>No authorization code received.</p>
+                <p style="font-size: 0.9em; opacity: 0.8;">Please try again from the Maak Health app.</p>
+            `;
+    }
+    </script>
+  </body>
+</html>

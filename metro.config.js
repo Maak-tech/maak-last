@@ -57,6 +57,17 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   // Anything else (false/undefined) is treated as non-dev and will have dev-client modules stubbed out.
   const isDevBundle = context?.dev === true;
   if (!isDevBundle) {
+    const normalizedModuleName = String(moduleName || "").replace(/\\/g, "/");
+    const originModulePath = String(context?.originModulePath || "").replace(
+      /\\/g,
+      "/"
+    );
+    const isRelativeImport =
+      moduleName.startsWith("./") ||
+      moduleName.startsWith("../") ||
+      moduleName.startsWith(".\\") ||
+      moduleName.startsWith("..\\");
+
     const isDevelopmentModule =
       moduleName === "expo-dev-client" ||
       moduleName === "expo-dev-launcher" ||
@@ -64,9 +75,44 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
       moduleName === "expo-dev-menu-interface" ||
       moduleName.startsWith("expo-dev-client/") ||
       moduleName.startsWith("expo-dev-launcher/") ||
-      moduleName.startsWith("expo-dev-menu/");
+      moduleName.startsWith("expo-dev-menu/") ||
+      moduleName.startsWith("expo-dev-menu-interface/");
 
-    if (isDevelopmentModule) {
+    // Expo dev-client packages frequently import internal files via relative paths
+    // (e.g. `require("./DevMenu")`). Those won't match the moduleName checks above,
+    // so we also block any relative imports originating from these packages.
+    const isDevPackageOrigin =
+      originModulePath.includes("/node_modules/expo-dev-client/") ||
+      originModulePath.includes("/node_modules/expo-dev-launcher/") ||
+      originModulePath.includes("/node_modules/expo-dev-menu/") ||
+      originModulePath.includes("/node_modules/expo-dev-menu-interface/");
+
+    // React Native also contains a DevMenu TurboModule spec (`NativeDevMenu`) that will
+    // crash release builds if anything imports it (even behind a `__DEV__` usage check),
+    // because the spec module calls `getEnforcing('DevMenu')` at import time.
+    //
+    // If any library accidentally does `import { DevMenu } from "react-native"` in production,
+    // this prevents a hard crash by stubbing the DevMenu spec/modules.
+    const isReactNativeDevMenuRequest =
+      normalizedModuleName ===
+        "react-native/Libraries/NativeModules/specs/NativeDevMenu" ||
+      normalizedModuleName.includes(
+        "react-native/src/private/devsupport/devmenu/specs/NativeDevMenu"
+      ) ||
+      normalizedModuleName.includes(
+        "react-native/src/private/devsupport/devmenu/DevMenu"
+      ) ||
+      // Relative imports inside react-native itself
+      ((originModulePath.includes("/node_modules/react-native/") ||
+        originModulePath.includes("/node_modules/@react-native/")) &&
+        (normalizedModuleName.includes("NativeDevMenu") ||
+          normalizedModuleName.includes("devsupport/devmenu")));
+
+    if (
+      isDevelopmentModule ||
+      (isDevPackageOrigin && isRelativeImport) ||
+      isReactNativeDevMenuRequest
+    ) {
       // Return an empty module to prevent bundling dev-only modules in production
       return {
         filePath: path.resolve(__dirname, "lib/polyfills/emptyModule.js"),

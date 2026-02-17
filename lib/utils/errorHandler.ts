@@ -7,6 +7,7 @@
 /* biome-ignore-all lint/suspicious/noExplicitAny: runtime global/error surfaces are loosely typed in React Native environment hooks. */
 /* biome-ignore-all lint/correctness/noUndeclaredVariables: ErrorUtils is injected by React Native runtime when available. */
 
+import * as Sentry from "@sentry/react-native";
 import { Platform } from "react-native";
 import { isFirebaseReady } from "@/lib/firebase";
 import { observabilityEmitter } from "@/lib/observability";
@@ -59,6 +60,25 @@ function handleGlobalError(error: Error, isFatal = false) {
     logger.error("Global Error Handler", errorDetails, "ErrorHandler");
     recordCrashlyticsError(error, isFatal ? "js_fatal_error" : "js_error");
 
+    // Ensure the error is explicitly captured by Sentry.
+    // (We also forward to the original handler below, which may already be Sentry’s handler,
+    // but explicitly capturing here makes reporting more robust.)
+    try {
+      Sentry.captureException(error, {
+        tags: {
+          source: "global_error_handler",
+          fatal: String(isFatal),
+          platform: Platform.OS,
+        },
+        extra: {
+          isFatal,
+          message: errorMessage,
+        },
+      });
+    } catch {
+      // Never let telemetry crash the app.
+    }
+
     // Log to console for debugging
     console.error("=== GLOBAL ERROR HANDLER ===");
     console.error("Error:", error);
@@ -105,7 +125,22 @@ function handleGlobalError(error: Error, isFatal = false) {
       );
     }
 
-    // Call original handler if it exists (this is the TextImpl handler)
+    // For fatal errors, try to flush Sentry before the app process is terminated.
+    // This significantly increases the chance that the event appears in Sentry.
+    if (isFatal && originalErrorHandler) {
+      void Sentry.flush(2000)
+        .catch(() => {})
+        .finally(() => {
+          try {
+            originalErrorHandler?.(error, isFatal);
+          } catch {
+            // ignore
+          }
+        });
+      return;
+    }
+
+    // Call original handler if it exists (often Sentry's handler)
     if (originalErrorHandler) {
       originalErrorHandler(error, isFatal);
     }
@@ -135,6 +170,16 @@ function handleUnhandledRejection(event: PromiseRejectionEvent | any) {
 
     logger.error("Unhandled Promise Rejection", errorDetails, "ErrorHandler");
     recordCrashlyticsError(error, "js_unhandled_rejection");
+    try {
+      Sentry.captureException(error, {
+        tags: {
+          source: "unhandled_promise_rejection",
+          platform: Platform.OS,
+        },
+      });
+    } catch {
+      // ignore
+    }
 
     console.error("=== UNHANDLED PROMISE REJECTION ===");
     console.error("Error:", error);

@@ -42,58 +42,11 @@ import { RealtimeHealthProvider } from "@/contexts/RealtimeHealthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { isFirebaseReady } from "@/lib/firebase";
 import i18n from "@/lib/i18n";
+import { routingInstrumentation } from "@/lib/sentry";
 import { initializeCrashlytics } from "@/lib/services/crashlyticsService";
 import { revenueCatService } from "@/lib/services/revenueCatService";
 import { initializeErrorHandlers } from "@/lib/utils/errorHandler";
 import { logger } from "@/lib/utils/logger";
-
-const routingInstrumentation = Sentry.reactNavigationIntegration();
-
-const sanitizeTransactionName = (name: string | undefined): string => {
-  if (!name) {
-    return "unknown";
-  }
-  const trimmed = name.trim();
-  if (!trimmed) {
-    return "unknown";
-  }
-  return trimmed.replace(/\s+/g, " ").slice(0, 200);
-};
-
-Sentry.init({
-  dsn: "https://3c10b6c7baa9d0cd68ececd5fc353a0b@o4510873580470272.ingest.us.sentry.io/4510873582501888",
-
-  beforeSendTransaction(event) {
-    event.transaction = sanitizeTransactionName(event.transaction);
-    return event;
-  },
-
-  // Adds more context data to events (IP address, cookies, user, etc.)
-  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
-  sendDefaultPii: true,
-
-  // Enable Logs
-  enableLogs: true,
-
-  // Tracing (set to 1.0 for verification, tune down for production)
-  tracesSampleRate: 1.0,
-
-  // User Interaction Tracing
-  enableUserInteractionTracing: true,
-
-  // Configure Session Replay
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1,
-  integrations: [
-    Sentry.reactNativeTracingIntegration(),
-    routingInstrumentation,
-    Sentry.mobileReplayIntegration(),
-    Sentry.feedbackIntegration(),
-  ],
-
-  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
-  // spotlight: __DEV__,
-});
 
 const ENABLE_NOTIFICATIONS_BOOTSTRAP =
   process.env.EXPO_PUBLIC_ENABLE_NOTIFICATIONS_BOOTSTRAP === "true";
