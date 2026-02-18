@@ -77,6 +77,6 @@ pglite-debug.log
 /.design-figma/
 /.design-figma-zip/
 
-# Local design prototypes / figma exports
-/.design-figma/
-/.design-figma-zip/
+# Bun lockfiles - exclude to force npm usage in Firebase App Hosting
+bun.lock
+bun.lockb
