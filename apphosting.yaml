@@ -1,3 +1,10 @@
+env:
+  - variable: NODE_ENV
+    value: production
+    availability:
+      - BUILD
+      - RUNTIME
+
 scripts:
   buildCommand: npm run build
   runCommand: npm run start
