@@ -15,8 +15,18 @@ index c737c93..4e81a5d 100644
 +    return {show() {}};
    },
    get DevSettings() {
-     return require('./Libraries/Utilities/DevSettings').default;
-@@ -271,14 +276,28 @@ module.exports = {
++    // Guard with __DEV__ to prevent TurboModuleRegistry.getEnforcing('DevSettings')
++    // crash in production builds where the native DevSettings module is not registered.
++    if (__DEV__) {
++      return require('./Libraries/Utilities/DevSettings').default;
++    }
++    return {
++      addMenuItem() {},
++      reload() {},
++      addListener() { return { remove() {} }; },
++      removeListeners() {},
++    };
+@@ -271,14 +281,28 @@ module.exports = {
        .PlatformColor;
    },
    get PushNotificationIOS() {
