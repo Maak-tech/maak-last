@@ -82,7 +82,6 @@ export default function LabResultsScreen() {
   ).length;
   const reviewCount = Math.max(labResults.length - normalCount, 0);
 
-  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: large screen style map.
   const styles = createThemedStyles((screenTheme) => ({
     container: {
       flex: 1,

@@ -2,19 +2,64 @@
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "extends": ["ultracite/core", "ultracite/react"],
   "files": {
-    "includes": ["!.tmp_family.json"]
+    "includes": [
+      "!**/.design-*",
+      "!**/.expo",
+      "!**/.expo-*",
+      "!**/dist",
+      "!**/node_modules",
+      "!.tmp_family.json"
+    ]
   },
   "linter": {
     "rules": {
       "recommended": true,
+      "complexity": {
+        "noExcessiveCognitiveComplexity": "warn",
+        "noForEach": "warn",
+        "noUselessSwitchCase": "warn",
+        "noVoid": "warn",
+        "useOptionalChain": "warn"
+      },
       "correctness": {
-        "noUnusedImports": "error"
+        "noUnusedImports": "error",
+        "noUnusedFunctionParameters": "warn",
+        "noUnusedVariables": "warn",
+        "useExhaustiveDependencies": "warn"
       },
       "performance": {
-        "noBarrelFile": "off"
+        "noBarrelFile": "off",
+        "noDelete": "warn",
+        "noNamespaceImport": "warn",
+        "useTopLevelRegex": "warn"
+      },
+      "suspicious": {
+        "noAlert": "warn",
+        "noArrayIndexKey": "warn",
+        "noBitwiseOperators": "warn",
+        "noEmptyBlockStatements": "warn",
+        "noEvolvingTypes": "warn",
+        "noExplicitAny": "warn",
+        "noImplicitAnyLet": "warn",
+        "useAwait": "warn"
       },
       "style": {
+        "noNestedTernary": "warn",
+        "noExportedImports": "warn",
+        "noNonNullAssertion": "warn",
+        "useDefaultSwitchClause": "warn",
+        "useAtIndex": "warn",
+        "useBlockStatements": "warn",
+        "useConsistentBuiltinInstantiation": "warn",
+        "useTemplate": "warn",
         "useFilenamingConvention": "off"
+      },
+      "nursery": {
+        "noIncrementDecrement": "warn",
+        "noEqualsToNull": "warn",
+        "noLeakedRender": "warn",
+        "noShadow": "warn",
+        "useMaxParams": "warn"
       }
     }
   }

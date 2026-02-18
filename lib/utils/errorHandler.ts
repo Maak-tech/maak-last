@@ -128,7 +128,10 @@ function handleGlobalError(error: Error, isFatal = false) {
     // For fatal errors, try to flush Sentry before the app process is terminated.
     // This significantly increases the chance that the event appears in Sentry.
     if (isFatal && originalErrorHandler) {
-      void Sentry.flush(2000)
+      void Promise.race([
+        Sentry.flush(),
+        new Promise<void>((resolve) => setTimeout(resolve, 2000)),
+      ])
         .catch(() => {})
         .finally(() => {
           try {
