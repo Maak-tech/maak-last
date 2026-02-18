@@ -45,7 +45,13 @@ function isRNFirebaseReady(): boolean {
 
   try {
     // Try to access the React Native Firebase app module
-    const rnFirebaseApp = require("@react-native-firebase/app");
+    // Only attempt this on native platforms where the module exists
+    // Use a lazy require pattern to prevent bundlers from statically analyzing this at build time
+    // This is critical for web builds (Firebase App Hosting) where these modules don't exist
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const rnFirebaseAppModule = "@react-native-firebase/app";
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const rnFirebaseApp = require(rnFirebaseAppModule);
 
     // Check if the default Firebase app exists by safely calling getApp()
     // This will throw if the app isn't initialized, which we catch below
@@ -111,7 +117,12 @@ function getCrashlytics(): CrashlyticsLike | null {
   }
 
   try {
-    const moduleRef = require("@react-native-firebase/crashlytics");
+    // Use a lazy require pattern to prevent bundlers from statically analyzing this at build time
+    // This is critical for web builds (Firebase App Hosting) where these modules don't exist
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const crashlyticsModule = "@react-native-firebase/crashlytics";
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const moduleRef = require(crashlyticsModule);
     
     // Safely get Crashlytics instance - wrap in try-catch to handle
     // any errors during module access or initialization

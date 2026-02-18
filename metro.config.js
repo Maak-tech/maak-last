@@ -47,6 +47,21 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     };
   }
 
+  // React Native Firebase modules don't exist in web builds
+  // Stub them out to prevent build failures in Firebase App Hosting and other web environments
+  // This check must happen before the dev bundle check to catch all web builds
+  const isReactNativeFirebaseModule =
+    moduleName === "@react-native-firebase/app" ||
+    moduleName === "@react-native-firebase/crashlytics" ||
+    moduleName.startsWith("@react-native-firebase/");
+  
+  if (isReactNativeFirebaseModule && platform === "web") {
+    return {
+      filePath: path.resolve(__dirname, "lib/polyfills/emptyModule.js"),
+      type: "sourceFile",
+    };
+  }
+
   // Exclude expo-dev-client modules in non-dev bundles.
   //
   // IMPORTANT:
@@ -113,7 +128,7 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
       (isDevPackageOrigin && isRelativeImport) ||
       isReactNativeDevMenuRequest
     ) {
-      // Return an empty module to prevent bundling dev-only modules in production
+      // Return an empty module to prevent bundling dev-only or native-only modules
       return {
         filePath: path.resolve(__dirname, "lib/polyfills/emptyModule.js"),
         type: "sourceFile",
