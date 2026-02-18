@@ -54,7 +54,7 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     moduleName === "@react-native-firebase/app" ||
     moduleName === "@react-native-firebase/crashlytics" ||
     moduleName.startsWith("@react-native-firebase/");
-  
+
   if (isReactNativeFirebaseModule && platform === "web") {
     return {
       filePath: path.resolve(__dirname, "lib/polyfills/emptyModule.js"),

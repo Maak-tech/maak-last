@@ -25,7 +25,7 @@ const CHECK_CACHE_DURATION = 1000; // Cache for 1 second
 /**
  * Checks if React Native Firebase app is ready by verifying the default app exists.
  * This prevents the race condition where Crashlytics tries to access Firebase before initialization.
- * 
+ *
  * On native platforms, React Native Firebase initializes automatically via native code.
  * This function safely checks if the native Firebase app is ready without throwing errors.
  */
@@ -56,7 +56,7 @@ function isRNFirebaseReady(): boolean {
     // Check if the default Firebase app exists by safely calling getApp()
     // This will throw if the app isn't initialized, which we catch below
     let app: any = null;
-    
+
     if (typeof rnFirebaseApp === "function") {
       try {
         app = rnFirebaseApp();
@@ -123,11 +123,11 @@ function getCrashlytics(): CrashlyticsLike | null {
     const crashlyticsModule = "@react-native-firebase/crashlytics";
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const moduleRef = require(crashlyticsModule);
-    
+
     // Safely get Crashlytics instance - wrap in try-catch to handle
     // any errors during module access or initialization
     let crashlytics: CrashlyticsLike | null = null;
-    
+
     try {
       if (typeof moduleRef === "function") {
         crashlytics = moduleRef() as CrashlyticsLike;
@@ -136,7 +136,7 @@ function getCrashlytics(): CrashlyticsLike | null {
       } else if (moduleRef?.crashlytics) {
         crashlytics = moduleRef.crashlytics() as CrashlyticsLike;
       }
-      
+
       // Verify the crashlytics instance is valid
       if (crashlytics && typeof crashlytics.recordError === "function") {
         // Cache the instance for future use
@@ -183,7 +183,7 @@ export async function initializeCrashlytics(): Promise<boolean> {
   try {
     // Reset cache before initialization to ensure we check Firebase readiness fresh
     resetFirebaseReadyCache();
-    
+
     const crashlytics = getCrashlytics();
     if (!crashlytics) {
       return false;
@@ -192,15 +192,15 @@ export async function initializeCrashlytics(): Promise<boolean> {
     // Initialize Crashlytics collection
     await crashlytics.setCrashlyticsCollectionEnabled(true);
     crashlytics.log("Crashlytics initialized");
-    
+
     // Mark as initialized and cache the instance
     crashlyticsInitialized = true;
     crashlyticsInstance = crashlytics;
-    
+
     // Mark Firebase as ready in cache after successful initialization
     rnFirebaseReadyCache = true;
     lastCheckTime = Date.now();
-    
+
     return true;
   } catch (error) {
     // Silently handle initialization errors - Crashlytics should never crash the app
@@ -214,7 +214,7 @@ export async function initializeCrashlytics(): Promise<boolean> {
 export function recordCrashlyticsError(error: unknown, source = "js_error") {
   // Never throw from error reporter - this is critical for error handlers
   // that might be called before Firebase is initialized
-  
+
   // Fast path: if Crashlytics hasn't been initialized yet, skip silently
   // This prevents any Firebase access attempts during early startup
   if (!crashlyticsInitialized) {
@@ -224,7 +224,7 @@ export function recordCrashlyticsError(error: unknown, source = "js_error") {
   try {
     // Use cached instance if available (fastest path)
     let crashlytics = crashlyticsInstance;
-    
+
     // If no cached instance, try to get one (but only if initialized)
     if (!crashlytics) {
       // Double-check Firebase is ready before attempting to record
@@ -241,7 +241,7 @@ export function recordCrashlyticsError(error: unknown, source = "js_error") {
 
     const normalizedError =
       error instanceof Error ? error : new Error(String(error));
-    
+
     // Wrap recordError in try-catch as it might fail if Firebase
     // becomes unavailable between the check and the call
     try {
@@ -251,9 +251,11 @@ export function recordCrashlyticsError(error: unknown, source = "js_error") {
       // This can happen if Firebase becomes unavailable or Crashlytics
       // encounters an internal error
       // Reset initialization state if recording fails consistently
-      if (recordError instanceof Error && 
-          recordError.message?.includes("Firebase App") &&
-          recordError.message?.includes("not been created")) {
+      if (
+        recordError instanceof Error &&
+        recordError.message?.includes("Firebase App") &&
+        recordError.message?.includes("not been created")
+      ) {
         // Firebase became unavailable - reset state
         crashlyticsInitialized = false;
         crashlyticsInstance = null;

@@ -17,7 +17,6 @@
 /* biome-ignore-all lint/correctness/noUnusedVariables: staged feature variables are intentionally retained. */
 /* biome-ignore-all lint/correctness/useHookAtTopLevel: false positives from service APIs named with use* are tolerated in this pass. */
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useIsFocused } from "@react-navigation/native";
 import * as Print from "expo-print";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import * as Sharing from "expo-sharing";
@@ -185,7 +184,13 @@ export default function FamilyScreen() {
     Math.round(Math.max(width, height)) === 852;
   const contentPadding = isIphone16Pro ? 24 : theme.spacing.lg;
   const headerPadding = isIphone16Pro ? 28 : theme.spacing.xl;
-  const isFocused = useIsFocused();
+  const [isFocused, setIsFocused] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setIsFocused(true);
+      return () => setIsFocused(false);
+    }, [])
+  );
   const { trendAlertEvent, familyUpdateEvent, setFamilyMemberIds } =
     useRealtimeHealthContext();
   const router = useRouter();
@@ -330,6 +335,7 @@ export default function FamilyScreen() {
   const loadMemberMetricsRef = useRef<
     ((members: User[]) => Promise<void>) | null
   >(null);
+  const memberMetricsLoadKeyRef = useRef<string>("");
   const loadingEventsRef = useRef(false);
   const familyMembersRef = useRef<User[]>([]);
   const memberMetricsRef = useRef<FamilyMemberMetrics[]>([]);
@@ -611,7 +617,7 @@ export default function FamilyScreen() {
             "FamilyScreen"
           );
 
-          const userIds = membersToUse.map((member) => member.id);
+          const userIds = membersToUse.map((member: User) => member.id);
           const familyEvents = await getFamilyHealthEvents(userIds);
           setEvents(familyEvents);
 
@@ -675,7 +681,7 @@ export default function FamilyScreen() {
 
         if (isAdmin && user.familyId && membersToUse.length > 0) {
           // Load alerts for all family members
-          const alertPromises = membersToUse.map(async (member) => {
+          const alertPromises = membersToUse.map(async (member: User) => {
             try {
               const alerts = await alertService.getActiveAlerts(member.id);
               const fullName =
@@ -692,11 +698,20 @@ export default function FamilyScreen() {
           });
 
           const results = await Promise.allSettled(alertPromises);
-          results.forEach((result) => {
-            if (result.status === "fulfilled") {
-              alertsWithMembers.push(...result.value);
+          results.forEach(
+            (
+              result: PromiseSettledResult<
+                Array<{
+                  alert: import("@/types").EmergencyAlert;
+                  memberName: string;
+                }>
+              >
+            ) => {
+              if (result.status === "fulfilled") {
+                alertsWithMembers.push(...result.value);
+              }
             }
-          });
+          );
         } else {
           // Load alerts for current user only
           try {
@@ -815,7 +830,20 @@ export default function FamilyScreen() {
     setResolvingAlertId(alertId);
 
     // Optimistic update: remove from UI immediately
-    setActiveAlerts((prev) => prev.filter((item) => item.alert.id !== alertId));
+    setActiveAlerts(
+      (
+        prev: Array<{
+          alert: import("@/types").EmergencyAlert;
+          memberName: string;
+        }>
+      ) =>
+        prev.filter(
+          (item: {
+            alert: import("@/types").EmergencyAlert;
+            memberName: string;
+          }) => item.alert.id !== alertId
+        )
+    );
 
     const startTime = Date.now();
 
@@ -1189,27 +1217,45 @@ export default function FamilyScreen() {
     [viewMode]
   );
 
+  const requestMemberMetricsLoad = useCallback(
+    (members: User[]) => {
+      if (!members.length) {
+        memberMetricsLoadKeyRef.current = "";
+        setMemberMetrics([]);
+        return;
+      }
+
+      const memberIdsKey = members
+        .map((member) => member.id)
+        .filter(Boolean)
+        .sort()
+        .join(",");
+      const loadKey = `${viewMode}:${memberIdsKey}`;
+
+      if (memberMetricsLoadKeyRef.current === loadKey) return;
+      memberMetricsLoadKeyRef.current = loadKey;
+
+      loadMemberMetrics(members).catch(() => {
+        // Silently handle errors.
+      });
+    },
+    [loadMemberMetrics, viewMode]
+  );
+
   // Store reference after function is defined
   // Also trigger metrics load if family members are already loaded
   useEffect(() => {
     loadMemberMetricsRef.current = loadMemberMetrics;
 
     // Load member metrics when family members are available (needed for family cards)
-    if (
-      familyMembers.length > 0 &&
-      memberMetrics.length === 0 &&
-      !loadingMetrics
-    ) {
-      loadMemberMetrics(familyMembers).catch(() => {
-        // Error loading member metrics after ref set
-      });
+    if (familyMembers.length > 0 && !loadingMetrics) {
+      requestMemberMetricsLoad(familyMembers);
     }
   }, [
     loadMemberMetrics,
-    familyMembers.length,
-    memberMetrics.length,
     loadingMetrics,
     familyMembers,
+    requestMemberMetricsLoad,
   ]);
 
   // Load caregiver dashboard data
@@ -1407,7 +1453,9 @@ export default function FamilyScreen() {
     if (medicationScheduleViewMode === "today" && todaySchedule) {
       entries = todaySchedule.entries;
     } else if (medicationScheduleViewMode === "upcoming") {
-      entries = upcomingSchedule.flatMap((day) => day.entries);
+      entries = upcomingSchedule.flatMap(
+        (day: SharedScheduleDay) => day.entries
+      );
     } else {
       entries = medicationScheduleEntries;
     }
@@ -1415,12 +1463,15 @@ export default function FamilyScreen() {
     // Filter entries based on selectedFilter
     if (selectedFilter.type === "personal") {
       // Show only current user's medications
-      return entries.filter((entry) => entry.member.id === user?.id);
+      return entries.filter(
+        (entry: MedicationScheduleEntry) => entry.member.id === user?.id
+      );
     }
     if (selectedFilter.type === "member" && selectedFilter.memberId) {
       // Show only selected member's medications
       return entries.filter(
-        (entry) => entry.member.id === selectedFilter.memberId
+        (entry: MedicationScheduleEntry) =>
+          entry.member.id === selectedFilter.memberId
       );
     }
     if (selectedFilter.type === "family") {
@@ -1428,7 +1479,9 @@ export default function FamilyScreen() {
       return entries;
     }
     // Default to personal
-    return entries.filter((entry) => entry.member.id === user?.id);
+    return entries.filter(
+      (entry: MedicationScheduleEntry) => entry.member.id === user?.id
+    );
   };
 
   const handleInviteMember = async () => {
@@ -1890,7 +1943,8 @@ export default function FamilyScreen() {
           onPress: async () => {
             try {
               const updatedContacts = emergencyContacts.filter(
-                (c) => c.id !== contactId
+                (c: { id: string; name: string; phone: string }) =>
+                  c.id !== contactId
               );
               setEmergencyContacts(updatedContacts);
               if (user?.id) {
@@ -2072,17 +2126,9 @@ export default function FamilyScreen() {
             members = familyMembersRef.current;
           }
 
-          // Load metrics in background (non-blocking) only if needed
-          // Skip if metrics are already loaded for the same number of members
-          const needsMetricsLoad =
-            members.length > 0 &&
-            (memberMetricsRef.current.length === 0 ||
-              memberMetricsRef.current.length !== members.length);
-
-          if (needsMetricsLoad) {
-            loadMemberMetrics(members).catch(() => {
-              // Error loading member metrics
-            });
+          // Load metrics in background (non-blocking) if needed.
+          if (members.length > 0) {
+            requestMemberMetricsLoad(members);
           }
 
           // Step 2: Load remaining data in parallel (don't wait for metrics)
@@ -2131,7 +2177,7 @@ export default function FamilyScreen() {
       user?.familyId,
       viewMode,
       isAdmin,
-      loadMemberMetrics,
+      requestMemberMetricsLoad,
       loadCaregiverDashboard,
       loadElderlyDashboard,
       loadEvents,
@@ -2141,7 +2187,7 @@ export default function FamilyScreen() {
   );
 
   const familyMemberIds = useMemo(
-    () => familyMembers.map((member) => member.id),
+    () => familyMembers.map((member: User) => member.id),
     [familyMembers]
   );
 
@@ -2157,9 +2203,7 @@ export default function FamilyScreen() {
           metricsRefreshIntervalMs
         ) {
           lastRealtimeMetricsRefreshRef.current = now;
-          loadMemberMetrics(familyMembers).catch(() => {
-            // Error refreshing member metrics
-          });
+          requestMemberMetricsLoad(familyMembers);
         }
       }
 
@@ -2199,7 +2243,7 @@ export default function FamilyScreen() {
       loadCaregiverDashboard,
       loadElderlyDashboard,
       loadEvents,
-      loadMemberMetrics,
+      requestMemberMetricsLoad,
       viewMode,
     ]
   );
@@ -2208,12 +2252,10 @@ export default function FamilyScreen() {
     (alert: { severity: string; trendAnalysis: { message: string } }) => {
       // Refresh member metrics to show updated trends
       if (familyMembers.length > 0) {
-        loadMemberMetrics(familyMembers).catch(() => {
-          // Silently handle errors
-        });
+        requestMemberMetricsLoad(familyMembers);
       }
     },
-    [familyMembers, loadMemberMetrics]
+    [familyMembers, requestMemberMetricsLoad]
   );
 
   // Refs for event handlers so effects only run when the EVENT changes, not when
@@ -2250,6 +2292,13 @@ export default function FamilyScreen() {
   }, [trendAlertEvent?.id, isFocused]);
 
   const handleElderlyEmergency = async () => {
+    if (!user?.id) {
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "يرجى تسجيل الدخول" : "Please sign in"
+      );
+      return;
+    }
     Alert.alert(
       isRTL ? "تنبيه طارئ" : "Emergency Alert",
       isRTL
@@ -2266,7 +2315,7 @@ export default function FamilyScreen() {
           onPress: async () => {
             try {
               await caregiverDashboardService.sendEmergencyAlert(
-                user!.id,
+                user.id,
                 "medical",
                 isRTL ? "تنبيه طارئ من المستخدم" : "Emergency alert from user"
               );
@@ -2288,8 +2337,26 @@ export default function FamilyScreen() {
     );
   };
 
-  const handleElderlyCall = (phone: string) => {
-    Linking.openURL(`tel:${phone}`);
+  const handleElderlyCall = async (phone: string) => {
+    const url = `tel:${phone}`;
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (!supported) {
+        Alert.alert(
+          isRTL ? "خطأ" : "Error",
+          isRTL
+            ? "لا يمكن إجراء المكالمة على هذا الجهاز"
+            : "Calling is not supported on this device"
+        );
+        return;
+      }
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "فشل فتح تطبيق الهاتف" : "Failed to open phone app"
+      );
+    }
   };
 
   const getElderlyHealthScoreColor = (score: number) => {
@@ -2567,12 +2634,15 @@ export default function FamilyScreen() {
   const getFilteredMemberMetrics = () => {
     if (selectedFilter.type === "personal") {
       // Show only current user's data
-      return memberMetrics.filter((metric) => metric.user.id === user?.id);
+      return memberMetrics.filter(
+        (metric: FamilyMemberMetrics) => metric.user.id === user?.id
+      );
     }
     if (selectedFilter.type === "member" && selectedFilter.memberId) {
       // Show only selected member's data
       return memberMetrics.filter(
-        (metric) => metric.user.id === selectedFilter.memberId
+        (metric: FamilyMemberMetrics) =>
+          metric.user.id === selectedFilter.memberId
       );
     }
     if (selectedFilter.type === "family") {
@@ -2580,22 +2650,24 @@ export default function FamilyScreen() {
       return memberMetrics;
     }
     // Default to personal
-    return memberMetrics.filter((metric) => metric.user.id === user?.id);
+    return memberMetrics.filter(
+      (metric: FamilyMemberMetrics) => metric.user.id === user?.id
+    );
   };
 
   const getFilteredFamilyMembers = () => {
     if (selectedFilter.type === "personal") {
-      return familyMembers.filter((member) => member.id === user?.id);
+      return familyMembers.filter((member: User) => member.id === user?.id);
     }
     if (selectedFilter.type === "member" && selectedFilter.memberId) {
       return familyMembers.filter(
-        (member) => member.id === selectedFilter.memberId
+        (member: User) => member.id === selectedFilter.memberId
       );
     }
     if (selectedFilter.type === "family") {
       return familyMembers;
     }
-    return familyMembers.filter((member) => member.id === user?.id);
+    return familyMembers.filter((member: User) => member.id === user?.id);
   };
 
   const filteredMemberMetrics = getFilteredMemberMetrics();
@@ -2681,20 +2753,22 @@ export default function FamilyScreen() {
 
     // Calculate total alerts from filtered member metrics
     const totalAlerts = metricsToUse.reduce(
-      (sum, member) =>
+      (sum: number, member: FamilyMemberMetrics) =>
         sum + (typeof member.alertsCount === "number" ? member.alertsCount : 0),
       0
     );
 
     // Calculate average health score from filtered member metrics
     const healthScores = metricsToUse
-      .map((member) => member.healthScore)
+      .map((member: FamilyMemberMetrics) => member.healthScore)
       .filter((score): score is number => typeof score === "number");
     const avgHealthScore =
       healthScores.length > 0
         ? Math.round(
-            healthScores.reduce((sum, score) => sum + score, 0) /
-              healthScores.length
+            healthScores.reduce(
+              (sum: number, score: number) => sum + score,
+              0
+            ) / healthScores.length
           )
         : 0;
 
@@ -2759,7 +2833,7 @@ export default function FamilyScreen() {
       trend?: "up" | "down" | "stable";
     }> = [];
 
-    metricsToUse.forEach((metric) => {
+    metricsToUse.forEach((metric: FamilyMemberMetrics) => {
       const fullName =
         metric.user.firstName && metric.user.lastName
           ? `${metric.user.firstName} ${metric.user.lastName}`
@@ -2870,7 +2944,7 @@ export default function FamilyScreen() {
 
   const metricsById = useMemo(() => {
     const map = new Map<string, FamilyMemberMetrics>();
-    memberMetrics.forEach((metric) => {
+    memberMetrics.forEach((metric: FamilyMemberMetrics) => {
       map.set(metric.user.id, metric);
     });
     return map;
@@ -2878,9 +2952,11 @@ export default function FamilyScreen() {
 
   const caregiverById = useMemo(() => {
     const map = new Map<string, CaregiverOverview["members"][number]>();
-    caregiverOverview?.members.forEach((member) => {
-      map.set(member.member.id, member);
-    });
+    caregiverOverview?.members.forEach(
+      (member: CaregiverOverview["members"][number]) => {
+        map.set(member.member.id, member);
+      }
+    );
     return map;
   }, [caregiverOverview]);
 
@@ -3011,7 +3087,7 @@ export default function FamilyScreen() {
             </Text>
           </View>
         ) : (
-          displayMembers.map((member) => {
+          displayMembers.map((member: User) => {
             const metric = metricsById.get(member.id);
             const caregiverData = caregiverById.get(member.id);
             const fullName =
@@ -3174,76 +3250,88 @@ export default function FamilyScreen() {
               </View>
             ) : activeAlerts.length > 0 ? (
               <>
-                {activeAlerts.slice(0, 5).map((item) => {
-                  const severityColor =
-                    item.alert.severity === "critical"
-                      ? "#EF4444"
-                      : item.alert.severity === "high"
-                        ? "#F59E0B"
-                        : item.alert.severity === "medium"
-                          ? "#3B82F6"
-                          : "#10B981";
-                  return (
-                    <View key={item.alert.id} style={styles.eventItem}>
-                      <View style={styles.eventItemLeft}>
-                        <View
-                          style={[
-                            styles.eventStatusIndicator,
-                            { backgroundColor: severityColor },
-                          ]}
-                        />
-                        <View style={styles.eventContent}>
-                          <Text
-                            style={[
-                              styles.eventMemberName,
-                              isRTL && styles.rtlText,
-                            ]}
-                          >
-                            {item.memberName}
-                          </Text>
-                          <Text
-                            numberOfLines={2}
-                            style={[
-                              styles.eventMessage,
-                              isRTL && styles.rtlText,
-                            ]}
-                          >
-                            {getLocalizedAlertMessage(item.alert)}
-                          </Text>
-                          <View style={styles.eventMeta}>
-                            <Clock color="#94A3B8" size={12} />
-                            <Text style={styles.eventTime}>
-                              {formatEventTime(item.alert.timestamp)}
-                            </Text>
+                {activeAlerts
+                  .slice(0, 5)
+                  .map(
+                    (item: {
+                      alert: import("@/types").EmergencyAlert;
+                      memberName: string;
+                    }) => {
+                      const severityColor =
+                        item.alert.severity === "critical"
+                          ? "#EF4444"
+                          : item.alert.severity === "high"
+                            ? "#F59E0B"
+                            : item.alert.severity === "medium"
+                              ? "#3B82F6"
+                              : "#10B981";
+                      return (
+                        <View key={item.alert.id} style={styles.eventItem}>
+                          <View style={styles.eventItemLeft}>
+                            <View
+                              style={[
+                                styles.eventStatusIndicator,
+                                { backgroundColor: severityColor },
+                              ]}
+                            />
+                            <View style={styles.eventContent}>
+                              <Text
+                                style={[
+                                  styles.eventMemberName,
+                                  isRTL && styles.rtlText,
+                                ]}
+                              >
+                                {item.memberName}
+                              </Text>
+                              <Text
+                                numberOfLines={2}
+                                style={[
+                                  styles.eventMessage,
+                                  isRTL && styles.rtlText,
+                                ]}
+                              >
+                                {getLocalizedAlertMessage(item.alert)}
+                              </Text>
+                              <View style={styles.eventMeta}>
+                                <Clock color="#94A3B8" size={12} />
+                                <Text style={styles.eventTime}>
+                                  {formatEventTime(item.alert.timestamp)}
+                                </Text>
+                              </View>
+                            </View>
                           </View>
+                          <TouchableOpacity
+                            activeOpacity={0.7}
+                            disabled={resolvingAlertId === item.alert.id}
+                            hitSlop={{
+                              top: 12,
+                              bottom: 12,
+                              left: 12,
+                              right: 12,
+                            }}
+                            onPress={() => handleResolveAlert(item.alert.id)}
+                            style={[
+                              styles.resolveAlertButton,
+                              resolvingAlertId === item.alert.id &&
+                                styles.resolveAlertButtonDisabled,
+                            ]}
+                          >
+                            {resolvingAlertId === item.alert.id ? (
+                              <ActivityIndicator
+                                color="#FFFFFF"
+                                size="small"
+                                style={styles.resolveAlertSpinner}
+                              />
+                            ) : (
+                              <Text style={styles.resolveAlertButtonText}>
+                                {isRTL ? "حل" : "Resolve"}
+                              </Text>
+                            )}
+                          </TouchableOpacity>
                         </View>
-                      </View>
-                      <TouchableOpacity
-                        activeOpacity={0.7}
-                        disabled={resolvingAlertId === item.alert.id}
-                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                        onPress={() => handleResolveAlert(item.alert.id)}
-                        style={[
-                          styles.resolveAlertButton,
-                          resolvingAlertId === item.alert.id &&
-                            styles.resolveAlertButtonDisabled,
-                        ]}
-                      >
-                        {resolvingAlertId === item.alert.id ? (
-                          <ActivityIndicator
-                            color="#FFFFFF"
-                            size="small"
-                            style={styles.resolveAlertSpinner}
-                          />
-                        ) : (
-                          <Text style={styles.resolveAlertButtonText}>
-                            {isRTL ? "حل" : "Resolve"}
-                          </Text>
-                        )}
-                      </TouchableOpacity>
-                    </View>
-                  );
-                })}
+                      );
+                    }
+                  )}
                 {activeAlerts.length > 5 && (
                   <Text style={[styles.moreItemsText, isRTL && styles.rtlText]}>
                     {isRTL
@@ -3288,10 +3376,10 @@ export default function FamilyScreen() {
               </View>
             ) : events.length > 0 ? (
               <>
-                {events.slice(0, 5).map((event) => {
+                {events.slice(0, 5).map((event: HealthEvent) => {
                   const statusColor = getEventStatusColor(event.status);
                   const member = familyMembers.find(
-                    (m) => m.id === event.userId
+                    (m: User) => m.id === event.userId
                   );
                   const memberName =
                     member && member.firstName && member.lastName
@@ -3459,6 +3547,10 @@ export default function FamilyScreen() {
       {/* Invite Member Modal */}
       <Modal
         animationType="slide"
+        onRequestClose={() => {
+          setShowInviteModal(false);
+          setInviteForm({ name: "", relation: "" });
+        }}
         presentationStyle="pageSheet"
         visible={showInviteModal}
       >
@@ -3488,7 +3580,7 @@ export default function FamilyScreen() {
                 {t("fullName")} *
               </Text>
               <TextInput
-                onChangeText={(text) =>
+                onChangeText={(text: string) =>
                   setInviteForm({ ...inviteForm, name: text })
                 }
                 placeholder={t("enterFullName")}
@@ -3578,6 +3670,7 @@ export default function FamilyScreen() {
       {/* Emergency Settings Modal */}
       <Modal
         animationType="slide"
+        onRequestClose={() => setShowEmergencyModal(false)}
         presentationStyle="pageSheet"
         visible={showEmergencyModal}
       >
@@ -3608,26 +3701,30 @@ export default function FamilyScreen() {
               </Text>
 
               {/* Emergency Contacts List */}
-              {emergencyContacts.map((contact) => (
-                <View key={contact.id} style={styles.contactItem}>
-                  <View style={styles.contactInfo}>
-                    <Text style={[styles.contactName, isRTL && styles.rtlText]}>
-                      {contact.name}
-                    </Text>
-                    <Text
-                      style={[styles.contactPhone, isRTL && styles.rtlText]}
+              {emergencyContacts.map(
+                (contact: { id: string; name: string; phone: string }) => (
+                  <View key={contact.id} style={styles.contactItem}>
+                    <View style={styles.contactInfo}>
+                      <Text
+                        style={[styles.contactName, isRTL && styles.rtlText]}
+                      >
+                        {contact.name}
+                      </Text>
+                      <Text
+                        style={[styles.contactPhone, isRTL && styles.rtlText]}
+                      >
+                        {contact.phone}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => handleDeleteEmergencyContact(contact.id)}
+                      style={styles.deleteContactButton}
                     >
-                      {contact.phone}
-                    </Text>
+                      <X color="#EF4444" size={16} />
+                    </TouchableOpacity>
                   </View>
-                  <TouchableOpacity
-                    onPress={() => handleDeleteEmergencyContact(contact.id)}
-                    style={styles.deleteContactButton}
-                  >
-                    <X color="#EF4444" size={16} />
-                  </TouchableOpacity>
-                </View>
-              ))}
+                )
+              )}
 
               {/* Add New Contact Form */}
               <View style={styles.addContactForm}>
@@ -3636,8 +3733,11 @@ export default function FamilyScreen() {
                 </Text>
 
                 <TextInput
-                  onChangeText={(text) =>
-                    setNewContact((prev) => ({ ...prev, name: text }))
+                  onChangeText={(text: string) =>
+                    setNewContact((prev: { name: string; phone: string }) => ({
+                      ...prev,
+                      name: text,
+                    }))
                   }
                   placeholder={
                     isRTL ? "اسم جهة اتصال في حالة الطوارئ" : "Contact Name"
@@ -3649,8 +3749,11 @@ export default function FamilyScreen() {
 
                 <TextInput
                   keyboardType="phone-pad"
-                  onChangeText={(text) =>
-                    setNewContact((prev) => ({ ...prev, phone: text }))
+                  onChangeText={(text: string) =>
+                    setNewContact((prev: { name: string; phone: string }) => ({
+                      ...prev,
+                      phone: text,
+                    }))
                   }
                   placeholder={isRTL ? "رقم الهاتف" : "Phone Number"}
                   style={[
@@ -3665,12 +3768,12 @@ export default function FamilyScreen() {
                 <Pressable
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   onPress={handleAddEmergencyContact}
-                  style={({ pressed }) => [
+                  style={({ pressed }: { pressed: boolean }) => [
                     styles.addContactButton,
                     pressed && { opacity: 0.7, backgroundColor: "#F3F4F6" },
                   ]}
                 >
-                  {({ pressed }) => (
+                  {({ pressed }: { pressed: boolean }) => (
                     <>
                       <Plus color="#003543" size={20} />
                       <Text
@@ -3730,6 +3833,10 @@ export default function FamilyScreen() {
       {/* Join Family Modal */}
       <Modal
         animationType="slide"
+        onRequestClose={() => {
+          setShowJoinFamilyModal(false);
+          setJoinFamilyCode("");
+        }}
         presentationStyle="pageSheet"
         visible={showJoinFamilyModal}
       >
@@ -3807,6 +3914,16 @@ export default function FamilyScreen() {
       {/* Edit Member Modal */}
       <Modal
         animationType="slide"
+        onRequestClose={() => {
+          setShowEditMemberModal(false);
+          setEditMemberForm({
+            id: "",
+            firstName: "",
+            lastName: "",
+            email: "",
+            role: "member",
+          });
+        }}
         presentationStyle="pageSheet"
         visible={showEditMemberModal}
       >
@@ -3839,7 +3956,7 @@ export default function FamilyScreen() {
                 {isRTL ? "الاسم الأول" : "First Name"} *
               </Text>
               <TextInput
-                onChangeText={(text) =>
+                onChangeText={(text: string) =>
                   setEditMemberForm({ ...editMemberForm, firstName: text })
                 }
                 placeholder={isRTL ? "أدخل الاسم الأول" : "Enter first name"}
@@ -3855,7 +3972,7 @@ export default function FamilyScreen() {
                 {isRTL ? "اسم العائلة" : "Last Name"}
               </Text>
               <TextInput
-                onChangeText={(text) =>
+                onChangeText={(text: string) =>
                   setEditMemberForm({ ...editMemberForm, lastName: text })
                 }
                 placeholder={isRTL ? "أدخل اسم العائلة" : "Enter last name"}
@@ -3872,7 +3989,7 @@ export default function FamilyScreen() {
               </Text>
               <TextInput
                 keyboardType="email-address"
-                onChangeText={(text) =>
+                onChangeText={(text: string) =>
                   setEditMemberForm({ ...editMemberForm, email: text })
                 }
                 placeholder={t("enterEmail")}
@@ -4241,32 +4358,41 @@ export default function FamilyScreen() {
                       >
                         {isRTL ? "التنبيهات الصحية للعائلة" : "Alerts"}
                       </Heading>
-                      {healthReport.summary.alerts.map((alert, index) => (
-                        <Card
-                          contentStyle={undefined}
-                          key={index}
-                          pressable={false}
-                          style={{
-                            backgroundColor: `${theme.colors.accent.error}20`,
-                            borderColor: theme.colors.accent.error,
-                            marginBottom: 8,
-                          }}
-                          variant="elevated"
-                        >
-                          <Heading
-                            level={6}
-                            style={{ color: theme.colors.text.primary }}
+                      {healthReport.summary.alerts.map(
+                        (
+                          alert: {
+                            member: string;
+                            type: string;
+                            message: string;
+                          },
+                          index: number
+                        ) => (
+                          <Card
+                            contentStyle={undefined}
+                            key={index}
+                            pressable={false}
+                            style={{
+                              backgroundColor: `${theme.colors.accent.error}20`,
+                              borderColor: theme.colors.accent.error,
+                              marginBottom: 8,
+                            }}
+                            variant="elevated"
                           >
-                            {alert.member}
-                          </Heading>
-                          <Caption
-                            numberOfLines={2}
-                            style={{ color: theme.colors.text.secondary }}
-                          >
-                            {alert.message}
-                          </Caption>
-                        </Card>
-                      ))}
+                            <Heading
+                              level={6}
+                              style={{ color: theme.colors.text.primary }}
+                            >
+                              {alert.member}
+                            </Heading>
+                            <Caption
+                              numberOfLines={2}
+                              style={{ color: theme.colors.text.secondary }}
+                            >
+                              {alert.message}
+                            </Caption>
+                          </Card>
+                        )
+                      )}
                     </View>
                   )}
 
@@ -4298,112 +4424,117 @@ export default function FamilyScreen() {
                   >
                     {isRTL ? "تفاصيل أفراد العائلة" : "Member Details"}
                   </Heading>
-                  {healthReport.members.map((memberReport) => (
-                    <Card
-                      contentStyle={undefined}
-                      key={memberReport.member.id}
-                      pressable={false}
-                      style={{
-                        marginBottom: 12,
-                        backgroundColor: theme.colors.background.secondary,
-                      }}
-                      variant="elevated"
-                    >
-                      <View
+                  {healthReport.members.map(
+                    (
+                      memberReport: import("@/lib/services/familyHealthReportService").FamilyMemberReport
+                    ) => (
+                      <Card
+                        contentStyle={undefined}
+                        key={memberReport.member.id}
+                        pressable={false}
                         style={{
-                          flexDirection: isRTL ? "row-reverse" : "row",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          marginBottom: 8,
+                          marginBottom: 12,
+                          backgroundColor: theme.colors.background.secondary,
                         }}
+                        variant="elevated"
                       >
-                        <View style={{ flex: 1 }}>
-                          <Heading
-                            level={6}
-                            style={{ color: theme.colors.text.primary }}
-                          >
-                            {memberReport.member.firstName}{" "}
-                            {memberReport.member.lastName}
-                          </Heading>
-                        </View>
-                        <Badge
-                          size="small"
+                        <View
                           style={{
-                            backgroundColor:
-                              getHealthScoreColor(memberReport.healthScore) +
-                              "20",
-                            borderColor: getHealthScoreColor(
-                              memberReport.healthScore
-                            ),
+                            flexDirection: isRTL ? "row-reverse" : "row",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            marginBottom: 8,
                           }}
-                          variant="outline"
                         >
-                          <Caption
-                            numberOfLines={1}
+                          <View style={{ flex: 1 }}>
+                            <Heading
+                              level={6}
+                              style={{ color: theme.colors.text.primary }}
+                            >
+                              {memberReport.member.firstName}{" "}
+                              {memberReport.member.lastName}
+                            </Heading>
+                          </View>
+                          <Badge
+                            size="small"
                             style={{
-                              color: getHealthScoreColor(
+                              backgroundColor:
+                                getHealthScoreColor(memberReport.healthScore) +
+                                "20",
+                              borderColor: getHealthScoreColor(
                                 memberReport.healthScore
                               ),
                             }}
+                            variant="outline"
                           >
-                            {isRTL ? "النقاط" : "Score"}:{" "}
-                            {memberReport.healthScore}
-                          </Caption>
-                        </Badge>
-                      </View>
+                            <Caption
+                              numberOfLines={1}
+                              style={{
+                                color: getHealthScoreColor(
+                                  memberReport.healthScore
+                                ),
+                              }}
+                            >
+                              {isRTL ? "النقاط" : "Score"}:{" "}
+                              {memberReport.healthScore}
+                            </Caption>
+                          </Badge>
+                        </View>
 
-                      <View style={{ marginTop: 8 }}>
-                        <Caption
-                          numberOfLines={1}
-                          style={{ color: theme.colors.text.secondary }}
-                        >
-                          {isRTL ? "الأعراض الصحية" : "Symptoms"}:{" "}
-                          {memberReport.symptoms.total}
-                        </Caption>
-                        <Caption
-                          numberOfLines={1}
-                          style={{ color: theme.colors.text.secondary }}
-                        >
-                          {isRTL ? "الأدوية النشطة" : "Active Medications"}:{" "}
-                          {memberReport.medications.active}
-                        </Caption>
-                        {memberReport.medications.complianceRate !==
-                          undefined && (
+                        <View style={{ marginTop: 8 }}>
                           <Caption
                             numberOfLines={1}
                             style={{ color: theme.colors.text.secondary }}
                           >
-                            {isRTL ? "الالتزام بالأدوية" : "Compliance"}:{" "}
-                            {memberReport.medications.complianceRate}%
+                            {isRTL ? "الأعراض الصحية" : "Symptoms"}:{" "}
+                            {memberReport.symptoms.total}
                           </Caption>
-                        )}
-                      </View>
+                          <Caption
+                            numberOfLines={1}
+                            style={{ color: theme.colors.text.secondary }}
+                          >
+                            {isRTL ? "الأدوية النشطة" : "Active Medications"}:{" "}
+                            {memberReport.medications.active}
+                          </Caption>
+                          {memberReport.medications.complianceRate !==
+                            undefined && (
+                            <Caption
+                              numberOfLines={1}
+                              style={{ color: theme.colors.text.secondary }}
+                            >
+                              {isRTL ? "الالتزام بالأدوية" : "Compliance"}:{" "}
+                              {memberReport.medications.complianceRate}%
+                            </Caption>
+                          )}
+                        </View>
 
-                      {/* Trends */}
-                      <View
-                        style={{
-                          flexDirection: isRTL ? "row-reverse" : "row",
-                          gap: 12,
-                          marginTop: 8,
-                        }}
-                      >
-                        {getTrendIcon(memberReport.trends.symptomTrend)}
-                        <Caption
-                          numberOfLines={1}
-                          style={{ color: theme.colors.text.secondary }}
+                        {/* Trends */}
+                        <View
+                          style={{
+                            flexDirection: isRTL ? "row-reverse" : "row",
+                            gap: 12,
+                            marginTop: 8,
+                          }}
                         >
-                          {isRTL ? "اتجاه الأعراض الصحية" : "Symptom Trend"}:{" "}
-                          {isRTL
-                            ? memberReport.trends.symptomTrend === "improving"
-                              ? "يتحسن"
-                              : memberReport.trends.symptomTrend === "worsening"
-                                ? "يتدهور"
-                                : "مستقر"
-                            : memberReport.trends.symptomTrend}
-                        </Caption>
-                      </View>
-                    </Card>
-                  ))}
+                          {getTrendIcon(memberReport.trends.symptomTrend)}
+                          <Caption
+                            numberOfLines={1}
+                            style={{ color: theme.colors.text.secondary }}
+                          >
+                            {isRTL ? "اتجاه الأعراض الصحية" : "Symptom Trend"}:{" "}
+                            {isRTL
+                              ? memberReport.trends.symptomTrend === "improving"
+                                ? "يتحسن"
+                                : memberReport.trends.symptomTrend ===
+                                    "worsening"
+                                  ? "يتدهور"
+                                  : "مستقر"
+                              : memberReport.trends.symptomTrend}
+                          </Caption>
+                        </View>
+                      </Card>
+                    )
+                  )}
                 </View>
               </>
             )}
@@ -4515,7 +4646,7 @@ export default function FamilyScreen() {
                       {option.label}
                     </TypographyText>
                     <Switch
-                      onValueChange={(value) =>
+                      onValueChange={(value: boolean) =>
                         setPrivacySettings({
                           ...privacySettings,
                           [option.key]: value,
