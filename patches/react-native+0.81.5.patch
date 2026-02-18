@@ -23,13 +23,34 @@ index c737c93..4e81a5d 100644
 +    return {
 +      addMenuItem() {},
 +      reload() {},
++      onFastRefresh() {},
 +      addListener() { return { remove() {} }; },
 +      removeListeners() {},
 +    };
++  },
++  get LogBox() {
++    // Guard with __DEV__ to prevent any dev-only dependencies from loading
++    // in production builds. LogBox already has its own fallback, but this
++    // ensures consistency and prevents any potential issues.
++    if (__DEV__) {
++      return require('./Libraries/LogBox/LogBox').default;
++    }
++    return {
++      install() {},
++      uninstall() {},
++      isInstalled() { return false; },
++      ignoreLogs() {},
++      ignoreAllLogs() {},
++      clearAllLogs() {},
++      addLog() {},
++      addConsoleLog() {},
++      addException() {},
++    };
++  },
 @@ -271,14 +281,28 @@ module.exports = {
-       .PlatformColor;
+      .PlatformColor;
    },
-   get PushNotificationIOS() {
+  get PushNotificationIOS() {
 -    warnOnce(
 -      'pushNotificationIOS-moved',
 -      'PushNotificationIOS has been extracted from react-native core and will be removed in a future release. ' +
