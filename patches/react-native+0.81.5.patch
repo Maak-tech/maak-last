@@ -1,21 +1,55 @@
 diff --git a/node_modules/react-native/index.js b/node_modules/react-native/index.js
-index c737c93..2eaf5e5 100644
+index c737c93..4e81a5d 100644
 --- a/node_modules/react-native/index.js
 +++ b/node_modules/react-native/index.js
-@@ -277,8 +277,14 @@ module.exports = {
-         "It can now be installed and imported from '@react-native-community/push-notification-ios' instead of 'react-native'. " +
-         'See https://github.com/react-native-push-notification/ios',
-     );
+@@ -199,7 +199,12 @@ module.exports = {
+     return require('./Libraries/Utilities/DeviceInfo').default;
+   },
+   get DevMenu() {
+-    return require('./src/private/devsupport/devmenu/DevMenu').default;
++    // Guard with __DEV__ to prevent TurboModuleRegistry.getEnforcing('DevMenu')
++    // crash in production builds where the native DevMenu module is not registered.
++    if (__DEV__) {
++      return require('./src/private/devsupport/devmenu/DevMenu').default;
++    }
++    return {show() {}};
+   },
+   get DevSettings() {
+     return require('./Libraries/Utilities/DevSettings').default;
+@@ -271,14 +276,28 @@ module.exports = {
+       .PlatformColor;
+   },
+   get PushNotificationIOS() {
+-    warnOnce(
+-      'pushNotificationIOS-moved',
+-      'PushNotificationIOS has been extracted from react-native core and will be removed in a future release. ' +
+-        "It can now be installed and imported from '@react-native-community/push-notification-ios' instead of 'react-native'. " +
+-        'See https://github.com/react-native-push-notification/ios',
+-    );
 -    return require('./Libraries/PushNotificationIOS/PushNotificationIOS')
 -      .default;
-+    // Use polyfill in Expo - native module causes NativeEventEmitter error on Android/web
-+    try {
-+      const polyfill = require('../../lib/polyfills/pushNotificationIOS');
-+      return polyfill.default ?? polyfill;
-+    } catch (_) {
-+      return require('./Libraries/PushNotificationIOS/PushNotificationIOS')
-+        .default;
-+    }
++    // Return polyfill for Expo development builds
++    // PushNotificationIOS is not available in Expo and causes NativeEventEmitter errors
++    return {
++      requestPermissions: () => Promise.resolve({ alert: true, badge: true, sound: true }),
++      addEventListener: () => ({ remove: () => {} }),
++      removeEventListener: () => {},
++      removeAllListeners: () => {},
++      getInitialNotification: () => Promise.resolve(null),
++      setApplicationIconBadgeNumber: () => {},
++      getApplicationIconBadgeNumber: (callback) => { if (callback) callback(0); },
++      presentLocalNotification: () => {},
++      scheduleLocalNotification: () => {},
++      cancelLocalNotifications: () => {},
++      cancelAllLocalNotifications: () => {},
++      getScheduledLocalNotifications: (callback) => { if (callback) callback([]); },
++      removeAllDeliveredNotifications: () => {},
++      removeDeliveredNotifications: () => {},
++      getDeliveredNotifications: (callback) => { if (callback) callback([]); },
++      addListener: () => ({ remove: () => {} }),
++      removeListeners: () => {},
++      default: undefined,
++    };
    },
    get processColor() {
      return require('./Libraries/StyleSheet/processColor').default;
