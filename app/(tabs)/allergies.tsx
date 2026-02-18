@@ -103,6 +103,143 @@ const coerceDate = (value: DateLike): Date | null => {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
+type AllergyCardProps = {
+  allergy: Allergy;
+  severityColors: Record<string, string>;
+  isRTL: boolean;
+  showActionsMenu: string | null;
+  theme: ReturnType<typeof useTheme>["theme"];
+  t: ReturnType<typeof useTranslation>["t"];
+  styles: Record<string, any>;
+  onEdit: (allergy: Allergy) => void;
+  onDelete: (id: string) => void;
+  onToggleActionsMenu: (id: string) => void;
+  classifyAllergy: (name: string) => {
+    type: string;
+    icon: React.ComponentType<{ color: string; size: number }>;
+  };
+  getTranslatedAllergyName: (name: string) => string;
+  getSeverityLabel: (severity: string) => string;
+  getLocalizedAllergyType: (type: string) => string;
+  getDiagnosedDateText: (date: Date | null) => string;
+  coerceDate: (value: DateLike) => Date | null;
+};
+
+const AllergyCard: React.FC<AllergyCardProps> = ({
+  allergy,
+  severityColors,
+  isRTL,
+  showActionsMenu,
+  theme,
+  t,
+  styles,
+  onEdit,
+  onDelete,
+  onToggleActionsMenu,
+  classifyAllergy,
+  getTranslatedAllergyName,
+  getSeverityLabel,
+  getLocalizedAllergyType,
+  getDiagnosedDateText,
+  coerceDate,
+}) => {
+  const { type, icon: Icon } = classifyAllergy(allergy.name);
+  const severityColor = severityColors[allergy.severity] || "#F59E0B";
+  const diagnosedDate = coerceDate(allergy.discoveredDate || allergy.timestamp);
+
+  return (
+    <View style={styles.figmaAllergyCard}>
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={() => onEdit(allergy)}
+        style={styles.figmaAllergyCardHeader}
+      >
+        <View
+          style={[
+            styles.figmaAllergyIconWrap,
+            { backgroundColor: `${severityColor}1A` },
+          ]}
+        >
+          <Icon color={severityColor} size={20} />
+        </View>
+        <View style={styles.figmaAllergyCardInfo}>
+          <View style={styles.figmaAllergyCardTitleRow}>
+            <Text
+              numberOfLines={2}
+              style={[styles.figmaAllergyCardTitle, isRTL && styles.rtlText]}
+            >
+              {getTranslatedAllergyName(allergy.name)}
+            </Text>
+            <View
+              style={[
+                styles.figmaAllergySeverityBadge,
+                { backgroundColor: `${severityColor}1A` },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.figmaAllergySeverityText,
+                  { color: severityColor },
+                ]}
+              >
+                {getSeverityLabel(allergy.severity)}
+              </Text>
+            </View>
+          </View>
+          <Text style={[styles.figmaAllergyTypeText, isRTL && styles.rtlText]}>
+            {getLocalizedAllergyType(type)}
+          </Text>
+          <Text
+            style={[styles.figmaAllergyReactionText, isRTL && styles.rtlText]}
+          >
+            <Text style={styles.figmaAllergyReactionLabel}>
+              {isRTL ? "رد الفعل:" : "Reaction:"}
+            </Text>{" "}
+            {allergy.reaction || (isRTL ? "غير محدد" : "Not specified")}
+          </Text>
+          <Text
+            style={[styles.figmaAllergyDiagnosedText, isRTL && styles.rtlText]}
+          >
+            {isRTL ? "التشخيص:" : "Diagnosed:"}{" "}
+            {getDiagnosedDateText(diagnosedDate)}
+          </Text>
+        </View>
+        <View style={styles.figmaAllergyCardActions}>
+          <TouchableOpacity
+            onPress={(e) => {
+              e.stopPropagation();
+              onToggleActionsMenu(allergy.id);
+            }}
+            style={styles.figmaAllergyActionsButton}
+          >
+            <MoreVertical color="#6C7280" size={20} />
+          </TouchableOpacity>
+          {showActionsMenu === allergy.id && (
+            <View style={styles.figmaAllergyActionsMenu}>
+              <TouchableOpacity
+                onPress={() => onEdit(allergy)}
+                style={styles.figmaAllergyActionItem}
+              >
+                <Edit color={theme.colors.text.primary} size={16} />
+                <Text style={styles.figmaAllergyActionText}>{t("edit")}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => onDelete(allergy.id)}
+                style={styles.figmaAllergyActionItem}
+              >
+                <Trash2 color={theme.colors.accent.error} size={16} />
+                <Text style={styles.figmaAllergyActionTextDanger}>
+                  {t("delete")}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
 /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Legacy screen combines admin/family flows, modal editing, and localized rendering. */
 export default function AllergiesScreen() {
   const { t, i18n } = useTranslation();
@@ -481,6 +618,13 @@ export default function AllergiesScreen() {
       default:
         return "أخرى";
     }
+  };
+
+  const getDiagnosedDateText = (diagnosedDate: Date | null): string => {
+    if (diagnosedDate) {
+      return safeFormatDate(diagnosedDate);
+    }
+    return isRTL ? "غير متاح" : "N/A";
   };
 
   const renderAllergiesContent = () => {
@@ -1349,134 +1493,29 @@ export default function AllergiesScreen() {
                 </TouchableOpacity>
               </View>
             ) : (
-              allergies.map((allergy) => {
-                const { type, icon: Icon } = classifyAllergy(allergy.name);
-                const severityColor =
-                  severityColors[allergy.severity] || "#F59E0B";
-                const diagnosedDate = coerceDate(
-                  allergy.discoveredDate || allergy.timestamp
-                );
-                return (
-                  <View key={allergy.id} style={styles.figmaAllergyCard}>
-                    <TouchableOpacity
-                      activeOpacity={0.8}
-                      onPress={() => handleEditAllergy(allergy)}
-                      style={styles.figmaAllergyCardHeader}
-                    >
-                      <View
-                        style={[
-                          styles.figmaAllergyIconWrap,
-                          { backgroundColor: `${severityColor}1A` },
-                        ]}
-                      >
-                        <Icon color={severityColor} size={20} />
-                      </View>
-                      <View style={styles.figmaAllergyCardInfo}>
-                        <View style={styles.figmaAllergyCardTitleRow}>
-                          <Text
-                            numberOfLines={2}
-                            style={[
-                              styles.figmaAllergyCardTitle,
-                              isRTL && styles.rtlText,
-                            ]}
-                          >
-                            {getTranslatedAllergyName(allergy.name)}
-                          </Text>
-                          <View
-                            style={[
-                              styles.figmaAllergySeverityBadge,
-                              { backgroundColor: `${severityColor}1A` },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.figmaAllergySeverityText,
-                                { color: severityColor },
-                              ]}
-                            >
-                              {getSeverityLabel(allergy.severity)}
-                            </Text>
-                          </View>
-                        </View>
-                        <Text
-                          style={[
-                            styles.figmaAllergyTypeText,
-                            isRTL && styles.rtlText,
-                          ]}
-                        >
-                          {getLocalizedAllergyType(type)}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.figmaAllergyReactionText,
-                            isRTL && styles.rtlText,
-                          ]}
-                        >
-                          <Text style={styles.figmaAllergyReactionLabel}>
-                            {isRTL ? "رد الفعل:" : "Reaction:"}
-                          </Text>{" "}
-                          {allergy.reaction ||
-                            (isRTL ? "غير محدد" : "Not specified")}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.figmaAllergyDiagnosedText,
-                            isRTL && styles.rtlText,
-                          ]}
-                        >
-                          {isRTL ? "التشخيص:" : "Diagnosed:"}{" "}
-                          {diagnosedDate
-                            ? safeFormatDate(diagnosedDate)
-                            : isRTL
-                              ? "غير متاح"
-                              : "N/A"}
-                        </Text>
-                      </View>
-                      <View style={styles.figmaAllergyCardActions}>
-                        <TouchableOpacity
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            setShowActionsMenu(
-                              showActionsMenu === allergy.id ? null : allergy.id
-                            );
-                          }}
-                          style={styles.figmaAllergyActionsButton}
-                        >
-                          <MoreVertical color="#6C7280" size={20} />
-                        </TouchableOpacity>
-                        {showActionsMenu === allergy.id && (
-                          <View style={styles.figmaAllergyActionsMenu}>
-                            <TouchableOpacity
-                              onPress={() => handleEditAllergy(allergy)}
-                              style={styles.figmaAllergyActionItem}
-                            >
-                              <Edit
-                                color={theme.colors.text.primary}
-                                size={16}
-                              />
-                              <Text style={styles.figmaAllergyActionText}>
-                                {t("edit")}
-                              </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              onPress={() => handleDeleteAllergy(allergy.id)}
-                              style={styles.figmaAllergyActionItem}
-                            >
-                              <Trash2
-                                color={theme.colors.accent.error}
-                                size={16}
-                              />
-                              <Text style={styles.figmaAllergyActionTextDanger}>
-                                {t("delete")}
-                              </Text>
-                            </TouchableOpacity>
-                          </View>
-                        )}
-                      </View>
-                    </TouchableOpacity>
-                  </View>
-                );
-              })
+              allergies.map((allergy) => (
+                <AllergyCard
+                  allergy={allergy}
+                  classifyAllergy={classifyAllergy}
+                  coerceDate={coerceDate}
+                  getDiagnosedDateText={getDiagnosedDateText}
+                  getLocalizedAllergyType={getLocalizedAllergyType}
+                  getSeverityLabel={getSeverityLabel}
+                  getTranslatedAllergyName={getTranslatedAllergyName}
+                  isRTL={isRTL}
+                  key={allergy.id}
+                  onDelete={handleDeleteAllergy}
+                  onEdit={handleEditAllergy}
+                  onToggleActionsMenu={(id) =>
+                    setShowActionsMenu(showActionsMenu === id ? null : id)
+                  }
+                  severityColors={severityColors}
+                  showActionsMenu={showActionsMenu}
+                  styles={styles}
+                  t={t}
+                  theme={theme}
+                />
+              ))
             )}
           </View>
         </View>
