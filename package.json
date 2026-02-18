@@ -8,6 +8,7 @@
     "dev": "expo start --dev-client",
     "dev:tunnel": "expo start --dev-client --tunnel",
     "dev:clear": "expo start --dev-client --clear",
+    "build": "npm run build:web",
     "build:web": "expo export --platform web",
     "build:ios:dev": "eas build -p ios --profile development",
     "build:android:dev": "eas build -p android --profile development",

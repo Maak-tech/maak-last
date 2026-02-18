@@ -1,0 +1,2 @@
+# Ensure patch-package patches keep LF line endings across platforms.
+patches/*.patch text eol=lf

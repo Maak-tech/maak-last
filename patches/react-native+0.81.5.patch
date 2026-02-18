@@ -2,7 +2,7 @@ diff --git a/node_modules/react-native/index.js b/node_modules/react-native/inde
 index c737c93..4e81a5d 100644
 --- a/node_modules/react-native/index.js
 +++ b/node_modules/react-native/index.js
-@@ -199,7 +199,12 @@ module.exports = {
+@@ -199,10 +199,28 @@ module.exports = {
      return require('./Libraries/Utilities/DeviceInfo').default;
    },
    get DevMenu() {
@@ -25,16 +25,18 @@ index c737c93..4e81a5d 100644
 +      addMenuItem() {},
 +      reload() {},
 +      onFastRefresh() {},
-+      addListener() { return { remove() {} }; },
++      addListener() {
++        return {remove() {}};
++      },
 +      removeListeners() {},
 +    };
    },
    get Dimensions() {
      return require('./Libraries/Utilities/Dimensions').default;
-@@ -271,14 +281,28 @@ module.exports = {
+@@ -271,14 +289,35 @@ module.exports = {
        .PlatformColor;
    },
-  get PushNotificationIOS() {
+   get PushNotificationIOS() {
 -    warnOnce(
 -      'pushNotificationIOS-moved',
 -      'PushNotificationIOS has been extracted from react-native core and will be removed in a future release. ' +
@@ -43,25 +45,32 @@ index c737c93..4e81a5d 100644
 -    );
 -    return require('./Libraries/PushNotificationIOS/PushNotificationIOS')
 -      .default;
-+    // Return polyfill for Expo development builds
-+    // PushNotificationIOS is not available in Expo and causes NativeEventEmitter errors
++    // Return polyfill for Expo development builds.
++    // PushNotificationIOS is not available in Expo and causes NativeEventEmitter errors.
 +    return {
-+      requestPermissions: () => Promise.resolve({ alert: true, badge: true, sound: true }),
-+      addEventListener: () => ({ remove: () => {} }),
++      requestPermissions: () =>
++        Promise.resolve({alert: true, badge: true, sound: true}),
++      addEventListener: () => ({remove: () => {}}),
 +      removeEventListener: () => {},
 +      removeAllListeners: () => {},
 +      getInitialNotification: () => Promise.resolve(null),
 +      setApplicationIconBadgeNumber: () => {},
-+      getApplicationIconBadgeNumber: (callback) => { if (callback) callback(0); },
++      getApplicationIconBadgeNumber: callback => {
++        if (callback) callback(0);
++      },
 +      presentLocalNotification: () => {},
 +      scheduleLocalNotification: () => {},
 +      cancelLocalNotifications: () => {},
 +      cancelAllLocalNotifications: () => {},
-+      getScheduledLocalNotifications: (callback) => { if (callback) callback([]); },
++      getScheduledLocalNotifications: callback => {
++        if (callback) callback([]);
++      },
 +      removeAllDeliveredNotifications: () => {},
 +      removeDeliveredNotifications: () => {},
-+      getDeliveredNotifications: (callback) => { if (callback) callback([]); },
-+      addListener: () => ({ remove: () => {} }),
++      getDeliveredNotifications: callback => {
++        if (callback) callback([]);
++      },
++      addListener: () => ({remove: () => {}}),
 +      removeListeners: () => {},
 +      default: undefined,
 +    };
