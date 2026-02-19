@@ -221,6 +221,7 @@ export default {
       },
       permissions: [
         "CAMERA",
+        "RECORD_AUDIO",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
         "ACCESS_COARSE_LOCATION",
@@ -319,7 +320,6 @@ export default {
             "Maak Health writes health data to keep your health information synchronized across all your devices and maintain accurate health records.",
         },
       ],
-      "@react-native-voice/voice",
       "expo-localization",
       "expo-local-authentication",
       "expo-secure-store",
