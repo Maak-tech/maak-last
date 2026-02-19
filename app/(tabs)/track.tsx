@@ -161,7 +161,10 @@ export default function TrackScreen() {
   }, []);
 
   const navigateToWomensHealth = useCallback(() => {
-    router.push("/(tabs)/womens-health?returnTo=track" as any);
+    router.push({
+      pathname: "../womens-health",
+      params: { returnTo: "track" },
+    });
   }, []);
 
   const trackingCategories = [
