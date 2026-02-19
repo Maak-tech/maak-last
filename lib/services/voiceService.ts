@@ -36,7 +36,9 @@ try {
 
 import * as Device from "expo-device";
 import * as FileSystem from "expo-file-system";
+import { httpsCallable } from "firebase/functions";
 import { Platform } from "react-native";
+import { functions as firebaseFunctions } from "@/lib/firebase";
 import openaiService from "./openaiService";
 
 // Dynamic import for expo-av with proper error handling
@@ -418,15 +420,6 @@ class VoiceService {
     language?: string
   ): Promise<SpeechRecognitionResult> {
     try {
-      // Get OpenAI API key (try premium key first for Zeina)
-      let apiKey = await openaiService.getApiKey(true);
-      if (!apiKey) {
-        apiKey = await openaiService.getApiKey(false);
-      }
-      if (!apiKey) {
-        throw new Error("OpenAI API key not configured");
-      }
-
       // Read audio file as base64
       const audioBase64 = await FileSystem.readAsStringAsync(audioUri, {
         encoding: "base64",
@@ -441,42 +434,27 @@ class VoiceService {
         mimeType = "audio/wav";
       }
 
-      // Convert base64 to blob format for API
-      const audioBlob = await fetch(
-        `data:${mimeType};base64,${audioBase64}`
-      ).then((r) => r.blob());
-
-      // Create form data
-      const formData = new FormData();
-      formData.append("file", audioBlob, `audio.${fileExtension}`);
-      formData.append("model", "whisper-1");
-      if (language) {
-        formData.append("language", language);
-      }
-
-      // Call OpenAI Whisper API
-      const response = await fetch(
-        "https://api.openai.com/v1/audio/transcriptions",
+      const transcribe = httpsCallable<
         {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: formData,
-        }
-      );
+          audioBase64: string;
+          filename: string;
+          mimeType: string;
+          language?: string;
+          usePremiumKey?: boolean;
+        },
+        { text?: string }
+      >(firebaseFunctions, "openaiTranscribeAudio");
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.error?.message ||
-            `Whisper API error: ${response.statusText}`
-        );
-      }
+      const result = await transcribe({
+        audioBase64,
+        filename: `audio.${fileExtension}`,
+        mimeType,
+        language,
+        usePremiumKey: true,
+      });
 
-      const result = await response.json();
       return {
-        text: result.text?.trim() || "",
+        text: (result.data?.text || "").trim(),
         confidence: 1.0, // Whisper doesn't return confidence scores
       };
     } catch (error) {
@@ -532,15 +510,8 @@ class VoiceService {
       }
 
       const hasPermissions = await this.hasMicrophonePermissions();
-      const hasApiKey =
-        (await openaiService.getApiKey(true)) ||
-        (await openaiService.getApiKey(false));
-      return (
-        hasPermissions &&
-        hasApiKey !== null &&
-        hasApiKey !== undefined &&
-        Audio !== null
-      );
+      const hasApiKey = await openaiService.isConfigured();
+      return hasPermissions && hasApiKey === true && Audio !== null;
     } catch {
       return false;
     }

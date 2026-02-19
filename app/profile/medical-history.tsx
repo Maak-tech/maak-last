@@ -202,7 +202,9 @@ export default function MedicalHistoryScreen() {
         if (selectedMember.firstName && selectedMember.lastName) {
           memberName = `${selectedMember.firstName} ${selectedMember.lastName}`;
         } else {
-          memberName = selectedMember.firstName || "Unknown Member";
+          memberName =
+            selectedMember.firstName ||
+            (isRTL ? "عضو غير معروف" : "Unknown Member");
         }
       }
 
@@ -405,12 +407,24 @@ export default function MedicalHistoryScreen() {
 
               {activeTab === "conditions" && (
                 <View style={styles.figmaSection}>
-                  <Text style={styles.figmaSectionTitle}>
-                    Chronic Conditions
+                  <Text
+                    style={[
+                      styles.figmaSectionTitle,
+                      isRTL && styles.figmaSectionTitleRTL,
+                    ]}
+                  >
+                    {isRTL ? "الحالات المزمنة" : "Chronic Conditions"}
                   </Text>
                   {conditionHistory.length === 0 ? (
-                    <Text style={styles.figmaEmptyText}>
-                      No conditions recorded yet.
+                    <Text
+                      style={[
+                        styles.figmaEmptyText,
+                        isRTL && styles.figmaEmptyTextRTL,
+                      ]}
+                    >
+                      {isRTL
+                        ? "لا توجد حالات مسجلة بعد."
+                        : "No conditions recorded yet."}
                     </Text>
                   ) : (
                     conditionHistory.map((record) => (
@@ -423,7 +437,12 @@ export default function MedicalHistoryScreen() {
                         </View>
                         <View style={styles.figmaCardBody}>
                           <View style={styles.figmaCardHeader}>
-                            <Text style={styles.figmaCardTitle}>
+                            <Text
+                              style={[
+                                styles.figmaCardTitle,
+                                isRTL && styles.figmaCardTitleRTL,
+                              ]}
+                            >
                               {translateCondition(record.condition)}
                             </Text>
                             <View
@@ -444,14 +463,21 @@ export default function MedicalHistoryScreen() {
                               </Text>
                             </View>
                           </View>
-                          <Text style={styles.figmaCardMeta}>
-                            Diagnosed:{" "}
+                          <Text
+                            style={[
+                              styles.figmaCardMeta,
+                              isRTL && styles.figmaCardMetaRTL,
+                            ]}
+                          >
+                            {isRTL ? "تم التشخيص: " : "Diagnosed: "}
                             {record.diagnosedDate
                               ? safeFormatDate(
                                   new Date(record.diagnosedDate),
                                   isRTL ? "ar-u-ca-gregory" : "en-US"
                                 )
-                              : "Unknown"}
+                              : isRTL
+                                ? "غير معروف"
+                                : "Unknown"}
                           </Text>
                           {record.notes ? (
                             <Text style={styles.figmaCardMeta}>
@@ -473,11 +499,21 @@ export default function MedicalHistoryScreen() {
 
               {activeTab === "surgeries" && (
                 <View style={styles.figmaSection}>
-                  <Text style={styles.figmaSectionTitle}>
+                  <Text
+                    style={[
+                      styles.figmaSectionTitle,
+                      isRTL && styles.figmaSectionTitleRTL,
+                    ]}
+                  >
                     {isRTL ? "التاريخ الجراحي" : "Surgical History"}
                   </Text>
                   {surgeryHistory.length === 0 ? (
-                    <Text style={styles.figmaEmptyText}>
+                    <Text
+                      style={[
+                        styles.figmaEmptyText,
+                        isRTL && styles.figmaEmptyTextRTL,
+                      ]}
+                    >
                       {isRTL
                         ? "لا توجد عمليات جراحية مسجلة بعد."
                         : "No surgeries recorded yet."}
@@ -489,10 +525,20 @@ export default function MedicalHistoryScreen() {
                           <FileText color="#6366F1" size={22} />
                         </View>
                         <View style={styles.figmaCardBody}>
-                          <Text style={styles.figmaCardTitle}>
+                          <Text
+                            style={[
+                              styles.figmaCardTitle,
+                              isRTL && styles.figmaCardTitleRTL,
+                            ]}
+                          >
                             {translateCondition(record.condition)}
                           </Text>
-                          <Text style={styles.figmaCardMeta}>
+                          <Text
+                            style={[
+                              styles.figmaCardMeta,
+                              isRTL && styles.figmaCardMetaRTL,
+                            ]}
+                          >
                             {record.diagnosedDate
                               ? safeFormatDate(
                                   new Date(record.diagnosedDate),
@@ -501,7 +547,12 @@ export default function MedicalHistoryScreen() {
                               : t("unknownDate")}
                           </Text>
                           {record.notes ? (
-                            <Text style={styles.figmaCardMeta}>
+                            <Text
+                              style={[
+                                styles.figmaCardMeta,
+                                isRTL && styles.figmaCardMetaRTL,
+                              ]}
+                            >
                               {record.notes}
                             </Text>
                           ) : null}
@@ -514,12 +565,24 @@ export default function MedicalHistoryScreen() {
 
               {activeTab === "vaccinations" && (
                 <View style={styles.figmaSection}>
-                  <Text style={styles.figmaSectionTitle}>
-                    Vaccination Record
+                  <Text
+                    style={[
+                      styles.figmaSectionTitle,
+                      isRTL && styles.figmaSectionTitleRTL,
+                    ]}
+                  >
+                    {isRTL ? "سجل التطعيمات" : "Vaccination Record"}
                   </Text>
                   {vaccinationHistory.length === 0 ? (
-                    <Text style={styles.figmaEmptyText}>
-                      No vaccinations recorded yet.
+                    <Text
+                      style={[
+                        styles.figmaEmptyText,
+                        isRTL && styles.figmaEmptyTextRTL,
+                      ]}
+                    >
+                      {isRTL
+                        ? "لا توجد تطعيمات مسجلة بعد."
+                        : "No vaccinations recorded yet."}
                     </Text>
                   ) : (
                     vaccinationHistory.map((record) => (
@@ -528,10 +591,20 @@ export default function MedicalHistoryScreen() {
                           <FileText color="#10B981" size={22} />
                         </View>
                         <View style={styles.figmaCardBody}>
-                          <Text style={styles.figmaCardTitle}>
+                          <Text
+                            style={[
+                              styles.figmaCardTitle,
+                              isRTL && styles.figmaCardTitleRTL,
+                            ]}
+                          >
                             {translateCondition(record.condition)}
                           </Text>
-                          <Text style={styles.figmaCardMeta}>
+                          <Text
+                            style={[
+                              styles.figmaCardMeta,
+                              isRTL && styles.figmaCardMetaRTL,
+                            ]}
+                          >
                             {isRTL ? "آخر تحديث: " : "Last: "}
                             {record.diagnosedDate
                               ? safeFormatDate(
@@ -543,7 +616,12 @@ export default function MedicalHistoryScreen() {
                                 : "Unknown"}
                           </Text>
                           {record.notes ? (
-                            <Text style={styles.figmaCardMeta}>
+                            <Text
+                              style={[
+                                styles.figmaCardMeta,
+                                isRTL && styles.figmaCardMetaRTL,
+                              ]}
+                            >
                               {record.notes}
                             </Text>
                           ) : null}
@@ -556,11 +634,21 @@ export default function MedicalHistoryScreen() {
 
               {activeTab === "family" && (
                 <View style={styles.figmaSection}>
-                  <Text style={styles.figmaSectionTitle}>
+                  <Text
+                    style={[
+                      styles.figmaSectionTitle,
+                      isRTL && styles.figmaSectionTitleRTL,
+                    ]}
+                  >
                     {isRTL ? "التاريخ الصحي للعائلة" : "Family Health History"}
                   </Text>
                   {familyHistory.length === 0 ? (
-                    <Text style={styles.figmaEmptyText}>
+                    <Text
+                      style={[
+                        styles.figmaEmptyText,
+                        isRTL && styles.figmaEmptyTextRTL,
+                      ]}
+                    >
                       {isRTL
                         ? "لم يتم تسجيل تاريخ عائلي بعد."
                         : "No family history recorded yet."}
@@ -572,10 +660,20 @@ export default function MedicalHistoryScreen() {
                           <Heart color="#8B5CF6" size={22} />
                         </View>
                         <View style={styles.figmaCardBody}>
-                          <Text style={styles.figmaCardTitle}>
+                          <Text
+                            style={[
+                              styles.figmaCardTitle,
+                              isRTL && styles.figmaCardTitleRTL,
+                            ]}
+                          >
                             {translateCondition(record.condition)}
                           </Text>
-                          <Text style={styles.figmaCardMeta}>
+                          <Text
+                            style={[
+                              styles.figmaCardMeta,
+                              isRTL && styles.figmaCardMetaRTL,
+                            ]}
+                          >
                             {getFamilyRelationText(record)}
                           </Text>
                         </View>
@@ -992,9 +1090,15 @@ const styles = StyleSheet.create({
     color: "#1A1D1F",
     marginBottom: 12,
   },
+  figmaSectionTitleRTL: {
+    fontFamily: "NotoSansArabic-Regular",
+  },
   figmaEmptyText: {
     fontSize: 13,
     color: "#6C7280",
+  },
+  figmaEmptyTextRTL: {
+    fontFamily: "NotoSansArabic-Regular",
   },
   figmaCard: {
     backgroundColor: "#FFFFFF",
@@ -1044,6 +1148,9 @@ const styles = StyleSheet.create({
     color: "#1A1D1F",
     flex: 1,
   },
+  figmaCardTitleRTL: {
+    fontFamily: "NotoSansArabic-Regular",
+  },
   figmaBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -1057,6 +1164,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#6C7280",
     marginBottom: 4,
+  },
+  figmaCardMetaRTL: {
+    fontFamily: "NotoSansArabic-Regular",
   },
   figmaDeleteButton: {
     padding: 6,

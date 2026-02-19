@@ -78,7 +78,9 @@ class OpenAIProvider implements LLMProvider {
         throw new Error(`API returned ${response.status}: ${errorText}`);
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as {
+        choices?: Array<{ message?: { content?: string } }>;
+      };
       const content = data.choices?.[0]?.message?.content;
 
       if (!content) {
@@ -117,7 +119,9 @@ function getLLMProvider(apiKey?: string): LLMProvider | null {
   const provider = process.env.ZEINA_LLM_PROVIDER || "openai";
 
   if (provider === "openai") {
-    const key = apiKey || process.env.OPENAI_API_KEY;
+    // Check passed key first, then ZEINA_API_KEY, then OPENAI_API_KEY (fallback)
+    const key =
+      apiKey || process.env.ZEINA_API_KEY || process.env.OPENAI_API_KEY;
     if (!key) {
       return null;
     }

@@ -12,8 +12,9 @@
  * - Health context integration
  */
 
-import Constants from "expo-constants";
+import { httpsCallable } from "firebase/functions";
 import { Platform } from "react-native";
+import { functions as firebaseFunctions } from "@/lib/firebase";
 import {
   createWebSocketWithHeaders,
   getWebSocketSetupGuidance,
@@ -837,7 +838,12 @@ class RealtimeAgentService {
   private ws: WebSocket | null = null;
   private connectionState: ConnectionState = "disconnected";
   private eventHandlers: RealtimeEventHandlers = {};
-  private apiKey: string | null = null;
+  private clientSecret: {
+    value: string;
+    expiresAt?: number;
+    issuedAtMs: number;
+  } | null = null;
+  private clientSecretInFlight: Promise<string> | null = null;
   private readonly pendingToolCalls: Map<string, unknown> = new Map();
   private audioBuffer: string[] = [];
   private isProcessingAudio = false;
@@ -855,78 +861,57 @@ class RealtimeAgentService {
   private readonly audioCommitCooldownMs = 300;
 
   constructor() {
-    this.loadApiKey();
+    // No-op: secrets are fetched from Firebase Functions when needed.
   }
 
-  /**
-   * Validate API key format
-   */
-  private validateApiKeyFormat(key: string): boolean {
-    if (!key || typeof key !== "string") {
-      return false;
+  private async getClientSecret(): Promise<string> {
+    const now = Date.now();
+    const cached = this.clientSecret;
+    if (cached) {
+      // Refresh a bit early to avoid racing expiry.
+      const expiresAtMs =
+        typeof cached.expiresAt === "number" ? cached.expiresAt * 1000 : null;
+      const nearExpiry =
+        expiresAtMs !== null
+          ? expiresAtMs - now < 60_000
+          : now - cached.issuedAtMs > 5 * 60_000;
+      if (!nearExpiry) {
+        return cached.value;
+      }
     }
-    const trimmed = key.trim();
-    // OpenAI API keys typically start with sk- or sk-proj-
-    return (
-      trimmed.length > 10 &&
-      (trimmed.startsWith("sk-") || trimmed.startsWith("sk-proj-"))
-    );
-  }
 
-  private normalizeApiKeyInput(key: unknown): string | null {
-    if (typeof key !== "string") {
-      return null;
+    if (this.clientSecretInFlight) {
+      return this.clientSecretInFlight;
     }
-    let trimmed = key.trim();
-    if (!trimmed) {
-      return null;
-    }
-    if (
-      (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-      (trimmed.startsWith("'") && trimmed.endsWith("'"))
-    ) {
-      trimmed = trimmed.slice(1, -1).trim();
-    }
-    if (trimmed.toLowerCase().startsWith("bearer ")) {
-      trimmed = trimmed.slice(7).trim();
-    }
-    return trimmed || null;
-  }
 
-  /**
-   * Mask API key for logging (show first 7 and last 4 characters)
-   */
-  private maskApiKey(key: string | null): string {
-    if (!key || key.length < 12) {
-      return "***";
-    }
-    return `${key.substring(0, 7)}...${key.substring(key.length - 4)}`;
-  }
+    const callable = httpsCallable<
+      { model?: string; usePremiumKey?: boolean },
+      { clientSecret?: string; expiresAt?: number }
+    >(firebaseFunctions, "openaiRealtimeClientSecret");
 
-  private loadApiKey() {
-    try {
-      // Prefer app-config keys (shared key for premium users).
-      const config = Constants.expoConfig?.extra;
-      const configKey = this.normalizeApiKeyInput(
-        config?.zeinaApiKey || config?.openaiApiKey || null
-      );
-      const publicZeinaKey = this.normalizeApiKeyInput(
-        process.env.EXPO_PUBLIC_ZEINA_API_KEY
-      );
-      const publicOpenAIKey = this.normalizeApiKeyInput(
-        process.env.EXPO_PUBLIC_OPENAI_API_KEY
-      );
-      const activeKey = configKey || publicZeinaKey || publicOpenAIKey;
+    this.clientSecretInFlight = (async () => {
+      const result = await callable({
+        model: "gpt-4o-realtime-preview-2024-12-17",
+        usePremiumKey: true,
+      });
 
-      if (activeKey && this.validateApiKeyFormat(activeKey)) {
-        this.apiKey = activeKey;
-        return;
+      const secret = result.data?.clientSecret;
+      if (typeof secret !== "string" || secret.trim() === "") {
+        throw new Error("AI service did not return a realtime client secret");
       }
 
-      // If app config key missing/invalid
-      this.apiKey = null;
-    } catch (_error) {
-      this.apiKey = null;
+      this.clientSecret = {
+        value: secret,
+        expiresAt: result.data?.expiresAt,
+        issuedAtMs: Date.now(),
+      };
+      return secret;
+    })();
+
+    try {
+      return await this.clientSecretInFlight;
+    } finally {
+      this.clientSecretInFlight = null;
     }
   }
 
@@ -948,7 +933,7 @@ class RealtimeAgentService {
    * Connect to the OpenAI Realtime API
    */
   /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Connection setup intentionally handles auth validation, websocket lifecycle, and recovery in one flow. */
-  connect(customInstructions?: string): Promise<void> {
+  async connect(customInstructions?: string): Promise<void> {
     // Check if already connected, but handle cases where WebSocket might not have readyState
     if (this.ws) {
       try {
@@ -964,52 +949,17 @@ class RealtimeAgentService {
       }
     }
 
-    if (!this.apiKey) {
-      this.loadApiKey();
-      if (!this.apiKey) {
-        const config = Constants.expoConfig?.extra;
-        const hasZeinaKey = !!this.normalizeApiKeyInput(config?.zeinaApiKey);
-        const hasOpenAIKey = !!this.normalizeApiKeyInput(config?.openaiApiKey);
-        const hasPublicZeinaKey = !!this.normalizeApiKeyInput(
-          process.env.EXPO_PUBLIC_ZEINA_API_KEY
-        );
-        const hasPublicOpenAIKey = !!this.normalizeApiKeyInput(
-          process.env.EXPO_PUBLIC_OPENAI_API_KEY
-        );
-        const errorMessage =
-          "Zeina API key not configured.\n\n" +
-          "Diagnostics:\n" +
-          `  - expo.extra.zeinaApiKey: ${hasZeinaKey ? "present but invalid" : "missing"}\n` +
-          `  - expo.extra.openaiApiKey: ${hasOpenAIKey ? "present but invalid" : "missing"}\n` +
-          `  - EXPO_PUBLIC_ZEINA_API_KEY: ${hasPublicZeinaKey ? "present but invalid" : "missing"}\n` +
-          `  - EXPO_PUBLIC_OPENAI_API_KEY: ${hasPublicOpenAIKey ? "present but invalid" : "missing"}\n\n` +
+    let clientSecret: string;
+    try {
+      clientSecret = await this.getClientSecret();
+    } catch (error) {
+      const message = getUnknownErrorMessage(error);
+      throw new Error(
+        `Zeina voice is not configured on the server.\n\n${message}\n\n` +
           "To fix this:\n" +
-          "1. Set OPENAI_API_KEY or ZEINA_API_KEY in EAS environment for this build profile\n" +
-          "   (EXPO_PUBLIC_OPENAI_API_KEY / EXPO_PUBLIC_ZEINA_API_KEY are also supported)\n\n" +
-          "2. Rebuild the app (required after env changes):\n" +
-          "   - Stop the dev server\n" +
-          "   - Run: npm run ios (or npm run android)\n" +
-          "   - Or rebuild with EAS: eas build --profile development\n\n" +
-          "Note: API keys should start with 'sk-' or 'sk-proj-'";
-        throw new Error(errorMessage);
-      }
-    }
-
-    const apiKey = this.apiKey;
-    if (!apiKey) {
-      throw new Error("API key not available");
-    }
-
-    // Validate API key format before attempting connection
-    if (!this.validateApiKeyFormat(apiKey)) {
-      const errorMessage =
-        `Invalid API key format: ${this.maskApiKey(apiKey)}\n\n` +
-        "OpenAI API keys should start with 'sk-' or 'sk-proj-'.\n\n" +
-        "Please check:\n" +
-        "1. Your EAS environment variable has the correct key format\n" +
-        "2. The key doesn't have extra quotes or spaces\n" +
-        "3. You've rebuilt the app after changing env variables";
-      throw new Error(errorMessage);
+          "1. Set Firebase Functions secret OPENAI_API_KEY (and optionally ZEINA_API_KEY)\n" +
+          "2. Deploy functions\n"
+      );
     }
 
     this.setConnectionState("connecting");
@@ -1025,7 +975,7 @@ class RealtimeAgentService {
         try {
           ws = createWebSocketWithHeaders(wsUrl, undefined, {
             headers: {
-              Authorization: `Bearer ${apiKey}`,
+              Authorization: `Bearer ${clientSecret}`,
               "OpenAI-Beta": "realtime=v1",
             },
           });
@@ -1080,7 +1030,6 @@ class RealtimeAgentService {
           // Provide more detailed error information
           const errorMessage = getUnknownErrorMessage(error);
           const setupGuidance = getWebSocketSetupGuidance();
-          const maskedKey = this.maskApiKey(this.apiKey);
 
           let detailedError: Error;
 
@@ -1100,8 +1049,6 @@ class RealtimeAgentService {
             detailedError = new Error(
               "🚫 Firewall/Proxy Blocking WebSocket Connection\n\n" +
                 `Error: ${errorMessage}\n\n` +
-                `API Key: ${maskedKey}\n` +
-                `Format Valid: ${this.validateApiKeyFormat(this.apiKey || "") ? "✅ Yes" : "❌ No"}\n\n` +
                 "Your network appears to be blocking WebSocket connections to OpenAI.\n\n" +
                 "Common causes:\n" +
                 "1. Corporate firewall blocking WebSocket (wss://) connections\n" +
@@ -1132,16 +1079,12 @@ class RealtimeAgentService {
           ) {
             detailedError = new Error(
               "WebSocket authentication failed (401 Unauthorized).\n\n" +
-                `API Key: ${maskedKey}\n\n` +
                 "This usually means:\n" +
-                "1. Your OpenAI API key is invalid or expired\n" +
-                `2. Your OpenAI API key doesn't have Realtime API access\n` +
-                "3. The Realtime API requires special beta approval\n" +
-                `4. WebSocket headers aren't being sent properly\n\n` +
+                "1. The server is not configured with a valid OpenAI API key\n" +
+                "2. Your OpenAI account doesn't have Realtime API access\n" +
+                "3. The server-issued Realtime client secret expired\n\n" +
                 "To fix this:\n" +
-                `• Verify your API key is correct: ${maskedKey}\n` +
-                `• Check API key format starts with 'sk-' or 'sk-proj-'\n` +
-                "• Add OPENAI_API_KEY to .env and rebuild the app\n" +
+                "• Configure Firebase Functions secret OPENAI_API_KEY and deploy functions\n" +
                 "• Apply for Realtime API beta access: https://platform.openai.com/docs/guides/realtime\n" +
                 "• Check OpenAI status: https://status.openai.com/"
             );
@@ -1151,29 +1094,21 @@ class RealtimeAgentService {
           ) {
             detailedError = new Error(
               `Authentication error: ${errorMessage}\n\n` +
-                `API Key: ${maskedKey}\n` +
-                `Format Valid: ${this.validateApiKeyFormat(this.apiKey || "") ? "✅ Yes" : "❌ No"}\n\n` +
-                "Your API key may be missing or invalid.\n\n" +
+                "The server may be missing OpenAI credentials.\n\n" +
                 "To fix this:\n" +
-                "1. Add OPENAI_API_KEY to your .env file and rebuild:\n" +
-                "   - Stop dev server\n" +
-                "   - Run: npm run ios (or npm run android)\n" +
-                "   - Or: eas build --profile development\n\n" +
-                "Note: .env changes require a rebuild."
+                "1. Configure Firebase Functions secret OPENAI_API_KEY\n" +
+                "2. Deploy functions\n"
             );
           } else {
             detailedError = new Error(
               `WebSocket connection failed: ${errorMessage}\n\n` +
-                `API Key: ${maskedKey}\n` +
-                `Format Valid: ${this.validateApiKeyFormat(this.apiKey || "") ? "✅ Yes" : "❌ No"}\n\n` +
                 "Common causes:\n" +
-                "1. Missing or invalid OpenAI API key\n" +
+                "1. Server not configured with OpenAI credentials\n" +
                 "2. Network connectivity issues (firewall/proxy blocking)\n" +
                 "3. WebSocket headers not supported on this platform\n" +
                 "4. Realtime API beta access required\n\n" +
                 `${setupGuidance}\n\n` +
                 "Troubleshooting:\n" +
-                "• Add OPENAI_API_KEY to .env and rebuild\n" +
                 "• Check your network connection (try mobile data)\n" +
                 "• Verify Realtime API access: https://platform.openai.com/docs/guides/realtime"
             );
@@ -1194,7 +1129,6 @@ class RealtimeAgentService {
           clearTimeout(connectionTimeout);
           this.setConnectionState("disconnected");
 
-          const maskedKey = this.maskApiKey(this.apiKey);
           const closeReason = event.reason || "No reason provided";
 
           // Provide helpful error messages based on close code
@@ -1209,7 +1143,6 @@ class RealtimeAgentService {
 
             const error = new Error(
               "WebSocket connection closed abnormally (code 1006).\n\n" +
-                `API Key: ${maskedKey}\n` +
                 `Reason: ${closeReason}\n\n` +
                 (isLikelyFirewall
                   ? "🚫 This often indicates firewall/proxy blocking:\n\n" +
@@ -1223,37 +1156,34 @@ class RealtimeAgentService {
                     "• Connect to a VPN\n" +
                     "• Contact IT to whitelist wss://api.openai.com\n\n"
                   : "This usually means:\n" +
-                    "1. Invalid API key or missing authentication\n" +
+                    "1. Server authentication/session issue\n" +
                     "2. Network connectivity issues\n" +
                     "3. OpenAI API service unavailable\n\n") +
                 "To fix:\n" +
-                "• Add OPENAI_API_KEY to .env and rebuild\n" +
+                "• Ensure server OpenAI key is configured (Firebase Functions secret OPENAI_API_KEY)\n" +
                 "• Check your network connection\n" +
-                "• Verify API key format (should start with 'sk-')"
+                "• Verify Realtime API access: https://platform.openai.com/docs/guides/realtime"
             );
             this.eventHandlers.onError?.(error);
           } else if (event.code === 1002) {
             // Protocol error
             const error = new Error(
               "WebSocket protocol error (code 1002).\n\n" +
-                `API Key: ${maskedKey}\n\n` +
                 "This may indicate that WebSocket headers are not supported on this platform.\n\n" +
                 "To fix:\n" +
                 "• Try on a physical device instead of simulator\n" +
                 "• Rebuild the app\n" +
-                "• Check that your API key is properly configured"
+                "• Check that the server is properly configured"
             );
             this.eventHandlers.onError?.(error);
           } else if (event.code === 1008) {
             // Policy violation - often means invalid API key
             const error = new Error(
               "WebSocket connection rejected (code 1008).\n\n" +
-                `API Key: ${maskedKey}\n` +
                 `Reason: ${closeReason}\n\n` +
-                "This usually means your API key is invalid or doesn't have Realtime API access.\n\n" +
+                "This usually means the server auth/session is invalid or your OpenAI account doesn't have Realtime API access.\n\n" +
                 "To fix:\n" +
-                "• Verify your API key is correct\n" +
-                "• Add OPENAI_API_KEY to .env and rebuild\n" +
+                "• Configure Firebase Functions secret OPENAI_API_KEY and deploy functions\n" +
                 "• Apply for Realtime API access: https://platform.openai.com/docs/guides/realtime"
             );
             this.eventHandlers.onError?.(error);
@@ -1274,7 +1204,7 @@ class RealtimeAgentService {
             const closeError = new Error(
               `WebSocket closed with code ${event.code}: ${event.reason || "Connection failed"}\n\n` +
                 "Troubleshooting:\n" +
-                "• Check your API key configuration\n" +
+                "• Check server AI configuration\n" +
                 "• Verify network connectivity\n" +
                 "• Try rebuilding the app"
             );
@@ -1295,12 +1225,10 @@ class RealtimeAgentService {
                 // Ignore close errors during timeout
               }
             }
-            const maskedKey = this.maskApiKey(this.apiKey);
             reject(
               new Error(
                 "🚫 Connection timeout after 15 seconds.\n\n" +
                   "Diagnostics:\n" +
-                  `  • API Key: ${maskedKey} ${this.validateApiKeyFormat(this.apiKey || "") ? "✅ Valid format" : "❌ Invalid format"}\n` +
                   "  • Network: Check your internet connection\n" +
                   "  • Endpoint: wss://api.openai.com/v1/realtime\n\n" +
                   "⚠️ This timeout often indicates firewall/proxy blocking:\n\n" +
@@ -1309,7 +1237,7 @@ class RealtimeAgentService {
                   "  2. Network proxy requiring authentication or blocking outbound traffic\n" +
                   "  3. ISP or network security blocking api.openai.com\n" +
                   "  4. Slow or unstable network connection\n" +
-                  "  5. Invalid or expired API key\n\n" +
+                  "  5. Realtime API access not enabled on the OpenAI account\n\n" +
                   "Solutions:\n" +
                   "  1. Try a different network:\n" +
                   "     • Switch to mobile data (cellular)\n" +
@@ -1321,7 +1249,6 @@ class RealtimeAgentService {
                   "     • Disable VPN if it's blocking WebSocket traffic\n\n" +
                   "  3. Verify connectivity:\n" +
                   "     • Check if https://api.openai.com is accessible in browser\n" +
-                  `     • Verify API key: ${maskedKey}\n` +
                   "     • Check OpenAI status: https://status.openai.com/\n\n" +
                   "Note: WebSocket connections require outbound access to wss://api.openai.com"
               )

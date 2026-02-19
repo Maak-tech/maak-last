@@ -38,6 +38,10 @@ export const DEXCOM_REDIRECT_URI = defineSecret("DEXCOM_REDIRECT_URI");
 
 // RevenueCat
 export const REVENUECAT_PROJECT_ID = defineSecret("REVENUECAT_PROJECT_ID");
+// RevenueCat Secret API key (REST API) - server-only
+export const REVENUECAT_SECRET_API_KEY = defineSecret(
+  "REVENUECAT_SECRET_API_KEY"
+);
 
 /**
  * Helper function to get a secret value safely

@@ -79,8 +79,8 @@ if (-not $easInstalled) {
     Write-Host "   Setting OPENAI_API_KEY in EAS..." -ForegroundColor Yellow
     $easConfigured = $true
     
-    # Try to create the secret
-    $process = Start-Process -FilePath "eas" -ArgumentList "env:create","--scope","project","--name","OPENAI_API_KEY","--value",$openaiKey,"--type","string","--visibility","secret","--environment","all","--non-interactive" -NoNewWindow -Wait -PassThru -RedirectStandardOutput "eas_output.txt" -RedirectStandardError "eas_error.txt"
+    # Try to create the secret (using new eas env:create syntax)
+    $process = Start-Process -FilePath "eas" -ArgumentList "env:create","--name","OPENAI_API_KEY","--value",$openaiKey,"--visibility","secret","--environment","all","--non-interactive" -NoNewWindow -Wait -PassThru -RedirectStandardOutput "eas_output.txt" -RedirectStandardError "eas_error.txt"
     
     if ($process.ExitCode -eq 0) {
         Write-Host "   Success: OPENAI_API_KEY set in EAS" -ForegroundColor Green
@@ -91,8 +91,8 @@ if (-not $easInstalled) {
         # Check if secret already exists
         if ($errorContent -match "already exists" -or $outputContent -match "already exists" -or $errorContent -match "duplicate" -or $outputContent -match "duplicate") {
             Write-Host "   Info: OPENAI_API_KEY already exists in EAS (updating...)" -ForegroundColor Yellow
-            # Try to update instead
-            $updateProcess = Start-Process -FilePath "eas" -ArgumentList "env:update","--scope","project","--name","OPENAI_API_KEY","--value",$openaiKey,"--type","string","--visibility","secret","--environment","all","--non-interactive" -NoNewWindow -Wait -PassThru
+            # Try to update instead (using new eas env:update syntax)
+            $updateProcess = Start-Process -FilePath "eas" -ArgumentList "env:update","--name","OPENAI_API_KEY","--value",$openaiKey,"--visibility","secret","--environment","all","--non-interactive" -NoNewWindow -Wait -PassThru
             
             if ($updateProcess.ExitCode -eq 0) {
                 Write-Host "   Success: OPENAI_API_KEY updated in EAS" -ForegroundColor Green
@@ -111,11 +111,14 @@ if (-not $easInstalled) {
     Remove-Item "eas_output.txt" -ErrorAction SilentlyContinue
     Remove-Item "eas_error.txt" -ErrorAction SilentlyContinue
 
-    # Set ZEINA_API_KEY if it's different from OPENAI_API_KEY
-    if ($zeinaKey -and $zeinaKey -ne "" -and $zeinaKey -ne $openaiKey) {
+    # Always set ZEINA_API_KEY (use ZEINA_API_KEY if set, otherwise use OPENAI_API_KEY)
+    # This ensures both keys are available in EAS, even if they have the same value
+    $zeinaKeyToSet = if ($zeinaKey -and $zeinaKey -ne "") { $zeinaKey } else { $openaiKey }
+    
+    if ($zeinaKeyToSet -and $zeinaKeyToSet -ne "") {
         Write-Host ""
         Write-Host "   Setting ZEINA_API_KEY in EAS..." -ForegroundColor Yellow
-        $zeinaProcess = Start-Process -FilePath "eas" -ArgumentList "env:create","--scope","project","--name","ZEINA_API_KEY","--value",$zeinaKey,"--type","string","--visibility","secret","--environment","all","--non-interactive" -NoNewWindow -Wait -PassThru -RedirectStandardOutput "zeina_output.txt" -RedirectStandardError "zeina_error.txt"
+        $zeinaProcess = Start-Process -FilePath "eas" -ArgumentList "env:create","--name","ZEINA_API_KEY","--value",$zeinaKeyToSet,"--visibility","secret","--environment","all","--non-interactive" -NoNewWindow -Wait -PassThru -RedirectStandardOutput "zeina_output.txt" -RedirectStandardError "zeina_error.txt"
         
         if ($zeinaProcess.ExitCode -eq 0) {
             Write-Host "   Success: ZEINA_API_KEY set in EAS" -ForegroundColor Green
@@ -125,10 +128,17 @@ if (-not $easInstalled) {
             
             if ($zeinaError -match "already exists" -or $zeinaOutput -match "already exists" -or $zeinaError -match "duplicate" -or $zeinaOutput -match "duplicate") {
                 Write-Host "   Info: ZEINA_API_KEY already exists in EAS (updating...)" -ForegroundColor Yellow
-                $zeinaUpdateProcess = Start-Process -FilePath "eas" -ArgumentList "env:update","--scope","project","--name","ZEINA_API_KEY","--value",$zeinaKey,"--type","string","--visibility","secret","--environment","all","--non-interactive" -NoNewWindow -Wait -PassThru
+                $zeinaUpdateProcess = Start-Process -FilePath "eas" -ArgumentList "env:update","--name","ZEINA_API_KEY","--value",$zeinaKeyToSet,"--visibility","secret","--environment","all","--non-interactive" -NoNewWindow -Wait -PassThru
                 
                 if ($zeinaUpdateProcess.ExitCode -eq 0) {
                     Write-Host "   Success: ZEINA_API_KEY updated in EAS" -ForegroundColor Green
+                } else {
+                    Write-Host "   Warning: Could not update ZEINA_API_KEY in EAS (may need manual update)" -ForegroundColor Yellow
+                }
+            } else {
+                Write-Host "   Warning: Failed to set ZEINA_API_KEY in EAS" -ForegroundColor Yellow
+                if ($zeinaError) {
+                    Write-Host "      Error: $zeinaError" -ForegroundColor Red
                 }
             }
         }

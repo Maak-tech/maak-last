@@ -342,16 +342,52 @@ export default function ZeinaScreen() {
       return;
     }
     try {
-      await openaiService.getApiKey(true);
+      const access = await openaiService.getAccessStatus();
+      if (!access.configured) {
+        const message = t(
+          "zeinaConfigurationError",
+          "AI service is not configured. Please set Firebase Functions secret OPENAI_API_KEY and redeploy functions."
+        );
+        Alert.alert(t("error", "Error"), message);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            role: "assistant",
+            content: t(
+              "zeinaConfigurationHelp",
+              "I'm not fully configured on this build yet. Please ask an admin to configure the server AI key and try again."
+            ),
+            timestamp: new Date(),
+          },
+        ]);
+        return;
+      }
+      if (!access.hasAccess) {
+        const message = t(
+          "zeinaSubscriptionRequired",
+          "Zeina is available only for active Family Plan subscribers."
+        );
+        Alert.alert(t("subscription", "Subscription"), message);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            role: "assistant",
+            content: t(
+              "zeinaSubscriptionHelp",
+              "Please upgrade to the Family Plan to use Zeina."
+            ),
+            timestamp: new Date(),
+          },
+        ]);
+        return;
+      }
     } catch (error) {
-      const message =
-        error instanceof Error && error.message
-          ? error.message
-          : t(
-              "zeinaConfigurationError",
-              "Zeina is not configured correctly. Please verify OPENAI_API_KEY / ZEINA_API_KEY for this build."
-            );
-      Alert.alert(t("error", "Error"), message);
+      Alert.alert(
+        t("error", "Error"),
+        error instanceof Error ? error.message : String(error)
+      );
       setMessages((prev) => [
         ...prev,
         {
@@ -359,7 +395,7 @@ export default function ZeinaScreen() {
           role: "assistant",
           content: t(
             "zeinaConfigurationHelp",
-            "I'm not fully configured on this build yet. Please check OpenAI key configuration and try again."
+            "I'm not fully configured on this build yet. Please ask an admin to configure the server AI key and try again."
           ),
           timestamp: new Date(),
         },

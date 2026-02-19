@@ -169,7 +169,7 @@ export default {
       supportsTablet: true,
       bundleIdentifier: "com.maaktech.maak",
       buildNumber: "42",
-      jsEngine: "jsc",
+      jsEngine: process.env.EXPO_PUBLIC_IOS_JS_ENGINE || "hermes",
       ...(fs.existsSync("./GoogleService-Info.plist") &&
       isValidPlist("./GoogleService-Info.plist")
         ? { googleServicesFile: "./GoogleService-Info.plist" }
@@ -371,17 +371,8 @@ export default {
         process.env.DEXCOM_REDIRECT_URI ||
         "https://maak-5caad.web.app/dexcom-callback",
       // OpenAI API keys are stored in EAS environment variables.
-      // We support both classic names and EXPO_PUBLIC_* names for compatibility.
-      openaiApiKey: readFirstSecret(
-        "OPENAI_API_KEY",
-        "EXPO_PUBLIC_OPENAI_API_KEY"
-      ),
-      zeinaApiKey: readFirstSecret(
-        "ZEINA_API_KEY",
-        "EXPO_PUBLIC_ZEINA_API_KEY",
-        "OPENAI_API_KEY",
-        "EXPO_PUBLIC_OPENAI_API_KEY"
-      ),
+      // IMPORTANT: Do not embed OpenAI API keys in the client bundle.
+      // All OpenAI requests should go through Firebase Functions which hold the secrets.
       // RevenueCat API Keys - REQUIRED for production
       // PUBLIC_REVENUECAT_API_KEY: Public SDK API key (starts with appl_ for iOS or goog_ for Android)
       //   - Used by the React Native SDK for client-side subscription management

@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WatermarkPattern } from "@/components/figma/WatermarkPattern";
 import { Colors } from "@/constants/theme";
@@ -13,18 +13,22 @@ const STEPS = [
   {
     icon: "heart" as const,
     color: "#EB9C0C",
+    image: require("@/assets/images/welcome.png"),
   },
   {
     icon: "pulse" as const,
     color: "#003543",
+    image: require("@/assets/images/track-health..png"),
   },
   {
     icon: "notifications" as const,
     color: "#10B981",
+    image: require("@/assets/images/manage-family.png"),
   },
   {
     icon: "chatbubbles" as const,
     color: "#EB9C0C",
+    image: require("@/assets/images/generated_image.png"),
   },
 ];
 
@@ -166,9 +170,15 @@ export default function OnboardingScreen() {
             {t(subtitleKey)}
           </Text>
 
-          {/* Illustration placeholder */}
+          {/* Illustration */}
           <View style={styles.illustrationPlaceholder}>
-            <Ionicons color="#D1D5DB" name={currentStep.icon} size={128} />
+            <Image
+              accessibilityIgnoresInvertColors
+              accessibilityLabel={t(titleKey)}
+              resizeMode="contain"
+              source={currentStep.image}
+              style={styles.illustrationImage}
+            />
           </View>
         </View>
 
@@ -320,6 +330,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#F9FDFE",
+    overflow: "hidden",
+    padding: 12,
+  },
+  illustrationImage: {
+    width: "100%",
+    height: "100%",
   },
   actions: {
     paddingHorizontal: 24,

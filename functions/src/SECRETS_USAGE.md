@@ -13,7 +13,7 @@ All secrets are defined in `functions/src/secrets.ts` and can be imported where 
   - `FITBIT_CLIENT_ID`, `FITBIT_CLIENT_SECRET`
   - `WITHINGS_CLIENT_ID`, `WITHINGS_CLIENT_SECRET`
   - `DEXCOM_REDIRECT_URI`
-- **RevenueCat**: `REVENUECAT_PROJECT_ID`
+- **RevenueCat**: `REVENUECAT_PROJECT_ID`, `REVENUECAT_SECRET_API_KEY`
 
 ## How to Use Secrets in Functions
 

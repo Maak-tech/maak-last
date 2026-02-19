@@ -59,7 +59,10 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import {
   Camera,
   useCameraDevice,
@@ -103,8 +106,10 @@ export default function PPGVitalMonitorVisionCamera({
   // No need to call it here
 
   const { theme } = useTheme();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { hasPermission, requestPermission } = useCameraPermission();
+  const insets = useSafeAreaInsets();
+  const isRTL = i18n.language.toLowerCase().startsWith("ar");
   const device = useCameraDevice("back"); // Back camera has flash for PPG illumination
 
   // Select camera format with optimal frame rate for PPG
@@ -300,6 +305,9 @@ export default function PPGVitalMonitorVisionCamera({
       paddingTop: theme.spacing.xl + 40,
       paddingBottom: theme.spacing.xl,
     },
+    scrollContentRTL: {
+      paddingTop: theme.spacing.xl + 60,
+    },
     cameraContainer: {
       width: "100%",
       height: 280,
@@ -406,6 +414,10 @@ export default function PPGVitalMonitorVisionCamera({
       alignItems: "center",
       ...theme.shadows.md,
       elevation: 10,
+    },
+    closeButtonRTL: {
+      right: undefined,
+      left: theme.spacing.lg,
     },
     errorText: {
       ...getTextStyle(theme, "body", "medium", theme.colors.accent.error),
@@ -1603,14 +1615,19 @@ export default function PPGVitalMonitorVisionCamera({
           }}
           style={[
             styles.closeButton as ViewStyle,
-            { zIndex: 10_001, elevation: 20 },
+            isRTL && styles.closeButtonRTL,
+            { zIndex: 10_001, elevation: 20, top: 20 + insets.top },
           ]}
         >
           <X color={theme.colors.text.primary} size={20} />
         </TouchableOpacity>
 
         <ScrollView
-          contentContainerStyle={styles.scrollContent as ViewStyle}
+          contentContainerStyle={[
+            styles.scrollContent as ViewStyle,
+            { paddingTop: theme.spacing.xl + 40 + insets.top },
+            isRTL && styles.scrollContentRTL,
+          ]}
           contentInsetAdjustmentBehavior="automatic"
           scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}

@@ -73,7 +73,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import GlobalSearch from "@/app/components/GlobalSearch";
 import Avatar from "@/components/Avatar";
 import {
@@ -149,6 +152,7 @@ export default function ProfileScreen() {
     useFallDetectionContext();
   const { isDark, theme } = useTheme();
   const isFocused = useIsFocused();
+  const insets = useSafeAreaInsets();
   const { trendAlertEvent, alertCreatedEvent, alertResolvedEvent } =
     useRealtimeHealthContext();
   const router = useRouter();
@@ -376,14 +380,16 @@ export default function ProfileScreen() {
       hasSleepData,
     };
 
-    console.log("Sparkline data:", {
-      heartRate: result.heartRate.length,
-      steps: result.steps.length,
-      sleepHours: result.sleepHours.length,
-      hasHeartRateData,
-      hasStepsData,
-      hasSleepData,
-    });
+    if (process.env.NODE_ENV !== "production") {
+      console.log("Sparkline data:", {
+        heartRate: result.heartRate.length,
+        steps: result.steps.length,
+        sleepHours: result.sleepHours.length,
+        hasHeartRateData,
+        hasStepsData,
+        hasSleepData,
+      });
+    }
 
     return result;
   }, []);
@@ -680,12 +686,14 @@ export default function ProfileScreen() {
           );
           const activeMedications = medications.filter((m) => m.isActive);
 
-          console.log("Profile health data loaded:", {
-            totalMedications: medications.length,
-            activeMedications: activeMedications.length,
-            totalSymptoms: symptoms.length,
-            recentSymptoms: recentSymptoms.length,
-          });
+          if (process.env.NODE_ENV !== "production") {
+            console.log("Profile health data loaded:", {
+              totalMedications: medications.length,
+              activeMedications: activeMedications.length,
+              totalSymptoms: symptoms.length,
+              recentSymptoms: recentSymptoms.length,
+            });
+          }
 
           // OPTIMIZATION: Calculate health score only with recent data (last 90 days)
           // This reduces computation time significantly
@@ -1634,7 +1642,10 @@ export default function ProfileScreen() {
       style={styles.container}
     >
       <ScrollView
-        contentContainerStyle={styles.figmaProfileContent}
+        contentContainerStyle={[
+          styles.figmaProfileContent,
+          { paddingBottom: 32 + insets.bottom + 80 }, // 32 base + safe area + bottom nav bar height
+        ]}
         refreshControl={
           <RefreshControl
             onRefresh={() => loadHealthData(true)}

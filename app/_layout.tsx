@@ -4,8 +4,6 @@ import "@/lib/polyfills/pushNotificationIOS";
 
 // Initialize reanimated compatibility early to prevent createAnimatedComponent errors
 import "@/lib/utils/reanimatedSetup";
-// Runtime Text font remap for Arabic (Inter -> NotoSansArabic)
-import "@/lib/patchTextFontRuntime";
 // Remap Inter fonts to Arabic-safe fonts when app language is Arabic.
 import "@/lib/patchInterForArabic";
 // Ensure Firebase JS SDK initializes before consumers import services.
@@ -50,6 +48,7 @@ import { logger } from "@/lib/utils/logger";
 
 const ENABLE_NOTIFICATIONS_BOOTSTRAP =
   process.env.EXPO_PUBLIC_ENABLE_NOTIFICATIONS_BOOTSTRAP === "true";
+const IS_DEV_BUILD = process.env.NODE_ENV !== "production";
 
 // Install global JS error hooks as early as possible.
 initializeErrorHandlers();
@@ -253,28 +252,39 @@ function RootLayout() {
   // Keep Text defaults neutral. Arabic font handling is patched globally at runtime.
   useEffect(() => {
     if (!(fontsLoaded || fontError)) {
-      console.log(
-        "Fonts not loaded yet, fontsLoaded:",
-        fontsLoaded,
-        "fontError:",
-        fontError
-      );
+      if (IS_DEV_BUILD) {
+        logger.debug(
+          "Fonts not loaded yet",
+          { fontsLoaded, fontError },
+          "RootLayout"
+        );
+      }
       return;
     }
 
-    console.log(
-      "Setting up Arabic font, language:",
-      i18n.language,
-      "fontsLoaded:",
-      fontsLoaded
-    );
+    if (IS_DEV_BUILD) {
+      logger.debug(
+        "Setting up Arabic font defaults",
+        { language: i18n.language, fontsLoaded },
+        "RootLayout"
+      );
+    }
 
     (RNText as any).defaultProps = (RNText as any).defaultProps || {};
     (RNText as any).defaultProps.style = undefined;
-    console.log("✓ Text defaults reset; runtime Arabic patch active");
-    if (i18n.language === "ar") {
-      console.log("[Arabic Debug] literal:", "مرحباً بالعالم");
-      console.log("[Arabic Debug] t(home):", i18n.t("home"));
+    if (IS_DEV_BUILD) {
+      logger.debug(
+        "Text defaults reset; runtime Arabic patch active",
+        undefined,
+        "RootLayout"
+      );
+    }
+    if (i18n.language === "ar" && IS_DEV_BUILD) {
+      logger.debug(
+        "Arabic debug",
+        { literal: "مرحباً بالعالم", home: i18n.t("home") },
+        "RootLayout"
+      );
     }
   }, [i18n.language, fontsLoaded, fontError]);
 

@@ -23,6 +23,13 @@ import { sendPushNotificationInternal } from "./services/notifications";
 import { sendEmergencySmsToContacts } from "./services/notifications/sms";
 import type { NotificationPayload } from "./services/notifications/types";
 
+export {
+  openaiChatCompletion,
+  openaiHealthCheck,
+  openaiRealtimeClientSecret,
+  openaiTranscribeAudio,
+} from "./api/openaiProxy";
+
 // Initialize Firebase Admin
 admin.initializeApp();
 

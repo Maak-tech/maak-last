@@ -9,6 +9,7 @@
     "sourceMap": true,
     "strict": true,
     "target": "es2017",
+    "lib": ["es2022"],
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "strictNullChecks": true

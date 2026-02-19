@@ -1,4 +1,5 @@
-import Constants from "expo-constants";
+import { httpsCallable } from "firebase/functions";
+import { functions as firebaseFunctions } from "@/lib/firebase";
 import { aiInstrumenter } from "@/lib/observability";
 
 export type ChatMessage = {
@@ -15,21 +16,6 @@ export const AI_MODELS = {
   "gpt-4o": "GPT-4o (Latest)",
 };
 
-export type ChatCompletionChunk = {
-  id: string;
-  object: string;
-  created: number;
-  model: string;
-  choices: Array<{
-    delta: {
-      content?: string;
-      role?: string;
-    };
-    index: number;
-    finish_reason: string | null;
-  }>;
-};
-
 type ExpectedApiError = Error & {
   isExpectedError?: boolean;
   isApiKeyError?: boolean;
@@ -41,95 +27,55 @@ const markExpectedApiError = (message: string): ExpectedApiError => {
   error.isApiKeyError = true;
   return error;
 };
+
+const isFirebaseFunctionsError = (
+  error: unknown
+): error is { code?: string; message?: string } =>
+  typeof error === "object" && error !== null && "message" in error;
+
 const MARKDOWN_JSON_BLOCK_REGEX = /```(?:json)?\s*(\{[\s\S]*\})\s*```/;
 
 class OpenAIService {
-  private apiKey: string | null = null;
-  private zeinaApiKey: string | null = null;
-  private readonly baseURL = "https://api.openai.com/v1";
-  private model = "gpt-3.5-turbo"; // Default to cheaper model
+  private model = "gpt-3.5-turbo";
+  private cachedHealth: {
+    configured: boolean;
+    hasAccess: boolean;
+    checkedAtMs: number;
+  } | null = null;
 
-  private normalizeKey(key: unknown): string | null {
-    if (typeof key !== "string") {
-      return null;
-    }
-    let trimmed = key.trim();
-    if (!trimmed) {
-      return null;
-    }
-    if (
-      (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-      (trimmed.startsWith("'") && trimmed.endsWith("'"))
-    ) {
-      trimmed = trimmed.slice(1, -1).trim();
-    }
-    if (trimmed.toLowerCase().startsWith("bearer ")) {
-      trimmed = trimmed.slice(7).trim();
-    }
-    return trimmed || null;
+  async initialize(): Promise<void> {
+    // No-op: OpenAI secrets live only in Firebase Functions.
   }
 
-  initialize(_usePremiumKey = false): void {
+  async getAccessStatus(): Promise<{ configured: boolean; hasAccess: boolean }> {
+    const now = Date.now();
+    if (this.cachedHealth && now - this.cachedHealth.checkedAtMs < 60_000) {
+      return {
+        configured: this.cachedHealth.configured,
+        hasAccess: this.cachedHealth.hasAccess,
+      };
+    }
+
+    const healthCheck = httpsCallable<
+      Record<string, never>,
+      { configured?: boolean; hasAccess?: boolean }
+    >(firebaseFunctions, "openaiHealthCheck");
+
     try {
-      // Get API keys from app config (server-side, not user-provided)
-      // Both regular and premium users use the same OpenAI API key
-      const config = Constants.expoConfig?.extra;
-      const configOpenAIKey = this.normalizeKey(config?.openaiApiKey);
-      const configZeinaKey = this.normalizeKey(config?.zeinaApiKey);
-      const envOpenAIKey = this.normalizeKey(
-        process.env.EXPO_PUBLIC_OPENAI_API_KEY
-      );
-      const envZeinaKey = this.normalizeKey(
-        process.env.EXPO_PUBLIC_ZEINA_API_KEY
-      );
-
-      const openaiKey = configOpenAIKey || envOpenAIKey;
-      const zeinaKey = configZeinaKey || envZeinaKey || envOpenAIKey;
-
-      this.apiKey = openaiKey;
-      // Fallback to openaiApiKey if zeinaApiKey not set or empty
-      this.zeinaApiKey = zeinaKey || openaiKey;
-
-      // API key validation handled in getApiKey method
-    } catch (_error) {
-      // Ignore initialization failure; getApiKey handles validation explicitly.
+      const result = await healthCheck({});
+      const configured = Boolean(result.data?.configured);
+      const hasAccess = Boolean(result.data?.hasAccess);
+      this.cachedHealth = { configured, hasAccess, checkedAtMs: now };
+      return { configured, hasAccess };
+    } catch {
+      this.cachedHealth = { configured: false, hasAccess: false, checkedAtMs: now };
+      return { configured: false, hasAccess: false };
     }
   }
 
-  getApiKey(usePremiumKey = false): Promise<string | null> {
-    // Use only the provided parameter to ensure context-specific behavior
-    // Do not rely on instance state from previous calls
-    const shouldUseZeinaKey = usePremiumKey;
-
-    // Initialize only once if keys are not already loaded
-    if (
-      !(this.apiKey || shouldUseZeinaKey) ||
-      (!this.zeinaApiKey && shouldUseZeinaKey)
-    ) {
-      this.initialize(shouldUseZeinaKey);
-    }
-
-    // Return the requested key type, fail explicitly if not available
-    if (shouldUseZeinaKey) {
-      if (
-        !this.zeinaApiKey ||
-        (typeof this.zeinaApiKey === "string" && this.zeinaApiKey.trim() === "")
-      ) {
-        throw new Error(
-          "Zeina API key not configured. Set ZEINA_API_KEY or OPENAI_API_KEY in EAS environment (or EXPO_PUBLIC_ZEINA_API_KEY / EXPO_PUBLIC_OPENAI_API_KEY) and rebuild."
-        );
-      }
-      return Promise.resolve(this.zeinaApiKey);
-    }
-    if (
-      !this.apiKey ||
-      (typeof this.apiKey === "string" && this.apiKey.trim() === "")
-    ) {
-      throw new Error(
-        "OpenAI API key not configured. Set OPENAI_API_KEY in EAS environment (or EXPO_PUBLIC_OPENAI_API_KEY) and rebuild."
-      );
-    }
-    return Promise.resolve(this.apiKey);
+  async isConfigured(): Promise<boolean> {
+    const status = await this.getAccessStatus();
+    return status.configured && status.hasAccess;
   }
 
   getModel(): Promise<string> {
@@ -149,122 +95,33 @@ class OpenAIService {
     onError?: (error: Error) => void,
     usePremiumKey = false
   ) {
-    // React Native doesn't support streaming properly, so we'll use the regular API
-    // and simulate streaming for better UX
+    // React Native streaming is flaky; keep the existing "fake streaming" UX.
     try {
       const response = await this.createChatCompletion(messages, usePremiumKey);
 
-      // Optimized streaming: batch words together for better performance
       const words = response.split(" ");
-      const BATCH_SIZE = 3; // Process 3 words at a time
-
-      for (let i = 0; i < words.length; i += BATCH_SIZE) {
-        const batch = words.slice(i, i + BATCH_SIZE);
-        const batchText = (i > 0 ? " " : "") + batch.join(" ");
-        onChunk(batchText);
-
-        // Reduced delay for better responsiveness while maintaining smooth UX
+      let currentText = "";
+      for (let i = 0; i < words.length; i++) {
+        currentText += (i === 0 ? "" : " ") + words[i];
+        onChunk(currentText);
         await new Promise((resolve) => setTimeout(resolve, 20));
       }
 
       onComplete?.();
+      return response;
     } catch (error) {
-      onError?.(error as Error);
+      const err = error instanceof Error ? error : new Error(String(error));
+      onError?.(err);
+      throw err;
     }
-  }
-
-  private async requestChatCompletion(
-    messages: ChatMessage[],
-    activeApiKey: string
-  ): Promise<string> {
-    const response = await fetch(`${this.baseURL}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${activeApiKey}`,
-      },
-      body: JSON.stringify({
-        model: this.model,
-        messages: messages.map((msg) => ({
-          role: msg.role,
-          content: msg.content,
-        })),
-        temperature: 0.7,
-        max_tokens: 1000,
-        stream: false,
-      }),
-    });
-
-    if (!response.ok) {
-      let errorMessage = "";
-      try {
-        const errorData = await response.text();
-        const errorJson = JSON.parse(errorData);
-        errorMessage = errorJson.error?.message || errorData;
-      } catch {
-        errorMessage = `HTTP ${response.status}`;
-      }
-
-      if (response.status === 429) {
-        throw new Error(
-          "API quota exceeded. Please add billing to your OpenAI account or switch to GPT-3.5 Turbo (cheaper model)."
-        );
-      }
-      if (response.status === 401) {
-        const error = markExpectedApiError(
-          "Invalid or expired OpenAI API key. Verify OPENAI_API_KEY / ZEINA_API_KEY values in your EAS environment, then rebuild the app."
-        );
-        throw error;
-      }
-      if (response.status === 404) {
-        throw new Error(
-          `Model ${this.model} not found. Please select a different model in settings.`
-        );
-      }
-      if (response.status === 400) {
-        throw new Error(
-          `Bad request: ${errorMessage}. Please check your API key and selected model.`
-        );
-      }
-
-      throw new Error(`OpenAI API error: ${errorMessage}`);
-    }
-
-    const data = await response.json();
-
-    if (!data.choices?.[0]?.message) {
-      throw new Error("Invalid response format from OpenAI API");
-    }
-
-    return data.choices[0].message.content;
   }
 
   async createChatCompletion(
     messages: ChatMessage[],
     usePremiumKey = false
   ): Promise<string> {
-    // Check API key before wrapping with observability to avoid logging expected errors
-    let activeApiKey: string | null = null;
-    try {
-      activeApiKey = await this.getApiKey(usePremiumKey);
-    } catch (apiKeyError: unknown) {
-      // If API key is not configured, create a special error that won't be logged as an error
-      const error = markExpectedApiError(
-        (apiKeyError instanceof Error ? apiKeyError.message : undefined) ||
-          "OpenAI API key not configured. Set OPENAI_API_KEY in EAS environment and rebuild the app."
-      );
-      throw error;
-    }
-
-    if (!activeApiKey || activeApiKey.trim() === "") {
-      const error = markExpectedApiError(
-        "OpenAI API key not configured. Set OPENAI_API_KEY in EAS environment and rebuild the app."
-      );
-      throw error;
-    }
-
     return aiInstrumenter.track("chat_completion", () =>
-      this.requestChatCompletion(messages, activeApiKey)
+      this.requestChatCompletion(messages, usePremiumKey)
     );
   }
 
@@ -273,21 +130,6 @@ class OpenAIService {
     usePremiumKey = false
   ): Promise<Record<string, unknown> | null> {
     try {
-      // Avoid noisy stack traces when the app hasn't been configured with an API key yet.
-      // Let callers fall back gracefully.
-      let apiKey: string | null = null;
-      try {
-        apiKey = await this.getApiKey(usePremiumKey);
-      } catch {
-        // API key not configured - return null silently
-        return null;
-      }
-
-      // If API key is null or empty, return null without making API call
-      if (!apiKey || apiKey.trim() === "") {
-        return null;
-      }
-
       const messages: ChatMessage[] = [
         {
           id: `msg-${Date.now()}`,
@@ -304,39 +146,83 @@ class OpenAIService {
         },
       ];
 
+      const response = await this.createChatCompletion(messages, usePremiumKey);
+
       try {
-        const response = await this.createChatCompletion(
-          messages,
-          usePremiumKey
-        );
-
-        // Try to parse JSON from the response
-        try {
-          // Extract JSON from markdown code blocks if present
-          const jsonMatch = response.match(MARKDOWN_JSON_BLOCK_REGEX);
-          const jsonString = jsonMatch ? jsonMatch[1] : response.trim();
-          return JSON.parse(jsonString) as Record<string, unknown>;
-        } catch (_parseError) {
-          // If parsing fails, return the raw response wrapped in a narrative property
-          return { narrative: response };
-        }
-      } catch (apiError: unknown) {
-        // Handle API key errors gracefully - these are marked as expected errors
-        // and won't be logged by the observability system
-        if (
-          apiError instanceof Error &&
-          ((apiError as ExpectedApiError).isApiKeyError ||
-            (apiError as ExpectedApiError).isExpectedError)
-        ) {
-          return null;
-        }
-
-        // For other errors, rethrow to be caught by outer catch
-        throw apiError;
+        const jsonMatch = response.match(MARKDOWN_JSON_BLOCK_REGEX);
+        const jsonString = jsonMatch ? jsonMatch[1] : response.trim();
+        return JSON.parse(jsonString) as Record<string, unknown>;
+      } catch {
+        return { narrative: response };
       }
-    } catch (_error) {
-      // Keep console noise low; callers already handle fallbacks.
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        ((error as ExpectedApiError).isExpectedError ||
+          (error as ExpectedApiError).isApiKeyError)
+      ) {
+        return null;
+      }
       return null;
+    }
+  }
+
+  private async requestChatCompletion(
+    messages: ChatMessage[],
+    usePremiumKey: boolean
+  ): Promise<string> {
+    const chatCompletion = httpsCallable<
+      {
+        messages: Array<{ role: string; content: string }>;
+        model: string;
+        temperature: number;
+        maxTokens: number;
+        usePremiumKey: boolean;
+      },
+      { content?: string }
+    >(firebaseFunctions, "openaiChatCompletion");
+
+    try {
+      const result = await chatCompletion({
+        messages: messages.map((m) => ({ role: m.role, content: m.content })),
+        model: this.model,
+        temperature: 0.7,
+        maxTokens: 1000,
+        usePremiumKey,
+      });
+
+      const content = result.data?.content;
+      if (typeof content !== "string") {
+        throw new Error("Invalid response format from AI service");
+      }
+      return content;
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Unknown AI service error";
+
+      if (isFirebaseFunctionsError(error)) {
+        const code = (error as { code?: string }).code;
+        if (code === "failed-precondition") {
+          throw markExpectedApiError(
+            "AI service is not configured. Set Firebase Functions secret OPENAI_API_KEY and redeploy."
+          );
+        }
+        if (code === "permission-denied") {
+          throw markExpectedApiError(
+            "AI is available only for active Family Plan subscribers."
+          );
+        }
+        if (code === "unauthenticated") {
+          throw markExpectedApiError(
+            "You must be signed in to use the AI assistant."
+          );
+        }
+        if (code === "resource-exhausted") {
+          throw new Error("AI quota exceeded. Please try again later.");
+        }
+      }
+
+      throw new Error(message);
     }
   }
 }

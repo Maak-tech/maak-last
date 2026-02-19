@@ -112,7 +112,9 @@ class PPGMLService {
       throw new Error(`ML service error: ${response.status}`);
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as {
+      embeddings: number[] | number[][];
+    };
     return data.embeddings;
   }
 

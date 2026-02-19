@@ -143,6 +143,9 @@ export default function DashboardScreen() {
           paddingVertical: theme.spacing.base,
           paddingBottom: 100, // Extra padding for tab bar
         },
+        contentInnerRTL: {
+          paddingTop: theme.spacing.lg,
+        },
         header: {
           marginBottom: theme.spacing.xl,
         },
@@ -156,6 +159,7 @@ export default function DashboardScreen() {
         welcomeTextRTL: {
           fontSize: 26,
           lineHeight: 34,
+          paddingTop: 8,
         },
         dateText: {
           ...getTextStyle(theme, "body", "bold", theme.colors.primary.main),
@@ -171,12 +175,18 @@ export default function DashboardScreen() {
           marginTop: -theme.spacing.base,
           marginBottom: theme.spacing.lg,
         },
+        wavyHeaderWrapperRTL: {
+          marginBottom: theme.spacing.xl,
+        },
         wavyHeaderContent: {
           paddingHorizontal: headerPadding,
           paddingTop: headerPadding,
           paddingBottom: headerPadding,
           minHeight: 230,
           justifyContent: "space-between" as const,
+        },
+        wavyHeaderContentRTL: {
+          paddingTop: headerPadding + 8,
         },
         wavyHeaderTopRow: {
           flexDirection: isRTL ? "row-reverse" : "row",
@@ -210,6 +220,9 @@ export default function DashboardScreen() {
         statsSection: {
           marginBottom: theme.spacing.xl,
         },
+        statsSectionRTL: {
+          marginTop: theme.spacing.md,
+        },
         statsScrollContent: {
           flexDirection: "row" as const,
           gap: theme.spacing.lg,
@@ -229,9 +242,17 @@ export default function DashboardScreen() {
           paddingHorizontal: theme.spacing.md,
           ...theme.shadows.md,
         },
+        statGridCardRTL: {
+          minHeight: 180,
+          paddingTop: theme.spacing.md,
+          paddingBottom: theme.spacing.xl,
+        },
         statGridCardHorizontal: {
           width: 166,
           minHeight: 194,
+        },
+        statGridCardHorizontalRTL: {
+          minHeight: 210,
         },
         statGridIconWrap: {
           width: 44,
@@ -1570,7 +1591,13 @@ export default function DashboardScreen() {
     switch (widgetId) {
       case "stats":
         return (
-          <View key="stats" style={styles.statsSection as ViewStyle}>
+          <View
+            key="stats"
+            style={[
+              styles.statsSection as ViewStyle,
+              isRTL && styles.statsSectionRTL,
+            ]}
+          >
             <ScrollView
               contentContainerStyle={styles.statsScrollContent as ViewStyle}
               horizontal={true}
@@ -1587,6 +1614,8 @@ export default function DashboardScreen() {
                     paddingTop: theme.spacing.md,
                     overflow: "visible" as const,
                   },
+                  isRTL && styles.statGridCardRTL,
+                  isRTL && styles.statGridCardHorizontalRTL,
                 ]}
                 variant="elevated"
               >
@@ -1636,6 +1665,8 @@ export default function DashboardScreen() {
                     paddingTop: theme.spacing.md,
                     overflow: "visible" as const,
                   },
+                  isRTL && styles.statGridCardRTL,
+                  isRTL && styles.statGridCardHorizontalRTL,
                 ]}
                 variant="elevated"
               >
@@ -1685,6 +1716,8 @@ export default function DashboardScreen() {
                     paddingTop: theme.spacing.md,
                     overflow: "visible" as const,
                   },
+                  isRTL && styles.statGridCardRTL,
+                  isRTL && styles.statGridCardHorizontalRTL,
                 ]}
                 variant="elevated"
               >
@@ -2106,6 +2139,7 @@ export default function DashboardScreen() {
           contentContainerStyle={[
             styles.contentInner as ViewStyle,
             { paddingBottom: 20 + insets.bottom },
+            isRTL && styles.contentInnerRTL,
           ]}
           keyboardShouldPersistTaps="handled"
           refreshControl={
@@ -2116,9 +2150,20 @@ export default function DashboardScreen() {
           style={styles.content as ViewStyle}
         >
           {/* Wavy Header */}
-          <View style={styles.wavyHeaderWrapper as ViewStyle}>
+          <View
+            style={[
+              styles.wavyHeaderWrapper as ViewStyle,
+              isRTL && styles.wavyHeaderWrapperRTL,
+            ]}
+          >
             <WavyBackground curve="home" height={240} variant="teal">
-              <View style={styles.wavyHeaderContent as ViewStyle}>
+              <View
+                style={[
+                  styles.wavyHeaderContent as ViewStyle,
+                  { paddingTop: headerPadding + insets.top },
+                  isRTL && styles.wavyHeaderContentRTL,
+                ]}
+              >
                 <View style={styles.wavyHeaderTopRow as ViewStyle}>
                   <View
                     style={[

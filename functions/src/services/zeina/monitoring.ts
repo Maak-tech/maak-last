@@ -42,7 +42,9 @@ export function healthCheck(apiKey?: string): HealthStatus {
 
   // Check API configuration
   try {
-    const key = apiKey || process.env.OPENAI_API_KEY;
+    // Check passed key first, then ZEINA_API_KEY, then OPENAI_API_KEY (fallback)
+    const key =
+      apiKey || process.env.ZEINA_API_KEY || process.env.OPENAI_API_KEY;
     if (!key) {
       warnings.push(
         "OpenAI API key not configured - running in deterministic mode"

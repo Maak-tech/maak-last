@@ -32,6 +32,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import CoachMark from "@/app/components/CoachMark";
 import GradientScreen from "@/components/figma/GradientScreen";
 import WavyBackground from "@/components/figma/WavyBackground";
@@ -70,6 +71,7 @@ export default function TrackScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ tour?: string }>();
   const { width, height } = useWindowDimensions();
   const isIphone16Pro =
@@ -152,9 +154,11 @@ export default function TrackScreen() {
   const trackingCategories = [
     {
       icon: Activity,
-      label: isRTL ? "الأعراض المتتبعة" : "Tracked Symptoms",
+      label: isRTL ? "الأعراض الصحية" : "Tracked Symptoms",
       color: "#EF4444",
-      description: isRTL ? "سجل الأعراض وشدتها" : "Log symptoms and severity",
+      description: isRTL
+        ? "تتبع الأعراض الصحية"
+        : "Track symptoms and severity",
       onPress: navigateToSymptoms,
     },
     {
@@ -166,9 +170,9 @@ export default function TrackScreen() {
     },
     {
       icon: Brain,
-      label: isRTL ? "المزاج" : "Mood",
+      label: isRTL ? "الحالةالنفسية" : "Mood",
       color: "#8B5CF6",
-      description: isRTL ? "سجل الحالة المزاجية" : "Record emotional state",
+      description: isRTL ? "تتبع الحالة النفسية" : "Track emotional state",
       onPress: navigateToMoods,
     },
     {
@@ -190,7 +194,7 @@ export default function TrackScreen() {
       label: isRTL ? "العلامات الحيوية" : "Vital Signs",
       color: "#3B82F6",
       description: isRTL
-        ? "تتبع العلامات الحيوية المباشر"
+        ? "تتبع العلامات الحيوية "
         : "Real-time vital tracking",
       onPress: navigateToVitals,
     },
@@ -203,11 +207,9 @@ export default function TrackScreen() {
     },
     {
       icon: TrendingUp,
-      label: isRTL ? "مراقبة القياسات الحيوية" : "Vitals Monitor",
+      label: isRTL ? "القياسات الحيوية" : "Vitals Monitor",
       color: "#14B8A6",
-      description: isRTL
-        ? "تسجيل القياسات الحيوية"
-        : "Record vital measurements",
+      description: isRTL ? "مراقبة القياسات " : "Monitor vital measurements",
       onPress: navigateToPPGMeasure,
       badge: "beta",
     },
@@ -349,11 +351,17 @@ export default function TrackScreen() {
         headerWrapper: {
           marginBottom: -48,
         },
+        headerWrapperRTL: {
+          marginBottom: -32,
+        },
         headerContent: {
           paddingHorizontal: headerPadding,
           paddingTop: theme.spacing.xl + 12,
           paddingBottom: theme.spacing.lg,
           minHeight: 200,
+        },
+        headerContentRTL: {
+          paddingTop: theme.spacing.xl + 24,
         },
         headerRow: {
           flexDirection: "row" as const,
@@ -366,11 +374,18 @@ export default function TrackScreen() {
           fontFamily: "Inter-Bold",
           color: "#FFFFFF",
         },
+        headerTitleRTL: {
+          fontFamily: "NotoSansArabic-Regular",
+        },
         headerSubtitle: {
           fontSize: 13,
           fontFamily: "Inter-SemiBold",
           color: "#FFFFFF",
           marginTop: 4,
+        },
+        headerSubtitleRTL: {
+          fontSize: 28,
+          fontFamily: "NotoSansArabic-Regular",
         },
         helpButton: {
           width: 40,
@@ -386,14 +401,23 @@ export default function TrackScreen() {
         contentInner: {
           paddingBottom: 140,
         },
+        contentInnerRTL: {
+          paddingTop: 8,
+        },
         contentPadded: {
           paddingHorizontal: 20,
+        },
+        contentPaddedRTL: {
+          paddingTop: 16,
         },
         statsGrid: {
           flexDirection: "row" as const,
           gap: 12,
           marginTop: 16,
           marginBottom: 20,
+        },
+        statsGridRTL: {
+          marginTop: 24,
         },
         statCard: {
           flex: 1,
@@ -413,15 +437,26 @@ export default function TrackScreen() {
           fontFamily: "Inter-Bold",
           color: "#0F766E",
           marginBottom: 6,
+          textAlign: "center" as const,
+        },
+        statValueRTL: {
+          fontFamily: "NotoSansArabic-Regular",
         },
         statLabel: {
-          fontSize: 12,
+          fontSize: 14,
           fontFamily: "Inter-SemiBold",
           color: "#64748B",
           textAlign: "center" as const,
+          lineHeight: 18,
+        },
+        statLabelRTL: {
+          fontFamily: "NotoSansArabic-Regular",
         },
         section: {
           marginBottom: 20,
+        },
+        sectionRTL: {
+          marginTop: 8,
         },
         sectionHeaderRow: {
           flexDirection: "row" as const,
@@ -446,6 +481,10 @@ export default function TrackScreen() {
           shadowRadius: 12,
           elevation: 4,
         },
+        categoryCardRTL: {
+          minHeight: 120,
+          paddingVertical: 20,
+        },
         categoryCardBetaBadge: {
           position: "absolute" as const,
           top: 10,
@@ -463,6 +502,9 @@ export default function TrackScreen() {
           fontSize: 10,
           fontFamily: "Inter-SemiBold",
           color: "#FFFFFF",
+        },
+        categoryCardBetaTextRTL: {
+          fontFamily: "NotoSansArabic-Regular",
         },
         categoryCardInner: {
           flexDirection: "row" as const,
@@ -487,10 +529,16 @@ export default function TrackScreen() {
           color: "#0F172A",
           marginBottom: 4,
         },
+        categoryTitleRTL: {
+          fontFamily: "NotoSansArabic-Regular",
+        },
         categoryDescription: {
           fontSize: 12,
           fontFamily: "Inter-SemiBold",
           color: "#64748B",
+        },
+        categoryDescriptionRTL: {
+          fontFamily: "NotoSansArabic-Regular",
         },
         activityList: {
           gap: 12,
@@ -504,6 +552,9 @@ export default function TrackScreen() {
           shadowOpacity: 0.08,
           shadowRadius: 12,
           elevation: 4,
+        },
+        activityCardRTL: {
+          paddingVertical: 20,
         },
         activityRow: {
           flexDirection: "row" as const,
@@ -527,10 +578,16 @@ export default function TrackScreen() {
           color: "#0F172A",
           marginBottom: 2,
         },
+        activityTitleRTL: {
+          fontFamily: "NotoSansArabic-Regular",
+        },
         activityDetail: {
           fontSize: 11,
           fontFamily: "Inter-SemiBold",
           color: "#64748B",
+        },
+        activityDetailRTL: {
+          fontFamily: "NotoSansArabic-Regular",
         },
         fab: {
           position: "absolute" as const,
@@ -608,6 +665,7 @@ export default function TrackScreen() {
         },
         sectionTitleRTL: {
           textAlign: "right" as const,
+          fontFamily: "NotoSansArabic-Regular",
         },
         trackingOptions: {
           flexDirection: "row" as const,
@@ -709,6 +767,9 @@ export default function TrackScreen() {
           fontFamily: "Inter-SemiBold",
           color: "#0F766E",
         },
+        viewAllTextRTL: {
+          fontFamily: "NotoSansArabic-Regular",
+        },
         onelineCard: {
           backgroundColor: theme.colors.background.secondary,
           borderRadius: theme.borderRadius.xl,
@@ -755,6 +816,7 @@ export default function TrackScreen() {
         },
         rtlText: {
           textAlign: "right" as const,
+          fontFamily: "NotoSansArabic-Regular",
         },
       }))(theme),
     [theme, isRTL, contentPadding, headerPadding]
@@ -1039,7 +1101,10 @@ export default function TrackScreen() {
       style={styles.container as ViewStyle}
     >
       <ScrollView
-        contentContainerStyle={styles.contentInner as ViewStyle}
+        contentContainerStyle={[
+          styles.contentInner as ViewStyle,
+          isRTL && styles.contentInnerRTL,
+        ]}
         refreshControl={
           <RefreshControl
             onRefresh={() => loadTrackingData(true, true)}
@@ -1051,14 +1116,25 @@ export default function TrackScreen() {
         style={styles.content as ViewStyle}
       >
         {/* Header - scrolls with content */}
-        <View style={styles.headerWrapper as ViewStyle}>
+        <View
+          style={[
+            styles.headerWrapper as ViewStyle,
+            isRTL && styles.headerWrapperRTL,
+          ]}
+        >
           <WavyBackground
             contentPosition="top"
             curve="home"
             height={280}
             variant="teal"
           >
-            <View style={styles.headerContent as ViewStyle}>
+            <View
+              style={[
+                styles.headerContent as ViewStyle,
+                { paddingTop: theme.spacing.xl + 12 + insets.top },
+                isRTL && styles.headerContentRTL,
+              ]}
+            >
               <View
                 style={[
                   styles.headerRow,
@@ -1070,6 +1146,7 @@ export default function TrackScreen() {
                     styles.headerTitle,
                     { color: "#FFFFFF" },
                     isRTL && { textAlign: "left" as const },
+                    isRTL && styles.headerTitleRTL,
                   ]}
                 >
                   {isRTL ? "تتبع الصحة" : "Health Tracking"}
@@ -1085,6 +1162,7 @@ export default function TrackScreen() {
                 style={[
                   styles.headerSubtitle,
                   isRTL && { textAlign: "left" as const },
+                  isRTL && styles.headerSubtitleRTL,
                 ]}
               >
                 {isRTL
@@ -1095,7 +1173,12 @@ export default function TrackScreen() {
           </WavyBackground>
         </View>
 
-        <View style={styles.contentPadded as ViewStyle}>
+        <View
+          style={[
+            styles.contentPadded as ViewStyle,
+            isRTL && styles.contentPaddedRTL,
+          ]}
+        >
           {showBlockingLoading ? (
             <View style={styles.loadingContainer as ViewStyle}>
               <ActivityIndicator
@@ -1120,47 +1203,105 @@ export default function TrackScreen() {
                 </View>
               ) : null}
 
-              <View style={styles.statsGrid as ViewStyle}>
+              <View
+                style={[
+                  styles.statsGrid as ViewStyle,
+                  isRTL && styles.statsGridRTL,
+                ]}
+              >
                 <View style={styles.statCard as ViewStyle}>
-                  <Text style={[styles.statValue, isRTL && styles.rtlText]}>
+                  <Text
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                    numberOfLines={1}
+                    style={[
+                      styles.statValue,
+                      isRTL && styles.statValueRTL,
+                      isRTL && styles.rtlText,
+                    ]}
+                  >
                     {entriesToday()}
                   </Text>
                   <Text
                     adjustsFontSizeToFit
-                    numberOfLines={1}
-                    style={[styles.statLabel, isRTL && styles.rtlText]}
+                    minimumFontScale={0.8}
+                    numberOfLines={2}
+                    style={[
+                      styles.statLabel,
+                      isRTL && styles.statLabelRTL,
+                      isRTL && styles.rtlText,
+                    ]}
                   >
                     {isRTL ? "إدخالات اليوم" : "Entries Today"}
                   </Text>
                 </View>
                 <View style={styles.statCard as ViewStyle}>
-                  <Text style={[styles.statValue, isRTL && styles.rtlText]}>
+                  <Text
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                    numberOfLines={1}
+                    style={[
+                      styles.statValue,
+                      isRTL && styles.statValueRTL,
+                      isRTL && styles.rtlText,
+                    ]}
+                  >
                     {trackingCategories.length}
                   </Text>
                   <Text
                     adjustsFontSizeToFit
-                    numberOfLines={1}
-                    style={[styles.statLabel, isRTL && styles.rtlText]}
+                    minimumFontScale={0.8}
+                    numberOfLines={2}
+                    style={[
+                      styles.statLabel,
+                      isRTL && styles.statLabelRTL,
+                      isRTL && styles.rtlText,
+                    ]}
                   >
                     {isRTL ? "الفئات" : "Categories"}
                   </Text>
                 </View>
                 <View style={styles.statCard as ViewStyle}>
-                  <Text style={[styles.statValue, isRTL && styles.rtlText]}>
-                    {stats.medicationCompliance}%
+                  <Text
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                    numberOfLines={1}
+                    style={[
+                      styles.statValue,
+                      isRTL && styles.statValueRTL,
+                      isRTL && styles.rtlText,
+                    ]}
+                  >
+                    {`${stats.medicationCompliance}%`}
                   </Text>
                   <Text
                     adjustsFontSizeToFit
-                    numberOfLines={1}
-                    style={[styles.statLabel, isRTL && styles.rtlText]}
+                    minimumFontScale={0.8}
+                    numberOfLines={2}
+                    style={[
+                      styles.statLabel,
+                      isRTL && styles.statLabelRTL,
+                      isRTL && styles.rtlText,
+                    ]}
                   >
                     {isRTL ? "الالتزام" : "Compliance"}
                   </Text>
                 </View>
               </View>
 
-              <View style={styles.section as ViewStyle}>
-                <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+              <View
+                style={[
+                  styles.section as ViewStyle,
+                  isRTL && styles.sectionRTL,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.sectionTitle,
+                    isRTL && styles.sectionTitleRTL,
+                    isRTL && styles.rtlText,
+                  ]}
+                >
                   {isRTL ? "فئات المتابعة" : "Tracking Categories"}
                 </Text>
                 <View style={styles.categoriesGrid as ViewStyle}>
@@ -1173,7 +1314,10 @@ export default function TrackScreen() {
                         activeOpacity={0.8}
                         key={category.label}
                         onPress={category.onPress}
-                        style={styles.categoryCard as ViewStyle}
+                        style={[
+                          styles.categoryCard as ViewStyle,
+                          isRTL && styles.categoryCardRTL,
+                        ]}
                       >
                         {showBeta ? (
                           <View
@@ -1182,7 +1326,12 @@ export default function TrackScreen() {
                               isRTL && styles.categoryCardBetaBadgeRTL,
                             ]}
                           >
-                            <Text style={styles.categoryCardBetaText}>
+                            <Text
+                              style={[
+                                styles.categoryCardBetaText,
+                                isRTL && styles.categoryCardBetaTextRTL,
+                              ]}
+                            >
                               {isRTL ? "تجريبي" : "Beta"}
                             </Text>
                           </View>
@@ -1201,6 +1350,7 @@ export default function TrackScreen() {
                               numberOfLines={2}
                               style={[
                                 styles.categoryTitle,
+                                isRTL && styles.categoryTitleRTL,
                                 isRTL && styles.rtlText,
                               ]}
                             >
@@ -1210,6 +1360,7 @@ export default function TrackScreen() {
                               numberOfLines={2}
                               style={[
                                 styles.categoryDescription,
+                                isRTL && styles.categoryDescriptionRTL,
                                 isRTL && styles.rtlText,
                               ]}
                             >
@@ -1223,16 +1374,33 @@ export default function TrackScreen() {
                 </View>
               </View>
 
-              <View style={styles.section as ViewStyle}>
+              <View
+                style={[
+                  styles.section as ViewStyle,
+                  isRTL && styles.sectionRTL,
+                ]}
+              >
                 <View style={styles.sectionHeaderRow as ViewStyle}>
-                  <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+                  <Text
+                    style={[
+                      styles.sectionTitle,
+                      isRTL && styles.sectionTitleRTL,
+                      isRTL && styles.rtlText,
+                    ]}
+                  >
                     {isRTL ? "النشاط الأخير" : "Recent Activity"}
                   </Text>
                   <TouchableOpacity
                     onPress={navigateToTimeline}
                     style={styles.viewAllButton as ViewStyle}
                   >
-                    <Text style={[styles.viewAllText, isRTL && styles.rtlText]}>
+                    <Text
+                      style={[
+                        styles.viewAllText,
+                        isRTL && styles.viewAllTextRTL,
+                        isRTL && styles.rtlText,
+                      ]}
+                    >
                       {isRTL ? "عرض الكل" : "View All"}
                     </Text>
                   </TouchableOpacity>
@@ -1245,7 +1413,10 @@ export default function TrackScreen() {
                       return (
                         <View
                           key={item.id}
-                          style={styles.activityCard as ViewStyle}
+                          style={[
+                            styles.activityCard as ViewStyle,
+                            isRTL && styles.activityCardRTL,
+                          ]}
                         >
                           <View style={styles.activityRow as ViewStyle}>
                             <View
@@ -1261,6 +1432,7 @@ export default function TrackScreen() {
                                 numberOfLines={2}
                                 style={[
                                   styles.activityTitle,
+                                  isRTL && styles.activityTitleRTL,
                                   isRTL && styles.rtlText,
                                 ]}
                               >
@@ -1270,6 +1442,7 @@ export default function TrackScreen() {
                                 numberOfLines={2}
                                 style={[
                                   styles.activityDetail,
+                                  isRTL && styles.activityDetailRTL,
                                   isRTL && styles.rtlText,
                                 ]}
                               >

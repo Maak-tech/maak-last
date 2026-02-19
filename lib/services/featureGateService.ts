@@ -78,7 +78,7 @@ export const FEATURES = {
   AI_ASSISTANT: {
     id: "ai_assistant",
     name: "AI Assistant (Zeina)",
-    accessLevel: FeatureAccessLevel.PREMIUM_INDIVIDUAL,
+    accessLevel: FeatureAccessLevel.PREMIUM_FAMILY,
     description: "AI-powered health assistant",
   },
   EXPORT_DATA: {
@@ -90,7 +90,7 @@ export const FEATURES = {
   HEALTH_INSIGHTS: {
     id: "health_insights",
     name: "Health Insights",
-    accessLevel: FeatureAccessLevel.PREMIUM_INDIVIDUAL,
+    accessLevel: FeatureAccessLevel.PREMIUM_FAMILY,
     description: "AI-powered health insights and recommendations",
   },
 
