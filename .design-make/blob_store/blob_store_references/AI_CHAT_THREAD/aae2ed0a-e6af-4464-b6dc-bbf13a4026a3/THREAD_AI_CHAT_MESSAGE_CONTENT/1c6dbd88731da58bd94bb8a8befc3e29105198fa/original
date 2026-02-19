@@ -1,1 +1,0 @@
-{"filePath":"/src/app/screens/Zeina.tsx","snippetStartLine":84,"tagLine":85,"snippet":"<p className=\"text-sm leading-relaxed\">{message.content}</p>","tagName":"p"}

@@ -1,1 +1,0 @@
-{"filePath":"/src/app/screens/Track.tsx","snippetStartLine":36,"tagLine":37,"snippet":"<div className=\"flex-1\">\n              <h1 className=\"text-2xl font-bold text-white\">Track Health</h1>\n              <p className=\"text-sm text-white/70\">Comprehensive health tracking</p>\n            </div>","tagName":"div"}

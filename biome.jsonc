@@ -8,7 +8,9 @@
       "!**/.expo-*",
       "!**/dist",
       "!**/node_modules",
-      "!.tmp_family.json"
+      "!.tmp_family.json",
+      "!bun.lock",
+      "!bun.lockb"
     ]
   },
   "linter": {

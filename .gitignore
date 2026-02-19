@@ -5,6 +5,7 @@ node_modules/
 .expo/
 dist/
 web-build/
+.expo-export-test*/
 expo-env.d.ts
 
 # native
@@ -76,6 +77,7 @@ pglite-debug.log
 # Local design prototypes / figma exports
 /.design-figma/
 /.design-figma-zip/
+/.design-make/
 
 # Bun lockfiles - exclude to force npm usage in Firebase App Hosting
 bun.lock
