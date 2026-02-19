@@ -213,7 +213,7 @@ export async function getFamilyHealthEvents(
     }
 
     const batchResults = await Promise.all(
-      batches.map(async (batch) => {
+      batches.map((batch) => {
         const eventsQuery = query(
           collection(db, "healthEvents"),
           where("userId", "in", batch),

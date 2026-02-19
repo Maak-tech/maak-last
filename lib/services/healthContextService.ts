@@ -131,6 +131,22 @@ export type HealthContext = {
     waterIntake?: number;
     lastUpdated?: Date;
   };
+  periodTracking?: {
+    cycleInfo?: {
+      averageCycleLength?: number;
+      averagePeriodLength?: number;
+      lastPeriodStart?: Date;
+      nextPeriodPredicted?: Date;
+      ovulationPredicted?: Date;
+    };
+    recentEntries?: Array<{
+      startDate: Date;
+      endDate?: Date;
+      flowIntensity?: "light" | "medium" | "heavy";
+      symptoms?: string[];
+      notes?: string;
+    }>;
+  };
 };
 
 type HealthSummaryResult =
@@ -304,6 +320,26 @@ class HealthContextService {
       ),
       healthInsightsService.getWeeklySummary(uid, undefined, isArabic),
       healthInsightsService.getAllInsights(uid, isArabic),
+      // Period tracking query (only for female users)
+      userData.gender === "female"
+        ? Promise.all([
+            getDocs(
+              query(
+                collection(db, "periodEntries"),
+                where("userId", "==", uid),
+                orderBy("startDate", "desc"),
+                limit(12)
+              )
+            ),
+            getDocs(
+              query(
+                collection(db, "periodCycles"),
+                where("userId", "==", uid),
+                limit(1)
+              )
+            ),
+          ])
+        : Promise.resolve([null, null]),
     ]);
 
     const [
@@ -315,6 +351,7 @@ class HealthContextService {
       vitalsSnapshot,
       insightsMetricsSummary,
       userDetailedInsightsResult,
+      periodDataResult,
     ] = results;
 
     // Process medications
@@ -757,6 +794,53 @@ class HealthContextService {
       }
     }
 
+    // Process period tracking data (only for female users)
+    let periodTracking: HealthContext["periodTracking"] | undefined;
+    if (
+      userData.gender === "female" &&
+      periodDataResult.status === "fulfilled"
+    ) {
+      const [periodEntriesSnapshot, periodCyclesSnapshot] =
+        periodDataResult.value;
+
+      const recentEntries: NonNullable<
+        HealthContext["periodTracking"]
+      >["recentEntries"] = [];
+      if (periodEntriesSnapshot) {
+        periodEntriesSnapshot.docs.forEach((entryDoc) => {
+          const data = entryDoc.data();
+          recentEntries.push({
+            startDate: data.startDate?.toDate() || new Date(),
+            endDate: data.endDate?.toDate(),
+            flowIntensity: data.flowIntensity,
+            symptoms: data.symptoms || [],
+            notes: data.notes,
+          });
+        });
+      }
+
+      let cycleInfo:
+        | NonNullable<HealthContext["periodTracking"]>["cycleInfo"]
+        | undefined;
+      if (periodCyclesSnapshot && !periodCyclesSnapshot.empty) {
+        const cycleData = periodCyclesSnapshot.docs[0].data();
+        cycleInfo = {
+          averageCycleLength: cycleData.averageCycleLength,
+          averagePeriodLength: cycleData.averagePeriodLength,
+          lastPeriodStart: cycleData.lastPeriodStart?.toDate(),
+          nextPeriodPredicted: cycleData.nextPeriodPredicted?.toDate(),
+          ovulationPredicted: cycleData.ovulationPredicted?.toDate(),
+        };
+      }
+
+      if (recentEntries.length > 0 || cycleInfo) {
+        periodTracking = {
+          cycleInfo,
+          recentEntries,
+        };
+      }
+    }
+
     // Construct comprehensive health context
     const healthContext: HealthContext = {
       profile: {
@@ -785,6 +869,7 @@ class HealthContextService {
       userDetailedInsights,
       recentAlerts,
       vitalSigns: latestVitals,
+      periodTracking,
     };
 
     return healthContext;
@@ -1010,6 +1095,48 @@ ${context.vitalSigns.weight ? `• ${isArabic ? "الوزن" : "Weight"}: ${cont
     : ""
 }
 
+${
+  context.periodTracking
+    ? `
+${isArabic ? "تتبع الدورة الشهرية (صحة المرأة):" : "PERIOD TRACKING (Women's Health):"}
+${
+  context.periodTracking.cycleInfo
+    ? `• ${isArabic ? "متوسط طول الدورة" : "Average Cycle Length"}: ${context.periodTracking.cycleInfo.averageCycleLength || 28} ${isArabic ? "يوم" : "days"}
+• ${isArabic ? "متوسط مدة الدورة" : "Average Period Length"}: ${context.periodTracking.cycleInfo.averagePeriodLength || 5} ${isArabic ? "أيام" : "days"}
+${
+  context.periodTracking.cycleInfo.lastPeriodStart
+    ? `• ${isArabic ? "آخر دورة شهرية" : "Last Period"}: ${safeFormatDate(context.periodTracking.cycleInfo.lastPeriodStart)}`
+    : ""
+}
+${
+  context.periodTracking.cycleInfo.nextPeriodPredicted
+    ? `• ${isArabic ? "الدورة القادمة المتوقعة" : "Next Period Predicted"}: ${safeFormatDate(context.periodTracking.cycleInfo.nextPeriodPredicted)}`
+    : ""
+}
+${
+  context.periodTracking.cycleInfo.ovulationPredicted
+    ? `• ${isArabic ? "الإباضة المتوقعة" : "Predicted Ovulation"}: ${safeFormatDate(context.periodTracking.cycleInfo.ovulationPredicted)}`
+    : ""
+}`
+    : ""
+}
+${
+  context.periodTracking.recentEntries &&
+  context.periodTracking.recentEntries.length > 0
+    ? `
+${isArabic ? "السجلات الأخيرة:" : "Recent Entries:"}
+${context.periodTracking.recentEntries
+  .slice(0, 6)
+  .map(
+    (entry) =>
+      `• ${safeFormatDate(entry.startDate)}${entry.endDate ? ` - ${safeFormatDate(entry.endDate)}` : ""}${entry.flowIntensity ? ` (${isArabic ? "الشدة" : "Flow"}: ${entry.flowIntensity})` : ""}${entry.symptoms && entry.symptoms.length > 0 ? ` ${isArabic ? "الأعراض" : "Symptoms"}: ${entry.symptoms.join(", ")}` : ""}${entry.notes ? ` - ${entry.notes}` : ""}`
+  )
+  .join("\n")}`
+    : ""
+}`
+    : ""
+}
+
 ${isArabic ? "تعليمات لردودك:" : "INSTRUCTIONS FOR YOUR RESPONSES:"}
 ${
   isArabic
@@ -1024,6 +1151,7 @@ ${
 9. قدم نصائح عملية وقابلة للتنفيذ عند الاقتضاء
 10. إذا لاحظت أنماطاً مقلقة في الأعراض أو العلامات الحيوية، اقترح بلطف استشارة طبية
 11. استخدم رؤى الصحة التفصيلية (أنماط 30 يوماً) عند سؤال المستخدم عن صحته أو أعراضه أو أدويته أو اتجاهاته — هذه الرؤى تتضمن أنماط ML والارتباطات والتوصيات القابلة للتنفيذ
+12. للمستخدمات الإناث، ضع في اعتبارك بيانات تتبع الدورة الشهرية عند تقديم الرؤى الصحية — ربط الأعراض بمراحل الدورة، وتقديم توصيات تراعي الدورة، والإشارة إلى فترات/الإباضة المتوقعة عند الاقتضاء
 
 تذكر: أنت مساعد ذكي تقدم معلومات ودعماً، وليس بديلاً عن النصيحة الطبية المهنية. شجع دائماً المستخدمين على طلب المساعدة الطبية المهنية للاهتمامات الخطيرة.`
     : `1. Provide personalized health insights based on the complete medical profile
@@ -1038,6 +1166,7 @@ ${
 10. If you notice concerning patterns in symptoms or vital signs, gently suggest medical consultation
 11. Use weekly health insight metrics (symptom trend, adherence, mood trend, and top signals) when relevant
 12. Proactively reference and discuss the detailed health insights (30-day patterns) when the user asks about their health, symptoms, medications, or trends — these insights include ML patterns, correlations, and actionable recommendations
+13. For female users, consider period tracking data when providing health insights — correlate symptoms with cycle phases, provide cycle-aware recommendations, and reference predicted periods/ovulation when relevant
 
 Remember: You are an AI assistant providing information and support, not a replacement for professional medical advice. Always encourage users to seek professional medical help for serious concerns.`
 }`;

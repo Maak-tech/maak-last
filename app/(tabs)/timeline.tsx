@@ -838,6 +838,7 @@ export default function TimelineScreen() {
                   </View>
                 </View>
 
+                {/* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: complex render branch kept inline for readability in this legacy screen. */}
                 {dateEvents.map((event, eventIndex) => {
                   const IconComponent = getEventIcon(event.type);
                   const isLast = eventIndex === dateEvents.length - 1;

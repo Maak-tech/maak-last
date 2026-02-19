@@ -251,6 +251,15 @@ const MEDICATION_ACCENTS = [
   "#EF4444",
 ];
 
+const createReminderId = (): string =>
+  `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+const createEmptyReminder = (): {
+  id: string;
+  time: string;
+  period: "AM" | "PM";
+} => ({ id: createReminderId(), time: "", period: "AM" });
+
 export default function MedicationsScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
@@ -266,7 +275,7 @@ export default function MedicationsScreen() {
     name: "",
     dosage: "",
     frequency: "",
-    reminders: [] as { id?: string; time: string; period: "AM" | "PM" }[],
+    reminders: [] as { id: string; time: string; period: "AM" | "PM" }[],
     notes: "",
     quantity: undefined as number | undefined,
     quantityUnit: "pills" as string,
@@ -545,7 +554,7 @@ export default function MedicationsScreen() {
         setRefreshing(false);
       }
     },
-    [user, selectedFilter, isAdmin, isRTL]
+    [user, selectedFilter, isAdmin, isRTL, t]
   );
 
   // Refresh data when tab is focused
@@ -1006,7 +1015,7 @@ export default function MedicationsScreen() {
         name: "",
         dosage: "",
         frequency: "",
-        reminders: [{ time: "", period: "AM" }],
+        reminders: [createEmptyReminder()],
         notes: "",
         quantity: undefined,
         quantityUnit: "pills",
@@ -1098,7 +1107,7 @@ export default function MedicationsScreen() {
         }
 
         return {
-          id: reminder.id, // Preserve existing ID when editing
+          id: reminder.id ?? createReminderId(), // Preserve existing ID when editing
           time: timeValue,
           period: periodValue,
         };
@@ -1193,7 +1202,9 @@ export default function MedicationsScreen() {
   const getMedicationAccent = (name: string) => {
     let hash = 0;
     for (let i = 0; i < name.length; i += 1) {
+      /* biome-ignore lint/suspicious/noBitwiseOperators: deterministic string hash for UI accent selection. */
       hash = (hash << 5) - hash + name.charCodeAt(i);
+      /* biome-ignore lint/suspicious/noBitwiseOperators: deterministic string hash for UI accent selection. */
       hash |= 0;
     }
     const index = Math.abs(hash) % MEDICATION_ACCENTS.length;
@@ -1201,7 +1212,7 @@ export default function MedicationsScreen() {
   };
 
   const getTimeUntil = (time: string | undefined) => {
-    if (!(time && time.includes(":"))) {
+    if (!time?.includes(":")) {
       return "";
     }
     const [hoursStr, minutesStr] = time.split(":");
@@ -1292,7 +1303,7 @@ export default function MedicationsScreen() {
   const dueToday = Math.max(totalMeds - takenMeds, 0);
 
   const parseTimeToMinutes = (time: string | undefined) => {
-    if (!(time && time.includes(":"))) {
+    if (!time?.includes(":")) {
       return Number.MAX_SAFE_INTEGER;
     }
     const [hours, minutes] = time.split(":");
@@ -1480,7 +1491,7 @@ export default function MedicationsScreen() {
                   ? medication.reminders
                   : [];
                 const visibleReminders = reminders.slice(0, 3);
-                const extraReminders =
+                const _extraReminders =
                   reminders.length > visibleReminders.length
                     ? reminders.length - visibleReminders.length
                     : 0;
@@ -1762,7 +1773,7 @@ export default function MedicationsScreen() {
               name: "",
               dosage: "",
               frequency: "",
-              reminders: [{ time: "", period: "AM" }],
+              reminders: [createEmptyReminder()],
               notes: "",
               quantity: undefined,
               quantityUnit: "pills",
@@ -1825,7 +1836,7 @@ export default function MedicationsScreen() {
                   name: "",
                   dosage: "",
                   frequency: "",
-                  reminders: [{ time: "", period: "AM" }],
+                  reminders: [createEmptyReminder()],
                   notes: "",
                   quantity: undefined,
                   quantityUnit: "pills",
@@ -2089,7 +2100,7 @@ export default function MedicationsScreen() {
                   const periodValue: "AM" | "PM" = reminder.period || "AM";
 
                   return (
-                    <View key={`reminder-${index}`} style={styles.reminderItem}>
+                    <View key={reminder.id} style={styles.reminderItem}>
                       <TextInput
                         keyboardType="number-pad"
                         maxLength={5}
@@ -2212,7 +2223,7 @@ export default function MedicationsScreen() {
                     ...newMedication,
                     reminders: [
                       ...newMedication.reminders,
-                      { time: "", period: "AM" },
+                      createEmptyReminder(),
                     ],
                   })
                 }

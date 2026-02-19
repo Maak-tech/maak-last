@@ -281,7 +281,7 @@ setLogLevel("error");
 // Initialize Analytics only for web platform (not supported in React Native)
 let analytics: Analytics | undefined;
 if (Platform.OS === "web" && typeof window !== "undefined") {
-  void (async () => {
+  (async () => {
     try {
       const { getAnalytics } = await import("firebase/analytics");
       analytics = getAnalytics(initializedApp);
@@ -289,7 +289,7 @@ if (Platform.OS === "web" && typeof window !== "undefined") {
       // Analytics may already be initialized or may be unavailable in this runtime.
       // Silently handle initialization errors.
     }
-  })();
+  })().catch(() => undefined);
 }
 
 export { analytics };

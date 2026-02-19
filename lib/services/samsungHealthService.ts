@@ -35,7 +35,15 @@ const SAMSUNG_HEALTH_AUTH_URL =
 const SAMSUNG_HEALTH_TOKEN_URL =
   "https://oauth-account.samsung.com/oauth2/v1/token";
 const SAMSUNG_HEALTH_API_BASE = "https://api-health.samsung.com/v1";
-const REDIRECT_URI = Linking.createURL("samsung-health-callback");
+// Redirect URI: Use HTTPS for Samsung Health (required)
+// Set samsungHealthRedirectUri in app.config.js extra config to use a custom HTTPS redirect URI
+// Default uses Firebase Hosting: https://maak-5caad.web.app/samsung-health-callback
+const SAMSUNG_HEALTH_REDIRECT_URI_HTTPS =
+  Constants.expoConfig?.extra?.samsungHealthRedirectUri ||
+  "https://maak-5caad.web.app/samsung-health-callback";
+const _REDIRECT_URI_DEEP_LINK = Linking.createURL("samsung-health-callback");
+// Use HTTPS redirect URI for Samsung Health registration (required by Samsung Health)
+const REDIRECT_URI = SAMSUNG_HEALTH_REDIRECT_URI_HTTPS;
 
 // Complete OAuth flow
 WebBrowser.maybeCompleteAuthSession();

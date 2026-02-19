@@ -22,6 +22,7 @@ export type TimelineEventType =
   | "vital_recorded"
   | "vital_abnormal"
   | "symptom_logged"
+  | "period_logged"
   | "medication_taken"
   | "medication_missed"
   | "medication_scheduled"

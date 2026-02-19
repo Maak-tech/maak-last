@@ -37,6 +37,9 @@ export default function RegisterScreen() {
     AvatarType | undefined
   >();
   const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
+  const [gender, setGender] = useState<
+    "male" | "female" | "other" | undefined
+  >();
 
   const isRTL = i18n.language === "ar";
   const keyboardAvoidanceEnabled = false; // Diagnostic: disable to rule out keyboard/layout loops
@@ -119,7 +122,14 @@ export default function RegisterScreen() {
         );
       }
 
-      await signUp(email, password, firstName, lastName, selectedAvatarType);
+      await signUp(
+        email,
+        password,
+        firstName,
+        lastName,
+        selectedAvatarType,
+        gender
+      );
       // Don't navigate here - let the useEffect above handle navigation
       // once the auth state has fully updated
     } catch (error: unknown) {
@@ -226,6 +236,44 @@ export default function RegisterScreen() {
                   {t("tapToSelect", "Tap to select")}
                 </Text>
               </TouchableOpacity>
+            </View>
+
+            {/* Gender Selection */}
+            <View style={styles.inputContainer}>
+              <Text style={[styles.label, isRTL && styles.labelRTL]}>
+                {isRTL ? "الجنس" : "Gender"}
+              </Text>
+              <View style={styles.genderOptions}>
+                {[
+                  { value: "male" as const, labelEn: "Male", labelAr: "ذكر" },
+                  {
+                    value: "female" as const,
+                    labelEn: "Female",
+                    labelAr: "أنثى",
+                  },
+                  { value: "other" as const, labelEn: "Other", labelAr: "آخر" },
+                ].map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    onPress={() => setGender(option.value)}
+                    style={[
+                      styles.genderOption,
+                      gender === option.value && styles.genderOptionSelected,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.genderOptionText,
+                        gender === option.value &&
+                          styles.genderOptionTextSelected,
+                        isRTL && styles.rtlText,
+                      ]}
+                    >
+                      {isRTL ? option.labelAr : option.labelEn}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
             <View style={styles.inputContainer}>
@@ -855,6 +903,33 @@ const styles = StyleSheet.create({
   resendButtonText: {
     color: "#2563EB",
     fontSize: 14,
+    fontFamily: "Inter-SemiBold",
+  },
+  genderOptions: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  genderOption: {
+    flex: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+  },
+  genderOptionSelected: {
+    borderColor: "#003543",
+    backgroundColor: "#F0FAFB",
+  },
+  genderOptionText: {
+    fontSize: 16,
+    fontFamily: "Inter-Medium",
+    color: "#64748B",
+  },
+  genderOptionTextSelected: {
+    color: "#003543",
     fontFamily: "Inter-SemiBold",
   },
 });

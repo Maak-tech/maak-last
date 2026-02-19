@@ -135,7 +135,7 @@ export default function MedicalHistoryScreen() {
     } finally {
       setLoading(false);
     }
-  }, [isRTL, user?.id]);
+  }, [t, user?.id]);
 
   const personalHistory = medicalHistory.filter((h) => !h.isFamily);
   const familyHistory = medicalHistory.filter((h) => h.isFamily);

@@ -80,7 +80,8 @@ type AuthContextType = {
     password: string,
     firstName: string,
     lastName: string,
-    avatarType?: AvatarType
+    avatarType?: AvatarType,
+    gender?: "male" | "female" | "other"
   ) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (userData: Partial<User>) => Promise<void>;
@@ -600,7 +601,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     password: string,
     firstName: string,
     lastName: string,
-    avatarType?: AvatarType
+    avatarType?: AvatarType,
+    gender?: "male" | "female" | "other"
   ) => {
     setLoading(true);
     try {
@@ -617,7 +619,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           userCredential.user.email || undefined,
           firstName,
           lastName,
-          avatarType
+          avatarType,
+          gender
         );
       } catch (docError: any) {
         // Provide more specific error messages

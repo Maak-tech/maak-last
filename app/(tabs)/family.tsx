@@ -742,7 +742,7 @@ export default function FamilyScreen() {
         setLoadingAlerts(false);
       }
     },
-    [user?.id, user?.familyId, isAdmin]
+    [user?.id, user?.familyId, user?.firstName, user?.lastName, isAdmin, isRTL]
   );
 
   const handleAcknowledgeEvent = async (eventId: string) => {
@@ -984,7 +984,6 @@ export default function FamilyScreen() {
           return "تنبيه مؤشرات حيوية حرِج";
         case "vital_error":
           return "خطأ في المؤشرات الحيوية";
-        case "emergency":
         default:
           return "تنبيه طارئ";
       }
@@ -2183,6 +2182,7 @@ export default function FamilyScreen() {
       loadEvents,
       loadFamilyMembers,
       loadMedicationSchedule,
+      loadActiveAlerts,
     ])
   );
 
@@ -2282,14 +2282,14 @@ export default function FamilyScreen() {
       return;
     }
     handleRealtimeFamilyUpdateRef.current(familyUpdateEvent.payload);
-  }, [familyUpdateEvent?.id, isFocused]);
+  }, [familyUpdateEvent, isFocused]);
 
   useEffect(() => {
     if (!(trendAlertEvent && isFocused)) {
       return;
     }
     handleTrendAlertRef.current(trendAlertEvent.payload);
-  }, [trendAlertEvent?.id, isFocused]);
+  }, [trendAlertEvent, isFocused]);
 
   const handleElderlyEmergency = async () => {
     if (!user?.id) {
@@ -2998,6 +2998,7 @@ export default function FamilyScreen() {
     if (parts.length === 1) {
       return parts[0].slice(0, 2).toUpperCase();
     }
+    /* biome-ignore lint/style/useAtIndex: avoid Array.prototype.at for React Native runtime compatibility. */
     return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
   };
 
@@ -3382,7 +3383,7 @@ export default function FamilyScreen() {
                     (m: User) => m.id === event.userId
                   );
                   const memberName =
-                    member && member.firstName && member.lastName
+                    member?.firstName && member.lastName
                       ? `${member.firstName} ${member.lastName}`
                       : member?.firstName || "Unknown";
                   return (
@@ -3474,7 +3475,7 @@ export default function FamilyScreen() {
                             <View
                               style={[
                                 styles.eventStatusBadge,
-                                { backgroundColor: statusColor + "20" },
+                                { backgroundColor: `${statusColor}20` },
                               ]}
                             >
                               <Text

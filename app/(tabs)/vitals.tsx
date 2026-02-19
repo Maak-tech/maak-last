@@ -596,7 +596,7 @@ export default function VitalsScreen() {
         setRefreshing(false);
       }
     },
-    [isRTL]
+    [t]
   );
 
   useEffect(() => {
@@ -606,7 +606,7 @@ export default function VitalsScreen() {
     }, INITIAL_LOAD_DELAY_MS);
 
     return () => clearTimeout(timer);
-  }, [loadVitalsData, INITIAL_LOAD_DELAY_MS]);
+  }, [loadVitalsData]);
 
   useFocusEffect(
     useCallback(() => {

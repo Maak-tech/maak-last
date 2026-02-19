@@ -8,17 +8,17 @@ import {
   User,
   Users,
 } from "lucide-react-native";
-import type React from "react";
 import { useTranslation } from "react-i18next";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  type StyleProp,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  type ViewStyle,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { arabicText } from "@/lib/arabicText";
-
-type TabConfig = {
-  key: string;
-  label: string;
-  icon: (color: string, size: number) => React.ReactNode;
-};
 
 const TAB_GRADIENT = ["#003543", "#004552", "#00667A"] as const;
 
@@ -78,10 +78,12 @@ export default function BottomNavBar({
       <View style={styles.container}>
         {state.routes.map((route, index) => {
           const options = descriptors[route.key]?.options;
-          const tabBarDisplay = StyleSheet.flatten(
-            options?.tabBarStyle as any
-          )?.display;
-          if (tabBarDisplay === "none" || (options as any)?.href === null) {
+          const href = (options as unknown as { href?: string | null })?.href;
+          const tabBarStyle = options?.tabBarStyle as
+            | StyleProp<ViewStyle>
+            | undefined;
+          const tabBarDisplay = StyleSheet.flatten(tabBarStyle)?.display;
+          if (tabBarDisplay === "none" || href === null) {
             return null;
           }
 
@@ -122,7 +124,7 @@ export default function BottomNavBar({
               style={styles.tabButton}
               testID={options?.tabBarButtonTestID}
             >
-              {isFocused && (
+              {isFocused ? (
                 <>
                   <LinearGradient
                     colors={TAB_GRADIENT}
@@ -132,7 +134,7 @@ export default function BottomNavBar({
                   />
                   <View style={styles.activeDot} />
                 </>
-              )}
+              ) : null}
 
               <View style={styles.tabContent}>
                 {tab.icon(isFocused ? "#FFFFFF" : "#9CA3AF", 22)}

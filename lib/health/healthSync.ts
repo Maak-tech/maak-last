@@ -118,6 +118,8 @@ export const disconnectProvider = async (
         // Best effort disconnect for optional provider.
       }
       break;
+    default:
+      break;
   }
 
   await AsyncStorage.removeItem(storageKey);

@@ -67,72 +67,99 @@ export default function MedicationAlarmModal() {
     // Snooze: reminder will fire again at next scheduled time (daily)
   };
 
-  const styles = createThemedStyles((t) => ({
+  const styles = createThemedStyles((themeTokens) => ({
     overlay: {
       flex: 1,
       backgroundColor: "rgba(0,0,0,0.7)",
       justifyContent: "center",
       alignItems: "center",
-      padding: t.spacing.xl,
+      padding: themeTokens.spacing.xl,
     },
     card: {
-      backgroundColor: t.colors.background.primary,
-      borderRadius: t.borderRadius.xl,
-      padding: t.spacing.xl,
+      backgroundColor: themeTokens.colors.background.primary,
+      borderRadius: themeTokens.borderRadius.xl,
+      padding: themeTokens.spacing.xl,
       width: "100%",
       maxWidth: 340,
       alignItems: "center",
-      ...t.shadows.lg,
+      ...themeTokens.shadows.lg,
     },
     iconWrap: {
       width: 72,
       height: 72,
       borderRadius: 36,
-      backgroundColor: t.colors.accent.success + "20",
+      backgroundColor: `${themeTokens.colors.accent.success}20`,
       justifyContent: "center",
       alignItems: "center",
-      marginBottom: t.spacing.lg,
+      marginBottom: themeTokens.spacing.lg,
     },
     title: {
-      ...getTextStyle(t, "heading", "bold", t.colors.text.primary),
+      ...getTextStyle(
+        themeTokens,
+        "heading",
+        "bold",
+        themeTokens.colors.text.primary
+      ),
       fontSize: 20,
-      marginBottom: t.spacing.xs,
+      marginBottom: themeTokens.spacing.xs,
       textAlign: "center",
     },
     subtitle: {
-      ...getTextStyle(t, "body", "regular", t.colors.text.secondary),
+      ...getTextStyle(
+        themeTokens,
+        "body",
+        "regular",
+        themeTokens.colors.text.secondary
+      ),
       fontSize: 14,
-      marginBottom: t.spacing.lg,
+      marginBottom: themeTokens.spacing.lg,
       textAlign: "center",
     },
     medName: {
-      ...getTextStyle(t, "subheading", "bold", t.colors.primary.main),
+      ...getTextStyle(
+        themeTokens,
+        "subheading",
+        "bold",
+        themeTokens.colors.primary.main
+      ),
       fontSize: 18,
-      marginBottom: t.spacing.sm,
+      marginBottom: themeTokens.spacing.sm,
       textAlign: "center",
     },
     button: {
       width: "100%",
-      paddingVertical: t.spacing.base,
-      borderRadius: t.borderRadius.lg,
+      paddingVertical: themeTokens.spacing.base,
+      borderRadius: themeTokens.borderRadius.lg,
       alignItems: "center",
-      marginBottom: t.spacing.sm,
+      marginBottom: themeTokens.spacing.sm,
     },
     buttonTaken: {
-      backgroundColor: t.colors.accent.success,
+      backgroundColor: themeTokens.colors.accent.success,
     },
     buttonSnooze: {
-      backgroundColor: t.colors.background.secondary,
+      backgroundColor: themeTokens.colors.background.secondary,
     },
     buttonText: {
-      ...getTextStyle(t, "button", "bold", t.colors.neutral.white),
+      ...getTextStyle(
+        themeTokens,
+        "button",
+        "bold",
+        themeTokens.colors.neutral.white
+      ),
     },
     buttonSnoozeText: {
-      ...getTextStyle(t, "button", "semibold", t.colors.text.secondary),
+      ...getTextStyle(
+        themeTokens,
+        "button",
+        "semibold",
+        themeTokens.colors.text.secondary
+      ),
     },
   }))(theme);
 
-  if (!activeAlarm) return null;
+  if (!activeAlarm) {
+    return null;
+  }
 
   return (
     <Modal

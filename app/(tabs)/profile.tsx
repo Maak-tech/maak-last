@@ -9,6 +9,7 @@
 /* biome-ignore-all lint/nursery/noShadow: local naming overlap in event handlers will be cleaned up later. */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useIsFocused } from "@react-navigation/native";
+/* biome-ignore lint/performance/noNamespaceImport: Sentry namespace import retained for SDK compatibility. */
 import * as Sentry from "@sentry/react-native";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import {
@@ -144,6 +145,7 @@ type ProfileSection = {
 
 const HEALTH_SUMMARY_STALE_MS = 45_000;
 const HEALTH_SUMMARY_MIN_FETCH_INTERVAL_MS = 12_000;
+const WHITESPACE_SPLIT_REGEX = /\s+/;
 
 export default function ProfileScreen() {
   const { t, i18n } = useTranslation();
@@ -163,9 +165,11 @@ export default function ProfileScreen() {
     null
   );
   const loadHealthDataFnRef = useRef<(isRefresh?: boolean) => Promise<void>>(
-    async () => {}
+    async () => undefined
   );
-  const loadUserSettingsFnRef = useRef<() => Promise<void>>(async () => {});
+  const loadUserSettingsFnRef = useRef<() => Promise<void>>(
+    async () => undefined
+  );
   const lastHealthSummaryLoadAtRef = useRef(0);
   const [_notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [languagePickerVisible, setLanguagePickerVisible] = useState(false);
@@ -304,14 +308,14 @@ export default function ProfileScreen() {
     const stepsByDate = new Map<string, number[]>();
     const sleepByDate = new Map<string, number[]>();
 
-    snapshot.forEach((doc) => {
-      const data = doc.data();
+    for (const docSnap of snapshot.docs) {
+      const data = docSnap.data();
       const type = data.type as string | undefined;
       if (!type) {
-        return;
+        continue;
       }
       if (type !== "heartRate" && type !== "steps" && type !== "sleepHours") {
-        return;
+        continue;
       }
       const timestamp = data.timestamp?.toDate?.() || new Date();
       const valueRaw = data.value;
@@ -322,7 +326,7 @@ export default function ProfileScreen() {
             ? Number(valueRaw)
             : Number.NaN;
       if (Number.isNaN(value)) {
-        return;
+        continue;
       }
       const dateKey = buildDateKey(timestamp);
       if (type === "heartRate") {
@@ -341,7 +345,7 @@ export default function ProfileScreen() {
         }
         sleepByDate.get(dateKey)?.push(value);
       }
-    });
+    }
 
     const heartRateSeries = buildSparklineSeries(
       startDate,
@@ -1380,9 +1384,14 @@ export default function ProfileScreen() {
       ? `${user.firstName} ${user.lastName}`
       : user?.firstName || (isRTL ? "مستخدم" : "User");
   const getAvatarInitials = (name: string) => {
-    const parts = name.trim().split(/\s+/).filter(Boolean);
-    if (parts.length === 0) return "?";
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    const parts = name.trim().split(WHITESPACE_SPLIT_REGEX).filter(Boolean);
+    if (parts.length === 0) {
+      return "?";
+    }
+    if (parts.length === 1) {
+      return parts[0].slice(0, 2).toUpperCase();
+    }
+    /* biome-ignore lint/style/useAtIndex: avoid Array.prototype.at for React Native runtime compatibility. */
     return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
   };
   const roleLabel =
@@ -1433,15 +1442,21 @@ export default function ProfileScreen() {
   const getTrend = (
     data: number[]
   ): { direction: "up" | "down" | "stable"; percent: number } => {
-    if (data.length < 2) return { direction: "stable", percent: 0 };
+    if (data.length < 2) {
+      return { direction: "stable", percent: 0 };
+    }
     const firstHalf = data.slice(0, Math.floor(data.length / 2));
     const secondHalf = data.slice(Math.floor(data.length / 2));
     const firstAvg = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
     const secondAvg = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
     const pct = firstAvg !== 0 ? ((secondAvg - firstAvg) / firstAvg) * 100 : 0;
     const absPct = Math.abs(Math.round(pct));
-    if (pct > 5) return { direction: "up", percent: absPct };
-    if (pct < -5) return { direction: "down", percent: absPct };
+    if (pct > 5) {
+      return { direction: "up", percent: absPct };
+    }
+    if (pct < -5) {
+      return { direction: "down", percent: absPct };
+    }
     return { direction: "stable", percent: 0 };
   };
 

@@ -28,6 +28,7 @@ export type User = {
   lastName: string;
   avatar?: string;
   avatarType?: AvatarType;
+  gender?: "male" | "female" | "other";
   familyId?: string;
   role: "admin" | "member" | "caregiver";
   createdAt: Date;
@@ -161,6 +162,54 @@ export type FamilyMember = {
   healthScore?: number;
 };
 
+export type Family = {
+  id: string;
+  name: string;
+  createdBy: string;
+  members: string[];
+  status?: "active" | "inactive" | "archived" | string;
+  createdAt: Date;
+};
+
+export type FamilyInvitationCodeStatus = "pending" | "used" | "expired";
+
+export type FamilyInvitationCode = {
+  id: string;
+  code: string;
+  familyId: string;
+  invitedBy: string;
+  invitedUserName: string;
+  invitedUserRelation: string;
+  status: FamilyInvitationCodeStatus;
+  createdAt: Date;
+  expiresAt: Date;
+  usedAt?: Date;
+};
+
+export type EmergencyAlertType = "fall" | "medication" | "emergency" | string;
+export type EmergencyAlertSeverity =
+  | "low"
+  | "medium"
+  | "high"
+  | "warning"
+  | "critical"
+  | string;
+
+export type EmergencyAlert = {
+  id: string;
+  userId: string;
+  type: EmergencyAlertType;
+  severity: EmergencyAlertSeverity;
+  message: string;
+  timestamp: Date;
+  responders?: string[];
+  acknowledged?: boolean;
+  resolved?: boolean;
+  resolvedAt?: Date;
+  resolvedBy?: string;
+  metadata?: Record<string, unknown>;
+};
+
 export type LabResult = {
   id: string;
   userId: string;
@@ -198,9 +247,21 @@ export type ClinicalIntegrationType = "clinic" | "lab" | "radiology";
 
 export type ClinicalIntegrationStatus =
   | "pending"
+  | "connected"
+  | "error"
+  | "disconnected"
   | "approved"
-  | "rejected"
-  | "connected";
+  | "rejected";
+
+export type ClinicalIntegration = {
+  id: string;
+  userId: string;
+  type: ClinicalIntegrationType;
+  name: string;
+  status: ClinicalIntegrationStatus;
+  lastSync?: Date;
+  settings?: Record<string, unknown>;
+};
 
 export type ClinicalIntegrationRequest = {
   id: string;
@@ -215,63 +276,14 @@ export type ClinicalIntegrationRequest = {
   updatedAt: Date;
 };
 
-export type EmergencyAlert = {
-  id: string;
-  userId: string;
-  type:
-    | "fall"
-    | "emergency"
-    | "medication"
-    | "vitals"
-    | "vital_critical"
-    | "vital_error";
-  severity: "low" | "medium" | "high" | "critical";
-  message: string;
-  timestamp: Date;
-  resolved: boolean;
-  responders?: string[];
-  resolvedAt?: Date;
-  resolvedBy?: string;
-  metadata?: Record<string, unknown>;
-};
-
-export type MedicationInteractionAlert = {
-  id: string;
-  userId: string;
-  type: "medication_interaction" | "new_medication_interaction";
-  severity: "major" | "moderate" | "minor";
-  title: string;
-  message: string;
-  medications: string[];
-  effects: string[];
-  recommendations: string[];
-  timestamp: Date;
-  acknowledged: boolean;
-  actionable: boolean;
-};
-
-export type FamilyInvitationCode = {
-  id: string;
-  code: string;
-  familyId: string;
-  invitedBy: string; // userId who created the invitation
-  invitedUserName: string;
-  invitedUserRelation: string;
-  status: "pending" | "used" | "expired";
-  createdAt: Date;
-  expiresAt: Date;
-  usedAt?: Date;
-  usedBy?: string; // userId who used the code
-};
-
-export type Family = {
-  id: string;
-  name: string;
-  createdBy: string;
-  members: string[]; // array of user IDs
-  status: "active" | "inactive";
-  createdAt: Date;
-};
+export type RecurrencePattern =
+  | "none"
+  | "daily"
+  | "weekly"
+  | "monthly"
+  | "yearly"
+  | "custom"
+  | "asNeeded";
 
 export type CalendarEventType =
   | "appointment"
@@ -282,37 +294,72 @@ export type CalendarEventType =
   | "reminder"
   | "other";
 
-export type RecurrencePattern =
-  | "none"
-  | "daily"
-  | "weekly"
-  | "monthly"
-  | "yearly"
-  | "custom";
+export type CalendarEventReminder = {
+  minutesBefore: number;
+  sent: boolean;
+  sentAt?: Date;
+};
 
 export type CalendarEvent = {
   id: string;
   userId: string;
-  familyId?: string; // If set, event is shared with family
   title: string;
-  description?: string;
   type: CalendarEventType;
+  description?: string;
   startDate: Date;
   endDate?: Date;
-  allDay: boolean;
+  familyId?: string;
+  allDay?: boolean;
   location?: string;
-  attendees?: string[]; // User IDs of attendees
+  recurrence?: RecurrencePattern;
   recurrencePattern?: RecurrencePattern;
   recurrenceEndDate?: Date;
-  recurrenceCount?: number; // Number of occurrences
-  relatedItemId?: string; // ID of related medication, symptom, etc.
-  relatedItemType?: "medication" | "symptom" | "labResult" | "appointment";
-  color?: string; // Hex color for calendar display
-  reminders?: Array<{
-    minutesBefore: number;
-    sent: boolean;
-  }>;
+  recurrenceCount?: number;
+  reminderMinutes?: number[];
+  reminders?: CalendarEventReminder[];
+  color?: string;
   tags?: string[];
+  relatedItemId?: string;
+  relatedItemType?: string;
+  attendees?: string[];
+  createdAt?: Date;
+  updatedAt?: Date;
+};
+
+export type MedicationInteractionAlert = {
+  id: string;
+  userId: string;
+  type: "medication_interaction" | "new_medication_interaction" | string;
+  severity: "major" | "moderate" | "minor" | string;
+  title: string;
+  message: string;
+  medications: string[];
+  effects: string[];
+  recommendations: string[];
+  timestamp: Date;
+  acknowledged?: boolean;
+  actionable?: boolean;
+};
+
+// Period tracking types
+export type PeriodEntry = {
+  id: string;
+  userId: string;
+  startDate: Date;
+  endDate?: Date;
+  flowIntensity?: "light" | "medium" | "heavy";
+  symptoms?: string[]; // e.g., "cramps", "bloating", "headache", "mood swings"
+  notes?: string;
   createdAt: Date;
+};
+
+export type PeriodCycle = {
+  id: string;
+  userId: string;
+  averageCycleLength?: number; // Average days between periods
+  averagePeriodLength?: number; // Average days of period
+  lastPeriodStart?: Date;
+  nextPeriodPredicted?: Date;
+  ovulationPredicted?: Date;
   updatedAt: Date;
 };

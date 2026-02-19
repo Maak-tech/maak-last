@@ -5,6 +5,7 @@ const { URL } = require("node:url");
 
 const port = Number(process.env.PORT || 8080);
 const rootCandidates = ["dist", "public"];
+const PATH_TRAVERSAL_PREFIX_REGEX = /^(\.\.[/\\])+/;
 
 const webRoot =
   rootCandidates
@@ -72,7 +73,7 @@ const server = http.createServer((req, res) => {
 
   const safePath = path
     .normalize(decodeURIComponent(requestPath))
-    .replace(/^(\.\.[/\\])+/, "");
+    .replace(PATH_TRAVERSAL_PREFIX_REGEX, "");
   const absolutePath = path.join(webRoot, safePath);
 
   if (absolutePath.startsWith(webRoot) && sendFile(absolutePath, res)) {

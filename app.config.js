@@ -6,11 +6,6 @@ require("dotenv").config({ quiet: true });
 const fs = require("node:fs");
 const path = require("node:path");
 
-// Check if we're in config introspection mode (EAS Build uses this)
-const isConfigIntrospection =
-  process.env.EXPO_CONFIG_TYPE === "introspect" ||
-  (process.argv.includes("--type") && process.argv.includes("introspect"));
-
 const normalizeSecret = (value) => {
   if (typeof value !== "string") {
     return "";
@@ -359,8 +354,6 @@ export default {
       fitbitClientSecret: process.env.FITBIT_CLIENT_SECRET || "",
       samsungHealthClientId: process.env.SAMSUNG_HEALTH_CLIENT_ID || "",
       samsungHealthClientSecret: process.env.SAMSUNG_HEALTH_CLIENT_SECRET || "",
-      garminClientId: process.env.GARMIN_CLIENT_ID || "",
-      garminClientSecret: process.env.GARMIN_CLIENT_SECRET || "",
       withingsClientId: process.env.WITHINGS_CLIENT_ID || "",
       withingsClientSecret: process.env.WITHINGS_CLIENT_SECRET || "",
       ouraClientId: process.env.OURA_CLIENT_ID || "",
@@ -370,6 +363,15 @@ export default {
       dexcomRedirectUri:
         process.env.DEXCOM_REDIRECT_URI ||
         "https://maak-5caad.web.app/dexcom-callback",
+      garminRedirectUri:
+        process.env.GARMIN_REDIRECT_URI ||
+        "https://maak-5caad.web.app/garmin-callback",
+      ouraRedirectUri:
+        process.env.OURA_REDIRECT_URI ||
+        "https://maak-5caad.web.app/oura-callback",
+      samsungHealthRedirectUri:
+        process.env.SAMSUNG_HEALTH_REDIRECT_URI ||
+        "https://maak-5caad.web.app/samsung-health-callback",
       // OpenAI API keys are stored in EAS environment variables.
       // IMPORTANT: Do not embed OpenAI API keys in the client bundle.
       // All OpenAI requests should go through Firebase Functions which hold the secrets.

@@ -8,8 +8,10 @@ export default function FontDebugScreen() {
   const { i18n } = useTranslation();
 
   // Check if Text.defaultProps is set
-  const defaultProps = (Text as any).defaultProps;
-  const defaultFont = defaultProps?.style?.fontFamily || "not set";
+  const defaultProps = (
+    Text as unknown as { defaultProps?: { style?: { fontFamily?: string } } }
+  ).defaultProps;
+  const defaultFont = defaultProps?.style?.fontFamily ?? "not set";
 
   return (
     <SafeAreaView style={styles.container}>

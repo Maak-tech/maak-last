@@ -506,7 +506,7 @@ export default function LabResultsScreen() {
     return isRTL ? labels[status]?.ar || status : labels[status]?.en || status;
   };
 
-  const getTestTypeBadgeVariant = (type: LabResult["testType"]) => {
+  const _getTestTypeBadgeVariant = (type: LabResult["testType"]) => {
     if (type === "blood") {
       return "error";
     }
@@ -767,6 +767,7 @@ export default function LabResultsScreen() {
                 </View>
 
                 <View style={styles.figmaLabResultsList as ViewStyle}>
+                  {/* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: complex render branch kept inline for legacy UI. */}
                   {resultsPreview.map((value) => {
                     const valueStatus = value.status;
                     const valueColor =

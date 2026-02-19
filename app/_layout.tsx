@@ -41,7 +41,6 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { isFirebaseReady } from "@/lib/firebase";
 import i18n from "@/lib/i18n";
 import { routingInstrumentation } from "@/lib/sentry";
-import { initializeCrashlytics } from "@/lib/services/crashlyticsService";
 import { revenueCatService } from "@/lib/services/revenueCatService";
 import { initializeErrorHandlers } from "@/lib/utils/errorHandler";
 import { logger } from "@/lib/utils/logger";
@@ -118,32 +117,6 @@ function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [hasBeenActive, fontsLoaded, fontError]);
-
-  // Initialize Crashlytics after ensuring Firebase is ready
-  // Add a small delay to allow native Firebase bridge to fully initialize
-  useEffect(() => {
-    const initializeCrashlyticsWithDelay = async () => {
-      // Wait for native Firebase bridge to be ready on cold starts
-      // This prevents race condition where Crashlytics tries to access Firebase
-      // before the native layer has fully initialized
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      // Additional check: wait for Firebase app to be available
-      let retries = 0;
-      const maxRetries = 10;
-      while (retries < maxRetries && !isFirebaseReady()) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        retries++;
-      }
-
-      // Initialize Crashlytics now that Firebase should be ready
-      await initializeCrashlytics();
-    };
-
-    initializeCrashlyticsWithDelay().catch(() => {
-      // Crashlytics is best-effort and should not block app startup
-    });
-  }, []);
 
   useEffect(() => {
     if (!isAppActive) {
@@ -270,8 +243,12 @@ function RootLayout() {
       );
     }
 
-    (RNText as any).defaultProps = (RNText as any).defaultProps || {};
-    (RNText as any).defaultProps.style = undefined;
+    type RNTextWithDefaults = typeof RNText & {
+      defaultProps?: { style?: unknown };
+    };
+    const rnText = RNText as unknown as RNTextWithDefaults;
+    rnText.defaultProps = rnText.defaultProps ?? {};
+    rnText.defaultProps.style = undefined;
     if (IS_DEV_BUILD) {
       logger.debug(
         "Text defaults reset; runtime Arabic patch active",
@@ -286,7 +263,7 @@ function RootLayout() {
         "RootLayout"
       );
     }
-  }, [i18n.language, fontsLoaded, fontError]);
+  }, [fontsLoaded, fontError]);
 
   // If the app launches in background, skip mounting UI until it becomes active.
   if (!(hasBeenActive && (fontsLoaded || fontError))) {

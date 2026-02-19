@@ -1,5 +1,5 @@
 /* biome-ignore-all lint/suspicious/noExplicitAny: Callable boundary validates inputs at runtime for compatibility. */
-import * as functions from "firebase-functions";
+import { https } from "firebase-functions";
 import { onCall } from "firebase-functions/v2/https";
 import { createTraceId } from "../observability/correlation";
 import { logger } from "../observability/logger";
@@ -17,6 +17,8 @@ const FAMILY_PLAN_ENTITLEMENT = (
   process.env.REVENUECAT_ENTITLEMENT_ID || "Family Plan of 4"
 ).trim();
 
+const LEADING_SLASH_RE = /^\//;
+
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
 
@@ -32,10 +34,7 @@ const clamp = (value: number, min: number, max: number): number =>
 
 function requireAuth(request: { auth?: { uid?: string } | null }) {
   if (!request.auth?.uid) {
-    throw new functions.https.HttpsError(
-      "unauthenticated",
-      "User must be authenticated"
-    );
+    throw new https.HttpsError("unauthenticated", "User must be authenticated");
   }
 }
 
@@ -156,12 +155,15 @@ async function hasActiveFamilyPlanEntitlement(
 
 async function requireFamilyPlan(request: { auth?: { uid?: string } | null }) {
   requireAuth(request);
-  const uid = request.auth!.uid!;
+  const uid = request.auth?.uid;
+  if (!uid) {
+    throw new https.HttpsError("unauthenticated", "User must be authenticated");
+  }
   const traceId = createTraceId();
 
   const hasAccess = await hasActiveFamilyPlanEntitlement(uid, traceId);
   if (!hasAccess) {
-    throw new functions.https.HttpsError(
+    throw new https.HttpsError(
       "permission-denied",
       "This feature requires an active Family Plan subscription."
     );
@@ -177,7 +179,7 @@ function selectOpenAIKey(usePremiumKey: boolean): string {
   const key = preferred || fallback;
 
   if (!key) {
-    throw new functions.https.HttpsError(
+    throw new https.HttpsError(
       "failed-precondition",
       "OpenAI is not configured on the server. Set Firebase Functions secret OPENAI_API_KEY (and optionally ZEINA_API_KEY), then redeploy."
     );
@@ -192,7 +194,7 @@ async function openaiFetchJson(
   apiKey: string,
   body: unknown
 ): Promise<Response> {
-  const url = `https://api.openai.com/v1/${path.replace(/^\//, "")}`;
+  const url = `https://api.openai.com/v1/${path.replace(LEADING_SLASH_RE, "")}`;
   try {
     return await fetch(url, {
       method: "POST",
@@ -208,10 +210,7 @@ async function openaiFetchJson(
       url,
       fn: "openaiProxy.openaiFetchJson",
     });
-    throw new functions.https.HttpsError(
-      "unavailable",
-      "Could not reach OpenAI API"
-    );
+    throw new https.HttpsError("unavailable", "Could not reach OpenAI API");
   }
 }
 
@@ -229,6 +228,77 @@ async function readOpenAIErrorMessage(response: Response): Promise<string> {
   }
 }
 
+function throwOpenAIHttpError(params: {
+  status: number;
+  message: string;
+}): never {
+  if (params.status === 401) {
+    throw new https.HttpsError(
+      "failed-precondition",
+      "OpenAI credentials are invalid or missing on the server"
+    );
+  }
+  if (params.status === 429) {
+    throw new https.HttpsError(
+      "resource-exhausted",
+      "OpenAI rate limit or quota exceeded"
+    );
+  }
+  throw new https.HttpsError("internal", `OpenAI API error: ${params.message}`);
+}
+
+function normalizeChatMessages(rawMessages: unknown): ChatMessage[] {
+  if (!Array.isArray(rawMessages) || rawMessages.length === 0) {
+    throw new https.HttpsError(
+      "invalid-argument",
+      "messages must be a non-empty array"
+    );
+  }
+  if (rawMessages.length > 40) {
+    throw new https.HttpsError("invalid-argument", "Too many messages");
+  }
+
+  const messages: ChatMessage[] = [];
+  for (const raw of rawMessages) {
+    const obj =
+      raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
+    const role = obj?.role;
+    const content = obj?.content;
+
+    if (!(role === "system" || role === "user" || role === "assistant")) {
+      throw new https.HttpsError("invalid-argument", "Invalid message role");
+    }
+    if (!isNonEmptyString(content)) {
+      throw new https.HttpsError(
+        "invalid-argument",
+        "Message content must be a non-empty string"
+      );
+    }
+    if (content.length > 8000) {
+      throw new https.HttpsError(
+        "invalid-argument",
+        "Message content too long"
+      );
+    }
+
+    messages.push({ role, content });
+  }
+
+  return messages;
+}
+
+function readChatCompletionContent(json: unknown): string {
+  const obj = json as { choices?: Array<{ message?: { content?: string } }> };
+  const content = obj.choices?.[0]?.message?.content;
+  if (!isNonEmptyString(content)) {
+    throw new https.HttpsError(
+      "internal",
+      "Invalid response format from OpenAI"
+    );
+  }
+  return content;
+}
+
 export const openaiHealthCheck = onCall(
   {
     secrets: [OPENAI_API_KEY, ZEINA_API_KEY, REVENUECAT_SECRET_API_KEY],
@@ -236,6 +306,13 @@ export const openaiHealthCheck = onCall(
   async (request) => {
     requireAuth(request);
     const traceId = createTraceId();
+    const uid = request.auth?.uid;
+    if (!uid) {
+      throw new https.HttpsError(
+        "unauthenticated",
+        "User must be authenticated"
+      );
+    }
 
     const openaiKey = getSecretValue(
       OPENAI_API_KEY,
@@ -243,10 +320,7 @@ export const openaiHealthCheck = onCall(
     );
     const zeinaKey = getSecretValue(ZEINA_API_KEY, process.env.ZEINA_API_KEY);
 
-    const hasAccess = await hasActiveFamilyPlanEntitlement(
-      request.auth!.uid!,
-      traceId
-    );
+    const hasAccess = await hasActiveFamilyPlanEntitlement(uid, traceId);
 
     logger.debug("OpenAI health check", {
       traceId,
@@ -272,10 +346,9 @@ export const openaiChatCompletion = onCall(
 
     const data = request.data || {};
     const usePremiumKey = Boolean((data as any).usePremiumKey);
-    const model =
-      (isNonEmptyString((data as any).model)
-        ? (data as any).model
-        : undefined) || "gpt-4o-mini";
+    const model = isNonEmptyString((data as any).model)
+      ? (data as any).model
+      : "gpt-4o-mini";
     const temperature = clamp(
       asNumberOrUndefined((data as any).temperature) ?? 0.7,
       0,
@@ -287,51 +360,7 @@ export const openaiChatCompletion = onCall(
       2000
     );
 
-    const rawMessages = (data as any).messages;
-    if (!Array.isArray(rawMessages) || rawMessages.length === 0) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "messages must be a non-empty array"
-      );
-    }
-    if (rawMessages.length > 40) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "Too many messages"
-      );
-    }
-
-    const messages: ChatMessage[] = rawMessages.map((m: any) => ({
-      role: m?.role,
-      content: m?.content,
-    }));
-
-    for (const message of messages) {
-      if (
-        !(
-          message.role === "system" ||
-          message.role === "user" ||
-          message.role === "assistant"
-        )
-      ) {
-        throw new functions.https.HttpsError(
-          "invalid-argument",
-          "Invalid message role"
-        );
-      }
-      if (!isNonEmptyString(message.content)) {
-        throw new functions.https.HttpsError(
-          "invalid-argument",
-          "Message content must be a non-empty string"
-        );
-      }
-      if (message.content.length > 8000) {
-        throw new functions.https.HttpsError(
-          "invalid-argument",
-          "Message content too long"
-        );
-      }
-    }
+    const messages = normalizeChatMessages((data as any).messages);
 
     const apiKey = selectOpenAIKey(usePremiumKey);
 
@@ -356,34 +385,11 @@ export const openaiChatCompletion = onCall(
         message,
         fn: "openaiChatCompletion",
       });
-      if (response.status === 401) {
-        throw new functions.https.HttpsError(
-          "failed-precondition",
-          "OpenAI credentials are invalid or missing on the server"
-        );
-      }
-      if (response.status === 429) {
-        throw new functions.https.HttpsError(
-          "resource-exhausted",
-          "OpenAI rate limit or quota exceeded"
-        );
-      }
-      throw new functions.https.HttpsError(
-        "internal",
-        `OpenAI API error: ${message}`
-      );
+      throwOpenAIHttpError({ status: response.status, message });
     }
 
-    const json = (await response.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-    const content = json.choices?.[0]?.message?.content;
-    if (!isNonEmptyString(content)) {
-      throw new functions.https.HttpsError(
-        "internal",
-        "Invalid response format from OpenAI"
-      );
-    }
+    const json = (await response.json()) as unknown;
+    const content = readChatCompletionContent(json);
 
     return { content };
   }
@@ -402,20 +408,18 @@ export const openaiTranscribeAudio = onCall(
     const data = request.data || {};
     const usePremiumKey = Boolean((data as any).usePremiumKey);
     const audioBase64 = (data as any).audioBase64;
-    const filename =
-      (isNonEmptyString((data as any).filename)
-        ? (data as any).filename
-        : "audio.m4a") || "audio.m4a";
-    const mimeType =
-      (isNonEmptyString((data as any).mimeType)
-        ? (data as any).mimeType
-        : "audio/m4a") || "audio/m4a";
+    const filename = isNonEmptyString((data as any).filename)
+      ? (data as any).filename
+      : "audio.m4a";
+    const mimeType = isNonEmptyString((data as any).mimeType)
+      ? (data as any).mimeType
+      : "audio/m4a";
     const language = isNonEmptyString((data as any).language)
       ? (data as any).language
       : undefined;
 
     if (!isNonEmptyString(audioBase64)) {
-      throw new functions.https.HttpsError(
+      throw new https.HttpsError(
         "invalid-argument",
         "audioBase64 must be provided"
       );
@@ -427,7 +431,7 @@ export const openaiTranscribeAudio = onCall(
     try {
       audioBytes = Uint8Array.from(Buffer.from(audioBase64, "base64"));
     } catch {
-      throw new functions.https.HttpsError(
+      throw new https.HttpsError(
         "invalid-argument",
         "audioBase64 is not valid base64"
       );
@@ -435,10 +439,7 @@ export const openaiTranscribeAudio = onCall(
 
     // Best-effort size guard (callable payload limits vary; this is a safety valve).
     if (audioBytes.byteLength > 8 * 1024 * 1024) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "Audio payload too large"
-      );
+      throw new https.HttpsError("invalid-argument", "Audio payload too large");
     }
 
     const form = new FormData();
@@ -464,10 +465,7 @@ export const openaiTranscribeAudio = onCall(
         traceId,
         fn: "openaiTranscribeAudio",
       });
-      throw new functions.https.HttpsError(
-        "unavailable",
-        "Could not reach OpenAI API"
-      );
+      throw new https.HttpsError("unavailable", "Could not reach OpenAI API");
     }
 
     if (!response.ok) {
@@ -478,22 +476,7 @@ export const openaiTranscribeAudio = onCall(
         message,
         fn: "openaiTranscribeAudio",
       });
-      if (response.status === 401) {
-        throw new functions.https.HttpsError(
-          "failed-precondition",
-          "OpenAI credentials are invalid or missing on the server"
-        );
-      }
-      if (response.status === 429) {
-        throw new functions.https.HttpsError(
-          "resource-exhausted",
-          "OpenAI rate limit or quota exceeded"
-        );
-      }
-      throw new functions.https.HttpsError(
-        "internal",
-        `OpenAI API error: ${message}`
-      );
+      throwOpenAIHttpError({ status: response.status, message });
     }
 
     const json = (await response.json()) as { text?: string };
@@ -543,22 +526,7 @@ export const openaiRealtimeClientSecret = onCall(
         message,
         fn: "openaiRealtimeClientSecret",
       });
-      if (response.status === 401) {
-        throw new functions.https.HttpsError(
-          "failed-precondition",
-          "OpenAI credentials are invalid or missing on the server"
-        );
-      }
-      if (response.status === 429) {
-        throw new functions.https.HttpsError(
-          "resource-exhausted",
-          "OpenAI rate limit or quota exceeded"
-        );
-      }
-      throw new functions.https.HttpsError(
-        "internal",
-        `OpenAI API error: ${message}`
-      );
+      throwOpenAIHttpError({ status: response.status, message });
     }
 
     const json = (await response.json()) as {
@@ -568,7 +536,7 @@ export const openaiRealtimeClientSecret = onCall(
     const value = json.value;
     const expiresAt = json.expires_at;
     if (!isNonEmptyString(value)) {
-      throw new functions.https.HttpsError(
+      throw new https.HttpsError(
         "internal",
         "Invalid response format from OpenAI"
       );

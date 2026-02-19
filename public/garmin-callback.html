@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Garmin Authorization</title>
+    <style>
+    body {
+      font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+        Cantarell, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .container {
+      text-align: center;
+      padding: 2rem;
+    }
+    .spinner {
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-top: 4px solid white;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
+    }
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="spinner"></div>
+      <h1>Completing Authorization...</h1>
+      <p>Please wait while we redirect you back to the app.</p>
+    </div>
+    <script>
+    "use strict";
+    function getUrlParams() {
+      const params = {};
+      const queryParams = new URLSearchParams(window.location.search);
+      queryParams.forEach((value, key) => {
+        params[key] = value;
+      });
+      if (window.location.hash) {
+        const hashParams = new URLSearchParams(
+          window.location.hash.substring(1)
+        );
+        hashParams.forEach((value, key) => {
+          params[key] = value;
+        });
+      }
+      return params;
+    }
+
+    const allParams = getUrlParams();
+
+    // OAuth2 (recommended): authorization code flow
+    const code = allParams.code;
+    const state = allParams.state;
+
+    // OAuth1 (legacy): verifier flow
+    const oauthToken = allParams.oauth_token;
+    const oauthVerifier = allParams.oauth_verifier;
+    const oauthDenied = allParams.oauth_denied;
+
+    const appScheme = "maak://garmin-callback";
+
+    if (
+      typeof code === "string" &&
+      typeof state === "string" &&
+      code &&
+      state
+    ) {
+      window.location.href = `${appScheme}?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`;
+      setTimeout(() => {
+        document.querySelector(".container").innerHTML = `
+          <h1>Authorization Complete</h1>
+          <p>You can close this window and return to the Maak Health app.</p>
+        `;
+      }, 1500);
+    } else if (
+      typeof oauthToken === "string" &&
+      typeof oauthVerifier === "string" &&
+      oauthToken &&
+      oauthVerifier
+    ) {
+      window.location.href = `${appScheme}?oauth_token=${encodeURIComponent(oauthToken)}&oauth_verifier=${encodeURIComponent(oauthVerifier)}`;
+      setTimeout(() => {
+        document.querySelector(".container").innerHTML = `
+          <h1>Authorization Complete</h1>
+          <p>You can close this window and return to the Maak Health app.</p>
+        `;
+      }, 1500);
+    } else if (typeof oauthDenied === "string" && oauthDenied) {
+      document.querySelector(".container").innerHTML = `
+        <h1>Authorization Denied</h1>
+        <p>You chose not to authorize the application.</p>
+        <p style="font-size: 0.9em; opacity: 0.8;">Please try again from the Maak Health app.</p>
+      `;
+    } else {
+      document.querySelector(".container").innerHTML = `
+        <h1>Invalid Request</h1>
+        <p>No authorization tokens received.</p>
+        <p style="font-size: 0.9em; opacity: 0.8; margin-top: 1rem;">
+          Please start the Garmin connection flow from inside the Maak Health app.
+        </p>
+      `;
+    }
+    </script>
+  </body>
+</html>

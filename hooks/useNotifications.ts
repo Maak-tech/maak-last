@@ -18,6 +18,16 @@ import { logger } from "@/lib/utils/logger";
 // Track scheduled medication notification IDs to prevent duplicates
 const scheduledMedicationNotifications: Map<string, string> = new Map();
 
+function coerceOptionalString(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (value === null || value === undefined) {
+    return;
+  }
+  return String(value);
+}
+
 export const useNotifications = () => {
   const { user } = useAuth();
   const notificationListener = useRef<any>(undefined);
@@ -168,12 +178,7 @@ export const useNotifications = () => {
                     typeof data.medicationName === "string"
                       ? data.medicationName
                       : "Medication",
-                  dosage:
-                    typeof data.dosage === "string"
-                      ? data.dosage
-                      : data.dosage != null
-                        ? String(data.dosage)
-                        : undefined,
+                  dosage: coerceOptionalString(data.dosage),
                   reminderId:
                     typeof data.reminderId === "string"
                       ? data.reminderId
@@ -218,12 +223,7 @@ export const useNotifications = () => {
                       typeof data.medicationName === "string"
                         ? data.medicationName
                         : "Medication",
-                    dosage:
-                      typeof data.dosage === "string"
-                        ? data.dosage
-                        : data.dosage != null
-                          ? String(data.dosage)
-                          : undefined,
+                    dosage: coerceOptionalString(data.dosage),
                     reminderId:
                       typeof data.reminderId === "string"
                         ? data.reminderId

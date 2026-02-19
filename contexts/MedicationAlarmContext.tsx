@@ -48,8 +48,8 @@ export function useMedicationAlarm() {
   if (!ctx) {
     return {
       activeAlarm: null,
-      showAlarm: () => {},
-      dismissAlarm: () => {},
+      showAlarm: () => undefined,
+      dismissAlarm: () => undefined,
     };
   }
   return ctx;

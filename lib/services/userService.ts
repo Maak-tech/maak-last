@@ -149,7 +149,8 @@ export const userService = {
     email: string | undefined,
     firstName: string,
     lastName: string,
-    avatarType?: AvatarType
+    avatarType?: AvatarType,
+    gender?: "male" | "female" | "other"
   ): Promise<User> {
     const existingUser = await this.getUser(userId);
     if (existingUser) {
@@ -200,6 +201,12 @@ export const userService = {
         needsUpdate = true;
       }
 
+      // Update gender if provided and different
+      if (gender && existingUser.gender !== gender) {
+        updates.gender = gender;
+        needsUpdate = true;
+      }
+
       if (needsUpdate) {
         await this.updateUser(userId, updates);
         return {
@@ -231,6 +238,7 @@ export const userService = {
       firstName,
       lastName,
       ...(avatarType && { avatarType }), // Include avatar type if provided
+      ...(gender && { gender }), // Include gender if provided
       role: "admin", // First user in family is admin
       createdAt: new Date(),
       onboardingCompleted: false, // New users should see onboarding flow

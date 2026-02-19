@@ -9,7 +9,7 @@
 
 require("dotenv").config();
 
-const { execSync } = require("child_process");
+const { execSync } = require("node:child_process");
 
 console.log("🔍 Checking EAS OpenAI API Key Configuration...\n");
 
@@ -107,9 +107,9 @@ if (easInstalled) {
     if (secretNames.includes("EXPO_PUBLIC_ZEINA_API_KEY")) {
       console.log("   ✅ EXPO_PUBLIC_ZEINA_API_KEY secret exists in EAS");
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.log("   ⚠️  Could not list EAS secrets");
-    if (error.message) {
+    if (error instanceof Error && error.message) {
       console.log(`      Error: ${error.message}`);
     }
     console.log("   Make sure you're logged in: eas login");

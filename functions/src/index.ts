@@ -24,6 +24,12 @@ import { sendEmergencySmsToContacts } from "./services/notifications/sms";
 import type { NotificationPayload } from "./services/notifications/types";
 
 export {
+  garminCreateAuthUrl,
+  garminDisconnect,
+  garminExchangeAuthCode,
+  garminPushWebhook,
+} from "./api/garminHealth";
+export {
   openaiChatCompletion,
   openaiHealthCheck,
   openaiRealtimeClientSecret,

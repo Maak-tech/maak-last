@@ -2,6 +2,7 @@ import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import type { LucideIcon } from "lucide-react-native";
 import { ArrowLeft, Calendar, TestTube, Video } from "lucide-react-native";
 import {
+  type ReactNode,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -71,7 +72,6 @@ const getStatusColor = (
       return theme.colors.primary.main;
     case "rejected":
       return theme.colors.accent.error;
-    case "pending":
     default:
       return theme.colors.accent.warning;
   }
@@ -88,7 +88,6 @@ const getStatusLabel = (
       return t("integrationStatusApproved");
     case "rejected":
       return t("integrationStatusRejected");
-    case "pending":
     default:
       return t("integrationStatusPending");
   }
@@ -98,6 +97,7 @@ export const options = {
   headerShown: false,
 };
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This screen coordinates multiple guarded clinical integration flows and platform-specific UX.
 export default function ClinicalIntegrationScreen() {
   const router = useRouter();
   const navigation = useNavigation();
@@ -245,6 +245,53 @@ export default function ClinicalIntegrationScreen() {
       })
     : null;
 
+  let statusCardContent: ReactNode;
+  if (loading) {
+    statusCardContent = (
+      <ActivityIndicator color={theme.colors.primary.main} size="small" />
+    );
+  } else if (latestRequest) {
+    statusCardContent = (
+      <View style={styles.statusRow}>
+        <StatusIcon color={statusColor || "#64748B"} size={20} />
+        <View style={styles.statusContent}>
+          <Text
+            style={[
+              styles.statusLabel,
+              { color: statusColor || theme.colors.text.primary },
+              isRTL && { textAlign: "left" },
+            ]}
+          >
+            {statusLabel}
+          </Text>
+          {lastUpdatedLabel ? (
+            <Text
+              style={[
+                styles.statusMeta,
+                { color: theme.colors.text.secondary },
+                isRTL && { textAlign: "left" },
+              ]}
+            >
+              {lastUpdatedLabel}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+    );
+  } else {
+    statusCardContent = (
+      <Text
+        style={[
+          styles.statusMeta,
+          { color: theme.colors.text.secondary },
+          isRTL && { textAlign: "left" },
+        ]}
+      >
+        {t("integrationStatusNone")}
+      </Text>
+    );
+  }
+
   return (
     <SafeAreaView
       style={[
@@ -336,48 +383,7 @@ export default function ClinicalIntegrationScreen() {
               },
             ]}
           >
-            {loading ? (
-              <ActivityIndicator
-                color={theme.colors.primary.main}
-                size="small"
-              />
-            ) : latestRequest ? (
-              <View style={styles.statusRow}>
-                <StatusIcon color={statusColor || "#64748B"} size={20} />
-                <View style={styles.statusContent}>
-                  <Text
-                    style={[
-                      styles.statusLabel,
-                      { color: statusColor || theme.colors.text.primary },
-                      isRTL && { textAlign: "left" },
-                    ]}
-                  >
-                    {statusLabel}
-                  </Text>
-                  {lastUpdatedLabel ? (
-                    <Text
-                      style={[
-                        styles.statusMeta,
-                        { color: theme.colors.text.secondary },
-                        isRTL && { textAlign: "left" },
-                      ]}
-                    >
-                      {lastUpdatedLabel}
-                    </Text>
-                  ) : null}
-                </View>
-              </View>
-            ) : (
-              <Text
-                style={[
-                  styles.statusMeta,
-                  { color: theme.colors.text.secondary },
-                  isRTL && { textAlign: "left" },
-                ]}
-              >
-                {t("integrationStatusNone")}
-              </Text>
-            )}
+            {statusCardContent}
           </View>
         </View>
 

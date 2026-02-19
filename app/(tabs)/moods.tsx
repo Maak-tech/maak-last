@@ -83,6 +83,91 @@ const MOOD_OPTIONS = [
   { value: "stressed", emoji: "😫", label: "stressed", category: "negative" },
 ];
 
+const CAMEL_CASE_BOUNDARY_REGEX = /([A-Z])/g;
+const FIRST_CHAR_REGEX = /^./;
+
+function formatCamelCaseLabel(value: string, fallback: string): string {
+  if (!value) {
+    return fallback;
+  }
+  return value
+    .replace(CAMEL_CASE_BOUNDARY_REGEX, " $1")
+    .replace(FIRST_CHAR_REGEX, (char) => char.toUpperCase());
+}
+
+function getMoodEmoji(moodType: string): string {
+  const moodOption = MOOD_OPTIONS.find((mood) => mood.value === moodType);
+  return moodOption?.emoji || "😐";
+}
+
+function getMoodColor(moodType: string): string {
+  switch (moodType) {
+    // Positive emotions - greens
+    case "veryHappy":
+      return "#10B981";
+    case "happy":
+      return "#34D399";
+    case "excited":
+      return "#22C55E";
+    case "content":
+      return "#4ADE80";
+    case "grateful":
+      return "#16A34A";
+    case "hopeful":
+      return "#84CC16";
+    case "proud":
+      return "#65A30D";
+    case "calm":
+      return "#86EFAC";
+    case "peaceful":
+      return "#A7F3D0";
+    // Negative emotions - reds/oranges
+    case "sad":
+      return "#F87171";
+    case "verySad":
+      return "#EF4444";
+    case "anxious":
+      return "#F97316";
+    case "angry":
+      return "#DC2626";
+    case "frustrated":
+      return "#EA580C";
+    case "overwhelmed":
+      return "#F59E0B";
+    case "hopeless":
+      return "#B91C1C";
+    case "guilty":
+      return "#C2410C";
+    case "ashamed":
+      return "#991B1B";
+    case "lonely":
+      return "#FCA5A5";
+    case "irritable":
+      return "#FB923C";
+    case "restless":
+      return "#FB7185";
+    case "stressed":
+      return "#F97316";
+    // Neutral/Other - yellows/grays
+    case "neutral":
+      return "#F59E0B";
+    case "confused":
+      return "#EAB308";
+    case "numb":
+      return "#94A3B8";
+    case "detached":
+      return "#64748B";
+    case "empty":
+      return "#475569";
+    case "apathetic":
+      return "#6B7280";
+    case "tired":
+      return "#A78BFA";
+    default:
+      return "#6B7280";
+  }
+}
+
 export default function MoodsScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
@@ -127,20 +212,20 @@ export default function MoodsScreen() {
     startDate.setDate(endDate.getDate() - 6);
 
     const dailyData = new Map<string, number[]>();
-    moods.forEach((mood) => {
+    for (const mood of moods) {
       const moodDate =
         mood.timestamp instanceof Date
           ? mood.timestamp
           : new Date(mood.timestamp);
       if (moodDate < startDate || moodDate > endDate) {
-        return;
+        continue;
       }
       const key = moodDate.toDateString();
       if (!dailyData.has(key)) {
         dailyData.set(key, []);
       }
       dailyData.get(key)?.push(mood.intensity);
-    });
+    }
 
     const labels: string[] = [];
     const data: number[] = [];
@@ -212,13 +297,16 @@ export default function MoodsScreen() {
       return [];
     }
     return topMoodDistribution.map((item) => ({
-      name: t(item.mood, formatMoodLabel(item.mood)),
+      name: t(
+        item.mood,
+        formatCamelCaseLabel(item.mood, isRTL ? "مزاج" : "Mood")
+      ),
       population: item.count,
       color: getMoodColor(item.mood),
       legendFontColor: "#6C7280",
       legendFontSize: 12,
     }));
-  }, [topMoodDistribution, t]);
+  }, [topMoodDistribution, t, isRTL]);
 
   const quickMoodFigmaOptions = [
     {
@@ -444,7 +532,7 @@ export default function MoodsScreen() {
         setRefreshing(false);
       }
     },
-    [user, selectedFilter, isAdmin, isRTL]
+    [user, selectedFilter, isAdmin, isRTL, t]
   );
 
   // Refresh data when tab is focused
@@ -694,88 +782,6 @@ export default function MoodsScreen() {
     );
   };
 
-  const getMoodColor = (moodType: string) => {
-    switch (moodType) {
-      // Positive emotions - greens
-      case "veryHappy":
-        return "#10B981";
-      case "happy":
-        return "#34D399";
-      case "excited":
-        return "#22C55E";
-      case "content":
-        return "#4ADE80";
-      case "grateful":
-        return "#16A34A";
-      case "hopeful":
-        return "#84CC16";
-      case "proud":
-        return "#65A30D";
-      case "calm":
-        return "#86EFAC";
-      case "peaceful":
-        return "#A7F3D0";
-      // Negative emotions - reds/oranges
-      case "sad":
-        return "#F87171";
-      case "verySad":
-        return "#EF4444";
-      case "anxious":
-        return "#F97316";
-      case "angry":
-        return "#DC2626";
-      case "frustrated":
-        return "#EA580C";
-      case "overwhelmed":
-        return "#F59E0B";
-      case "hopeless":
-        return "#B91C1C";
-      case "guilty":
-        return "#C2410C";
-      case "ashamed":
-        return "#991B1B";
-      case "lonely":
-        return "#FCA5A5";
-      case "irritable":
-        return "#FB923C";
-      case "restless":
-        return "#FB7185";
-      case "stressed":
-        return "#F97316";
-      // Neutral/Other - yellows/grays
-      case "neutral":
-        return "#F59E0B";
-      case "confused":
-        return "#EAB308";
-      case "numb":
-        return "#94A3B8";
-      case "detached":
-        return "#64748B";
-      case "empty":
-        return "#475569";
-      case "apathetic":
-        return "#6B7280";
-      case "tired":
-        return "#A78BFA";
-      default:
-        return "#6B7280";
-    }
-  };
-
-  const getMoodEmoji = (moodType: string) => {
-    const moodOption = MOOD_OPTIONS.find((m) => m.value === moodType);
-    return moodOption?.emoji || "😐";
-  };
-
-  const formatMoodLabel = (moodType: string) => {
-    if (!moodType) {
-      return isRTL ? "مزاج" : "Mood";
-    }
-    return moodType
-      .replace(/([A-Z])/g, " $1")
-      .replace(/^./, (char) => char.toUpperCase());
-  };
-
   const formatDate = (date: Date) => {
     const now = new Date();
     const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
@@ -996,7 +1002,13 @@ export default function MoodsScreen() {
                         ]}
                       />
                       <Text style={styles.figmaMoodDistributionLegendText}>
-                        {t(item.mood, formatMoodLabel(item.mood))}
+                        {t(
+                          item.mood,
+                          formatCamelCaseLabel(
+                            item.mood,
+                            isRTL ? "مزاج" : "Mood"
+                          )
+                        )}
                       </Text>
                     </View>
                     <Text style={styles.figmaMoodDistributionLegendValue}>
@@ -1104,7 +1116,13 @@ export default function MoodsScreen() {
                       <View style={styles.figmaMoodEntryInfo}>
                         <View style={styles.figmaMoodEntryHeader}>
                           <Text style={styles.figmaMoodEntryTitle}>
-                            {t(mood.mood, formatMoodLabel(mood.mood))}
+                            {t(
+                              mood.mood,
+                              formatCamelCaseLabel(
+                                mood.mood,
+                                isRTL ? "مزاج" : "Mood"
+                              )
+                            )}
                           </Text>
                           <Text style={styles.figmaMoodEntryTime}>
                             {formatDate(mood.timestamp) || ""}

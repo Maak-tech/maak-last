@@ -10,6 +10,7 @@ import {
   Clock,
   Droplet,
   FileText,
+  Flower2,
   Heart,
   Info,
   Pill,
@@ -17,7 +18,14 @@ import {
   Stethoscope,
   TrendingUp,
 } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ComponentType,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -44,11 +52,12 @@ import { medicationService } from "@/lib/services/medicationService";
 import { moodService } from "@/lib/services/moodService";
 import { symptomService } from "@/lib/services/symptomService";
 import type { Allergy, MedicalHistory, Mood, Symptom } from "@/types";
-import { safeFormatTime } from "@/utils/dateFormat";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 const TRACK_DATA_STALE_MS = 45_000;
 const TRACK_QUERY_TIMEOUT_MS = 7000;
+const CAMEL_CASE_BOUNDARY_REGEX = /([A-Z])/g;
+const FIRST_CHAR_REGEX = /^./;
 
 const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> =>
   new Promise((resolve, reject) => {
@@ -77,7 +86,6 @@ export default function TrackScreen() {
   const isIphone16Pro =
     Math.round(Math.min(width, height)) === 393 &&
     Math.round(Math.max(width, height)) === 852;
-  const contentPadding = isIphone16Pro ? 24 : theme.spacing.lg;
   const headerPadding = isIphone16Pro ? 28 : theme.spacing.xl;
 
   // All hooks must be called before any conditional returns
@@ -108,6 +116,7 @@ export default function TrackScreen() {
 
   const isRTL = i18n.language === "ar";
   const showBlockingLoading = loading && !hasLoadedOnceRef.current;
+  const isFemale = user?.gender === "female";
 
   // Memoize navigation handlers to prevent recreation on every render
   // All pass returnTo=track so back button returns to track tab
@@ -149,7 +158,11 @@ export default function TrackScreen() {
 
   const handleBloodPressurePress = useCallback(() => {
     router.push("/(tabs)/blood-pressure?returnTo=track");
-  }, [router]);
+  }, []);
+
+  const navigateToWomensHealth = useCallback(() => {
+    router.push("/(tabs)/womens-health?returnTo=track" as any);
+  }, []);
 
   const trackingCategories = [
     {
@@ -227,6 +240,20 @@ export default function TrackScreen() {
       description: isRTL ? "حفظ نتائج الفحوصات" : "Store test results",
       onPress: navigateToLabResults,
     },
+    // Women's Health - only show for female users
+    ...(isFemale
+      ? [
+          {
+            icon: Flower2,
+            label: isRTL ? "صحة المرأة" : "Women's Health",
+            color: "#EC4899",
+            description: isRTL
+              ? "تتبع الدورة الشهرية والصحة النسائية"
+              : "Track periods and women's health",
+            onPress: navigateToWomensHealth,
+          },
+        ]
+      : []),
   ];
 
   const formatRelativeTime = (date: Date) => {
@@ -273,10 +300,12 @@ export default function TrackScreen() {
   };
 
   const formatLabel = (value: string) => {
-    if (!value) return "";
+    if (!value) {
+      return "";
+    }
     return value
-      .replace(/([A-Z])/g, " $1")
-      .replace(/^./, (char) => char.toUpperCase());
+      .replace(CAMEL_CASE_BOUNDARY_REGEX, " $1")
+      .replace(FIRST_CHAR_REGEX, (char) => char.toUpperCase());
   };
 
   const recentActivityItems = () => {
@@ -285,7 +314,7 @@ export default function TrackScreen() {
       title: string;
       detail: string;
       color: string;
-      icon: any;
+      icon: ComponentType<{ color?: string; size?: number }>;
     }[];
 
     recentSymptoms.slice(0, 2).forEach((symptom) => {
@@ -819,7 +848,7 @@ export default function TrackScreen() {
           fontFamily: "NotoSansArabic-Regular",
         },
       }))(theme),
-    [theme, isRTL, contentPadding, headerPadding]
+    [theme, isRTL, headerPadding]
   );
 
   // Memoize loadTrackingData to prevent recreation
@@ -1023,45 +1052,6 @@ export default function TrackScreen() {
       };
     }, [loadTrackingData, user?.id])
   );
-
-  const formatTime = (
-    timestamp:
-      | Date
-      | string
-      | { toDate?: () => Date; seconds?: number }
-      | null
-      | undefined
-  ) => {
-    if (!timestamp) {
-      return "";
-    }
-    let date: Date;
-    if (timestamp instanceof Date) {
-      date = timestamp;
-    } else if (typeof timestamp === "string") {
-      date = new Date(timestamp);
-    } else if (
-      timestamp &&
-      typeof timestamp === "object" &&
-      "toDate" in timestamp &&
-      timestamp.toDate
-    ) {
-      date = timestamp.toDate();
-    } else if (
-      timestamp &&
-      typeof timestamp === "object" &&
-      "seconds" in timestamp &&
-      timestamp.seconds !== undefined
-    ) {
-      date = new Date(timestamp.seconds * 1000);
-    } else {
-      return "";
-    }
-    return safeFormatTime(date, undefined, {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
 
   const getMoodEmoji = (moodType: string) => {
     const moodMap: { [key: string]: string } = {

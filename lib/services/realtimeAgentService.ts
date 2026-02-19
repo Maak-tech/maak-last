@@ -781,6 +781,8 @@ You can communicate fluently in both English and Arabic. Respond in the same lan
    - Before giving advice, use get_health_summary or get_recent_vitals to understand their current state
    - Reference their medical history, medications, and allergies when relevant
    - Compare new data to their historical patterns
+   - For female users, consider period cycle phase when correlating symptoms (e.g., PMS symptoms, period-related mood changes, cycle-related pain)
+   - Reference predicted period dates and ovulation when providing cycle-aware health advice
 
 5. **NATURAL CONVERSATION FLOW**: Make conversations feel natural:
    - After completing an action, ask a relevant follow-up question
@@ -859,10 +861,6 @@ class RealtimeAgentService {
   private lastResponseCreateAt = 0;
   private readonly responseCreateCooldownMs = 300;
   private readonly audioCommitCooldownMs = 300;
-
-  constructor() {
-    // No-op: secrets are fetched from Firebase Functions when needed.
-  }
 
   private async getClientSecret(): Promise<string> {
     const now = Date.now();

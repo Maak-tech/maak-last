@@ -24,6 +24,10 @@
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       {
+        "source": "/garmin/push",
+        "function": "garminPushWebhook"
+      },
+      {
         "source": "/dexcom-callback",
         "destination": "/dexcom-callback.html"
       },
@@ -34,6 +38,18 @@
       {
         "source": "/fitbit-callback",
         "destination": "/fitbit-callback.html"
+      },
+      {
+        "source": "/garmin-callback",
+        "destination": "/garmin-callback.html"
+      },
+      {
+        "source": "/oura-callback",
+        "destination": "/oura-callback.html"
+      },
+      {
+        "source": "/samsung-health-callback",
+        "destination": "/samsung-health-callback.html"
       }
     ]
   }

@@ -35,6 +35,12 @@ export const FITBIT_CLIENT_SECRET = defineSecret("FITBIT_CLIENT_SECRET");
 export const WITHINGS_CLIENT_ID = defineSecret("WITHINGS_CLIENT_ID");
 export const WITHINGS_CLIENT_SECRET = defineSecret("WITHINGS_CLIENT_SECRET");
 export const DEXCOM_REDIRECT_URI = defineSecret("DEXCOM_REDIRECT_URI");
+export const GARMIN_CLIENT_ID = defineSecret("GARMIN_CLIENT_ID");
+export const GARMIN_CLIENT_SECRET = defineSecret("GARMIN_CLIENT_SECRET");
+export const GARMIN_OAUTH_AUTH_URL = defineSecret("GARMIN_OAUTH_AUTH_URL");
+export const GARMIN_OAUTH_TOKEN_URL = defineSecret("GARMIN_OAUTH_TOKEN_URL");
+export const GARMIN_OAUTH_SCOPE = defineSecret("GARMIN_OAUTH_SCOPE");
+export const GARMIN_REDIRECT_URI = defineSecret("GARMIN_REDIRECT_URI");
 
 // RevenueCat
 export const REVENUECAT_PROJECT_ID = defineSecret("REVENUECAT_PROJECT_ID");

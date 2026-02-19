@@ -69,6 +69,9 @@ const COMMON_SYMPTOMS = [
   "numbness",
 ];
 
+const CAMEL_CASE_BOUNDARY_REGEX = /([A-Z])/g;
+const FIRST_CHAR_REGEX = /^./;
+
 function getSeverityColor(severityLevel: number): string {
   switch (severityLevel) {
     case 1:
@@ -126,7 +129,7 @@ export default function TrackScreen() {
     commonSymptoms: [] as { type: string; count: number }[],
   });
   const [editingSymptom, setEditingSymptom] = useState<Symptom | null>(null);
-  const [showActionsMenu, setShowActionsMenu] = useState<string | null>(null);
+  const [_showActionsMenu, setShowActionsMenu] = useState<string | null>(null);
   const [familyMembers, setFamilyMembers] = useState<UserType[]>([]);
   const [selectedFilter, setSelectedFilter] = useState<FilterOption>({
     id: "personal",
@@ -140,7 +143,7 @@ export default function TrackScreen() {
   const hasFamily = Boolean(user?.familyId);
   const recentSymptoms = symptoms.slice(0, 6);
   const topSymptoms = stats.commonSymptoms.slice(0, 4);
-  const topSymptomsTotal =
+  const _topSymptomsTotal =
     topSymptoms.reduce((sum, symptom) => sum + symptom.count, 0) || 1;
 
   const symptomsThisWeek = useMemo(() => {
@@ -474,7 +477,7 @@ export default function TrackScreen() {
     setSelectedFilter(filter);
   };
 
-  const getMemberName = (userId: string): string => {
+  const _getMemberName = (userId: string): string => {
     if (userId === user?.id) {
       return t("you", "You");
     }
@@ -623,7 +626,7 @@ export default function TrackScreen() {
     setShowActionsMenu(null);
   };
 
-  const handleDeleteSymptom = (symptom: Symptom) => {
+  const _handleDeleteSymptom = (symptom: Symptom) => {
     // Check permissions
     const canDelete =
       symptom.userId === user?.id ||
@@ -685,8 +688,8 @@ export default function TrackScreen() {
       return isRTL ? "عرض صحي" : "Symptom";
     }
     return symptomType
-      .replace(/([A-Z])/g, " $1")
-      .replace(/^./, (char) => char.toUpperCase());
+      .replace(CAMEL_CASE_BOUNDARY_REGEX, " $1")
+      .replace(FIRST_CHAR_REGEX, (char) => char.toUpperCase());
   };
 
   const normalizeDate = (

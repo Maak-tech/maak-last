@@ -218,57 +218,61 @@ export default function HealthIntegrationsScreen() {
     "radiology",
   ];
 
-  const loadConnections = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [fitbitAvailability, withingsAvailability] = await Promise.all([
-        fitbitService.isAvailable(),
-        withingsService.isAvailable(),
-      ]);
+  const loadConnections = useCallback(
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This loader intentionally checks multiple providers and clinical requests.
+    async () => {
+      try {
+        setLoading(true);
+        const [fitbitAvailability, withingsAvailability] = await Promise.all([
+          fitbitService.isAvailable(),
+          withingsService.isAvailable(),
+        ]);
 
-      // Set availability state (true/false, not null)
-      setFitbitAvailable(fitbitAvailability.available);
-      setWithingsAvailable(withingsAvailability.available);
+        // Set availability state (true/false, not null)
+        setFitbitAvailable(fitbitAvailability.available);
+        setWithingsAvailable(withingsAvailability.available);
 
-      const connectionsMap = new Map<HealthProvider, ProviderConnection>();
+        const connectionsMap = new Map<HealthProvider, ProviderConnection>();
 
-      // Use static list instead of providers array to avoid dependency issues
-      for (const providerId of allProviderIds) {
-        const connection = await getProviderConnection(providerId);
-        if (connection) {
-          connectionsMap.set(providerId, connection);
-        }
-      }
-
-      setConnections(connectionsMap);
-
-      if (user?.id) {
-        const requestsMap = new Map<
-          ClinicalIntegrationType,
-          ClinicalIntegrationRequest
-        >();
-        for (const providerId of clinicalProviderIds) {
-          const request =
-            await clinicalIntegrationService.getLatestIntegrationRequest(
-              user.id,
-              providerId
-            );
-          if (request) {
-            requestsMap.set(providerId, request);
+        // Use static list instead of providers array to avoid dependency issues
+        for (const providerId of allProviderIds) {
+          const connection = await getProviderConnection(providerId);
+          if (connection) {
+            connectionsMap.set(providerId, connection);
           }
         }
-        setClinicalRequests(requestsMap);
-      } else {
-        setClinicalRequests(new Map());
+
+        setConnections(connectionsMap);
+
+        if (user?.id) {
+          const requestsMap = new Map<
+            ClinicalIntegrationType,
+            ClinicalIntegrationRequest
+          >();
+          for (const providerId of clinicalProviderIds) {
+            const request =
+              await clinicalIntegrationService.getLatestIntegrationRequest(
+                user.id,
+                providerId
+              );
+            if (request) {
+              requestsMap.set(providerId, request);
+            }
+          }
+          setClinicalRequests(requestsMap);
+        } else {
+          setClinicalRequests(new Map());
+        }
+      } catch (_error) {
+        // Set to false on error so they show as "Coming Soon" instead of platform error
+        setFitbitAvailable(false);
+        setWithingsAvailable(false);
+      } finally {
+        setLoading(false);
       }
-    } catch (_error) {
-      // Set to false on error so they show as "Coming Soon" instead of platform error
-      setFitbitAvailable(false);
-      setWithingsAvailable(false);
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id]);
+    },
+    [user?.id]
+  );
 
   useEffect(() => {
     loadConnections();
@@ -318,7 +322,6 @@ export default function HealthIntegrationsScreen() {
         return t("integrationStatusApproved");
       case "rejected":
         return t("integrationStatusRejected");
-      case "pending":
       default:
         return t("integrationStatusPending");
     }
@@ -332,7 +335,6 @@ export default function HealthIntegrationsScreen() {
         return theme.colors.primary.main;
       case "rejected":
         return theme.colors.accent.error;
-      case "pending":
       default:
         return theme.colors.accent.warning;
     }

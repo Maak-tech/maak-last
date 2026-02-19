@@ -58,7 +58,6 @@ export default function NotificationSettingsScreen() {
     clearDuplicateMedicationNotifications,
   } = useNotifications();
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<NotificationSettings>({
     enabled: true,
     fallAlerts: true,
@@ -109,50 +108,6 @@ export default function NotificationSettingsScreen() {
   useEffect(() => {
     loadSettings();
   }, [loadSettings]);
-
-  const handleSaveSettings = async () => {
-    if (!user) {
-      return;
-    }
-
-    try {
-      setSaving(true);
-
-      // Update settings in Firestore via Cloud Function
-      const updatePreferences = httpsCallable(
-        cloudFunctions,
-        "updateNotificationPreferences"
-      );
-
-      await updatePreferences({ preferences: settings });
-
-      // Also update locally
-      // Note: notifications is stored as an object in Firestore, but User type defines it as boolean
-      await userService.updateUser(user.id, {
-        preferences: {
-          ...user.preferences,
-          notifications: settings as unknown as never,
-        },
-      });
-
-      Alert.alert(
-        t("saved", "Saved"),
-        t(
-          "notificationSettingsSaved",
-          "Notification settings saved successfully"
-        ),
-        [{ text: t("ok", "OK") }]
-      );
-    } catch (_error) {
-      // Silently handle error
-      Alert.alert(
-        t("error", "Error"),
-        t("failedToSaveSettings", "Failed to save settings")
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
 
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: cancellation branches intentionally mirror product behavior per setting.
   const toggleSetting = async (key: keyof NotificationSettings) => {

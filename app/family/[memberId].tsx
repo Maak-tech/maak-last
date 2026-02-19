@@ -26,7 +26,13 @@ import {
   XCircle,
   Zap,
 } from "lucide-react-native";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 // Import StyleSheet early to ensure it's available during HMR
 import {
@@ -72,10 +78,17 @@ import type {
 import { coerceToDate } from "@/utils/dateCoercion";
 import { safeFormatDate, safeFormatTime } from "@/utils/dateFormat";
 
+const WHITESPACE_REGEX = /\s+/;
+
 const getAvatarInitials = (fullName: string): string => {
-  const parts = fullName.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  const parts = fullName.trim().split(WHITESPACE_REGEX).filter(Boolean);
+  if (parts.length === 0) {
+    return "?";
+  }
+  if (parts.length === 1) {
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+  // biome-ignore lint/style/useAtIndex: Avoid .at() to keep compatibility with older runtimes.
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 };
 
@@ -372,6 +385,7 @@ export default function FamilyMemberHealthView() {
   );
 
   const loadMemberInsights = useCallback(
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Handles caching, background refresh, and timeout fallback for insights.
     async (forceRefresh = false) => {
       if (!memberId) {
         return;
@@ -683,26 +697,108 @@ export default function FamilyMemberHealthView() {
     .slice(0, 10);
 
   // Derive member status for Figma-aligned header (stable | monitor | critical)
-  const memberStatus: "stable" | "monitor" | "critical" | "unknown" =
-    alerts.length > 1 ? "critical" : alerts.length > 0 ? "monitor" : "stable";
-  const statusExplanation =
-    insightsSummary &&
+  let memberStatus: "stable" | "monitor" | "critical" | "unknown" = "stable";
+  if (alerts.length > 1) {
+    memberStatus = "critical";
+  } else if (alerts.length > 0) {
+    memberStatus = "monitor";
+  }
+
+  let memberStatusColor = "#10B981";
+  if (memberStatus === "critical") {
+    memberStatusColor = "#EF4444";
+  } else if (memberStatus === "monitor") {
+    memberStatusColor = "#F59E0B";
+  }
+
+  let statusExplanation: string | null = null;
+  const needsMonitoring =
+    !!insightsSummary &&
     (insightsSummary.symptoms.total > 3 ||
-      insightsSummary.medications.compliance < 80)
-      ? isRTL
-        ? "مستوى الأعراض أو الالتزام بالأدوية يحتاج متابعة."
-        : "Symptom levels or medication adherence needs monitoring."
-      : insightsSummary?.medications.compliance !== undefined &&
-          insightsSummary.medications.compliance >= 90
-        ? isRTL
-          ? "الالتزام بالأدوية جيد. استمر في المتابعة."
-          : "Medication adherence is good. Continue monitoring."
-        : null;
+      insightsSummary.medications.compliance < 80);
+  const hasGoodMedicationCompliance =
+    insightsSummary?.medications.compliance !== undefined &&
+    insightsSummary.medications.compliance >= 90;
+
+  if (needsMonitoring) {
+    statusExplanation = isRTL
+      ? "مستوى الأعراض أو الالتزام بالأدوية يحتاج متابعة."
+      : "Symptom levels or medication adherence needs monitoring.";
+  } else if (hasGoodMedicationCompliance) {
+    statusExplanation = isRTL
+      ? "الالتزام بالأدوية جيد. استمر في المتابعة."
+      : "Medication adherence is good. Continue monitoring.";
+  }
 
   const predictiveInsight = insights.find(
     (insight) =>
       insight.type === "ml" && typeof insight.data?.riskScore === "number"
   );
+
+  let insightsSectionContent: ReactNode;
+  if (insightsLoading && insights.length === 0) {
+    insightsSectionContent = (
+      <View style={styles.insightsLoadingContainer}>
+        <ActivityIndicator color="#7C3AED" size="small" />
+        <Text style={[styles.insightsLoadingText, isRTL && styles.rtlText]}>
+          {isRTL ? "جارٍ تحليل الرؤى الصحية..." : "Analyzing health insights..."}
+        </Text>
+      </View>
+    );
+  } else if (insights.length > 0) {
+    insightsSectionContent = (
+      <View style={styles.insightsList}>
+        {insights.map((insight, index) => (
+          <View key={`${insight.type}-${index}`} style={styles.insightItem}>
+            <View style={styles.insightHeader}>
+              <View style={styles.insightTitleRow}>
+                {getInsightIcon(insight.type)}
+                <Text style={[styles.insightTitle, isRTL && styles.rtlText]}>
+                  {insight.title}
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.insightConfidenceBadge,
+                  { borderColor: getInsightColor(insight.confidence) },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.insightConfidenceText,
+                    { color: getInsightColor(insight.confidence) },
+                  ]}
+                >
+                  {insight.confidence}%
+                </Text>
+              </View>
+            </View>
+            <Text style={[styles.insightDescription, isRTL && styles.rtlText]}>
+              {insight.description}
+            </Text>
+            {insight.recommendation ? (
+              <Text
+                style={[styles.insightRecommendation, isRTL && styles.rtlText]}
+              >
+                {isRTL ? "التوصية: " : "Recommendation: "}
+                {insight.recommendation}
+              </Text>
+            ) : null}
+          </View>
+        ))}
+      </View>
+    );
+  } else {
+    insightsSectionContent = (
+      <View style={styles.emptyState}>
+        <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
+          {isRTL
+            ? "لا توجد رؤى كافية بعد. استمر في تسجيل المؤشرات والأعراض."
+            : "Not enough insights yet. Keep logging vitals and symptoms."}
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <GradientScreen
@@ -755,12 +851,7 @@ export default function FamilyMemberHealthView() {
               styles.figmaAvatarRing,
               styles.memberProfileAvatarRing,
               {
-                borderColor:
-                  memberStatus === "critical"
-                    ? "#EF4444"
-                    : memberStatus === "monitor"
-                      ? "#F59E0B"
-                      : "#10B981",
+                borderColor: memberStatusColor,
               },
             ]}
           >
@@ -1188,77 +1279,7 @@ export default function FamilyMemberHealthView() {
             </View>
           ) : null}
 
-          {insightsLoading && insights.length === 0 ? (
-            <View style={styles.insightsLoadingContainer}>
-              <ActivityIndicator color="#7C3AED" size="small" />
-              <Text
-                style={[styles.insightsLoadingText, isRTL && styles.rtlText]}
-              >
-                {isRTL
-                  ? "جارٍ تحليل الرؤى الصحية..."
-                  : "Analyzing health insights..."}
-              </Text>
-            </View>
-          ) : insights.length > 0 ? (
-            <View style={styles.insightsList}>
-              {insights.map((insight, index) => (
-                <View
-                  key={`${insight.type}-${index}`}
-                  style={styles.insightItem}
-                >
-                  <View style={styles.insightHeader}>
-                    <View style={styles.insightTitleRow}>
-                      {getInsightIcon(insight.type)}
-                      <Text
-                        style={[styles.insightTitle, isRTL && styles.rtlText]}
-                      >
-                        {insight.title}
-                      </Text>
-                    </View>
-                    <View
-                      style={[
-                        styles.insightConfidenceBadge,
-                        { borderColor: getInsightColor(insight.confidence) },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.insightConfidenceText,
-                          { color: getInsightColor(insight.confidence) },
-                        ]}
-                      >
-                        {insight.confidence}%
-                      </Text>
-                    </View>
-                  </View>
-                  <Text
-                    style={[styles.insightDescription, isRTL && styles.rtlText]}
-                  >
-                    {insight.description}
-                  </Text>
-                  {insight.recommendation ? (
-                    <Text
-                      style={[
-                        styles.insightRecommendation,
-                        isRTL && styles.rtlText,
-                      ]}
-                    >
-                      {isRTL ? "التوصية: " : "Recommendation: "}
-                      {insight.recommendation}
-                    </Text>
-                  ) : null}
-                </View>
-              ))}
-            </View>
-          ) : (
-            <View style={styles.emptyState}>
-              <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-                {isRTL
-                  ? "لا توجد رؤى كافية بعد. استمر في تسجيل المؤشرات والأعراض."
-                  : "Not enough insights yet. Keep logging vitals and symptoms."}
-              </Text>
-            </View>
-          )}
+          {insightsSectionContent}
         </View>
 
         {/* Symptoms Section */}

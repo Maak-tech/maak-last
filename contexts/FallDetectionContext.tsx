@@ -251,11 +251,11 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     // Run once for current state.
-    syncBackgroundState(appStateRef.current).catch(() => {});
+    syncBackgroundState(appStateRef.current).catch(() => undefined);
 
     const subscription = AppState.addEventListener("change", (nextState) => {
       appStateRef.current = nextState;
-      syncBackgroundState(nextState).catch(() => {});
+      syncBackgroundState(nextState).catch(() => undefined);
     });
 
     return () => {
@@ -265,7 +265,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     if (!isEnabled) {
-      backgroundFallDetectionService.stop().catch(() => {});
+      backgroundFallDetectionService.stop().catch(() => undefined);
     }
   }, [isEnabled]);
 

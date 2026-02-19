@@ -7,11 +7,11 @@
 /* biome-ignore-all lint/suspicious/noExplicitAny: runtime global/error surfaces are loosely typed in React Native environment hooks. */
 /* biome-ignore-all lint/correctness/noUndeclaredVariables: ErrorUtils is injected by React Native runtime when available. */
 
+/* biome-ignore lint/performance/noNamespaceImport: Sentry namespace import retained for SDK compatibility. */
 import * as Sentry from "@sentry/react-native";
 import { Platform } from "react-native";
 import { isFirebaseReady } from "@/lib/firebase";
 import { observabilityEmitter } from "@/lib/observability";
-import { recordCrashlyticsError } from "@/lib/services/crashlyticsService";
 import { logger } from "./logger";
 
 // Store original handlers
@@ -58,7 +58,6 @@ function handleGlobalError(error: Error, isFatal = false) {
     };
 
     logger.error("Global Error Handler", errorDetails, "ErrorHandler");
-    recordCrashlyticsError(error, isFatal ? "js_fatal_error" : "js_error");
 
     // Ensure the error is explicitly captured by Sentry.
     // (We also forward to the original handler below, which may already be Sentry’s handler,
@@ -132,7 +131,7 @@ function handleGlobalError(error: Error, isFatal = false) {
         Sentry.flush(),
         new Promise<void>((resolve) => setTimeout(resolve, 2000)),
       ])
-        .catch(() => {})
+        .catch(() => undefined)
         .finally(() => {
           try {
             originalErrorHandler?.(error, isFatal);
@@ -172,7 +171,6 @@ function handleUnhandledRejection(event: PromiseRejectionEvent | any) {
     };
 
     logger.error("Unhandled Promise Rejection", errorDetails, "ErrorHandler");
-    recordCrashlyticsError(error, "js_unhandled_rejection");
     try {
       Sentry.captureException(error, {
         tags: {

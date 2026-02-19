@@ -32,7 +32,15 @@ const OURA_CLIENT_SECRET =
 const OURA_AUTH_URL = "https://cloud.ouraring.com/oauth/authorize";
 const OURA_TOKEN_URL = "https://api.ouraring.com/oauth/token";
 const OURA_API_BASE = "https://api.ouraring.com";
-const REDIRECT_URI = Linking.createURL("oura-callback");
+// Redirect URI: Use HTTPS for Oura (required)
+// Set ouraRedirectUri in app.config.js extra config to use a custom HTTPS redirect URI
+// Default uses Firebase Hosting: https://maak-5caad.web.app/oura-callback
+const OURA_REDIRECT_URI_HTTPS =
+  Constants.expoConfig?.extra?.ouraRedirectUri ||
+  "https://maak-5caad.web.app/oura-callback";
+const _REDIRECT_URI_DEEP_LINK = Linking.createURL("oura-callback");
+// Use HTTPS redirect URI for Oura registration (required by Oura)
+const REDIRECT_URI = OURA_REDIRECT_URI_HTTPS;
 
 // Complete OAuth flow
 WebBrowser.maybeCompleteAuthSession();

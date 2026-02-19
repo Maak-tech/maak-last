@@ -18,6 +18,7 @@ const pushNotificationPolyfillPath = path.resolve(
 );
 
 let hasLoggedBundleMode = false;
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Metro resolver includes many guarded stubs for production stability across platforms.
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (!hasLoggedBundleMode) {
     hasLoggedBundleMode = true;

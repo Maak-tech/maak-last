@@ -203,7 +203,7 @@ export const RealtimeHealthProvider: React.FC<{
       alert.trendAnalysis.message,
       [{ text: isRTL ? "موافق" : "OK" }]
     );
-  }, [trendAlertEvent?.id, isRTL]);
+  }, [trendAlertEvent, isRTL]);
 
   const value = useMemo(
     () => ({

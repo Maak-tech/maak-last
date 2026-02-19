@@ -1,3 +1,4 @@
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Screen is currently large/stateful; refactor can be done separately from feature work. */
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   addDoc,
@@ -166,26 +167,26 @@ export default function BloodPressureScreen() {
       const snapshot = await getDocs(readingsQuery);
       const items: BloodPressureReading[] = [];
 
-      snapshot.forEach((doc) => {
-        const data = doc.data();
+      for (const docSnap of snapshot.docs) {
+        const data = docSnap.data();
         const timestamp = data.timestamp?.toDate?.() || new Date();
         const fromMetadata = parseBloodPressure(data.metadata);
         const fromValue = parseBloodPressure(data.value);
         const parsed = fromMetadata || fromValue;
 
         if (!parsed) {
-          return;
+          continue;
         }
 
-        const pulseValue =
-          typeof data.metadata?.pulse === "number"
-            ? data.metadata.pulse
-            : typeof data.value?.pulse === "number"
-              ? data.value.pulse
-              : undefined;
+        let pulseValue: number | undefined;
+        if (typeof data.metadata?.pulse === "number") {
+          pulseValue = data.metadata.pulse;
+        } else if (typeof data.value?.pulse === "number") {
+          pulseValue = data.value.pulse;
+        }
 
         items.push({
-          id: doc.id,
+          id: docSnap.id,
           systolic: parsed.systolic,
           diastolic: parsed.diastolic,
           pulse: pulseValue,
@@ -196,7 +197,7 @@ export default function BloodPressureScreen() {
           timestamp,
           status: getStatus(parsed.systolic, parsed.diastolic),
         });
-      });
+      }
 
       setReadings(items);
     } catch (error) {
@@ -210,7 +211,7 @@ export default function BloodPressureScreen() {
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, t]);
 
   useEffect(() => {
     loadReadings();
@@ -258,6 +259,28 @@ export default function BloodPressureScreen() {
     }
     return { direction: "stable", percent: 0 };
   }, [readings]);
+
+  const trendPresentation = useMemo(() => {
+    if (trend.direction === "down") {
+      return {
+        Icon: TrendingDown,
+        color: "#10B981",
+        label: isRTL ? "يتحسن" : "Improving",
+      };
+    }
+    if (trend.direction === "up") {
+      return {
+        Icon: TrendingUp,
+        color: "#F97316",
+        label: isRTL ? "يرتفع" : "Rising",
+      };
+    }
+    return {
+      Icon: AlertCircle,
+      color: "#6C7280",
+      label: isRTL ? "مستقر" : "Stable",
+    };
+  }, [trend.direction, isRTL]);
 
   const chartData = useMemo(() => {
     const points = [...readings]
@@ -514,38 +537,21 @@ export default function BloodPressureScreen() {
                 </View>
                 <View style={styles.quickStatCard}>
                   <View style={styles.trendRow}>
-                    {trend.direction === "down" ? (
-                      <TrendingDown color="#10B981" size={16} />
-                    ) : trend.direction === "up" ? (
-                      <TrendingUp color="#F97316" size={16} />
-                    ) : (
-                      <AlertCircle color="#6C7280" size={16} />
-                    )}
+                    <trendPresentation.Icon
+                      color={trendPresentation.color}
+                      size={16}
+                    />
                     <Text
                       style={[
                         styles.trendValue,
-                        trend.direction === "down"
-                          ? { color: "#10B981" }
-                          : trend.direction === "up"
-                            ? { color: "#F97316" }
-                            : { color: "#6C7280" },
+                        { color: trendPresentation.color },
                       ]}
                     >
                       {trend.percent ? `${trend.percent}%` : "--"}
                     </Text>
                   </View>
                   <Text style={styles.quickStatLabel}>
-                    {trend.direction === "down"
-                      ? isRTL
-                        ? "يتحسن"
-                        : "Improving"
-                      : trend.direction === "up"
-                        ? isRTL
-                          ? "يرتفع"
-                          : "Rising"
-                        : isRTL
-                          ? "مستقر"
-                          : "Stable"}
+                    {trendPresentation.label}
                   </Text>
                 </View>
               </View>

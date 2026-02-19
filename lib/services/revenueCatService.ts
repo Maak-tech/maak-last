@@ -701,9 +701,7 @@ class RevenueCatService {
       const customerInfo = await this.getCustomerInfo();
       const activeEntitlements = customerInfo.entitlements.active;
       const entitlementId = getRevenueCatEntitlementId();
-      return (
-        activeEntitlements[entitlementId] !== undefined
-      );
+      return activeEntitlements[entitlementId] !== undefined;
     } catch (error) {
       logger.error(
         "Failed to check subscription status",
@@ -721,8 +719,7 @@ class RevenueCatService {
     try {
       const customerInfo = await this.getCustomerInfo();
       const entitlementId = getRevenueCatEntitlementId();
-      const entitlement =
-        customerInfo.entitlements.active[entitlementId];
+      const entitlement = customerInfo.entitlements.active[entitlementId];
       return entitlement !== undefined;
     } catch (error) {
       logger.error(

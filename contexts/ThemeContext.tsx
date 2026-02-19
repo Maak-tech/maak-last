@@ -46,7 +46,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [currentLanguage, setCurrentLanguage] = useState(i18n.language || "en");
 
   const isDark = false;
-  const isArabic = currentLanguage === "ar";
 
   // Listen for language changes
   useEffect(() => {
@@ -63,7 +62,9 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // Use Arabic fonts when language is Arabic so Arabic text renders correctly (not as ?)
   const theme = useMemo(() => {
     const base = Theme.light;
-    if (currentLanguage !== "ar") return base;
+    if (currentLanguage !== "ar") {
+      return base;
+    }
     return {
       ...base,
       typography: {

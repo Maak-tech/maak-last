@@ -172,7 +172,7 @@ export default function PPGMeasureScreen() {
                 router.back();
               }
             }}
-            onMeasurementComplete={() => {}}
+            onMeasurementComplete={() => undefined}
             userId={user.id}
             visible={true}
           />

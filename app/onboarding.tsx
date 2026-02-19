@@ -32,6 +32,17 @@ const STEPS = [
   },
 ];
 
+function getIconBackgroundColor(color: string): string {
+  switch (color) {
+    case "#EB9C0C":
+      return "rgba(235,156,12,0.15)";
+    case "#003543":
+      return "rgba(0,53,67,0.15)";
+    default:
+      return "rgba(16,185,129,0.15)";
+  }
+}
+
 export default function OnboardingScreen() {
   const router = useRouter();
   const { t, i18n } = useTranslation();
@@ -45,7 +56,9 @@ export default function OnboardingScreen() {
 
   const handleNext = async () => {
     if (isLastStep) {
-      if (isCompleting) return;
+      if (isCompleting) {
+        return;
+      }
       setIsCompleting(true);
       try {
         const AsyncStorage = await import(
@@ -60,12 +73,14 @@ export default function OnboardingScreen() {
         setIsCompleting(false);
       }
     } else {
-      setStep(step + 1);
+      setStep((currentStepIndex) => currentStepIndex + 1);
     }
   };
 
   const handleSkip = async () => {
-    if (isCompleting) return;
+    if (isCompleting) {
+      return;
+    }
     setIsCompleting(true);
     try {
       const AsyncStorage = await import(
@@ -110,9 +125,9 @@ export default function OnboardingScreen() {
 
         {/* Progress indicators */}
         <View style={styles.progressRow}>
-          {STEPS.map((_, index) => (
+          {STEPS.map((stepConfig, index) => (
             <View
-              key={index}
+              key={stepConfig.icon}
               style={[
                 styles.progressDot,
                 index === step && styles.progressDotActive,
@@ -129,12 +144,7 @@ export default function OnboardingScreen() {
             style={[
               styles.iconContainer,
               {
-                backgroundColor:
-                  currentStep.color === "#EB9C0C"
-                    ? "rgba(235,156,12,0.15)"
-                    : currentStep.color === "#003543"
-                      ? "rgba(0,53,67,0.15)"
-                      : "rgba(16,185,129,0.15)",
+                backgroundColor: getIconBackgroundColor(currentStep.color),
               },
             ]}
           >

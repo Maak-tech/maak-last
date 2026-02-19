@@ -1,4 +1,10 @@
-import { I18nManager, StyleSheet } from "react-native";
+import {
+  I18nManager,
+  type ImageStyle,
+  StyleSheet,
+  type TextStyle,
+  type ViewStyle,
+} from "react-native";
 import i18n from "@/lib/i18n";
 
 const FONT_MAP: Record<string, string> = {
@@ -12,6 +18,13 @@ const shouldUseArabicFont = (): boolean =>
   i18n.language === "ar" || I18nManager.isRTL;
 
 const originalCreate = StyleSheet.create.bind(StyleSheet);
+type NamedStyles<T> = { [P in keyof T]: ViewStyle | TextStyle | ImageStyle };
+type AnyNamedStyles = Record<string, ViewStyle | TextStyle | ImageStyle>;
+type StyleSheetCreate = <T extends NamedStyles<T> | AnyNamedStyles>(
+  styles: T
+) => T;
+
+const originalCreateTyped = originalCreate as unknown as StyleSheetCreate;
 
 const remapFontFamily = (value: unknown): unknown => {
   if (!value || typeof value !== "object") {
@@ -43,10 +56,12 @@ if (
   (StyleSheet as unknown as { __maakArabicPatch?: boolean }).__maakArabicPatch =
     true;
 
-  StyleSheet.create = ((styles: any) => {
+  StyleSheet.create = (<T extends NamedStyles<T> | AnyNamedStyles>(
+    styles: T
+  ): T => {
     if (!shouldUseArabicFont()) {
-      return originalCreate(styles as any);
+      return originalCreateTyped(styles);
     }
-    return originalCreate(remapFontFamily(styles) as any);
-  }) as any;
+    return originalCreateTyped(remapFontFamily(styles) as unknown as T);
+  }) as unknown as typeof StyleSheet.create;
 }

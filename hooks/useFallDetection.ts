@@ -335,7 +335,7 @@ export const useFallDetection = (
 ) => {
   const [isActive, setIsActive] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [startToken, setStartToken] = useState(0);
+  const [_startToken, setStartToken] = useState(0);
 
   // Use refs to avoid stale closures in the sensor callback
   const phaseRef = useRef<FallPhase>("normal");
@@ -1177,7 +1177,7 @@ export const useFallDetection = (
         }
       }
     };
-  }, [isActive, isInitialized, handleFallDetected, startToken]);
+  }, [isActive, isInitialized, handleFallDetected]);
 
   const startFallDetection = useCallback(() => {
     if (Platform.OS !== "web") {

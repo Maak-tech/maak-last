@@ -220,9 +220,6 @@ type RiskFactor =
   AIInsightsDashboardData["riskAssessment"]["riskFactors"][number];
 type MedicationAlert = AIInsightsDashboardData["medicationAlerts"][number];
 type HealthSuggestion = AIInsightsDashboardData["healthSuggestions"][number];
-type ActionPlan = Awaited<
-  ReturnType<typeof aiInsightsService.generateActionPlan>
->;
 
 function getStableKey(prefix: string, value: unknown): string {
   if (typeof value === "string" || typeof value === "number") {
@@ -253,6 +250,76 @@ function getStableKey(prefix: string, value: unknown): string {
 // Cache key and expiration time (5 minutes)
 const CACHE_KEY_PREFIX = "ai_insights_dashboard_";
 const CACHE_EXPIRATION_MS = 5 * 60 * 1000; // 5 minutes
+
+function createFallbackDashboard(userId: string): AIInsightsDashboardData {
+  return {
+    id: `fallback-${userId}`,
+    userId,
+    timestamp: new Date(),
+    correlationAnalysis: {
+      id: `fallback-${userId}`,
+      title: "Health Data Correlation Analysis",
+      description: "Loading analysis...",
+      correlationResults: [],
+      timestamp: new Date(),
+      userId,
+    },
+    symptomAnalysis: {
+      patterns: [],
+      diagnosisSuggestions: [],
+      riskAssessment: {
+        overallRisk: "low",
+        concerns: [],
+        recommendations: [],
+      },
+      analysisTimestamp: new Date(),
+    },
+    riskAssessment: {
+      id: `fallback-risk-${userId}`,
+      userId,
+      overallRiskScore: 0,
+      riskLevel: "low",
+      riskFactors: [],
+      conditionRisks: [],
+      preventiveRecommendations: [],
+      timeline: "long_term",
+      assessmentDate: new Date(),
+      nextAssessmentDate: new Date(),
+    },
+    medicationAlerts: [],
+    healthSuggestions: [],
+    personalizedTips: [],
+    insightsSummary: {
+      totalInsights: 0,
+      highPriorityItems: 0,
+      riskLevel: "low",
+      nextAssessmentDate: new Date(),
+    },
+    aiNarrative: undefined,
+  };
+}
+
+function loadDashboardWithTimeout({
+  userId,
+  isRTL,
+  timeoutMs,
+}: {
+  userId: string;
+  isRTL: boolean;
+  timeoutMs: number;
+}): Promise<AIInsightsDashboardData> {
+  const dashboardPromise = aiInsightsService.generateAIInsightsDashboard(
+    userId,
+    false, // Don't wait for AI narrative - load it separately
+    isRTL // Pass Arabic language flag
+  );
+
+  const timeoutPromise = new Promise<AIInsightsDashboardData>((resolve) =>
+    setTimeout(() => resolve(createFallbackDashboard(userId)), timeoutMs)
+  );
+
+  return Promise.race([dashboardPromise, timeoutPromise]);
+}
 
 function AIInsightsDashboard({
   onInsightPress,
@@ -362,6 +429,7 @@ function AIInsightsDashboard({
   );
 
   const loadInsights = useCallback(
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This async loader intentionally handles cache, timeout fallback, retries, and optional AI narrative fetch.
     async (forceRefresh = false) => {
       if (!user?.id) {
         return;
@@ -387,72 +455,11 @@ function AIInsightsDashboard({
         }
         setError(null);
 
-        // Load dashboard without AI narrative first (faster, avoids OpenAI API delay)
-        // AI narrative will be loaded separately if needed
-        const dashboardPromise = aiInsightsService.generateAIInsightsDashboard(
-          user.id,
-          false, // Don't wait for AI narrative - load it separately
-          isRTL // Pass Arabic language flag
-        );
-
-        // Use a longer timeout but don't block - show cached/partial data if available
-        const timeoutPromise = new Promise<AIInsightsDashboardData>(
-          (resolve) =>
-            setTimeout(() => {
-              // Return fallback data instead of rejecting
-              const fallback: AIInsightsDashboardData = {
-                id: `fallback-${user.id}`,
-                userId: user.id,
-                timestamp: new Date(),
-                correlationAnalysis: {
-                  id: `fallback-${user.id}`,
-                  title: "Health Data Correlation Analysis",
-                  description: "Loading analysis...",
-                  correlationResults: [],
-                  timestamp: new Date(),
-                  userId: user.id,
-                },
-                symptomAnalysis: {
-                  patterns: [],
-                  diagnosisSuggestions: [],
-                  riskAssessment: {
-                    overallRisk: "low",
-                    concerns: [],
-                    recommendations: [],
-                  },
-                  analysisTimestamp: new Date(),
-                },
-                riskAssessment: {
-                  id: `fallback-risk-${user.id}`,
-                  userId: user.id,
-                  overallRiskScore: 0,
-                  riskLevel: "low",
-                  riskFactors: [],
-                  conditionRisks: [],
-                  preventiveRecommendations: [],
-                  timeline: "long_term",
-                  assessmentDate: new Date(),
-                  nextAssessmentDate: new Date(),
-                },
-                medicationAlerts: [],
-                healthSuggestions: [],
-                personalizedTips: [],
-                insightsSummary: {
-                  totalInsights: 0,
-                  highPriorityItems: 0,
-                  riskLevel: "low",
-                  nextAssessmentDate: new Date(),
-                },
-                aiNarrative: undefined,
-              };
-              resolve(fallback);
-            }, 20_000) // Reduced from 30s to 20s
-        );
-
-        const dashboard = await Promise.race([
-          dashboardPromise,
-          timeoutPromise,
-        ]);
+        const dashboard = await loadDashboardWithTimeout({
+          userId: user.id,
+          isRTL,
+          timeoutMs: 20_000,
+        });
 
         const isFallbackDashboard = dashboard.id.startsWith("fallback-");
 
@@ -470,9 +477,7 @@ function AIInsightsDashboard({
           lastFallbackRetryAtRef.current = Date.now();
           // Retry in background without blocking UI.
           setTimeout(() => {
-            loadInsights(true).catch(() => {
-              // Silently ignore retry errors
-            });
+            loadInsights(true).catch(() => undefined);
           }, 1500);
         }
 
@@ -501,14 +506,12 @@ function AIInsightsDashboard({
               };
               setInsights(updatedDashboard);
               // Save cache in background - don't wait for it
-              saveCachedInsights(user.id, updatedDashboard).catch(() => {
-                // Silently fail cache save
-              });
+              saveCachedInsights(user.id, updatedDashboard).catch(
+                () => undefined
+              );
             }
           })
-          .catch((_err) => {
-            // Silently fail - narrative is optional and can be slow
-          });
+          .catch(() => undefined);
       } catch (err) {
         const errorMessage =
           err instanceof Error && err.message.includes("timeout")

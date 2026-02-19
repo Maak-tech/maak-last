@@ -1,4 +1,3 @@
-import { EventEmitter } from "expo-modules-core";
 import ExpoFallDetectionModule from "./ExpoFallDetectionModule";
 
 export type FallDetectionAvailability = {
@@ -17,7 +16,18 @@ export type StartFallDetectionOptions = {
   minConfidence?: number;
 };
 
-const emitter = new EventEmitter(ExpoFallDetectionModule as any);
+type FallDetectionEventSubscription = {
+  remove: () => void;
+};
+
+type FallDetectionEmitter = {
+  addListener?: (
+    eventName: "onFallDetected",
+    listener: (event: BackgroundFallDetectionEvent) => void
+  ) => FallDetectionEventSubscription;
+};
+
+const emitter = ExpoFallDetectionModule as unknown as FallDetectionEmitter;
 
 export function isAvailable(): Promise<FallDetectionAvailability> {
   if (typeof ExpoFallDetectionModule.isAvailable !== "function") {
@@ -69,7 +79,10 @@ export function clearPendingEvents(): Promise<boolean> {
 export function addFallDetectedListener(
   listener: (event: BackgroundFallDetectionEvent) => void
 ) {
-  return (emitter as any).addListener("onFallDetected", listener);
+  if (typeof emitter.addListener !== "function") {
+    return { remove: () => undefined };
+  }
+  return emitter.addListener("onFallDetected", listener);
 }
 
 export default {

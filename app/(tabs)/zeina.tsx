@@ -253,7 +253,7 @@ export default function ZeinaScreen() {
     }
   };
 
-  const toggleVoiceOutput = () => {
+  const _toggleVoiceOutput = () => {
     if (!voiceEnabled) {
       Alert.alert(
         t("voiceNotAvailable", "Voice Not Available"),
@@ -575,11 +575,11 @@ export default function ZeinaScreen() {
     );
   };
 
-  const handleNewChat = async () => {
+  const _handleNewChat = async () => {
     await initializeChat();
   };
 
-  const getVoiceOutputIcon = () => {
+  const _getVoiceOutputIcon = () => {
     if (isSpeaking) {
       return <VolumeX color="white" size={20} />;
     }

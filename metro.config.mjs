@@ -7,6 +7,4 @@
 //   to avoid `DevMenu` TurboModule crashes).
 //
 // By delegating here, we ensure the same config is always used.
-import config from "./metro.config.js";
-
-export default config;
+export { default } from "./metro.config.js";

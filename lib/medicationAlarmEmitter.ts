@@ -23,11 +23,11 @@ export function subscribeToMedicationAlarm(listener: Listener): () => void {
 }
 
 export function emitMedicationAlarm(alarm: MedicationAlarmPayload): void {
-  listeners.forEach((l) => {
+  for (const listener of listeners) {
     try {
-      l(alarm);
+      listener(alarm);
     } catch (_e) {
       // Ignore listener errors
     }
-  });
+  }
 }

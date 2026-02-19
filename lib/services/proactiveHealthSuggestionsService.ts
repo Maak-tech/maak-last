@@ -23,7 +23,9 @@ import type {
 import { alertService } from "./alertService";
 import { allergyService } from "./allergyService";
 import { calendarService } from "./calendarService";
-import healthContextService from "./healthContextService";
+import healthContextService, {
+  type HealthContext,
+} from "./healthContextService";
 import {
   healthInsightsService,
   type PatternInsight,
@@ -742,6 +744,22 @@ class ProactiveHealthSuggestionsService {
         isArabic
       );
       suggestions.push(...historySuggestions);
+
+      // 16. Period tracking suggestions (for female users)
+      if (
+        healthContext.profile.gender === "female" &&
+        healthContext.periodTracking
+      ) {
+        const periodSuggestions = await (
+          this as any
+        ).getPeriodTrackingSuggestions(
+          healthContext.periodTracking,
+          symptoms,
+          moods,
+          isArabic
+        );
+        suggestions.push(...periodSuggestions);
+      }
 
       // Sort by priority (high first)
       suggestions.sort((a, b) => {
@@ -2310,6 +2328,158 @@ class ProactiveHealthSuggestionsService {
     } catch (_error) {
       return null;
     }
+  }
+
+  /**
+   * Get period tracking suggestions for female users
+   */
+  private async getPeriodTrackingSuggestions(
+    periodTracking: NonNullable<HealthContext["periodTracking"]>,
+    symptoms: Symptom[],
+    moods: Mood[],
+    isArabic = false
+  ): Promise<HealthSuggestion[]> {
+    const suggestions: HealthSuggestion[] = [];
+    const now = new Date();
+
+    try {
+      // Suggestion: Track period if no recent entries
+      if (
+        (!periodTracking.recentEntries ||
+          periodTracking.recentEntries.length === 0) &&
+        !periodTracking.cycleInfo
+      ) {
+        suggestions.push({
+          id: `period-track-${Date.now()}`,
+          type: "preventive",
+          priority: "medium",
+          title: isArabic
+            ? "ابدأ تتبع دورتك الشهرية"
+            : "Start Tracking Your Period",
+          description: isArabic
+            ? "تتبع دورتك الشهرية يساعد في فهم أنماط صحتك وتقديم رؤى مخصصة"
+            : "Tracking your period helps understand your health patterns and provides personalized insights",
+          action: {
+            label: isArabic ? "إضافة سجل" : "Add Entry",
+            route: "/(tabs)/womens-health",
+          },
+          icon: "Calendar",
+          category: isArabic ? "صحة المرأة" : "Women's Health",
+          timestamp: now,
+        });
+      }
+
+      // Suggestion: Period approaching
+      if (periodTracking.cycleInfo?.nextPeriodPredicted) {
+        const daysUntil = Math.ceil(
+          (periodTracking.cycleInfo.nextPeriodPredicted.getTime() -
+            now.getTime()) /
+            (1000 * 60 * 60 * 24)
+        );
+
+        if (daysUntil >= 0 && daysUntil <= 3) {
+          suggestions.push({
+            id: `period-upcoming-${Date.now()}`,
+            type: "preventive",
+            priority: daysUntil === 0 ? "high" : "medium",
+            title: isArabic
+              ? `الدورة الشهرية ${daysUntil === 0 ? "اليوم" : `في ${daysUntil} ${daysUntil === 1 ? "يوم" : "أيام"}`}`
+              : `Period ${daysUntil === 0 ? "Today" : `in ${daysUntil} ${daysUntil === 1 ? "day" : "days"}`}`,
+            description: isArabic
+              ? `دورتك الشهرية متوقعة ${daysUntil === 0 ? "اليوم" : `خلال ${daysUntil} ${daysUntil === 1 ? "يوم" : "أيام"}`}. قد ترغبين في الاستعداد أو تتبع الأعراض المرتبطة بالدورة.`
+              : `Your period is predicted ${daysUntil === 0 ? "today" : `in ${daysUntil} ${daysUntil === 1 ? "day" : "days"}`}. You may want to prepare or track cycle-related symptoms.`,
+            action: {
+              label: isArabic ? "عرض التوقعات" : "View Predictions",
+              route: "/(tabs)/womens-health",
+            },
+            icon: "Calendar",
+            category: isArabic ? "صحة المرأة" : "Women's Health",
+            timestamp: now,
+          });
+        }
+      }
+
+      // Suggestion: Correlate symptoms with cycle
+      if (
+        periodTracking.recentEntries &&
+        periodTracking.recentEntries.length >= 2 &&
+        symptoms.length > 0
+      ) {
+        // Check if symptoms occur around period dates
+        const recentPeriodDates = periodTracking.recentEntries
+          .slice(0, 3)
+          .map((e) => e.startDate);
+
+        const symptomsNearPeriod = symptoms.filter((symptom) => {
+          const symptomDate = symptom.timestamp;
+          return recentPeriodDates.some((periodDate) => {
+            const daysDiff = Math.abs(
+              (symptomDate.getTime() - periodDate.getTime()) /
+                (1000 * 60 * 60 * 24)
+            );
+            return daysDiff <= 5; // Within 5 days of period
+          });
+        });
+
+        if (symptomsNearPeriod.length >= 2) {
+          suggestions.push({
+            id: `period-symptom-correlation-${Date.now()}`,
+            type: "symptom",
+            priority: "low",
+            title: isArabic
+              ? "نمط الأعراض المرتبط بالدورة"
+              : "Cycle-Related Symptom Pattern",
+            description: isArabic
+              ? "لاحظنا أن بعض أعراضك تحدث حول وقت دورتك الشهرية. قد يكون من المفيد تتبع هذا النمط."
+              : "We noticed some of your symptoms occur around your period time. It may be helpful to track this pattern.",
+            action: {
+              label: isArabic ? "عرض التفاصيل" : "View Details",
+              route: "/(tabs)/womens-health",
+            },
+            icon: "Activity",
+            category: isArabic ? "صحة المرأة" : "Women's Health",
+            timestamp: now,
+          });
+        }
+      }
+
+      // Suggestion: Track ovulation if cycle info exists
+      if (
+        periodTracking.cycleInfo?.ovulationPredicted &&
+        periodTracking.cycleInfo.nextPeriodPredicted
+      ) {
+        const daysUntilOvulation = Math.ceil(
+          (periodTracking.cycleInfo.ovulationPredicted.getTime() -
+            now.getTime()) /
+            (1000 * 60 * 60 * 24)
+        );
+
+        if (daysUntilOvulation >= 0 && daysUntilOvulation <= 2) {
+          suggestions.push({
+            id: `ovulation-upcoming-${Date.now()}`,
+            type: "wellness",
+            priority: "low",
+            title: isArabic
+              ? "فترة الإباضة المتوقعة"
+              : "Predicted Ovulation Period",
+            description: isArabic
+              ? "أنت في فترة الإباضة المتوقعة. قد تلاحظين تغيرات في الطاقة أو المزاج."
+              : "You're in your predicted ovulation period. You may notice changes in energy or mood.",
+            action: {
+              label: isArabic ? "عرض التوقعات" : "View Predictions",
+              route: "/(tabs)/womens-health",
+            },
+            icon: "Calendar",
+            category: isArabic ? "صحة المرأة" : "Women's Health",
+            timestamp: now,
+          });
+        }
+      }
+    } catch (_error) {
+      // Silently handle errors
+    }
+
+    return suggestions;
   }
 }
 

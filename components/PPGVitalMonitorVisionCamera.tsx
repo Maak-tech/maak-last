@@ -1089,16 +1089,14 @@ export default function PPGVitalMonitorVisionCamera({
           ? undefined
           : ppgResult.respiratoryRate;
         const saveSuccess = shouldSave
-          ? await saveVitalToFirestore(
+          ? await saveVitalToFirestore({
               heartRate,
-              ppgResult.signalQuality,
-              hrvToSave,
-              respiratoryToSave,
-              {
-                measurementDuration: measurementDurationSeconds,
-                isQuick,
-              }
-            )
+              signalQuality: ppgResult.signalQuality,
+              hrv: hrvToSave,
+              respiratoryRate: respiratoryToSave,
+              measurementDuration: measurementDurationSeconds,
+              isQuick,
+            })
           : true;
 
         if (ppgResult.isEstimate) {
@@ -1412,13 +1410,14 @@ export default function PPGVitalMonitorVisionCamera({
     ]
   );
 
-  const saveVitalToFirestore = async (
-    heartRate: number,
-    signalQuality: number,
-    hrv?: number,
-    respiratoryRate?: number,
-    options?: { measurementDuration?: number; isQuick?: boolean }
-  ): Promise<boolean> => {
+  const saveVitalToFirestore = async (params: {
+    heartRate: number;
+    signalQuality: number;
+    hrv?: number;
+    respiratoryRate?: number;
+    measurementDuration?: number;
+    isQuick?: boolean;
+  }): Promise<boolean> => {
     try {
       const currentUserId = auth.currentUser?.uid;
       if (!currentUserId) {
@@ -1426,17 +1425,17 @@ export default function PPGVitalMonitorVisionCamera({
       }
 
       const measurementDuration =
-        options?.measurementDuration ?? MEASUREMENT_DURATION;
-      const measurementMode = options?.isQuick ? "quick_hr" : "full_hrv";
+        params.measurementDuration ?? MEASUREMENT_DURATION;
+      const measurementMode = params.isQuick ? "quick_hr" : "full_hrv";
 
       const heartRateData = {
         userId: currentUserId,
         type: "heartRate",
-        value: heartRate,
+        value: params.heartRate,
         unit: "bpm",
         timestamp: Timestamp.now(),
         source: "ppg_camera_real",
-        signalQuality,
+        signalQuality: params.signalQuality,
         metadata: {
           measurementDuration,
           frameRate: TARGET_FPS,
@@ -1447,28 +1446,28 @@ export default function PPGVitalMonitorVisionCamera({
       };
       await addDoc(collection(db, "vitals"), heartRateData);
 
-      if (hrv) {
+      if (params.hrv) {
         const hrvData = {
           userId: currentUserId,
           type: "heartRateVariability",
-          value: hrv,
+          value: params.hrv,
           unit: "ms",
           timestamp: Timestamp.now(),
           source: "ppg_camera_real",
-          signalQuality,
+          signalQuality: params.signalQuality,
         };
         await addDoc(collection(db, "vitals"), hrvData);
       }
 
-      if (respiratoryRate) {
+      if (params.respiratoryRate) {
         const respiratoryData = {
           userId: currentUserId,
           type: "respiratoryRate",
-          value: respiratoryRate,
+          value: params.respiratoryRate,
           unit: "bpm",
           timestamp: Timestamp.now(),
           source: "ppg_camera_real",
-          signalQuality,
+          signalQuality: params.signalQuality,
         };
         await addDoc(collection(db, "vitals"), respiratoryData);
       }

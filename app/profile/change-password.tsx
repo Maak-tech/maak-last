@@ -52,6 +52,7 @@ export default function ChangePasswordScreen() {
 
   const isRTL = i18n.language === "ar";
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Localized validation with multiple guardrails for better UX.
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
@@ -91,9 +92,11 @@ export default function ChangePasswordScreen() {
     return Object.keys(newErrors).length === 0;
   };
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Platform-specific UX and guarded reset flow.
   const handleForgotPassword = () => {
     if (!user?.email) {
       if (Platform.OS === "web") {
+        // biome-ignore lint/suspicious/noAlert: On web, fall back to confirm as a minimal UX for now.
         window.confirm(
           isRTL
             ? "لم يتم العثور على عنوان البريد الإلكتروني"
@@ -116,6 +119,7 @@ export default function ChangePasswordScreen() {
       : `A password reset link will be sent to ${user.email}. Do you want to continue?`;
 
     if (Platform.OS === "web") {
+      // biome-ignore lint/suspicious/noAlert: On web, fall back to confirm as a minimal UX for now.
       const confirmed = window.confirm(message);
       if (confirmed) {
         sendResetEmail();
@@ -132,8 +136,11 @@ export default function ChangePasswordScreen() {
     }
   };
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Handles multiple platform branches and localized messages.
   const sendResetEmail = async () => {
-    if (!user?.email) return;
+    if (!user?.email) {
+      return;
+    }
 
     setLoading(true);
     try {
@@ -143,6 +150,7 @@ export default function ChangePasswordScreen() {
         : `Password reset link has been sent to ${user.email}. Please check your email.`;
 
       if (Platform.OS === "web") {
+        // biome-ignore lint/suspicious/noAlert: On web, fall back to alert as a minimal UX for now.
         window.alert(successMessage);
         router.back();
       } else {
@@ -155,6 +163,7 @@ export default function ChangePasswordScreen() {
         (error as { message?: string }).message ||
         (isRTL ? "فشل إرسال البريد الإلكتروني" : "Failed to send email");
       if (Platform.OS === "web") {
+        // biome-ignore lint/suspicious/noAlert: On web, fall back to alert as a minimal UX for now.
         window.alert(errorMessage);
       } else {
         Alert.alert(isRTL ? "خطأ" : "Error", errorMessage, [
@@ -166,8 +175,11 @@ export default function ChangePasswordScreen() {
     }
   };
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Handles multiple localized auth error cases for better UX.
   const handleChangePassword = async () => {
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      return;
+    }
 
     setErrors({});
     setLoading(true);
@@ -225,16 +237,27 @@ export default function ChangePasswordScreen() {
     }
   };
 
-  const renderInput = (
-    label: string,
-    value: string,
-    onChangeText: (t: string) => void,
-    placeholder: string,
-    secure: boolean,
-    showPassword: boolean,
-    toggleShow: () => void,
-    errorKey: string
-  ) => (
+  type RenderInputOptions = {
+    label: string;
+    value: string;
+    onChangeText: (value: string) => void;
+    placeholder: string;
+    secure: boolean;
+    showPassword: boolean;
+    toggleShow: () => void;
+    errorKey: string;
+  };
+
+  const renderInput = ({
+    label,
+    value,
+    onChangeText,
+    placeholder,
+    secure,
+    showPassword,
+    toggleShow,
+    errorKey,
+  }: RenderInputOptions) => (
     <View style={styles.inputGroup}>
       <Text style={[styles.label, isRTL && styles.rtlText]}>{label}</Text>
       <View style={styles.inputContainer}>
@@ -250,7 +273,7 @@ export default function ChangePasswordScreen() {
           }}
           placeholder={placeholder}
           placeholderTextColor="#94A3B8"
-          secureTextEntry={!showPassword}
+          secureTextEntry={secure && !showPassword}
           style={[
             styles.input,
             errors[errorKey] && styles.inputError,
@@ -333,16 +356,18 @@ export default function ChangePasswordScreen() {
             </WavyBackground>
           </View>
           <View style={styles.formCard}>
-            {renderInput(
-              isRTL ? "كلمة المرور الحالية" : "Current Password",
-              currentPassword,
-              setCurrentPassword,
-              isRTL ? "أدخل كلمة المرور الحالية" : "Enter current password",
-              true,
-              showCurrentPassword,
-              () => setShowCurrentPassword(!showCurrentPassword),
-              "currentPassword"
-            )}
+            {renderInput({
+              label: isRTL ? "كلمة المرور الحالية" : "Current Password",
+              value: currentPassword,
+              onChangeText: setCurrentPassword,
+              placeholder: isRTL
+                ? "أدخل كلمة المرور الحالية"
+                : "Enter current password",
+              secure: true,
+              showPassword: showCurrentPassword,
+              toggleShow: () => setShowCurrentPassword((current) => !current),
+              errorKey: "currentPassword",
+            })}
 
             <TouchableOpacity
               onPress={handleForgotPassword}
@@ -353,32 +378,38 @@ export default function ChangePasswordScreen() {
               </Text>
             </TouchableOpacity>
 
-            {renderInput(
-              isRTL ? "كلمة المرور الجديدة" : "New Password",
-              newPassword,
-              setNewPassword,
-              isRTL ? "أدخل كلمة المرور الجديدة" : "Enter new password",
-              true,
-              showNewPassword,
-              () => setShowNewPassword(!showNewPassword),
-              "newPassword"
-            )}
+            {renderInput({
+              label: isRTL ? "كلمة المرور الجديدة" : "New Password",
+              value: newPassword,
+              onChangeText: setNewPassword,
+              placeholder: isRTL
+                ? "أدخل كلمة المرور الجديدة"
+                : "Enter new password",
+              secure: true,
+              showPassword: showNewPassword,
+              toggleShow: () => setShowNewPassword((current) => !current),
+              errorKey: "newPassword",
+            })}
             <Text style={[styles.helperText, isRTL && styles.rtlText]}>
               {isRTL
                 ? "يجب أن تكون 6 أحرف على الأقل"
                 : "Must be at least 6 characters"}
             </Text>
 
-            {renderInput(
-              isRTL ? "تأكيد كلمة المرور الجديدة" : "Confirm New Password",
-              confirmPassword,
-              setConfirmPassword,
-              isRTL ? "أعد إدخال كلمة المرور الجديدة" : "Re-enter new password",
-              true,
-              showConfirmPassword,
-              () => setShowConfirmPassword(!showConfirmPassword),
-              "confirmPassword"
-            )}
+            {renderInput({
+              label: isRTL
+                ? "تأكيد كلمة المرور الجديدة"
+                : "Confirm New Password",
+              value: confirmPassword,
+              onChangeText: setConfirmPassword,
+              placeholder: isRTL
+                ? "أعد إدخال كلمة المرور الجديدة"
+                : "Re-enter new password",
+              secure: true,
+              showPassword: showConfirmPassword,
+              toggleShow: () => setShowConfirmPassword((current) => !current),
+              errorKey: "confirmPassword",
+            })}
 
             <TouchableOpacity
               disabled={loading}

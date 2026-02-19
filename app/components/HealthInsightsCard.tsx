@@ -352,6 +352,38 @@ export default function HealthInsightsCard({
     );
   }
 
+  const symptomCountsData =
+    weeklySummary.dailyChartData?.symptomCounts ?? new Array(7).fill(0);
+
+  let symptomSparklineColor = "#64748B";
+  let symptomTextColor = theme.colors.text.secondary;
+  let symptomTrendLabel = t("symptoms", "Symptoms");
+  if (weeklySummary.symptoms.trend === "increasing") {
+    symptomSparklineColor = "#EF4444";
+    symptomTextColor = "#EF4444";
+    symptomTrendLabel = t("symptomsIncreasing", "Symptoms ↑");
+  } else if (weeklySummary.symptoms.trend === "decreasing") {
+    symptomSparklineColor = "#10B981";
+    symptomTextColor = "#10B981";
+    symptomTrendLabel = t("symptomsDecreasing", "Symptoms ↓");
+  }
+
+  const moodIntensityData =
+    weeklySummary.dailyChartData?.moodIntensities ?? new Array(7).fill(0);
+
+  let moodSparklineColor = "#64748B";
+  let moodTextColor = theme.colors.text.secondary;
+  let moodTrendLabel = t("mood", "Mood");
+  if (weeklySummary.moods.trend === "improving") {
+    moodSparklineColor = "#10B981";
+    moodTextColor = "#10B981";
+    moodTrendLabel = t("moodImproving", "Mood ↑");
+  } else if (weeklySummary.moods.trend === "declining") {
+    moodSparklineColor = "#EF4444";
+    moodTextColor = "#EF4444";
+    moodTrendLabel = t("moodDeclining", "Mood ↓");
+  }
+
   return (
     <Card contentStyle={undefined} pressable={false} style={styles.card}>
       <TouchableOpacity
@@ -415,24 +447,14 @@ export default function HealthInsightsCard({
           {/* Trend Charts with Sparklines */}
           <View style={styles.trendsRow}>
             {(weeklySummary.symptoms.trend !== "stable" ||
-              (weeklySummary.dailyChartData?.symptomCounts &&
-                weeklySummary.dailyChartData.symptomCounts.some(
-                  (v) => v > 0
-                ))) && (
+              weeklySummary.dailyChartData?.symptomCounts?.some(
+                (v) => v > 0
+              )) && (
               <View style={styles.trendChartCard}>
                 <View style={styles.trendChartHeader}>
                   <Sparkline
-                    color={
-                      weeklySummary.symptoms.trend === "increasing"
-                        ? "#EF4444"
-                        : weeklySummary.symptoms.trend === "decreasing"
-                          ? "#10B981"
-                          : "#64748B"
-                    }
-                    data={
-                      weeklySummary.dailyChartData?.symptomCounts ||
-                      Array(7).fill(0)
-                    }
+                    color={symptomSparklineColor}
+                    data={symptomCountsData}
                     height={36}
                     width={80}
                   />
@@ -442,44 +464,25 @@ export default function HealthInsightsCard({
                       style={[
                         styles.trendText,
                         {
-                          color:
-                            weeklySummary.symptoms.trend === "increasing"
-                              ? "#EF4444"
-                              : weeklySummary.symptoms.trend === "decreasing"
-                                ? "#10B981"
-                                : theme.colors.text.secondary,
+                          color: symptomTextColor,
                         },
                       ]}
                     >
-                      {weeklySummary.symptoms.trend === "increasing"
-                        ? t("symptomsIncreasing", "Symptoms ↑")
-                        : weeklySummary.symptoms.trend === "decreasing"
-                          ? t("symptomsDecreasing", "Symptoms ↓")
-                          : t("symptoms", "Symptoms")}
+                      {symptomTrendLabel}
                     </Caption>
                   </View>
                 </View>
               </View>
             )}
             {(weeklySummary.moods.trend !== "stable" ||
-              (weeklySummary.dailyChartData?.moodIntensities &&
-                weeklySummary.dailyChartData.moodIntensities.some(
-                  (v) => v > 0
-                ))) && (
+              weeklySummary.dailyChartData?.moodIntensities?.some(
+                (v) => v > 0
+              )) && (
               <View style={styles.trendChartCard}>
                 <View style={styles.trendChartHeader}>
                   <Sparkline
-                    color={
-                      weeklySummary.moods.trend === "improving"
-                        ? "#10B981"
-                        : weeklySummary.moods.trend === "declining"
-                          ? "#EF4444"
-                          : "#64748B"
-                    }
-                    data={
-                      weeklySummary.dailyChartData?.moodIntensities ||
-                      Array(7).fill(0)
-                    }
+                    color={moodSparklineColor}
+                    data={moodIntensityData}
                     height={36}
                     width={80}
                   />
@@ -489,20 +492,11 @@ export default function HealthInsightsCard({
                       style={[
                         styles.trendText,
                         {
-                          color:
-                            weeklySummary.moods.trend === "improving"
-                              ? "#10B981"
-                              : weeklySummary.moods.trend === "declining"
-                                ? "#EF4444"
-                                : theme.colors.text.secondary,
+                          color: moodTextColor,
                         },
                       ]}
                     >
-                      {weeklySummary.moods.trend === "improving"
-                        ? t("moodImproving", "Mood ↑")
-                        : weeklySummary.moods.trend === "declining"
-                          ? t("moodDeclining", "Mood ↓")
-                          : t("mood", "Mood")}
+                      {moodTrendLabel}
                     </Caption>
                   </View>
                 </View>

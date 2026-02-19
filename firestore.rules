@@ -394,5 +394,25 @@ service cloud.firestore {
       // PHI access control: update/delete only if user can write PHI for the target user
       allow update, delete: if canWritePHI(resource.data.userId);
     }
+
+    // Period Entries collection - PHI protected (Women's Health tracking)
+    match /periodEntries/{entryId} {
+      // PHI access control: create only if user can write PHI for the target user
+      allow create: if canWritePHI(request.resource.data.userId);
+      // PHI access control: read only if user can read PHI for the target user
+      allow read: if canReadPHI(resource.data.userId);
+      // PHI access control: update/delete only if user can write PHI for the target user
+      allow update, delete: if canWritePHI(resource.data.userId);
+    }
+
+    // Period Cycles collection - PHI protected (Cycle predictions and statistics)
+    match /periodCycles/{cycleId} {
+      // PHI access control: create only if user can write PHI for the target user
+      allow create: if canWritePHI(request.resource.data.userId);
+      // PHI access control: read only if user can read PHI for the target user
+      allow read: if canReadPHI(resource.data.userId);
+      // PHI access control: update/delete only if user can write PHI for the target user
+      allow update, delete: if canWritePHI(resource.data.userId);
+    }
   }
 } 
