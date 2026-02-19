@@ -13,7 +13,9 @@ import {
 type ChatRole = "system" | "user" | "assistant";
 type ChatMessage = { role: ChatRole; content: string };
 
-const FAMILY_PLAN_ENTITLEMENT = "Family Plan";
+const FAMILY_PLAN_ENTITLEMENT = (
+  process.env.REVENUECAT_ENTITLEMENT_ID || "Family Plan of 4"
+).trim();
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
@@ -105,21 +107,31 @@ async function hasActiveFamilyPlanEntitlement(
         body: text.slice(0, 500),
         fn: "openaiProxy.hasActiveFamilyPlanEntitlement",
       });
-      revenueCatEntitlementCache.set(uid, { hasAccess: false, checkedAtMs: now });
+      revenueCatEntitlementCache.set(uid, {
+        hasAccess: false,
+        checkedAtMs: now,
+      });
       return false;
     }
 
     const json = (await response.json()) as RevenueCatSubscriberResponse;
-    const entitlement = json.subscriber?.entitlements?.[FAMILY_PLAN_ENTITLEMENT];
+    const entitlement =
+      json.subscriber?.entitlements?.[FAMILY_PLAN_ENTITLEMENT];
     if (!entitlement) {
-      revenueCatEntitlementCache.set(uid, { hasAccess: false, checkedAtMs: now });
+      revenueCatEntitlementCache.set(uid, {
+        hasAccess: false,
+        checkedAtMs: now,
+      });
       return false;
     }
 
     // RevenueCat uses ISO strings for expiry; missing/empty expiry typically indicates lifetime.
     const expiresDate = entitlement.expires_date;
     if (!expiresDate) {
-      revenueCatEntitlementCache.set(uid, { hasAccess: true, checkedAtMs: now });
+      revenueCatEntitlementCache.set(uid, {
+        hasAccess: true,
+        checkedAtMs: now,
+      });
       return true;
     }
 

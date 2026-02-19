@@ -1,5 +1,5 @@
 diff --git a/node_modules/react-native/index.js b/node_modules/react-native/index.js
-index c737c93..4e81a5d 100644
+index c737c93..23fb408 100644
 --- a/node_modules/react-native/index.js
 +++ b/node_modules/react-native/index.js
 @@ -199,10 +199,28 @@ module.exports = {
@@ -33,10 +33,11 @@ index c737c93..4e81a5d 100644
    },
    get Dimensions() {
      return require('./Libraries/Utilities/Dimensions').default;
-@@ -271,14 +289,35 @@ module.exports = {
+@@ -270,15 +288,36 @@ module.exports = {
+     return require('./Libraries/StyleSheet/PlatformColorValueTypes')
        .PlatformColor;
    },
-   get PushNotificationIOS() {
+-  get PushNotificationIOS() {
 -    warnOnce(
 -      'pushNotificationIOS-moved',
 -      'PushNotificationIOS has been extracted from react-native core and will be removed in a future release. ' +
@@ -45,6 +46,7 @@ index c737c93..4e81a5d 100644
 -    );
 -    return require('./Libraries/PushNotificationIOS/PushNotificationIOS')
 -      .default;
++  get PushNotificationIOS(): PushNotificationIOS {
 +    // Return polyfill for Expo development builds.
 +    // PushNotificationIOS is not available in Expo and causes NativeEventEmitter errors.
 +    return {

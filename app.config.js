@@ -377,6 +377,8 @@ export default {
       // PUBLIC_REVENUECAT_API_KEY: Public SDK API key (starts with appl_ for iOS or goog_ for Android)
       //   - Used by the React Native SDK for client-side subscription management
       //   - Safe to include in client-side code
+      // PUBLIC_REVENUECAT_IOS_API_KEY / PUBLIC_REVENUECAT_ANDROID_API_KEY:
+      //   - Preferred: platform-specific public keys to avoid using an iOS key on Android (or vice versa)
       // REVENUECAT_API_KEY: Secret API key (starts with sk_)
       //   - Used for server-side RevenueCat REST API calls (if needed)
       //   - Should NEVER be exposed in client-side code
@@ -385,6 +387,17 @@ export default {
         process.env.PUBLIC_REVENUECAT_API_KEY ||
         process.env.REVENUECAT_API_KEY ||
         "",
+      revenueCatApiKeyIos:
+        process.env.PUBLIC_REVENUECAT_IOS_API_KEY ||
+        process.env.PUBLIC_REVENUECAT_API_KEY ||
+        "",
+      revenueCatApiKeyAndroid:
+        process.env.PUBLIC_REVENUECAT_ANDROID_API_KEY ||
+        process.env.PUBLIC_REVENUECAT_API_KEY ||
+        "",
+      // RevenueCat identifiers (non-secret)
+      revenueCatEntitlementId: process.env.REVENUECAT_ENTITLEMENT_ID || "",
+      revenueCatOfferingId: process.env.REVENUECAT_OFFERING_ID || "",
     },
   },
 };

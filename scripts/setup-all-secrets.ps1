@@ -74,7 +74,9 @@ $easSecrets = @(
     "DEXCOM_REDIRECT_URI",
     # RevenueCat
     "REVENUECAT_PROJECT_ID",
-    "REVENUECAT_API_KEY",
+    "PUBLIC_REVENUECAT_IOS_API_KEY",
+    "PUBLIC_REVENUECAT_ANDROID_API_KEY",
+    "PUBLIC_REVENUECAT_API_KEY",
     # Firebase public config (if not already set by setup-eas-firebase-secrets.ps1)
     "EXPO_PUBLIC_FIREBASE_API_KEY",
     "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN",

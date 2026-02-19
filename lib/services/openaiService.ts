@@ -47,7 +47,10 @@ class OpenAIService {
     // No-op: OpenAI secrets live only in Firebase Functions.
   }
 
-  async getAccessStatus(): Promise<{ configured: boolean; hasAccess: boolean }> {
+  async getAccessStatus(): Promise<{
+    configured: boolean;
+    hasAccess: boolean;
+  }> {
     const now = Date.now();
     if (this.cachedHealth && now - this.cachedHealth.checkedAtMs < 60_000) {
       return {
@@ -68,7 +71,11 @@ class OpenAIService {
       this.cachedHealth = { configured, hasAccess, checkedAtMs: now };
       return { configured, hasAccess };
     } catch {
-      this.cachedHealth = { configured: false, hasAccess: false, checkedAtMs: now };
+      this.cachedHealth = {
+        configured: false,
+        hasAccess: false,
+        checkedAtMs: now,
+      };
       return { configured: false, hasAccess: false };
     }
   }

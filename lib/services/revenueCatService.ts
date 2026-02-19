@@ -20,20 +20,67 @@ type LogHandler = Parameters<typeof Purchases.setLogHandler>[0];
 const getRevenueCatApiKey = (): string => {
   // Check app config first (from environment variables)
   const config = Constants.expoConfig?.extra;
-  const envKey = config?.revenueCatApiKey;
+
+  // Prefer platform-specific keys when available to avoid using an iOS key on Android (or vice versa).
+  const envKey =
+    Platform.OS === "ios"
+      ? (config?.revenueCatApiKeyIos as unknown)
+      : Platform.OS === "android"
+        ? (config?.revenueCatApiKeyAndroid as unknown)
+        : (config?.revenueCatApiKey as unknown);
 
   // If environment variable is set and not empty, use it
   if (envKey && typeof envKey === "string" && envKey.trim() !== "") {
     const trimmedKey = envKey.trim();
+
+    // Hard fail on secret keys passed to the client SDK.
+    // Purchases.configure expects the *public* SDK key (appl_ for iOS, goog_ for Android).
+    if (trimmedKey.startsWith("sk_")) {
+      const msg =
+        "CRITICAL: RevenueCat secret key (sk_) detected in the client bundle. " +
+        "Use the public SDK API key instead (appl_ for iOS, goog_ for Android).";
+
+      if (IS_DEV) {
+        logger.error(msg, undefined, "RevenueCatService");
+        // In dev, fall back so local builds don't hard crash.
+        return "test_vluBajsHEoAjMjzoArPVpklOCRc";
+      }
+
+      // In production, do not attempt initialization with an invalid key.
+      return "";
+    }
+
     // Warn if using test key in production build
     if (!IS_DEV && trimmedKey.startsWith("test_")) {
       logger.error(
         "CRITICAL: Test RevenueCat API key detected in production build! " +
-          "This will cause App Store rejection. Please set REVENUECAT_API_KEY with production key.",
+          "This will cause App Store rejection. Please set PUBLIC_REVENUECAT_IOS_API_KEY / PUBLIC_REVENUECAT_ANDROID_API_KEY (or PUBLIC_REVENUECAT_API_KEY) with a production key.",
         undefined,
         "RevenueCatService"
       );
     }
+
+    // Guard against wrong-store key on each platform (common production failure).
+    if (Platform.OS === "android" && trimmedKey.startsWith("appl_")) {
+      logger.error(
+        "CRITICAL: iOS RevenueCat public key (appl_) detected on Android build. " +
+          "Set PUBLIC_REVENUECAT_ANDROID_API_KEY (goog_) for Android production builds.",
+        undefined,
+        "RevenueCatService"
+      );
+      return "";
+    }
+
+    if (Platform.OS === "ios" && trimmedKey.startsWith("goog_")) {
+      logger.error(
+        "CRITICAL: Android RevenueCat public key (goog_) detected on iOS build. " +
+          "Set PUBLIC_REVENUECAT_IOS_API_KEY (appl_) for iOS production builds.",
+        undefined,
+        "RevenueCatService"
+      );
+      return "";
+    }
+
     return trimmedKey;
   }
 
@@ -56,6 +103,25 @@ const getRevenueCatApiKey = (): string => {
 
 const REVENUECAT_API_KEY = getRevenueCatApiKey();
 
+const describeRevenueCatKey = (key: string): string => {
+  if (!key) {
+    return "missing";
+  }
+  if (key.startsWith("appl_")) {
+    return "appl_ (iOS public)";
+  }
+  if (key.startsWith("goog_")) {
+    return "goog_ (Android public)";
+  }
+  if (key.startsWith("test_")) {
+    return "test_ (dev)";
+  }
+  if (key.startsWith("sk_")) {
+    return "sk_ (secret - invalid for client SDK)";
+  }
+  return "unknown";
+};
+
 // Product identifiers
 // Only Family Plan is available (monthly and yearly)
 export const PRODUCT_IDENTIFIERS = {
@@ -63,15 +129,21 @@ export const PRODUCT_IDENTIFIERS = {
   FAMILY_YEARLY: "Family_Yearly_Premium",
 } as const;
 
-// Entitlement identifiers
-// Only Family Plan entitlement exists
-export const ENTITLEMENT_IDENTIFIERS = {
-  FAMILY_PLAN: "Family Plan",
-} as const;
+const getRevenueCatEntitlementId = (): string => {
+  const configured = Constants.expoConfig?.extra?.revenueCatEntitlementId;
+  if (typeof configured === "string" && configured.trim()) {
+    return configured.trim();
+  }
+  return "Family Plan of 4";
+};
 
-// Offering identifier
-// RevenueCat Offering ID for the Family Plan offering
-export const OFFERING_IDENTIFIER = "ofrng88ce8c174f";
+const getRevenueCatOfferingId = (): string => {
+  const configured = Constants.expoConfig?.extra?.revenueCatOfferingId;
+  if (typeof configured === "string" && configured.trim()) {
+    return configured.trim();
+  }
+  return "ofrng88ce8c174f";
+};
 
 // Plan limits
 // Family Plan: 1 admin + 3 family members = 4 total users
@@ -217,7 +289,7 @@ class RevenueCatService {
           const errorMessage = IS_DEV
             ? "RevenueCat API key not configured. Using test key for development."
             : "RevenueCat API key is required for production builds. " +
-              "Please set REVENUECAT_API_KEY in your environment variables or EAS secrets.";
+              "Please set PUBLIC_REVENUECAT_IOS_API_KEY / PUBLIC_REVENUECAT_ANDROID_API_KEY (or PUBLIC_REVENUECAT_API_KEY) in your environment variables or EAS secrets.";
 
           if (IS_DEV) {
             logger.warn(errorMessage, undefined, "RevenueCatService");
@@ -230,6 +302,15 @@ class RevenueCatService {
             throw new Error(errorMessage);
           }
         } else {
+          logger.info(
+            "Configuring RevenueCat",
+            {
+              platform: Platform.OS,
+              isDev: IS_DEV,
+              keyType: describeRevenueCatKey(REVENUECAT_API_KEY),
+            },
+            "RevenueCatService"
+          );
           // Configure RevenueCat with API key from environment
           await Purchases.configure({
             apiKey: REVENUECAT_API_KEY,
@@ -243,7 +324,9 @@ class RevenueCatService {
         // This error appears in native iOS logs but doesn't affect functionality.
         // Using WARN level suppresses INFO/DEBUG noise while still showing important errors.
         // Note: The native iOS SDK may still log this error directly, but it's harmless.
-        Purchases.setLogLevel(Purchases.LOG_LEVEL.WARN);
+        Purchases.setLogLevel(
+          IS_DEV ? Purchases.LOG_LEVEL.DEBUG : Purchases.LOG_LEVEL.WARN
+        );
 
         this.isInitialized = true;
       } catch (error) {
@@ -254,7 +337,10 @@ class RevenueCatService {
         );
         // Clear the promise on error so it can be retried
         this.initializationPromise = null;
-        throw new Error("Failed to initialize RevenueCat SDK");
+        // Preserve the original error message for debugging without leaking secrets.
+        const safeMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        throw new Error(`Failed to initialize RevenueCat SDK: ${safeMessage}`);
       }
     })();
 
@@ -499,8 +585,8 @@ class RevenueCatService {
         });
 
         // Try to get the specific offering by ID, fall back to current offering
-        const currentOfferings =
-          offerings.all[OFFERING_IDENTIFIER] || offerings.current;
+        const offeringId = getRevenueCatOfferingId();
+        const currentOfferings = offerings.all[offeringId] || offerings.current;
 
         // Update cache
         this.cachedOfferings = currentOfferings;
@@ -614,8 +700,9 @@ class RevenueCatService {
     try {
       const customerInfo = await this.getCustomerInfo();
       const activeEntitlements = customerInfo.entitlements.active;
+      const entitlementId = getRevenueCatEntitlementId();
       return (
-        activeEntitlements[ENTITLEMENT_IDENTIFIERS.FAMILY_PLAN] !== undefined
+        activeEntitlements[entitlementId] !== undefined
       );
     } catch (error) {
       logger.error(
@@ -633,8 +720,9 @@ class RevenueCatService {
   async hasFamilyPlanEntitlement(): Promise<boolean> {
     try {
       const customerInfo = await this.getCustomerInfo();
+      const entitlementId = getRevenueCatEntitlementId();
       const entitlement =
-        customerInfo.entitlements.active[ENTITLEMENT_IDENTIFIERS.FAMILY_PLAN];
+        customerInfo.entitlements.active[entitlementId];
       return entitlement !== undefined;
     } catch (error) {
       logger.error(
@@ -655,8 +743,8 @@ class RevenueCatService {
       const activeEntitlements = customerInfo.entitlements.active;
 
       // Check for Family Plan entitlement
-      const entitlement =
-        activeEntitlements[ENTITLEMENT_IDENTIFIERS.FAMILY_PLAN];
+      const entitlementId = getRevenueCatEntitlementId();
+      const entitlement = activeEntitlements[entitlementId];
 
       if (!entitlement) {
         return {

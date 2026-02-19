@@ -59,7 +59,14 @@ const requiredVars = [
   "EXPO_PUBLIC_FIREBASE_APP_ID",
 ];
 
-const optionalVars = ["EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID"];
+const optionalVars = [
+  "EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID",
+  // RevenueCat (subscriptions)
+  "REVENUECAT_PROJECT_ID",
+  "PUBLIC_REVENUECAT_IOS_API_KEY",
+  "PUBLIC_REVENUECAT_ANDROID_API_KEY",
+  "PUBLIC_REVENUECAT_API_KEY",
+];
 
 // Check if we're in an EAS build environment
 const isEASBuild =

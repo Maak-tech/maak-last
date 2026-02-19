@@ -27,7 +27,12 @@ eas secret:create --scope project --name DEXCOM_REDIRECT_URI --value "YOUR_VALUE
 
 eas secret:create --scope project --name REVENUECAT_PROJECT_ID --value "YOUR_VALUE" --type string --visibility secret --environment all
 
-eas secret:create --scope project --name REVENUECAT_API_KEY --value "YOUR_PRODUCTION_API_KEY" --type string --visibility secret --environment production
+eas secret:create --scope project --name PUBLIC_REVENUECAT_IOS_API_KEY --value "YOUR_IOS_PUBLIC_KEY_appl_" --type string --visibility secret --environment production
+
+eas secret:create --scope project --name PUBLIC_REVENUECAT_ANDROID_API_KEY --value "YOUR_ANDROID_PUBLIC_KEY_goog_" --type string --visibility secret --environment production
+
+# Back-compat (optional): a single public key (not recommended if you ship both iOS + Android)
+eas secret:create --scope project --name PUBLIC_REVENUECAT_API_KEY --value "YOUR_PUBLIC_KEY" --type string --visibility secret --environment production
 
 # Firebase public config (these are public, but still need to be in EAS)
 eas secret:create --scope project --name EXPO_PUBLIC_FIREBASE_API_KEY --value "YOUR_VALUE" --type string --visibility secret --environment all
@@ -70,7 +75,9 @@ eas env:list
 - ✅ `WITHINGS_CLIENT_ID` & `WITHINGS_CLIENT_SECRET` - OAuth for Withings integration
 - ✅ `DEXCOM_REDIRECT_URI` - Dexcom OAuth redirect
 - ✅ `REVENUECAT_PROJECT_ID` - RevenueCat project ID (proj76462039)
-- ✅ `REVENUECAT_API_KEY` - RevenueCat production API key (REQUIRED for production builds)
+- ✅ `PUBLIC_REVENUECAT_IOS_API_KEY` - RevenueCat iOS public SDK key (starts with `appl_`)
+- ✅ `PUBLIC_REVENUECAT_ANDROID_API_KEY` - RevenueCat Android public SDK key (starts with `goog_`)
+  - **Important**: Do NOT use RevenueCat secret keys (start with `sk_`) in the mobile app bundle.
   - **App ID**: `app7fb7d2f755`
   - **How to get**: Go to [RevenueCat Dashboard](https://app.revenuecat.com/) → Select your app → Project Settings → API Keys → Copy Public API Key
   - **Important**: Use production API key (starts with `appl_` for iOS or `goog_` for Android)
