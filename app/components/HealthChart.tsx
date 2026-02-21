@@ -13,6 +13,9 @@ type HealthChartProps = {
   height?: number;
   showLegend?: boolean;
   showGrid?: boolean;
+  phaseByIndex?: Array<
+    "period" | "follicular" | "fertile" | "ovulation" | "luteal" | "unknown"
+  >;
 };
 
 export default function HealthChart({
@@ -23,6 +26,7 @@ export default function HealthChart({
   height = 220,
   showLegend = true,
   showGrid = true,
+  phaseByIndex,
 }: HealthChartProps) {
   const { theme } = useTheme();
   const screenWidth = Dimensions.get("window").width;
@@ -62,6 +66,18 @@ export default function HealthChart({
     })),
   };
 
+  const phaseColors: Record<
+    NonNullable<HealthChartProps["phaseByIndex"]>[number],
+    string
+  > = {
+    period: "rgba(239, 68, 68, 0.35)",
+    follicular: "rgba(59, 130, 246, 0.22)",
+    fertile: "rgba(16, 185, 129, 0.22)",
+    ovulation: "rgba(245, 158, 11, 0.25)",
+    luteal: "rgba(139, 92, 246, 0.22)",
+    unknown: "rgba(148, 163, 184, 0.12)",
+  };
+
   return (
     <View style={{ marginVertical: 16 }}>
       {title ? (
@@ -75,6 +91,33 @@ export default function HealthChart({
         showsHorizontalScrollIndicator={false}
       >
         <View>
+          {phaseByIndex && phaseByIndex.length === chartData.labels.length ? (
+            <View
+              style={{
+                flexDirection: "row",
+                height: 8,
+                borderRadius: 16,
+                overflow: "hidden",
+                marginTop: 6,
+                marginBottom: 2,
+                width: Math.max(screenWidth - 32, chartData.labels.length * 40),
+              }}
+            >
+              {chartData.labels.map((label, idx) => {
+                const phase = phaseByIndex[idx] || "unknown";
+                return (
+                  <View
+                    key={`${label}-${phase}`}
+                    style={{
+                      flex: 1,
+                      backgroundColor:
+                        phaseColors[phase] || phaseColors.unknown,
+                    }}
+                  />
+                );
+              })}
+            </View>
+          ) : null}
           <LineChart
             bezier
             chartConfig={chartConfig}

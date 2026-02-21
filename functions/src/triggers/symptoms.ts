@@ -26,14 +26,18 @@ export const checkSymptomBenchmarks = onDocumentCreated(
       return;
     }
 
-    // Alert for severity 4 (severe) or 5 (very severe)
-    if (severity < 4) {
-      return; // Not severe enough
+    const symptomType = symptomData.type || "symptom";
+
+    // Escalate for severity 4 (severe) or 5 (very severe), plus a small set of
+    // high-signal symptoms that should always be triaged even if the user didn't
+    // explicitly rate severity.
+    const highRiskSymptoms = new Set(["chestPain", "shortnessOfBreath"]);
+    if (severity < 4 && !highRiskSymptoms.has(symptomType)) {
+      return; // Not severe enough and not high-risk
     }
 
     try {
       const db = getFirestore();
-      const symptomType = symptomData.type || "symptom";
       const cooldownMinutes = 5;
       const cutoffTime = Timestamp.fromMillis(
         Date.now() - cooldownMinutes * 60 * 1000
@@ -73,71 +77,97 @@ export const checkSymptomBenchmarks = onDocumentCreated(
       const adminIds = await getFamilyAdmins(userData.familyId);
       const adminIdsToAlert = adminIds.filter((id) => id !== userId);
 
-      if (adminIdsToAlert.length === 0) {
-        return;
+      const severityText =
+        severity >= 5 ? "very severe" : severity >= 4 ? "severe" : "concerning";
+      const severityEmoji = severity === 5 ? "🚨" : "⚠️";
+      const alertSeverity =
+        severity === 5 ? ("critical" as const) : ("high" as const);
+
+      // Create an in-app alert so caregivers/admins can triage inside the app UI
+      // (not only via push notifications).
+      // Use an existing, high-visibility alert type that the app UI already renders prominently.
+      // (The message/metadata still indicate it's a symptom-driven triage alert.)
+      const alertRef = await db.collection("alerts").add({
+        userId,
+        type: "emergency",
+        severity: alertSeverity,
+        message: `${severityText} ${symptomType} reported`,
+        timestamp: Timestamp.now(),
+        resolved: false,
+        metadata: {
+          symptomId: event.params.symptomId,
+          symptomType,
+          symptomSeverity: severity,
+          source: "symptom_trigger",
+        },
+      });
+
+      let pushResult: unknown;
+      if (adminIdsToAlert.length > 0) {
+        const notification = {
+          title: `${severityEmoji} Symptom Alert`,
+          body: `${userName} is experiencing ${severityText} ${symptomType}`,
+          priority: severity === 5 ? ("high" as const) : ("normal" as const),
+          data: {
+            type: "symptom_alert",
+            symptomType,
+            severity: severity.toString(),
+            userId,
+            userName,
+            alertId: alertRef.id,
+          },
+          clickAction: "OPEN_SYMPTOMS",
+          color: severity === 5 ? "#EF4444" : "#F59E0B",
+        };
+
+        // Send to admins
+        // Note: This requires sendPushNotification to be exported from index.ts
+        type SendPushNotification = (
+          data: {
+            userIds: string[];
+            notification: {
+              title: string;
+              body: string;
+              priority: "high" | "normal";
+              data: {
+                type: string;
+                symptomType: string;
+                severity: string;
+                userId: string;
+                userName: string;
+                alertId: string;
+              };
+              clickAction: string;
+              color: string;
+            };
+            notificationType: string;
+          },
+          context: { auth: { uid: string } }
+        ) => Promise<unknown>;
+        const indexModule = (await import("../index.js")) as unknown as {
+          sendPushNotification: SendPushNotification;
+        };
+        pushResult = await indexModule.sendPushNotification(
+          {
+            userIds: adminIdsToAlert,
+            notification,
+            notificationType: "symptom",
+          },
+          { auth: { uid: "system" } }
+        );
       }
 
-      const severityText = severity === 5 ? "very severe" : "severe";
-      const severityEmoji = severity === 5 ? "🚨" : "⚠️";
-      const notification = {
-        title: `${severityEmoji} Symptom Alert`,
-        body: `${userName} is experiencing ${severityText} ${symptomType}`,
-        priority: severity === 5 ? ("high" as const) : ("normal" as const),
-        data: {
-          type: "symptom_alert",
-          symptomType,
-          severity: severity.toString(),
-          userId,
-          userName,
-        },
-        clickAction: "OPEN_SYMPTOMS",
-        color: severity === 5 ? "#EF4444" : "#F59E0B",
-      };
-
-      // Send to admins
-      // Note: This requires sendPushNotification to be exported from index.ts
-      type SendPushNotification = (
-        data: {
-          userIds: string[];
-          notification: {
-            title: string;
-            body: string;
-            priority: "high" | "normal";
-            data: {
-              type: string;
-              symptomType: string;
-              severity: string;
-              userId: string;
-              userName: string;
-            };
-            clickAction: string;
-            color: string;
-          };
-          notificationType: string;
-        },
-        context: { auth: { uid: string } }
-      ) => Promise<unknown>;
-      const indexModule = (await import("../index.js")) as unknown as {
-        sendPushNotification: SendPushNotification;
-      };
-      const result = await indexModule.sendPushNotification(
-        {
-          userIds: adminIdsToAlert,
-          notification,
-          notificationType: "symptom",
-        },
-        { auth: { uid: "system" } }
-      );
-
-      // Log the alert
+      // Log the alert (used for dedupe cooldown even if no push was sent).
       await db.collection("notificationLogs").add({
         type: "symptom_alert",
         userId,
         symptomType,
         severity,
         recipientIds: adminIdsToAlert,
+        alertId: alertRef.id,
+        pushSent: adminIdsToAlert.length > 0,
         sentAt: FieldValue.serverTimestamp(),
-        result,
+        result: pushResult ?? null,
       });
     } catch (error) {
       logger.error("Error in checkSymptomBenchmarks", error as Error, {

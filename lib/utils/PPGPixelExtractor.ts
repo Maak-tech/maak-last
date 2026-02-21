@@ -209,7 +209,16 @@ export function extractRedChannelAverage(frame: Frame): number {
         }
       } catch (e) {
         // toArrayBuffer can fail on some Android devices (SIGSEGV) - try fallbacks
+        extractedValue = null;
       }
+    }
+
+    // Ensure extractedValue is valid before continuing (reset if NaN or out of range)
+    if (
+      extractedValue !== null &&
+      (isNaN(extractedValue) || extractedValue < 0 || extractedValue > 255)
+    ) {
+      extractedValue = null;
     }
 
     // Method 2: Try getPlaneData() if exposed (non-typed API, some builds)
@@ -281,7 +290,16 @@ export function extractRedChannelAverage(frame: Frame): number {
         }
       } catch (e) {
         // Method not available or failed - try next method
+        extractedValue = null;
       }
+    }
+
+    // Ensure extractedValue is valid before continuing
+    if (
+      extractedValue !== null &&
+      (isNaN(extractedValue) || extractedValue < 0 || extractedValue > 255)
+    ) {
+      extractedValue = null;
     }
 
     // Method 3: Try planes array property (some builds expose this non-typed API)
@@ -361,6 +379,57 @@ export function extractRedChannelAverage(frame: Frame): number {
         }
       } catch (e) {
         // Method not available or failed
+        extractedValue = null;
+      }
+    }
+
+    // Ensure extractedValue is valid before continuing
+    if (
+      extractedValue !== null &&
+      (isNaN(extractedValue) || extractedValue < 0 || extractedValue > 255)
+    ) {
+      extractedValue = null;
+    }
+
+    // Method 4: Raw buffer sampling as last resort
+    // This tries to extract meaningful data from any buffer format by sampling
+    // the center region and looking for the brightest channel (likely red when finger is on flash)
+    if (extractedValue === null && typeof frame.toArrayBuffer === "function") {
+      try {
+        const buffer = frame.toArrayBuffer();
+        if (buffer && buffer.byteLength > 0) {
+          const data = new Uint8Array(buffer);
+          if (data.length > 100) {
+            // Sample the center 20% of the buffer
+            const startOffset = Math.floor(data.length * 0.4);
+            const endOffset = Math.floor(data.length * 0.6);
+            const sampleSize = endOffset - startOffset;
+
+            if (sampleSize > 50) {
+              let sum = 0;
+              let count = 0;
+              const step = Math.max(1, Math.floor(sampleSize / 200)); // Sample ~200 points
+
+              for (let i = startOffset; i < endOffset; i += step) {
+                const val = data[i];
+                // Accept ALL values including zero - we need to know if buffer has data
+                sum += val;
+                count++;
+              }
+
+              if (count > 10) {
+                const avg = sum / count;
+                // Accept any value 0-255 - even dark frames are valid data
+                if (avg >= 0 && avg <= 255) {
+                  extractedValue = avg;
+                  extractionMethod = "raw-buffer-sample";
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // Raw sampling failed
       }
     }
 

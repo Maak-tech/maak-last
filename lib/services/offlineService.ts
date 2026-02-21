@@ -14,6 +14,7 @@ import { db } from "@/lib/firebase";
 import { healthTimelineService } from "@/lib/observability";
 import type {
   Allergy,
+  CycleDailyEntry,
   LabResult,
   Medication,
   Mood,
@@ -70,6 +71,7 @@ export type OfflineData = {
   allergies: Allergy[];
   vitals: VitalSign[];
   labResults: LabResult[];
+  cycleDailyEntries: CycleDailyEntry[];
   lastSync: Date | null;
 };
 
@@ -317,6 +319,7 @@ class OfflineService {
           allergies: [],
           vitals: [],
           labResults: [],
+          cycleDailyEntries: [],
           lastSync: null,
         };
       }
@@ -334,6 +337,7 @@ class OfflineService {
         allergies: [],
         vitals: [],
         labResults: [],
+        cycleDailyEntries: [],
         lastSync: null,
       };
     }

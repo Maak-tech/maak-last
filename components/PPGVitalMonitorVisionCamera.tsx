@@ -224,6 +224,7 @@ export default function PPGVitalMonitorVisionCamera({
   // Worklet-safe state for the frame processor.
   const isCapturingSV = useSharedValue(false);
   const frameCountSV = useSharedValue(0);
+  const totalFramesReceivedSV = useSharedValue(0); // Track all frames received (for debugging)
   const frameProcessorInitializedSV = useSharedValue(false);
   const frameBatchSV = useSharedValue<number[]>([]);
   const frameBatchStartIndexSV = useSharedValue(0);
@@ -760,6 +761,7 @@ export default function PPGVitalMonitorVisionCamera({
     isCapturingSV.value = false;
     frameCountRef.current = 0;
     frameCountSV.value = 0;
+    totalFramesReceivedSV.value = 0;
     frameBatchSV.value = [];
     frameBatchStartIndexSV.value = 0;
     ppgSignalRef.current = [];
@@ -1566,8 +1568,22 @@ export default function PPGVitalMonitorVisionCamera({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cameraReady, status]); // startPPGCapture uses refs so it's stable
 
+  // CRITICAL: Use refs for callbacks that need to be stable for the frame processor
+  // This prevents the frame processor from being recreated when dependencies change
+  const handleFrameProcessingErrorRef = useRef(handleFrameProcessingError);
+  const processPPGFrameDataRef = useRef(processPPGFrameData);
+
+  // Keep refs up to date with latest callback versions
+  useEffect(() => {
+    handleFrameProcessingErrorRef.current = handleFrameProcessingError;
+  }, [handleFrameProcessingError]);
+
+  useEffect(() => {
+    processPPGFrameDataRef.current = processPPGFrameData;
+  }, [processPPGFrameData]);
+
+  // Stable callbacks that use refs internally - these never change identity
   const resetFrameFailureCounter = useCallback(() => {
-    // Reset consecutive failures on successful frame extraction
     consecutiveFrameFailures.current = 0;
   }, []);
 
@@ -1578,23 +1594,29 @@ export default function PPGVitalMonitorVisionCamera({
   const signalCameraReady = useCallback(() => {
     cameraReadySV.value = true;
     setCameraReady(true);
-  }, []);
+  }, [cameraReadySV]);
 
   const setFrameMetaFromWorklet = useCallback((meta: string) => {
-    // capture once so we don't spam re-renders
     setFrameMeta((prev) => prev ?? meta);
   }, []);
 
-  const processPPGFrameBatchData = useCallback(
+  // Stable wrapper that calls the ref - identity never changes
+  const handleFrameProcessingErrorStable = useCallback((frameIndex: number) => {
+    handleFrameProcessingErrorRef.current(frameIndex);
+  }, []);
+
+  // Stable wrapper for batch processing - identity never changes
+  const processPPGFrameBatchDataStable = useCallback(
     (batch: number[], startFrameIndex: number) => {
       for (let i = 0; i < batch.length; i++) {
-        processPPGFrameData(batch[i], startFrameIndex + i);
+        processPPGFrameDataRef.current(batch[i], startFrameIndex + i);
       }
     },
-    [processPPGFrameData]
+    []
   );
 
-  // Create worklet-safe "hop back to JS" wrappers AFTER the callbacks exist.
+  // Create worklet-safe "hop back to JS" wrappers with STABLE callbacks
+  // These will not cause the frame processor to be recreated
   const markFrameProcessorCalledOnJS = useRunOnJS(markFrameProcessorCalled, [
     markFrameProcessorCalled,
   ]);
@@ -1602,15 +1624,16 @@ export default function PPGVitalMonitorVisionCamera({
     signalCameraReady,
   ]);
   const handleFrameProcessingErrorOnJS = useRunOnJS(
-    handleFrameProcessingError,
-    [handleFrameProcessingError]
+    handleFrameProcessingErrorStable,
+    [handleFrameProcessingErrorStable]
   );
   const resetFrameFailureCounterOnJS = useRunOnJS(resetFrameFailureCounter, [
     resetFrameFailureCounter,
   ]);
-  const processPPGFrameBatchDataOnJS = useRunOnJS(processPPGFrameBatchData, [
-    processPPGFrameBatchData,
-  ]);
+  const processPPGFrameBatchDataOnJS = useRunOnJS(
+    processPPGFrameBatchDataStable,
+    [processPPGFrameBatchDataStable]
+  );
   const setFrameMetaOnJS = useRunOnJS(setFrameMetaFromWorklet, [
     setFrameMetaFromWorklet,
   ]);
@@ -1623,12 +1646,27 @@ export default function PPGVitalMonitorVisionCamera({
       // Skip invalid frames - can happen during camera teardown
       if (!frame.isValid) return;
 
+      // Track total frames received (for debugging)
+      totalFramesReceivedSV.value = totalFramesReceivedSV.value + 1;
+
       // Log first frame processor call for debugging
       if (!frameProcessorInitializedSV.value) {
         frameProcessorInitializedSV.value = true;
         markFrameProcessorCalledOnJS();
+        // Try to get buffer info for debugging
+        let bufferInfo = "no-buffer";
+        try {
+          if (typeof frame.toArrayBuffer === "function") {
+            const buf = frame.toArrayBuffer();
+            bufferInfo = buf ? `buf=${buf.byteLength}` : "buf=null";
+          } else {
+            bufferInfo = "no-toArrayBuffer";
+          }
+        } catch (e) {
+          bufferInfo = "buf-error";
+        }
         setFrameMetaOnJS(
-          `isValid=${String(frame.isValid)} ${frame.width}x${frame.height} ${String(frame.pixelFormat)} bytesPerRow=${String(frame.bytesPerRow)}`
+          `isValid=${String(frame.isValid)} ${frame.width}x${frame.height} ${String(frame.pixelFormat)} bytesPerRow=${String(frame.bytesPerRow)} ${bufferInfo}`
         );
       }
 
@@ -1670,12 +1708,48 @@ export default function PPGVitalMonitorVisionCamera({
       try {
         const redAverage = extractRedChannelAverage(frame);
 
+        // Debug: Log first few extraction results regardless of success/failure
+        if (frameCountSV.value < 3) {
+          let debugInfo = `[${frameCountSV.value}] val=${String(Math.round(redAverage * 100) / 100)}`;
+          try {
+            if (typeof frame.toArrayBuffer === "function") {
+              const buf = frame.toArrayBuffer();
+              if (buf && buf.byteLength > 0) {
+                const data = new Uint8Array(buf);
+                let nz = 0;
+                let sum = 0;
+                const checkLen = Math.min(200, data.length);
+                for (let i = 0; i < checkLen; i++) {
+                  if (data[i] !== 0) nz++;
+                  sum += data[i];
+                }
+                const avg = checkLen > 0 ? Math.round(sum / checkLen) : 0;
+                debugInfo += ` nz=${nz} avg=${avg}`;
+              }
+            }
+          } catch (e) {
+            // ignore debug errors
+          }
+          setFrameMetaOnJS(debugInfo);
+        }
+
         // CRITICAL: Validate extraction result
         // -1 indicates extraction failed (all methods failed)
         // Values outside 0-255 are invalid
         // NaN indicates calculation error
         if (redAverage < 0 || redAverage > 255 || isNaN(redAverage)) {
+          // Extraction failed - track error and increment frame count
           handleFrameProcessingErrorOnJS(frameCountSV.value);
+          frameCountSV.value = frameCountSV.value + 1;
+
+          // Periodically flush batches during failures to prevent accumulation
+          // Use frameCountSV (all frames) instead of batch.length (only successful frames)
+          const batch = frameBatchSV.value;
+          if (batch.length > 0 && frameCountSV.value % 20 === 0) {
+            processPPGFrameBatchDataOnJS(batch, frameBatchStartIndexSV.value);
+            frameBatchSV.value = [];
+            frameBatchStartIndexSV.value = frameCountSV.value;
+          }
           return;
         }
 
@@ -1693,23 +1767,41 @@ export default function PPGVitalMonitorVisionCamera({
         if (newBatch.length >= FRAME_BATCH_SIZE) {
           processPPGFrameBatchDataOnJS(newBatch, frameBatchStartIndexSV.value);
           frameBatchSV.value = [];
+          frameBatchStartIndexSV.value = frameCountSV.value;
         }
       } catch (error) {
         // Frame processing error - track but don't crash
         handleFrameProcessingErrorOnJS(frameCountSV.value);
+        frameCountSV.value = frameCountSV.value + 1;
+
+        // Periodically flush batches during failures to prevent accumulation
+        // Use frameCountSV (all frames) instead of batch.length (only successful frames)
+        const batch = frameBatchSV.value;
+        if (batch.length > 0 && frameCountSV.value % 20 === 0) {
+          processPPGFrameBatchDataOnJS(batch, frameBatchStartIndexSV.value);
+          frameBatchSV.value = [];
+          frameBatchStartIndexSV.value = frameCountSV.value;
+        }
       }
     },
     [
+      // CRITICAL: Only include truly stable dependencies here
+      // Shared values (useSharedValue) are stable references - their .value changes but object identity doesn't
+      // The callbacks are now stable wrappers that use refs internally
       FRAME_BATCH_SIZE,
-      TARGET_FPS,
+      cameraReadySV,
       frameBatchSV,
       frameBatchStartIndexSV,
+      frameCountSV,
+      frameProcessorInitializedSV,
       handleFrameProcessingErrorOnJS,
+      isCapturingSV,
       markFrameProcessorCalledOnJS,
       processPPGFrameBatchDataOnJS,
       resetFrameFailureCounterOnJS,
-      setFrameMetaOnJS, // IMPORTANT: Included to prevent stale closures when setFrameMetaFromWorklet changes
+      setFrameMetaOnJS,
       signalCameraReadyOnJS,
+      totalFramesReceivedSV,
     ]
   );
 

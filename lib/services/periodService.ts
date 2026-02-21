@@ -18,6 +18,169 @@ import { healthTimelineService } from "@/lib/observability";
 import type { PeriodCycle, PeriodEntry } from "@/types";
 import { offlineService } from "./offlineService";
 
+function toDateOnly(date: Date): Date {
+  const next = new Date(date);
+  next.setHours(0, 0, 0, 0);
+  return next;
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function mean(values: number[]): number | undefined {
+  if (!values.length) {
+    return;
+  }
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function stdDev(values: number[], valuesMean: number): number | undefined {
+  if (values.length < 2) {
+    return;
+  }
+  const variance =
+    values.reduce((sum, value) => sum + (value - valuesMean) ** 2, 0) /
+    values.length;
+  return Math.sqrt(variance);
+}
+
+function getValidCycleLengths(
+  entries: PeriodEntry[],
+  maxSamples = 8
+): number[] {
+  const lengths: number[] = [];
+  for (
+    let i = 0;
+    i < entries.length - 1 && lengths.length < maxSamples;
+    i += 1
+  ) {
+    const current = entries[i];
+    const next = entries[i + 1];
+    const cycleLength = Math.round(
+      (toDateOnly(current.startDate).getTime() -
+        toDateOnly(next.startDate).getTime()) /
+        86_400_000
+    );
+    // Keep a permissive range; users can have longer/irregular cycles.
+    if (cycleLength >= 15 && cycleLength <= 60) {
+      lengths.push(cycleLength);
+    }
+  }
+  return lengths;
+}
+
+function getAveragePeriodLength(entries: PeriodEntry[]): number {
+  let totalPeriodLength = 0;
+  let periodCount = 0;
+  for (const entry of entries) {
+    if (!entry.endDate) {
+      continue;
+    }
+    const periodLength =
+      (entry.endDate.getTime() - entry.startDate.getTime()) /
+      (1000 * 60 * 60 * 24);
+    if (periodLength > 0 && periodLength < 15) {
+      totalPeriodLength += periodLength;
+      periodCount += 1;
+    }
+  }
+  return periodCount > 0 ? Math.round(totalPeriodLength / periodCount) : 5;
+}
+
+function predictNextPeriodDate(
+  lastPeriodStart: Date,
+  averageCycleLength: number,
+  today: Date
+): Date {
+  const lastStart = toDateOnly(lastPeriodStart);
+  const predictedDate = toDateOnly(
+    new Date(lastStart.getTime() + averageCycleLength * 86_400_000)
+  );
+
+  if (predictedDate < today) {
+    return toDateOnly(
+      new Date(predictedDate.getTime() + averageCycleLength * 86_400_000)
+    );
+  }
+
+  return predictedDate;
+}
+
+function predictOvulationDate(nextPeriodPredicted: Date): Date {
+  // Ovulation is typically ~14 days before the next period (luteal phase length).
+  // We intentionally keep this simple and avoid clamping to a fixed range that
+  // would make longer cycles incorrectly predict earlier ovulation.
+  const ovulationDaysBeforePeriod = 14;
+  return toDateOnly(
+    new Date(
+      nextPeriodPredicted.getTime() - ovulationDaysBeforePeriod * 86_400_000
+    )
+  );
+}
+
+function computePredictionConfidence(
+  cycleLengths: number[],
+  cycleLengthStdDev: number | undefined
+): number {
+  const sampleCount = cycleLengths.length;
+  const variancePenalty = cycleLengthStdDev
+    ? clampNumber(cycleLengthStdDev / 7, 0, 1)
+    : 0.6;
+  const sampleBoost = clampNumber(sampleCount / 6, 0, 1);
+  return clampNumber(
+    (1 - variancePenalty) * (0.3 + 0.7 * sampleBoost),
+    0.15,
+    0.95
+  );
+}
+
+function computePredictionWindow(
+  nextPeriodPredicted: Date,
+  cycleLengthStdDev: number | undefined,
+  sampleCount: number
+): { start: Date; end: Date } {
+  let radius = 3;
+  if (cycleLengthStdDev && sampleCount >= 2) {
+    radius = clampNumber(Math.round(cycleLengthStdDev), 2, 7);
+  } else if (sampleCount < 3) {
+    radius = 4;
+  }
+
+  return {
+    start: toDateOnly(
+      new Date(nextPeriodPredicted.getTime() - radius * 86_400_000)
+    ),
+    end: toDateOnly(
+      new Date(nextPeriodPredicted.getTime() + radius * 86_400_000)
+    ),
+  };
+}
+
+function toTimestampOrUndefined(date: Date | undefined): Timestamp | undefined {
+  return date ? Timestamp.fromDate(date) : undefined;
+}
+
+function roundTo1Decimal(value: number | undefined): number | undefined {
+  if (typeof value !== "number") {
+    return;
+  }
+  return Math.round(value * 10) / 10;
+}
+
+async function deleteCycleDocIfExists(userId: string): Promise<void> {
+  const q = query(
+    collection(db, "periodCycles"),
+    where("userId", "==", userId),
+    limit(1)
+  );
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) {
+    return;
+  }
+  await deleteDoc(doc(db, "periodCycles", snapshot.docs[0].id));
+}
+
 export const periodService = {
   // Add new period entry
   async addPeriodEntry(
@@ -97,10 +260,10 @@ export const periodService = {
       const querySnapshot = await getDocs(q);
       const entries: PeriodEntry[] = [];
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
+      querySnapshot.forEach((entryDoc) => {
+        const data = entryDoc.data();
         entries.push({
-          id: doc.id,
+          id: entryDoc.id,
           userId: data.userId,
           startDate: data.startDate?.toDate() || new Date(),
           endDate: data.endDate?.toDate(),
@@ -158,7 +321,16 @@ export const periodService = {
   // Delete period entry
   async deletePeriodEntry(entryId: string): Promise<void> {
     try {
+      const entryDoc = await getDoc(doc(db, "periodEntries", entryId));
+      const data = entryDoc.exists()
+        ? (entryDoc.data() as Record<string, unknown>)
+        : null;
+      const userId =
+        data && typeof data.userId === "string" ? data.userId : null;
       await deleteDoc(doc(db, "periodEntries", entryId));
+      if (typeof userId === "string" && userId) {
+        await this.updateCycleInfo(userId);
+      }
     } catch (error) {
       throw new Error(`Failed to delete period entry: ${error}`);
     }
@@ -183,7 +355,11 @@ export const periodService = {
           averagePeriodLength: docData.averagePeriodLength,
           lastPeriodStart: docData.lastPeriodStart?.toDate(),
           nextPeriodPredicted: docData.nextPeriodPredicted?.toDate(),
+          nextPeriodWindowStart: docData.nextPeriodWindowStart?.toDate(),
+          nextPeriodWindowEnd: docData.nextPeriodWindowEnd?.toDate(),
           ovulationPredicted: docData.ovulationPredicted?.toDate(),
+          predictionConfidence: docData.predictionConfidence,
+          cycleLengthStdDev: docData.cycleLengthStdDev,
           updatedAt: docData.updatedAt?.toDate() || new Date(),
         };
       }
@@ -200,97 +376,45 @@ export const periodService = {
       const entries = await this.getUserPeriodEntries(userId, 100);
 
       if (entries.length === 0) {
+        await deleteCycleDocIfExists(userId);
         return;
       }
 
-      // Calculate average cycle length
-      let totalCycleLength = 0;
-      let cycleCount = 0;
-
-      for (let i = 0; i < entries.length - 1; i++) {
-        const current = entries[i];
-        const next = entries[i + 1];
-        const cycleLength =
-          (current.startDate.getTime() - next.startDate.getTime()) /
-          (1000 * 60 * 60 * 24);
-        if (cycleLength > 0 && cycleLength < 50) {
-          // Reasonable cycle length (between 0 and 50 days)
-          totalCycleLength += cycleLength;
-          cycleCount++;
-        }
-      }
-
-      const averageCycleLength =
-        cycleCount > 0 ? Math.round(totalCycleLength / cycleCount) : 28; // Default to 28 days
-
-      // Calculate average period length
-      let totalPeriodLength = 0;
-      let periodCount = 0;
-
-      entries.forEach((entry) => {
-        if (entry.endDate) {
-          const periodLength =
-            (entry.endDate.getTime() - entry.startDate.getTime()) /
-            (1000 * 60 * 60 * 24);
-          if (periodLength > 0 && periodLength < 15) {
-            // Reasonable period length (between 0 and 15 days)
-            totalPeriodLength += periodLength;
-            periodCount++;
-          }
-        }
-      });
-
-      const averagePeriodLength =
-        periodCount > 0 ? Math.round(totalPeriodLength / periodCount) : 5; // Default to 5 days
+      const cycleLengths = getValidCycleLengths(entries, 8);
+      const averageCycleLength = Math.round(mean(cycleLengths) ?? 28);
+      const cycleLengthsMean = mean(cycleLengths);
+      const cycleLengthStdDev =
+        cycleLengthsMean === undefined
+          ? undefined
+          : stdDev(cycleLengths, cycleLengthsMean);
+      const averagePeriodLength = getAveragePeriodLength(entries);
 
       // Get last period start (most recent entry)
-      const lastPeriodStart = entries[0]?.startDate;
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      const lastPeriodStart = entries[0].startDate;
+      const today = toDateOnly(new Date());
 
-      // Predict next period based on average cycle length from last period start
-      let nextPeriodPredicted: Date | undefined;
-      if (lastPeriodStart) {
-        const lastStart = new Date(lastPeriodStart);
-        lastStart.setHours(0, 0, 0, 0);
+      const nextPeriodPredicted = predictNextPeriodDate(
+        lastPeriodStart,
+        averageCycleLength,
+        today
+      );
 
-        // Calculate days since last period
-        const daysSinceLastPeriod = Math.floor(
-          (today.getTime() - lastStart.getTime()) / (1000 * 60 * 60 * 24)
-        );
+      // Compute a simple confidence score + prediction window for irregular cycles.
+      // This is a heuristic (not medical advice): higher variance and fewer cycles -> lower confidence.
+      const cycleSampleCount = cycleLengths.length;
+      const predictionConfidence = computePredictionConfidence(
+        cycleLengths,
+        cycleLengthStdDev
+      );
 
-        // Calculate predicted date based on average cycle length
-        const predictedDate = new Date(
-          lastStart.getTime() + averageCycleLength * 24 * 60 * 60 * 1000
-        );
-        predictedDate.setHours(0, 0, 0, 0);
-
-        // If predicted date is in the past, add another cycle
-        if (predictedDate < today) {
-          nextPeriodPredicted = new Date(
-            predictedDate.getTime() + averageCycleLength * 24 * 60 * 60 * 1000
-          );
-        } else {
-          nextPeriodPredicted = predictedDate;
-        }
-        nextPeriodPredicted.setHours(0, 0, 0, 0);
-      }
+      const window = computePredictionWindow(
+        nextPeriodPredicted,
+        cycleLengthStdDev,
+        cycleSampleCount
+      );
 
       // Predict ovulation (approximately 14 days before next period, or mid-cycle)
-      let ovulationPredicted: Date | undefined;
-      if (nextPeriodPredicted) {
-        // Ovulation typically occurs 14 days before period, but can vary
-        // Use average cycle length to estimate: ovulation = cycle length - 14 days
-        const ovulationDaysBeforePeriod = Math.max(
-          10,
-          Math.min(16, averageCycleLength - 14)
-        );
-        ovulationPredicted = new Date(
-          nextPeriodPredicted.getTime() -
-            ovulationDaysBeforePeriod * 24 * 60 * 60 * 1000
-        );
-        ovulationPredicted.setHours(0, 0, 0, 0);
-      }
+      const ovulationPredicted = predictOvulationDate(nextPeriodPredicted);
 
       // Update or create cycle document
       const existingCycle = await this.getCycleInfo(userId);
@@ -298,15 +422,13 @@ export const periodService = {
         userId,
         averageCycleLength,
         averagePeriodLength,
-        lastPeriodStart: lastPeriodStart
-          ? Timestamp.fromDate(lastPeriodStart)
-          : undefined,
-        nextPeriodPredicted: nextPeriodPredicted
-          ? Timestamp.fromDate(nextPeriodPredicted)
-          : undefined,
-        ovulationPredicted: ovulationPredicted
-          ? Timestamp.fromDate(ovulationPredicted)
-          : undefined,
+        lastPeriodStart: toTimestampOrUndefined(lastPeriodStart),
+        nextPeriodPredicted: toTimestampOrUndefined(nextPeriodPredicted),
+        nextPeriodWindowStart: toTimestampOrUndefined(window.start),
+        nextPeriodWindowEnd: toTimestampOrUndefined(window.end),
+        ovulationPredicted: toTimestampOrUndefined(ovulationPredicted),
+        predictionConfidence,
+        cycleLengthStdDev: roundTo1Decimal(cycleLengthStdDev),
         updatedAt: Timestamp.now(),
       };
 
