@@ -20,6 +20,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import aiConsentService from "@/lib/services/aiConsentService";
 import { safeFormatDate } from "@/utils/dateFormat";
 import { auth, db } from "../lib/firebase";
 import healthContextService from "../lib/services/healthContextService";
@@ -33,7 +34,8 @@ import ChatMessage from "./components/ChatMessage";
 export default function AIAssistant() {
   const router = useRouter();
   const _params = useLocalSearchParams<{ openSettings?: string }>();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language.toLowerCase().startsWith("ar");
   const scrollViewRef = useRef<ScrollView>(null);
   const isMountedRef = useRef(true);
   const [messages, setMessages] = useState<AIMessage[]>([]);
@@ -368,6 +370,24 @@ export default function AIAssistant() {
       return;
     }
 
+    const consent = await aiConsentService.getConsent();
+    if (!consent.consented) {
+      Alert.alert(
+        isRTL ? "مشاركة بيانات الذكاء الاصطناعي" : "AI Data Sharing",
+        isRTL
+          ? "لتشغيل المساعد، يجب السماح بمشاركة البيانات مع مزوّد ذكاء اصطناعي خارجي (OpenAI)."
+          : "To use the assistant, you must allow sharing data with a third-party AI provider (OpenAI).",
+        [
+          { text: t("cancel", "Cancel"), style: "cancel" },
+          {
+            text: isRTL ? "فتح الإعدادات" : "Open settings",
+            onPress: () => router.push("/profile/ai-data-sharing"),
+          },
+        ]
+      );
+      return;
+    }
+
     const userMessage: AIMessage = {
       id: Date.now().toString(),
       role: "user",
@@ -643,6 +663,11 @@ export default function AIAssistant() {
             )}
           </TouchableOpacity>
         </View>
+        <Text style={styles.privacyTipText}>
+          {isRTL
+            ? "نصيحة خصوصية: تجنّب كتابة الاسم أو رقم الهاتف أو البريد الإلكتروني أو العنوان في الرسالة."
+            : "Privacy tip: avoid typing names, phone numbers, emails, or addresses in your message."}
+        </Text>
       </KeyboardAvoidingView>
 
       <Modal
@@ -891,6 +916,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#E0E0E0",
     alignItems: "flex-end",
+  },
+  privacyTipText: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    fontSize: 12,
+    lineHeight: 16,
+    color: "#64748B",
   },
   textInput: {
     flex: 1,

@@ -1,6 +1,6 @@
 export default `# Maak Privacy Policy
 
-*Last Updated: December 2024*
+*Last Updated: February 2026*
 
 ## Introduction
 
@@ -75,6 +75,23 @@ We do not sell, trade, or rent your personal information to third parties. We ma
 - Analytics services (anonymized data)
 - Customer support platforms
 - Push notification services
+
+### AI Features (Third-Party AI Provider)
+If you enable AI features (such as Zeina or AI Insights), we may share certain information with a third-party AI provider (**OpenAI**) to power those features. This may include:
+- Your AI chat messages and requests
+- Relevant health context you’ve entered or synced (such as profile details, medications, symptoms, and health metrics/summaries) to answer your request
+- For voice input features, an audio recording may be sent for speech-to-text transcription
+
+#### AI Privacy Approach (De-identify & Minimize)
+We use a “de-identify and minimize” approach for AI features. This means:
+- By default, we do not include your name in the AI context we send to OpenAI (unless you type it in chat).
+- We do not include contact details like email/phone/emergency contact in AI context.
+- Where possible, we remove exact dates/timestamps from AI context (e.g., we use time windows or years instead of full dates).
+- We redact obvious emails and phone numbers from text where possible.
+
+**Important:** If you type identifying information in chat (or say it during voice input), that information may be included in what is sent to the AI provider.
+
+You can control this sharing and preview the information that may be sent in the App under **Profile → AI Data Sharing**.
 
 ### Health Platform Integration
 - Apple Health (iOS)

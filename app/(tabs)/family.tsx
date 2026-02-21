@@ -3221,6 +3221,32 @@ export default function FamilyScreen() {
                     </View>
                   </View>
                 </View>
+
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    router.push({
+                      pathname: "/family/[memberId]",
+                      params: { memberId: member.id },
+                    });
+                  }}
+                  style={[
+                    styles.familyDetailsLink,
+                    isRTL && styles.familyDetailsLinkRTL,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.familyDetailsLinkText,
+                      isRTL && styles.familyDetailsLinkTextRTL,
+                      isRTL && styles.rtlText,
+                    ]}
+                  >
+                    {isRTL
+                      ? "انقر للتفاصيل والتحليل"
+                      : "Click for details and analysis"}
+                  </Text>
+                </TouchableOpacity>
               </TouchableOpacity>
             );
           })
@@ -4780,7 +4806,29 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#E5E7EB",
     paddingTop: 12,
-    marginBottom: 16,
+    marginBottom: 12,
+  },
+  familyDetailsLink: {
+    marginTop: 8,
+    paddingVertical: 4,
+    alignSelf: "flex-start" as const,
+  },
+  familyDetailsLinkRTL: {
+    alignSelf: "flex-end" as const,
+  },
+  familyDetailsLinkText: {
+    fontSize: 12,
+    color: "#003543",
+    textAlign: "left" as const,
+    textDecorationLine: "underline" as const,
+    fontFamily: "Inter-Medium",
+    fontWeight: "500" as const,
+  },
+  familyDetailsLinkTextRTL: {
+    fontSize: 12,
+    fontFamily: "NotoSansArabic-Medium",
+    fontWeight: "500" as const,
+    textAlign: "right" as const,
   },
   familyMemberStat: {
     flex: 1,

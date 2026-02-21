@@ -49,6 +49,7 @@ import {
   RefreshCw,
   Shield,
   TestTube,
+  Trash2,
   TrendingDown,
   TrendingUp,
   User,
@@ -1144,6 +1145,14 @@ export default function ProfileScreen() {
     router.push("/profile/privacy-policy");
   };
 
+  const handleAIDataSharing = () => {
+    router.push("/profile/ai-data-sharing");
+  };
+
+  const handleDeleteAccount = () => {
+    router.push("/profile/delete-account");
+  };
+
   const handleLogout = () => {
     Alert.alert(t("signOut"), t("confirmSignOut"), [
       {
@@ -1641,9 +1650,19 @@ export default function ProfileScreen() {
           onPress: handleHelpSupport,
         },
         {
+          label: isRTL ? "مشاركة بيانات الذكاء الاصطناعي" : "AI Data Sharing",
+          icon: Brain,
+          onPress: handleAIDataSharing,
+        },
+        {
           label: t("privacyPolicy", "Privacy & Security"),
           icon: Shield,
           onPress: handlePrivacyPolicy,
+        },
+        {
+          label: isRTL ? "حذف الحساب" : "Delete Account",
+          icon: Trash2,
+          onPress: handleDeleteAccount,
         },
       ],
     },
@@ -1740,11 +1759,7 @@ export default function ProfileScreen() {
             <Text style={styles.figmaSectionTitle}>
               {isRTL ? "نظرة عامة صحية" : "Health Overview"}
             </Text>
-            <TouchableOpacity onPress={() => router.push("/health-summary")}>
-              <Text style={styles.figmaSectionLink}>
-                {isRTL ? "عرض التفاصيل <-" : "View Details ->"}
-              </Text>
-            </TouchableOpacity>
+            {/* Hidden - removed TouchableOpacity as React Native doesn't support display: none */}
           </View>
           <View style={styles.figmaCardStack}>
             {healthOverviewCards.map((vital) => {
@@ -4251,6 +4266,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: "Inter-Bold",
     color: "#003543",
+    lineHeight: 25.2, // 18 * 1.4 to match getTextStyle subheading lineHeight
   },
   figmaSectionLink: {
     fontSize: 14,

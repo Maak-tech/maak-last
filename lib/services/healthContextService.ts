@@ -880,6 +880,44 @@ class HealthContextService {
     const inactiveMedications = context.medications.filter((m) => !m.isActive);
 
     const isArabic = language.startsWith("ar");
+    const notShared = isArabic ? "غير مشارك" : "Not shared";
+    const redactedToken = isArabic ? "[محجوب]" : "[REDACTED]";
+
+    const redactDateStr = (value?: string) => {
+      if (!value) {
+        return notShared;
+      }
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) {
+        return notShared;
+      }
+      return String(d.getFullYear());
+    };
+
+    const redactText = (value?: string) => {
+      if (!value) {
+        return "";
+      }
+      const emailRedacted = value.replace(
+        /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,
+        redactedToken
+      );
+      const phoneRedacted = emailRedacted.replace(
+        /(\+?\d[\d\s().-]{7,}\d)/g,
+        redactedToken
+      );
+      return phoneRedacted;
+    };
+
+    const redactAge = (age: number) => {
+      if (!(age > 0)) {
+        return isArabic ? "غير محدد" : "Not specified";
+      }
+      if (age > 89) {
+        return isArabic ? "٩٠+ سنة" : "90+ years old";
+      }
+      return `${age} ${isArabic ? "سنة" : "years old"}`;
+    };
     const topUserInsightSignals = context.insightsMetrics
       ? context.insightsMetrics.topInsights.length > 0
         ? context.insightsMetrics.topInsights
@@ -891,7 +929,7 @@ class HealthContextService {
         : "    - No high-confidence insight signals yet."
       : "";
     const personalInsightsSection = context.insightsMetrics
-      ? `• Week range: ${safeFormatDate(context.insightsMetrics.weekStart)} - ${safeFormatDate(context.insightsMetrics.weekEnd)}
+      ? `• Time window: ${isArabic ? "آخر 7 أيام" : "Last 7 days"}
 • Symptoms this week: ${context.insightsMetrics.symptomCount}
 • Avg symptom severity: ${context.insightsMetrics.symptomAverageSeverity}/10 (${context.insightsMetrics.symptomTrend})
 • Medication adherence: ${Math.round(context.insightsMetrics.medicationCompliance)}% (missed doses: ${context.insightsMetrics.missedDoses})
@@ -911,13 +949,13 @@ You must respond in English.`
     }
 
 ${isArabic ? "ملف المريض:" : "PATIENT PROFILE:"}
-- Name: ${context.profile.name}
-- Age: ${context.profile.age > 0 ? `${context.profile.age} years old` : "Not specified"}
+ - Name: ${notShared}
+ - Age: ${redactAge(context.profile.age)}
 - Gender: ${context.profile.gender}
 - Blood Type: ${context.profile.bloodType}
 - Height: ${context.profile.height}
 - Weight: ${context.profile.weight}
-- Emergency Contact: ${context.profile.emergencyContact}
+ - Emergency Contact: ${notShared}
 
 ${
   isArabic
@@ -930,7 +968,7 @@ Current Conditions:`
         ? context.medicalHistory.conditions
             .map(
               (c) =>
-                `\n  • ${c.condition}${c.diagnosedDate ? ` (${isArabic ? "تشخيص" : "diagnosed"}: ${c.diagnosedDate})` : ""}${c.status ? ` - ${c.status}` : ""}${c.notes ? ` - ${c.notes}` : ""}`
+                `\n  • ${c.condition}${c.diagnosedDate ? ` (${isArabic ? "تشخيص" : "diagnosed"}: ${redactDateStr(c.diagnosedDate)})` : ""}${c.status ? ` - ${c.status}` : ""}${c.notes ? ` - ${redactText(c.notes)}` : ""}`
             )
             .join("")
         : `\n  • ${isArabic ? "لا توجد حالات مزمنة مسجلة" : "No chronic conditions reported"}`
@@ -966,9 +1004,9 @@ ${
         .map(
           (med) =>
             `• ${med.name}: ${med.dosage}, ${med.frequency}
-  ${isArabic ? "بدء" : "Started"}: ${med.startDate}${med.endDate ? `, ${isArabic ? "ينتهي" : "Ends"}: ${med.endDate}` : ` (${isArabic ? "مستمر" : "ongoing"})`}
+  ${isArabic ? "بدء" : "Started"}: ${redactDateStr(med.startDate)}${med.endDate ? `, ${isArabic ? "ينتهي" : "Ends"}: ${redactDateStr(med.endDate)}` : ` (${isArabic ? "مستمر" : "ongoing"})`}
   ${med.reminders && med.reminders.length > 0 ? `${isArabic ? "تذكيرات" : "Reminders"}: ${med.reminders.map((r: MedicationReminder) => (typeof r === "string" ? r : r.time || "")).join(", ")}` : ""}
-  ${med.notes ? `${isArabic ? "ملاحظات" : "Notes"}: ${med.notes}` : ""}`
+  ${med.notes ? `${isArabic ? "ملاحظات" : "Notes"}: ${redactText(med.notes)}` : ""}`
         )
         .join("\n")
     : `• ${isArabic ? "لا توجد أدوية حالية" : "No current medications"}`
@@ -993,10 +1031,10 @@ ${
         .slice(0, 10)
         .map(
           (symptom) =>
-            `• ${symptom.date}: ${symptom.name} (${isArabic ? "الشدة" : "Severity"}: ${symptom.severity})
+            `• ${redactDateStr(symptom.date)}: ${symptom.name} (${isArabic ? "الشدة" : "Severity"}: ${symptom.severity})
   ${symptom.bodyPart ? `${isArabic ? "الموقع" : "Location"}: ${symptom.bodyPart}` : ""}
   ${symptom.duration ? `${isArabic ? "المدة" : "Duration"}: ${symptom.duration}` : ""}
-  ${symptom.notes ? `${isArabic ? "ملاحظات" : "Notes"}: ${symptom.notes}` : ""}`
+  ${symptom.notes ? `${isArabic ? "ملاحظات" : "Notes"}: ${redactText(symptom.notes)}` : ""}`
         )
         .join("\n")
     : `• ${isArabic ? "لا توجد أعراض حديثة مسجلة" : "No recent symptoms reported"}`
@@ -1023,8 +1061,8 @@ ${
   context.familyMembers.length > 0
     ? context.familyMembers
         .map(
-          (member) =>
-            `• ${member.name} (${member.relationship}${member.age ? `, ${member.age} ${isArabic ? "سنوات" : "years old"}` : ""})
+          (member, index) =>
+            `• ${isArabic ? "فرد عائلة" : "Family member"} #${index + 1} (${member.relationship}${member.age ? `, ${member.age} ${isArabic ? "سنوات" : "years old"}` : ""})
   ${member.conditions && member.conditions.length > 0 ? `${isArabic ? "الحالات" : "Conditions"}: ${member.conditions.join(", ")}` : ""}
   ${member.healthStatus ? `${isArabic ? "الحالة" : "Status"}: ${member.healthStatus}` : ""}`
         )
@@ -1036,7 +1074,7 @@ ${isArabic ? "رؤى صحة العائلة (ملخص أسبوعي):" : "FAMILY H
 ${
   context.familyInsights.length > 0
     ? context.familyInsights
-        .map((insight) => {
+        .map((insight, index) => {
           const avgSeverity = Math.round(
             insight.summary.symptoms.averageSeverity * 10
           );
@@ -1057,7 +1095,7 @@ ${
                 ? "لا توجد رؤى بارزة."
                 : "No notable insights yet.";
 
-          return `• ${insight.name} (${insight.relationship})
+          return `• ${isArabic ? "فرد عائلة" : "Family member"} #${index + 1} (${insight.relationship})
   ${isArabic ? "الأعراض" : "Symptoms"}: ${insight.summary.symptoms.total}
   ${isArabic ? "متوسط الشدة" : "Avg severity"}: ${avgSeverity / 10}
   ${isArabic ? "الالتزام بالأدوية" : "Medication compliance"}: ${insight.summary.medications.compliance}%
@@ -1073,10 +1111,7 @@ ${
   context.recentAlerts.length > 0
     ? context.recentAlerts
         .slice(0, 5)
-        .map(
-          (alert) =>
-            `• ${safeFormatDate(alert.timestamp)}: ${alert.type} - ${alert.details}`
-        )
+        .map((alert) => `• ${alert.type} - ${redactText(alert.details)}`)
         .join("\n")
     : ""
 }
@@ -1084,7 +1119,7 @@ ${
 ${
   context.vitalSigns.lastUpdated
     ? `
-${isArabic ? "العلامات الحيوية الأخيرة" : "RECENT VITAL SIGNS"} (${safeFormatDate(context.vitalSigns.lastUpdated)}):
+${isArabic ? "العلامات الحيوية الأخيرة" : "RECENT VITAL SIGNS"}:
 • ${isArabic ? "معدل ضربات القلب" : "Heart Rate"}: ${context.vitalSigns.heartRate || (isArabic ? "غير مسجل" : "Not recorded")} bpm
 • ${isArabic ? "ضغط الدم" : "Blood Pressure"}: ${context.vitalSigns.bloodPressure || (isArabic ? "غير مسجل" : "Not recorded")}
 • ${isArabic ? "درجة الحرارة" : "Temperature"}: ${context.vitalSigns.temperature || (isArabic ? "غير مسجل" : "Not recorded")}°F
@@ -1105,17 +1140,17 @@ ${
 • ${isArabic ? "متوسط مدة الدورة" : "Average Period Length"}: ${context.periodTracking.cycleInfo.averagePeriodLength || 5} ${isArabic ? "أيام" : "days"}
 ${
   context.periodTracking.cycleInfo.lastPeriodStart
-    ? `• ${isArabic ? "آخر دورة شهرية" : "Last Period"}: ${safeFormatDate(context.periodTracking.cycleInfo.lastPeriodStart)}`
+    ? `• ${isArabic ? "آخر دورة شهرية" : "Last Period"}: ${notShared}`
     : ""
 }
 ${
   context.periodTracking.cycleInfo.nextPeriodPredicted
-    ? `• ${isArabic ? "الدورة القادمة المتوقعة" : "Next Period Predicted"}: ${safeFormatDate(context.periodTracking.cycleInfo.nextPeriodPredicted)}`
+    ? `• ${isArabic ? "الدورة القادمة المتوقعة" : "Next Period Predicted"}: ${notShared}`
     : ""
 }
 ${
   context.periodTracking.cycleInfo.ovulationPredicted
-    ? `• ${isArabic ? "الإباضة المتوقعة" : "Predicted Ovulation"}: ${safeFormatDate(context.periodTracking.cycleInfo.ovulationPredicted)}`
+    ? `• ${isArabic ? "الإباضة المتوقعة" : "Predicted Ovulation"}: ${notShared}`
     : ""
 }`
     : ""
@@ -1129,7 +1164,7 @@ ${context.periodTracking.recentEntries
   .slice(0, 6)
   .map(
     (entry) =>
-      `• ${safeFormatDate(entry.startDate)}${entry.endDate ? ` - ${safeFormatDate(entry.endDate)}` : ""}${entry.flowIntensity ? ` (${isArabic ? "الشدة" : "Flow"}: ${entry.flowIntensity})` : ""}${entry.symptoms && entry.symptoms.length > 0 ? ` ${isArabic ? "الأعراض" : "Symptoms"}: ${entry.symptoms.join(", ")}` : ""}${entry.notes ? ` - ${entry.notes}` : ""}`
+      `• ${isArabic ? "إدخال" : "Entry"}${entry.flowIntensity ? ` (${isArabic ? "الشدة" : "Flow"}: ${entry.flowIntensity})` : ""}${entry.symptoms && entry.symptoms.length > 0 ? ` ${isArabic ? "الأعراض" : "Symptoms"}: ${entry.symptoms.join(", ")}` : ""}${entry.notes ? ` - ${redactText(entry.notes)}` : ""}`
   )
   .join("\n")}`
     : ""

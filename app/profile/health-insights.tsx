@@ -10,18 +10,29 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AIInsightsDashboard } from "@/app/components/AIInsightsDashboard";
 import HealthInsightsCard from "@/app/components/HealthInsightsCard";
 import GradientScreen from "@/components/figma/GradientScreen";
 import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export default function HealthInsightsScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
+  const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const isRTL = i18n.language === "ar";
   const [refreshing, setRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // Calculate proper top padding accounting for safe area insets
+  // GradientScreen already handles top inset, so we compensate to avoid double padding
+  const wavyHeaderTopPadding = Math.max(
+    0,
+    insets.top - (theme.spacing.xl + theme.spacing.md)
+  );
 
   const styles = StyleSheet.create({
     container: {
@@ -34,7 +45,6 @@ export default function HealthInsightsScreen() {
     },
     headerContent: {
       paddingHorizontal: 24,
-      paddingTop: 140,
       paddingBottom: 12,
     },
     headerRow: {
@@ -109,14 +119,21 @@ export default function HealthInsightsScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.headerWrap}>
+        <View style={[styles.headerWrap, { marginTop: -theme.spacing.xl }]}>
           <WavyBackground
             contentPosition="top"
             curve="home"
             height={280}
             variant="teal"
           >
-            <View style={styles.headerContent}>
+            <View
+              style={[
+                styles.headerContent,
+                {
+                  paddingTop: wavyHeaderTopPadding + (isRTL ? 2 : 0) + 60,
+                },
+              ]}
+            >
               <View
                 style={[
                   styles.headerRow,

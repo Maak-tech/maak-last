@@ -68,7 +68,8 @@ export default function PPGVitalMonitor({
 }: PPGVitalMonitorProps) {
   const themeContext = useTheme();
   const theme = themeContext?.theme;
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === "ar";
   const [permission, requestPermission] = useCameraPermissions();
   const [status, setStatus] = useState<
     "idle" | "instructions" | "measuring" | "processing" | "success" | "error"
@@ -1196,7 +1197,7 @@ export default function PPGVitalMonitor({
             <View style={styles.header as ViewStyle}>
               <View
                 style={{
-                  flexDirection: "row",
+                  flexDirection: isRTL ? "column" : "row",
                   alignItems: "center",
                   justifyContent: "center",
                   gap: theme.spacing.sm,
@@ -1206,12 +1207,49 @@ export default function PPGVitalMonitor({
                 <Text style={styles.title as StyleProp<TextStyle>}>
                   {t("vitalsMonitor")}
                 </Text>
+                {isRTL ? null : (
+                  <View
+                    style={{
+                      backgroundColor: theme.colors.secondary.main,
+                      paddingHorizontal: theme.spacing.sm,
+                      paddingVertical: 2,
+                      borderRadius: theme.borderRadius.md,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        ...getTextStyle(
+                          theme,
+                          "caption",
+                          "bold",
+                          theme.colors.neutral.white
+                        ),
+                        fontSize: 10,
+                        letterSpacing: 0.5,
+                      }}
+                    >
+                      {t("beta")}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Text
+                style={[
+                  styles.subtitle as StyleProp<TextStyle>,
+                  { fontSize: 14 },
+                ]}
+              >
+                {t("vitalSignsMonitorDescription")}
+              </Text>
+              {isRTL ? (
                 <View
                   style={{
+                    alignSelf: "flex-start",
                     backgroundColor: theme.colors.secondary.main,
                     paddingHorizontal: theme.spacing.sm,
                     paddingVertical: 2,
                     borderRadius: theme.borderRadius.md,
+                    marginTop: theme.spacing.sm,
                   }}
                 >
                   <Text
@@ -1229,15 +1267,7 @@ export default function PPGVitalMonitor({
                     {t("beta")}
                   </Text>
                 </View>
-              </View>
-              <Text
-                style={[
-                  styles.subtitle as StyleProp<TextStyle>,
-                  { fontSize: 14 },
-                ]}
-              >
-                {t("vitalSignsMonitorDescription")}
-              </Text>
+              ) : null}
             </View>
 
             {status === "measuring" && permission?.granted && (

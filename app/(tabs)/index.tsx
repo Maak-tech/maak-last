@@ -31,6 +31,7 @@ import {
   InteractionManager,
   Linking,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -77,9 +78,6 @@ export default function DashboardScreen() {
   const [todaysMedications, setTodaysMedications] = useState<Medication[]>([]);
   const [alertsCount, setAlertsCount] = useState(0);
   const [familyMembersCount, setFamilyMembersCount] = useState(0);
-  const [activeTrackingTab, setActiveTrackingTab] = useState<
-    "symptoms" | "medications" | "moods" | "vitals"
-  >("symptoms");
   const [showAlertsModal, setShowAlertsModal] = useState(false);
   const [userAlerts, setUserAlerts] = useState<any[]>([]);
   const [loadingAlerts, setLoadingAlerts] = useState(false);
@@ -110,6 +108,24 @@ export default function DashboardScreen() {
     Math.round(Math.max(width, height)) === 852;
   const contentPadding = isIphone16Pro ? 24 : theme.spacing.lg;
   const headerPadding = isIphone16Pro ? 28 : theme.spacing.xl;
+  // Avoid "double safe-area" feel: GradientScreen already accounts for top inset.
+  // RTL (Arabic) needs reliable safe-area clearance for header actions; keep the header visually
+  // high by compensating with the existing negative wrapper margin.
+  const wavyHeaderTopPadding = isRTL
+    ? Math.max(0, insets.top - theme.spacing.md)
+    : Math.max(0, insets.top - (theme.spacing.xl + theme.spacing.md));
+  // Make the horizontal stat cards slightly smaller so the 3rd card "peeks" in view.
+  const statsCardPeekPx = 56;
+  const statsCardGapPx = theme.spacing.lg;
+  const statsCardWidth = Math.max(
+    130,
+    Math.min(
+      166,
+      Math.floor(
+        (width - contentPadding * 2 - statsCardGapPx - statsCardPeekPx) / 2
+      )
+    )
+  );
 
   // Initialize daily notification scheduler
   const notificationPrefs = (user as any)?.preferences?.notifications;
@@ -158,8 +174,8 @@ export default function DashboardScreen() {
         },
         welcomeTextRTL: {
           fontSize: 26,
-          lineHeight: 34,
-          paddingTop: 8,
+          lineHeight: 36,
+          paddingTop: 10,
         },
         dateText: {
           ...getTextStyle(theme, "body", "bold", theme.colors.primary.main),
@@ -172,22 +188,21 @@ export default function DashboardScreen() {
         },
         wavyHeaderWrapper: {
           marginHorizontal: -contentPadding,
-          marginTop: -theme.spacing.base,
-          marginBottom: theme.spacing.lg,
+          marginTop: -theme.spacing.xl,
+          // Reduce spacing so the horizontal stat cards sit higher on screen.
+          marginBottom: 0,
         },
         wavyHeaderWrapperRTL: {
-          marginBottom: theme.spacing.xl,
+          marginBottom: 0,
         },
         wavyHeaderContent: {
           paddingHorizontal: headerPadding,
-          paddingTop: headerPadding,
-          paddingBottom: headerPadding,
-          minHeight: 230,
-          justifyContent: "space-between" as const,
+          paddingTop: 0,
+          paddingBottom: theme.spacing.md,
+          minHeight: 200,
+          justifyContent: "flex-start" as const,
         },
-        wavyHeaderContentRTL: {
-          paddingTop: headerPadding + 8,
-        },
+        wavyHeaderContentRTL: {},
         wavyHeaderTopRow: {
           flexDirection: isRTL ? "row-reverse" : "row",
           alignItems: "flex-start" as const,
@@ -202,7 +217,7 @@ export default function DashboardScreen() {
           gap: theme.spacing.sm,
         },
         headerDateRow: {
-          marginTop: theme.spacing.lg,
+          marginTop: theme.spacing.xl + theme.spacing.xl,
         },
         alertBadgeButton: {
           width: 44,
@@ -216,12 +231,18 @@ export default function DashboardScreen() {
         alertBadgeText: {
           ...getTextStyle(theme, "body", "bold", theme.colors.neutral.white),
           fontSize: 16,
+          lineHeight: 20,
+          paddingTop: isRTL ? 2 : 0,
+          ...(isRTL && Platform.OS === "ios"
+            ? { transform: [{ translateY: 1 }] }
+            : {}),
         },
         statsSection: {
+          marginTop: -theme.spacing.lg,
           marginBottom: theme.spacing.xl,
         },
         statsSectionRTL: {
-          marginTop: theme.spacing.md,
+          marginTop: -theme.spacing.lg,
         },
         statsScrollContent: {
           flexDirection: "row" as const,
@@ -387,6 +408,11 @@ export default function DashboardScreen() {
             "bold",
             theme.colors.primary.main
           ),
+        },
+        sectionTitlePrimaryRTL: {
+          // Prevent Arabic glyph ascenders/diacritics from clipping at the top.
+          paddingTop: 4,
+          lineHeight: 26,
         },
         sectionCard: {
           backgroundColor: theme.colors.background.secondary,
@@ -590,6 +616,11 @@ export default function DashboardScreen() {
         },
         sosHeaderText: {
           ...getTextStyle(theme, "body", "bold", theme.colors.neutral.white),
+          lineHeight: 20,
+          paddingTop: isRTL ? 2 : 0,
+          ...(isRTL && Platform.OS === "ios"
+            ? { transform: [{ translateY: 1 }] }
+            : {}),
         },
         onelineCard: {
           backgroundColor: theme.colors.background.secondary,
@@ -661,11 +692,13 @@ export default function DashboardScreen() {
         trackingOptions: {
           flexDirection: "row" as const,
           gap: theme.spacing.md,
-          flexWrap: "nowrap" as const,
+          flexWrap: "wrap" as const,
+          justifyContent: "space-between" as const,
         },
         trackingCard: {
-          flex: 1,
-          minWidth: 140,
+          flexGrow: 1,
+          flexBasis: "48%",
+          minWidth: 150,
           backgroundColor: theme.colors.background.primary,
           borderRadius: theme.borderRadius.lg,
           padding: theme.spacing.lg,
@@ -913,10 +946,6 @@ export default function DashboardScreen() {
       navigateToVitals,
     ]
   );
-
-  const activeTrackingTabData =
-    trackingTabs.find((tab) => tab.id === activeTrackingTab) ?? trackingTabs[0];
-  const ActiveTrackingIcon = activeTrackingTabData?.icon ?? Activity;
 
   const loadDashboardData = useCallback(async () => {
     if (!user) {
@@ -1612,6 +1641,7 @@ export default function DashboardScreen() {
                   styles.statGridCardHorizontal as ViewStyle,
                   {
                     paddingTop: theme.spacing.md,
+                    width: statsCardWidth,
                     overflow: "visible" as const,
                   },
                   isRTL && styles.statGridCardRTL,
@@ -1650,7 +1680,7 @@ export default function DashboardScreen() {
                   ]}
                   weight="medium"
                 >
-                  {isRTL ? "أعراض الأسبوع" : "Symptoms This Week"}
+                  {isRTL ? "أعراض\nالأسبوع" : "Symptoms\nThis Week"}
                 </Text>
               </Card>
 
@@ -1663,6 +1693,7 @@ export default function DashboardScreen() {
                   styles.statGridCardHorizontal as ViewStyle,
                   {
                     paddingTop: theme.spacing.md,
+                    width: statsCardWidth,
                     overflow: "visible" as const,
                   },
                   isRTL && styles.statGridCardRTL,
@@ -1701,7 +1732,7 @@ export default function DashboardScreen() {
                   ]}
                   weight="medium"
                 >
-                  {isRTL ? "التزام الدواء" : "Med Compliance"}
+                  {isRTL ? "التزام\nالدواء" : "Med\nCompliance"}
                 </Text>
               </Card>
 
@@ -1714,6 +1745,7 @@ export default function DashboardScreen() {
                   styles.statGridCardHorizontal as ViewStyle,
                   {
                     paddingTop: theme.spacing.md,
+                    width: statsCardWidth,
                     overflow: "visible" as const,
                   },
                   isRTL && styles.statGridCardRTL,
@@ -1752,7 +1784,7 @@ export default function DashboardScreen() {
                   ]}
                   weight="medium"
                 >
-                  {isRTL ? "العائلة" : "Family Members"}
+                  {isRTL ? "أفراد\nالعائلة" : "Family\nMembers"}
                 </Text>
               </Card>
             </ScrollView>
@@ -1766,6 +1798,7 @@ export default function DashboardScreen() {
               <Text
                 style={[
                   styles.sectionTitlePrimary,
+                  isRTL && styles.sectionTitlePrimaryRTL,
                   isRTL && styles.rtlText,
                   isRTL && { textAlign: "right" as const },
                 ]}
@@ -1901,6 +1934,7 @@ export default function DashboardScreen() {
               <Text
                 style={[
                   styles.sectionTitlePrimary,
+                  isRTL && styles.sectionTitlePrimaryRTL,
                   isRTL && styles.rtlText,
                   isRTL && { textAlign: "right" as const },
                 ]}
@@ -2156,11 +2190,18 @@ export default function DashboardScreen() {
               isRTL && styles.wavyHeaderWrapperRTL,
             ]}
           >
-            <WavyBackground curve="home" height={240} variant="teal">
+            <WavyBackground
+              contentPosition="top"
+              curve="home"
+              height={228}
+              variant="teal"
+            >
               <View
                 style={[
                   styles.wavyHeaderContent as ViewStyle,
-                  { paddingTop: headerPadding + insets.top },
+                  {
+                    paddingTop: wavyHeaderTopPadding + (isRTL ? 2 : 0),
+                  },
                   isRTL && styles.wavyHeaderContentRTL,
                 ]}
               >
@@ -2663,97 +2704,43 @@ export default function DashboardScreen() {
                 </Text>
               </View>
 
-              <View style={styles.trackingTabsRow as ViewStyle}>
-                <ScrollView
-                  contentContainerStyle={
-                    styles.trackingTabsContent as ViewStyle
-                  }
-                  horizontal={true}
-                  showsHorizontalScrollIndicator={false}
-                >
-                  {trackingTabs.map((tab) => {
-                    const isActive = tab.id === activeTrackingTab;
-                    return (
-                      <TouchableOpacity
-                        key={tab.id}
-                        onPress={() => setActiveTrackingTab(tab.id)}
+              <View style={styles.trackingOptions as ViewStyle}>
+                {trackingTabs.map((tab) => {
+                  const TrackingIcon = tab.icon;
+                  return (
+                    <TouchableOpacity
+                      key={tab.id}
+                      onPress={tab.onPress}
+                      style={styles.trackingCard as ViewStyle}
+                    >
+                      <View
                         style={[
-                          styles.trackingTab as ViewStyle,
-                          isActive && styles.trackingTabActive,
+                          styles.trackingCardIcon,
+                          { backgroundColor: tab.iconBackground },
                         ]}
                       >
-                        <Text
-                          style={[
-                            styles.trackingTabText,
-                            isActive && styles.trackingTabTextActive,
-                            isRTL && styles.rtlText,
-                          ]}
-                        >
-                          {tab.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-
-              {activeTrackingTabData ? (
-                <View style={styles.trackingOptions as ViewStyle}>
-                  <TouchableOpacity
-                    onPress={activeTrackingTabData.onPress}
-                    style={styles.trackingCard as ViewStyle}
-                  >
-                    <View
-                      style={[
-                        styles.trackingCardIcon,
-                        {
-                          backgroundColor: activeTrackingTabData.iconBackground,
-                        },
-                      ]}
-                    >
-                      <ActiveTrackingIcon
-                        color={activeTrackingTabData.iconColor}
-                        size={28}
-                      />
-                    </View>
-                    <Text
-                      style={[
-                        styles.trackingCardTitle,
-                        isRTL && styles.rtlText,
-                      ]}
-                    >
-                      {activeTrackingTabData.label}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.trackingCardSubtitle,
-                        isRTL && styles.rtlText,
-                      ]}
-                    >
-                      {activeTrackingTabData.description}
-                    </Text>
-                    <TouchableOpacity
-                      onPress={activeTrackingTabData.onPress}
-                      style={[
-                        styles.trackingCardButton,
-                        { backgroundColor: activeTrackingTabData.ctaColor },
-                      ]}
-                    >
-                      <ActiveTrackingIcon
-                        color={theme.colors.neutral.white}
-                        size={16}
-                      />
+                        <TrackingIcon color={tab.iconColor} size={28} />
+                      </View>
                       <Text
-                        style={
-                          styles.trackingCardButtonText as StyleProp<TextStyle>
-                        }
+                        style={[
+                          styles.trackingCardTitle,
+                          isRTL && styles.rtlText,
+                        ]}
                       >
-                        {activeTrackingTabData.ctaLabel}
+                        {tab.label}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.trackingCardSubtitle,
+                          isRTL && styles.rtlText,
+                        ]}
+                      >
+                        {tab.description}
                       </Text>
                     </TouchableOpacity>
-                  </TouchableOpacity>
-                </View>
-              ) : null}
+                  );
+                })}
+              </View>
             </View>
           )}
 

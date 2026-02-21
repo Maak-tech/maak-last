@@ -87,6 +87,11 @@ export default function TrackScreen() {
     Math.round(Math.min(width, height)) === 393 &&
     Math.round(Math.max(width, height)) === 852;
   const headerPadding = isIphone16Pro ? 28 : theme.spacing.xl;
+  // GradientScreen already handles the top safe-area inset; keep header content higher.
+  const trackHeaderTopPadding = Math.max(
+    0,
+    insets.top - (theme.spacing.xl + theme.spacing.md)
+  );
 
   // All hooks must be called before any conditional returns
   const [loading, setLoading] = useState(true);
@@ -117,6 +122,7 @@ export default function TrackScreen() {
   const isRTL = i18n.language === "ar";
   const showBlockingLoading = loading && !hasLoadedOnceRef.current;
   const isFemale = user?.gender === "female";
+  const showTopStats = process.env.EXPO_PUBLIC_TRACK_TOP_STATS === "1";
 
   // Memoize navigation handlers to prevent recreation on every render
   // All pass returnTo=track so back button returns to track tab
@@ -384,17 +390,15 @@ export default function TrackScreen() {
           marginBottom: -48,
         },
         headerWrapperRTL: {
-          marginBottom: -32,
+          marginBottom: -48,
         },
         headerContent: {
           paddingHorizontal: headerPadding,
-          paddingTop: theme.spacing.xl + 12,
+          paddingTop: 0,
           paddingBottom: theme.spacing.lg,
           minHeight: 200,
         },
-        headerContentRTL: {
-          paddingTop: theme.spacing.xl + 24,
-        },
+        headerContentRTL: {},
         headerRow: {
           flexDirection: "row" as const,
           justifyContent: "space-between" as const,
@@ -416,8 +420,9 @@ export default function TrackScreen() {
           marginTop: 4,
         },
         headerSubtitleRTL: {
-          fontSize: 28,
+          fontSize: 11,
           fontFamily: "NotoSansArabic-Regular",
+          marginTop: 4,
         },
         helpButton: {
           width: 40,
@@ -433,15 +438,11 @@ export default function TrackScreen() {
         contentInner: {
           paddingBottom: 140,
         },
-        contentInnerRTL: {
-          paddingTop: 8,
-        },
+        contentInnerRTL: {},
         contentPadded: {
           paddingHorizontal: 20,
         },
-        contentPaddedRTL: {
-          paddingTop: 16,
-        },
+        contentPaddedRTL: {},
         statsGrid: {
           flexDirection: "row" as const,
           gap: 12,
@@ -449,7 +450,7 @@ export default function TrackScreen() {
           marginBottom: 20,
         },
         statsGridRTL: {
-          marginTop: 24,
+          marginTop: 16,
         },
         statCard: {
           flex: 1,
@@ -487,8 +488,12 @@ export default function TrackScreen() {
         section: {
           marginBottom: 20,
         },
-        sectionRTL: {
-          marginTop: 8,
+        sectionRTL: {},
+        categoriesSection: {
+          marginTop: -theme.spacing.xl,
+        },
+        categoriesSectionRTL: {
+          marginTop: -theme.spacing.xl,
         },
         sectionHeaderRow: {
           flexDirection: "row" as const,
@@ -515,7 +520,6 @@ export default function TrackScreen() {
         },
         categoryCardRTL: {
           minHeight: 120,
-          paddingVertical: 20,
         },
         categoryCardBetaBadge: {
           position: "absolute" as const,
@@ -527,6 +531,8 @@ export default function TrackScreen() {
           borderRadius: 6,
         },
         categoryCardBetaBadgeRTL: {
+          top: undefined,
+          bottom: 10,
           right: undefined,
           left: 10,
         },
@@ -1124,7 +1130,7 @@ export default function TrackScreen() {
             <View
               style={[
                 styles.headerContent as ViewStyle,
-                { paddingTop: theme.spacing.xl + 12 + insets.top },
+                { paddingTop: trackHeaderTopPadding + (isRTL ? 2 : 0) },
                 isRTL && styles.headerContentRTL,
               ]}
             >
@@ -1196,96 +1202,100 @@ export default function TrackScreen() {
                 </View>
               ) : null}
 
-              <View
-                style={[
-                  styles.statsGrid as ViewStyle,
-                  isRTL && styles.statsGridRTL,
-                ]}
-              >
-                <View style={styles.statCard as ViewStyle}>
-                  <Text
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.7}
-                    numberOfLines={1}
-                    style={[
-                      styles.statValue,
-                      isRTL && styles.statValueRTL,
-                      isRTL && styles.rtlText,
-                    ]}
-                  >
-                    {entriesToday()}
-                  </Text>
-                  <Text
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.8}
-                    numberOfLines={2}
-                    style={[
-                      styles.statLabel,
-                      isRTL && styles.statLabelRTL,
-                      isRTL && styles.rtlText,
-                    ]}
-                  >
-                    {isRTL ? "إدخالات اليوم" : "Entries Today"}
-                  </Text>
+              {showTopStats ? (
+                <View
+                  style={[
+                    styles.statsGrid as ViewStyle,
+                    isRTL && styles.statsGridRTL,
+                  ]}
+                >
+                  <View style={styles.statCard as ViewStyle}>
+                    <Text
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.7}
+                      numberOfLines={1}
+                      style={[
+                        styles.statValue,
+                        isRTL && styles.statValueRTL,
+                        isRTL && styles.rtlText,
+                      ]}
+                    >
+                      {entriesToday()}
+                    </Text>
+                    <Text
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.8}
+                      numberOfLines={2}
+                      style={[
+                        styles.statLabel,
+                        isRTL && styles.statLabelRTL,
+                        isRTL && styles.rtlText,
+                      ]}
+                    >
+                      {isRTL ? "إدخالات اليوم" : "Entries Today"}
+                    </Text>
+                  </View>
+                  <View style={styles.statCard as ViewStyle}>
+                    <Text
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.7}
+                      numberOfLines={1}
+                      style={[
+                        styles.statValue,
+                        isRTL && styles.statValueRTL,
+                        isRTL && styles.rtlText,
+                      ]}
+                    >
+                      {trackingCategories.length}
+                    </Text>
+                    <Text
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.8}
+                      numberOfLines={2}
+                      style={[
+                        styles.statLabel,
+                        isRTL && styles.statLabelRTL,
+                        isRTL && styles.rtlText,
+                      ]}
+                    >
+                      {isRTL ? "الفئات" : "Categories"}
+                    </Text>
+                  </View>
+                  <View style={styles.statCard as ViewStyle}>
+                    <Text
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.7}
+                      numberOfLines={1}
+                      style={[
+                        styles.statValue,
+                        isRTL && styles.statValueRTL,
+                        isRTL && styles.rtlText,
+                      ]}
+                    >
+                      {`${stats.medicationCompliance}%`}
+                    </Text>
+                    <Text
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.8}
+                      numberOfLines={2}
+                      style={[
+                        styles.statLabel,
+                        isRTL && styles.statLabelRTL,
+                        isRTL && styles.rtlText,
+                      ]}
+                    >
+                      {isRTL ? "الالتزام" : "Compliance"}
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.statCard as ViewStyle}>
-                  <Text
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.7}
-                    numberOfLines={1}
-                    style={[
-                      styles.statValue,
-                      isRTL && styles.statValueRTL,
-                      isRTL && styles.rtlText,
-                    ]}
-                  >
-                    {trackingCategories.length}
-                  </Text>
-                  <Text
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.8}
-                    numberOfLines={2}
-                    style={[
-                      styles.statLabel,
-                      isRTL && styles.statLabelRTL,
-                      isRTL && styles.rtlText,
-                    ]}
-                  >
-                    {isRTL ? "الفئات" : "Categories"}
-                  </Text>
-                </View>
-                <View style={styles.statCard as ViewStyle}>
-                  <Text
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.7}
-                    numberOfLines={1}
-                    style={[
-                      styles.statValue,
-                      isRTL && styles.statValueRTL,
-                      isRTL && styles.rtlText,
-                    ]}
-                  >
-                    {`${stats.medicationCompliance}%`}
-                  </Text>
-                  <Text
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.8}
-                    numberOfLines={2}
-                    style={[
-                      styles.statLabel,
-                      isRTL && styles.statLabelRTL,
-                      isRTL && styles.rtlText,
-                    ]}
-                  >
-                    {isRTL ? "الالتزام" : "Compliance"}
-                  </Text>
-                </View>
-              </View>
+              ) : null}
 
               <View
                 style={[
                   styles.section as ViewStyle,
+                  styles.categoriesSection as ViewStyle,
                   isRTL && styles.sectionRTL,
+                  isRTL && styles.categoriesSectionRTL,
                 ]}
               >
                 <Text

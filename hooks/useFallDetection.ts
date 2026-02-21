@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Platform } from "react-native";
 import { alertService } from "@/lib/services/alertService";
 
@@ -36,6 +36,7 @@ type BaselineMetrics = {
 // Enhanced fall detection configuration constants
 // Extract frequently-used window size to module level for performance
 const DATA_WINDOW_SIZE = 30; // Keep last 30 readings (1.5 seconds at 20 Hz)
+const GRAVITY_MSS = 9.806_65;
 
 const FALL_CONFIG = {
   // Update interval in milliseconds (50ms = 20 Hz for better accuracy)
@@ -54,7 +55,7 @@ const FALL_CONFIG = {
   IMPACT_MAX_THRESHOLD: 15.0, // G-force (increased to handle harder impacts)
 
   // Jerk (rate of change of acceleration) for impact detection
-  JERK_THRESHOLD: 5.0, // m/s³ (sudden change indicates impact)
+  JERK_THRESHOLD: 5.0, // m/sÂ³ (sudden change indicates impact)
 
   // Orientation change detection (device rotation during fall)
   ORIENTATION_CHANGE_THRESHOLD: 45, // degrees (significant rotation indicates fall)
@@ -152,7 +153,7 @@ const calculateOrientation = (x: number, y: number, z: number): number => {
   const denominator = Math.hypot(x, z);
   return denominator > 0
     ? Math.atan2(y, denominator) * 57.295_779_513_082_32
-    : 0; // 180/π precomputed
+    : 0; // 180/Ï€ precomputed
 };
 
 // Optimized moving average with early return - avoids creating intermediate arrays
@@ -335,7 +336,7 @@ export const useFallDetection = (
 ) => {
   const [isActive, setIsActive] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [_startToken, setStartToken] = useState(0);
+  const [startToken, setStartToken] = useState(0);
 
   // Use refs to avoid stale closures in the sensor callback
   const phaseRef = useRef<FallPhase>("normal");
@@ -367,6 +368,7 @@ export const useFallDetection = (
     Array<{ timestamp: number; magnitude: number }>
   >([]);
   const preFallActivityRef = useRef<number[]>([]); // Store pre-fall activity
+  const accelUnitsRef = useRef<"mss" | "g" | null>(null);
 
   const handleFallDetected = useCallback(async () => {
     const now = Date.now();
@@ -404,16 +406,19 @@ export const useFallDetection = (
       return;
     }
 
+    const initAttempt = startToken;
     let subscription: { remove: () => void } | undefined;
     let isSubscriptionActive = false;
     let initializationTimeout: ReturnType<typeof setTimeout> | undefined;
     let _dataSampleCount = 0; // Track data samples for periodic logging
 
-    if (isActive && !isInitialized) {
+    if (isActive && !isInitialized && initAttempt >= 0) {
       try {
         // Add timeout to prevent hanging initialization
         initializationTimeout = setTimeout(() => {
           setIsInitialized(false);
+          // Force a retry attempt in case initialization got stuck without state changes.
+          setStartToken((current) => current + 1);
         }, 5000);
 
         // Dynamically import expo-sensors only on native platforms with better error handling
@@ -431,16 +436,30 @@ export const useFallDetection = (
                 await motionPermissionService.checkMotionAvailability();
 
               if (!status.available) {
+                if (__DEV__) {
+                  console.warn("[FallDetection] Motion sensors not available");
+                }
                 setIsInitialized(false);
                 return;
               }
 
               if (!(hasPermission || status.granted)) {
+                if (__DEV__) {
+                  console.log(
+                    "[FallDetection] Requesting motion permission..."
+                  );
+                }
                 const requested =
                   await motionPermissionService.requestMotionPermission();
                 if (!requested) {
+                  if (__DEV__) {
+                    console.warn("[FallDetection] Motion permission denied");
+                  }
                   setIsInitialized(false);
                   return;
+                }
+                if (__DEV__) {
+                  console.log("[FallDetection] Motion permission granted");
                 }
               }
             } catch (_permError: unknown) {
@@ -451,11 +470,6 @@ export const useFallDetection = (
             await new Promise((resolve) => setTimeout(resolve, 1000));
 
             const { DeviceMotion } = await import("expo-sensors");
-
-            // Clear timeout if initialization succeeds
-            if (initializationTimeout) {
-              clearTimeout(initializationTimeout);
-            }
 
             // Check if DeviceMotion is available with timeout
             const availabilityPromise = DeviceMotion.isAvailableAsync();
@@ -469,6 +483,9 @@ export const useFallDetection = (
             ])) as boolean;
 
             if (!isAvailable) {
+              if (__DEV__) {
+                console.warn("[FallDetection] DeviceMotion not available");
+              }
               setIsInitialized(false);
               return;
             }
@@ -480,10 +497,12 @@ export const useFallDetection = (
               // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Fall-phase state machine intentionally lives in the streaming callback.
               (measurement) => {
                 const data: DeviceMotionSample = {
-                  acceleration:
-                    measurement.acceleration === null
-                      ? undefined
-                      : measurement.acceleration,
+                  acceleration: (() => {
+                    const accel =
+                      measurement.accelerationIncludingGravity ??
+                      measurement.acceleration;
+                    return accel === null ? undefined : accel;
+                  })(),
                   rotation: measurement.rotation ?? undefined,
                 };
                 if (!(isSubscriptionActive && data)) {
@@ -494,11 +513,25 @@ export const useFallDetection = (
                   if (data.acceleration) {
                     _dataSampleCount += 1;
                     const now = Date.now();
+                    const accelMagnitude = calculateMagnitude(
+                      data.acceleration.x || 0,
+                      data.acceleration.y || 0,
+                      data.acceleration.z || 0
+                    );
+                    if (!accelUnitsRef.current) {
+                      if (accelMagnitude > 3.5) {
+                        accelUnitsRef.current = "mss";
+                      } else if (accelMagnitude > 0.5) {
+                        accelUnitsRef.current = "g";
+                      }
+                    }
+                    const accelScale =
+                      accelUnitsRef.current === "mss" ? 1 / GRAVITY_MSS : 1;
                     const currentData: MotionData = {
                       acceleration: {
-                        x: data.acceleration.x || 0,
-                        y: data.acceleration.y || 0,
-                        z: data.acceleration.z || 0,
+                        x: (data.acceleration.x || 0) * accelScale,
+                        y: (data.acceleration.y || 0) * accelScale,
+                        z: (data.acceleration.z || 0) * accelScale,
                       },
                       rotation: data.rotation
                         ? {
@@ -527,6 +560,16 @@ export const useFallDetection = (
                     // Update baseline metrics for adaptive thresholds
                     const baseline = baselineRef.current;
                     if (baseline.sampleCount < FALL_CONFIG.BASELINE_SAMPLES) {
+                      // Log baseline progress every 20 samples
+                      if (
+                        __DEV__ &&
+                        baseline.sampleCount > 0 &&
+                        baseline.sampleCount % 20 === 0
+                      ) {
+                        console.log(
+                          `[FallDetection] Baseline calibration: ${baseline.sampleCount}/${FALL_CONFIG.BASELINE_SAMPLES} samples`
+                        );
+                      }
                       try {
                         // Validate inputs before calculation with comprehensive checks
                         if (
@@ -813,6 +856,14 @@ export const useFallDetection = (
                     if (baseline.sampleCount >= FALL_CONFIG.BASELINE_SAMPLES) {
                       baseline.avgActivity =
                         baseline.avgActivity * 0.95 + activityLevel * 0.05; // Slow adaptation
+                      if (
+                        __DEV__ &&
+                        baseline.sampleCount === FALL_CONFIG.BASELINE_SAMPLES
+                      ) {
+                        console.log(
+                          "[FallDetection] âœ… Baseline calibration complete. Fall detection ready!"
+                        );
+                      }
                     }
 
                     // Adaptive threshold adjustment based on baseline
@@ -862,6 +913,15 @@ export const useFallDetection = (
                         preFallStable
                       ) {
                         // Potential freefall detected
+                        if (__DEV__) {
+                          console.log("[FallDetection] Freefall detected:", {
+                            filteredAccel,
+                            adaptiveFreefallThreshold,
+                            activityLevel,
+                            adaptiveActivityThreshold,
+                            baselineSamples: baseline.sampleCount,
+                          });
+                        }
                         phaseRef.current = "freefall";
                         freefallStartRef.current = now;
                         // Clear pre-fall activity tracking
@@ -896,6 +956,17 @@ export const useFallDetection = (
 
                           if (hasImpact || hasJerk || hasGyroscopeRotation) {
                             // Impact detected after valid freefall!
+                            if (__DEV__) {
+                              console.log("[FallDetection] Impact detected:", {
+                                freefallDuration,
+                                filteredAccel,
+                                hasImpact,
+                                hasJerk,
+                                hasGyroscopeRotation,
+                                jerk,
+                                rotationRate,
+                              });
+                            }
                             // Track impact in history
                             impactHistoryRef.current.push({
                               timestamp: now,
@@ -913,6 +984,22 @@ export const useFallDetection = (
                             impactTimeRef.current = now;
                           } else {
                             // No significant impact, reset
+                            if (
+                              __DEV__ &&
+                              freefallDuration >=
+                                FALL_CONFIG.FREEFALL_MIN_DURATION
+                            ) {
+                              console.log(
+                                "[FallDetection] Freefall ended but no impact:",
+                                {
+                                  freefallDuration,
+                                  filteredAccel,
+                                  impactThreshold: FALL_CONFIG.IMPACT_THRESHOLD,
+                                  jerk,
+                                  jerkThreshold: FALL_CONFIG.JERK_THRESHOLD,
+                                }
+                              );
+                            }
                             phaseRef.current = "normal";
                             freefallStartRef.current = null;
                           }
@@ -1122,7 +1209,25 @@ export const useFallDetection = (
                           }
 
                           // FALL DETECTED if confidence is high enough
+                          if (__DEV__) {
+                            console.log(
+                              "[FallDetection] Post-impact analysis:",
+                              {
+                                confidence,
+                                minConfidence: FALL_CONFIG.MIN_CONFIDENCE,
+                                postImpactDuration,
+                                variance,
+                                willTrigger:
+                                  confidence >= FALL_CONFIG.MIN_CONFIDENCE,
+                              }
+                            );
+                          }
                           if (confidence >= FALL_CONFIG.MIN_CONFIDENCE) {
+                            if (__DEV__) {
+                              console.log(
+                                "[FallDetection] âœ… FALL DETECTED! Triggering alert..."
+                              );
+                            }
                             handleFallDetected();
                           }
                         }
@@ -1141,12 +1246,19 @@ export const useFallDetection = (
                 } catch (_dataError) {
                   // Stop subscription on repeated errors to prevent crashes
                   isSubscriptionActive = false;
+                  setIsInitialized(false);
                 }
               }
             );
 
             isSubscriptionActive = true;
             setIsInitialized(true);
+            if (__DEV__) {
+              console.log("[FallDetection] âœ… Sensors initialized and active");
+            }
+            if (initializationTimeout) {
+              clearTimeout(initializationTimeout);
+            }
           } catch (_importError: unknown) {
             setIsInitialized(false);
             if (initializationTimeout) {
@@ -1177,12 +1289,17 @@ export const useFallDetection = (
         }
       }
     };
-  }, [isActive, isInitialized, handleFallDetected]);
+  }, [isActive, isInitialized, startToken, handleFallDetected]);
 
   const startFallDetection = useCallback(() => {
     if (Platform.OS !== "web") {
+      if (__DEV__) {
+        console.log("[FallDetection] Starting fall detection...");
+      }
       setStartToken((current) => current + 1);
       setIsActive(true);
+    } else if (__DEV__) {
+      console.warn("[FallDetection] Cannot start on web platform");
     }
   }, []);
 
@@ -1209,6 +1326,7 @@ export const useFallDetection = (
     previousAccelComponentsRef.current = { x: 0, y: 0, z: 0 };
     impactHistoryRef.current = [];
     preFallActivityRef.current = [];
+    accelUnitsRef.current = null;
   }, []);
 
   return useMemo(

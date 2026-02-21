@@ -188,13 +188,13 @@ export default {
         NSHealthUpdateUsageDescription:
           "Maak Health writes health data to keep your health information synchronized across all your devices and maintain accurate health records.",
         NSUserTrackingUsageDescription:
-          "This identifier helps us deliver personalized health insights and recommendations while keeping your data secure.",
+          "Maak Health uses tracking to provide personalized health insights and recommendations. This helps us improve your health tracking experience and deliver relevant health information. Your health data remains secure and is never sold to third parties.",
         NSFaceIDUsageDescription:
           "Maak Health uses Face ID or Touch ID to securely authenticate your identity for biometric authentication.",
         NSMicrophoneUsageDescription:
           "Maak Health needs access to your microphone to use voice features with Zeina, your health assistant.",
         ITSAppUsesNonExemptEncryption: false,
-        UIBackgroundModes: ["location", "processing"],
+        UIBackgroundModes: ["processing"],
         BGTaskSchedulerPermittedIdentifiers: [
           "com.maaktech.maak.background-task",
         ],
@@ -323,6 +323,7 @@ export default {
       "expo-localization",
       "expo-local-authentication",
       "expo-secure-store",
+      "expo-tracking-transparency",
       "expo-web-browser",
       [
         "expo-build-properties",
@@ -356,6 +357,8 @@ export default {
       samsungHealthClientSecret: process.env.SAMSUNG_HEALTH_CLIENT_SECRET || "",
       withingsClientId: process.env.WITHINGS_CLIENT_ID || "",
       withingsClientSecret: process.env.WITHINGS_CLIENT_SECRET || "",
+      withingsApiBase:
+        process.env.WITHINGS_API_BASE || "https://wbsapi.withings.net",
       ouraClientId: process.env.OURA_CLIENT_ID || "",
       ouraClientSecret: process.env.OURA_CLIENT_SECRET || "",
       dexcomClientId: process.env.DEXCOM_CLIENT_ID || "",

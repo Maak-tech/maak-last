@@ -49,6 +49,7 @@ export default function FallDetectionSettingsScreen() {
   } | null>(null);
 
   const isRTL = i18n.language === "ar";
+  const showTestAction = process.env.NODE_ENV !== "production";
 
   // Hide the default header to prevent duplicate headers
   useLayoutEffect(() => {
@@ -113,6 +114,9 @@ export default function FallDetectionSettingsScreen() {
   };
 
   const handleTest = () => {
+    if (!showTestAction) {
+      return;
+    }
     Alert.alert(
       isRTL ? "اختبار كشف السقوط" : "Test Fall Detection",
       isRTL
@@ -413,36 +417,38 @@ export default function FallDetectionSettingsScreen() {
         </View>
 
         {/* Actions Section */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, isRTL && { textAlign: "left" }]}>
-            {isRTL ? "الإجراءات" : "Actions"}
-          </Text>
+        {showTestAction ? (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, isRTL && { textAlign: "left" }]}>
+              {isRTL ? "الإجراءات" : "Actions"}
+            </Text>
 
-          <TouchableOpacity
-            disabled={loading || !isEnabled}
-            onPress={handleTest}
-            style={[
-              styles.actionButton,
-              {
-                borderColor: isEnabled ? "#003543" : "#E5E7EB",
-                opacity: isEnabled ? 1 : 0.5,
-              },
-            ]}
-          >
-            <TestTube color={isEnabled ? "#003543" : "#9CA3AF"} size={20} />
-            <Text
+            <TouchableOpacity
+              disabled={loading || !isEnabled}
+              onPress={handleTest}
               style={[
-                styles.actionButtonText,
+                styles.actionButton,
                 {
-                  color: isEnabled ? "#1A1D1F" : "#6C7280",
+                  borderColor: isEnabled ? "#003543" : "#E5E7EB",
+                  opacity: isEnabled ? 1 : 0.5,
                 },
-                isRTL && { textAlign: "left" },
               ]}
             >
-              {isRTL ? "اختبار كشف السقوط" : "Test Fall Detection"}
-            </Text>
-          </TouchableOpacity>
-        </View>
+              <TestTube color={isEnabled ? "#003543" : "#9CA3AF"} size={20} />
+              <Text
+                style={[
+                  styles.actionButtonText,
+                  {
+                    color: isEnabled ? "#1A1D1F" : "#6C7280",
+                  },
+                  isRTL && { textAlign: "left" },
+                ]}
+              >
+                {isRTL ? "اختبار كشف السقوط" : "Test Fall Detection"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
 
         {/* Information Section */}
         <View style={styles.section}>

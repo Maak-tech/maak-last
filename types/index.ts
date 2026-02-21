@@ -353,6 +353,44 @@ export type PeriodEntry = {
   createdAt: Date;
 };
 
+export type DischargeType =
+  | "none"
+  | "dry"
+  | "sticky"
+  | "creamy"
+  | "eggWhite"
+  | "watery"
+  | "other";
+
+export type BirthControlMethod =
+  | "none"
+  | "pill"
+  | "patch"
+  | "ring"
+  | "iud"
+  | "implant"
+  | "injection"
+  | "other";
+
+export type CycleDailyEntry = {
+  id: string;
+  userId: string;
+  date: Date; // local date at midnight
+  flowIntensity?: "none" | "light" | "medium" | "heavy";
+  crampsSeverity?: 0 | 1 | 2 | 3; // 0 none -> 3 severe
+  mood?: 1 | 2 | 3 | 4 | 5;
+  sleepQuality?: 1 | 2 | 3 | 4 | 5;
+  energyLevel?: 1 | 2 | 3 | 4 | 5;
+  dischargeType?: DischargeType;
+  spotting?: boolean;
+  birthControlMethod?: BirthControlMethod;
+  birthControlTaken?: boolean;
+  birthControlSideEffects?: string[];
+  notes?: string;
+  createdAt: Date;
+  updatedAt?: Date;
+};
+
 export type PeriodCycle = {
   id: string;
   userId: string;
@@ -360,6 +398,10 @@ export type PeriodCycle = {
   averagePeriodLength?: number; // Average days of period
   lastPeriodStart?: Date;
   nextPeriodPredicted?: Date;
+  nextPeriodWindowStart?: Date;
+  nextPeriodWindowEnd?: Date;
   ovulationPredicted?: Date;
+  predictionConfidence?: number; // 0..1
+  cycleLengthStdDev?: number;
   updatedAt: Date;
 };

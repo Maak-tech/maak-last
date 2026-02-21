@@ -776,7 +776,7 @@ export default function AnalyticsScreen() {
                   <AIInsightsDashboard
                     compact={true}
                     onInsightPress={(_insight: unknown) => {
-                      // Handle insight press - could navigate to detailed view
+                      router.push("/profile/health-insights");
                     }}
                   />
                 )}

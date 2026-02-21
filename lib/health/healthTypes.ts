@@ -156,6 +156,7 @@ export const HEALTH_STORAGE_KEYS = {
   SAMSUNG_HEALTH_TOKENS: "@health/samsung_health_tokens_secure",
   GARMIN_TOKENS: "@health/garmin_tokens_secure",
   WITHINGS_TOKENS: "@health/withings_tokens_secure",
+  WITHINGS_OAUTH_STATE: "@health/withings_oauth_state", // Temporary storage for OAuth state parameter
   OURA_TOKENS: "@health/oura_tokens_secure",
   DEXCOM_TOKENS: "@health/dexcom_tokens_secure",
   FREESTYLE_LIBRE_TOKENS: "@health/freestyle_libre_tokens_secure",

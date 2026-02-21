@@ -19,6 +19,7 @@ import {
   createWebSocketWithHeaders,
   getWebSocketSetupGuidance,
 } from "@/lib/polyfills/websocketWithHeaders";
+import aiConsentService from "@/lib/services/aiConsentService";
 import { base64ToUint8Array, uint8ArrayToBase64 } from "@/lib/utils/base64";
 
 type PlaybackStatus = { didJustFinish?: boolean };
@@ -932,6 +933,13 @@ class RealtimeAgentService {
    */
   /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Connection setup intentionally handles auth validation, websocket lifecycle, and recovery in one flow. */
   async connect(customInstructions?: string): Promise<void> {
+    const consent = await aiConsentService.getConsent();
+    if (!consent.consented) {
+      throw new Error(
+        "AI Data Sharing is disabled. Enable it in Profile > AI Data Sharing to use Zeina voice features."
+      );
+    }
+
     // Check if already connected, but handle cases where WebSocket might not have readyState
     if (this.ws) {
       try {

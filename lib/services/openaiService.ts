@@ -1,6 +1,7 @@
 import { httpsCallable } from "firebase/functions";
 import { functions as firebaseFunctions } from "@/lib/firebase";
 import { aiInstrumenter } from "@/lib/observability";
+import aiConsentService from "@/lib/services/aiConsentService";
 
 export type ChatMessage = {
   id: string;
@@ -28,12 +29,31 @@ const markExpectedApiError = (message: string): ExpectedApiError => {
   return error;
 };
 
+const markExpectedUserActionError = (message: string): ExpectedApiError => {
+  const error = new Error(message) as ExpectedApiError;
+  error.isExpectedError = true;
+  error.isApiKeyError = false;
+  return error;
+};
+
 const isFirebaseFunctionsError = (
   error: unknown
 ): error is { code?: string; message?: string } =>
   typeof error === "object" && error !== null && "message" in error;
 
 const MARKDOWN_JSON_BLOCK_REGEX = /```(?:json)?\s*(\{[\s\S]*\})\s*```/;
+
+const redactOutboundText = (value: string): string => {
+  const emailRedacted = value.replace(
+    /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,
+    "[REDACTED]"
+  );
+  const phoneRedacted = emailRedacted.replace(
+    /(\+?\d[\d\s().-]{7,}\d)/g,
+    "[REDACTED]"
+  );
+  return phoneRedacted;
+};
 
 class OpenAIService {
   private model = "gpt-3.5-turbo";
@@ -178,6 +198,18 @@ class OpenAIService {
     messages: ChatMessage[],
     usePremiumKey: boolean
   ): Promise<string> {
+    const consent = await aiConsentService.getConsent();
+    if (!consent.consented) {
+      throw markExpectedUserActionError(
+        "AI Data Sharing is disabled. Enable it in Profile > AI Data Sharing to use Zeina and AI insights."
+      );
+    }
+
+    const sanitizedMessages = messages.map((m) => ({
+      ...m,
+      content: redactOutboundText(m.content),
+    }));
+
     const chatCompletion = httpsCallable<
       {
         messages: Array<{ role: string; content: string }>;
@@ -191,7 +223,10 @@ class OpenAIService {
 
     try {
       const result = await chatCompletion({
-        messages: messages.map((m) => ({ role: m.role, content: m.content })),
+        messages: sanitizedMessages.map((m) => ({
+          role: m.role,
+          content: m.content,
+        })),
         model: this.model,
         temperature: 0.7,
         maxTokens: 1000,

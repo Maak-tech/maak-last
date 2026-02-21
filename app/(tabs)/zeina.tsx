@@ -7,7 +7,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   AlertTriangle,
   Mic,
@@ -39,6 +39,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import GradientScreen from "@/components/figma/GradientScreen";
 import WavyBackground from "@/components/figma/WavyBackground";
 import { useTheme } from "@/contexts/ThemeContext";
+import aiConsentService from "@/lib/services/aiConsentService";
 import { safeFormatTime } from "@/utils/dateFormat";
 import healthContextService from "../../lib/services/healthContextService";
 import openaiService, {
@@ -53,6 +54,7 @@ import CoachMark from "../components/CoachMark";
 export default function ZeinaScreen() {
   const { t, i18n } = useTranslation();
   const { theme } = useTheme();
+  const router = useRouter();
   const params = useLocalSearchParams<{ tour?: string }>();
   const scrollViewRef = useRef<ScrollView>(null);
   const inputRef = useRef<TextInput>(null);
@@ -341,6 +343,25 @@ export default function ZeinaScreen() {
     if (!textToSend.trim() || isStreaming) {
       return;
     }
+
+    const consent = await aiConsentService.getConsent();
+    if (!consent.consented) {
+      Alert.alert(
+        isRTL ? "مشاركة بيانات الذكاء الاصطناعي" : "AI Data Sharing",
+        isRTL
+          ? "لتشغيل «زينة»، يجب السماح بمشاركة البيانات مع مزوّد ذكاء اصطناعي خارجي (OpenAI)."
+          : "To use Zeina, you must allow sharing data with a third-party AI provider (OpenAI).",
+        [
+          { text: isRTL ? "لاحقًا" : "Not now", style: "cancel" },
+          {
+            text: isRTL ? "فتح الإعدادات" : "Open settings",
+            onPress: () => router.push("/profile/ai-data-sharing"),
+          },
+        ]
+      );
+      return;
+    }
+
     try {
       const access = await openaiService.getAccessStatus();
       if (!access.configured) {
@@ -760,8 +781,7 @@ export default function ZeinaScreen() {
           style={[
             styles.figmaInputContainer,
             {
-              paddingBottom: Math.max(insets.bottom, 12),
-              marginBottom: tabBarHeight,
+              paddingBottom: Math.max(insets.bottom, 12) + tabBarHeight,
             },
           ]}
         >
@@ -820,6 +840,11 @@ export default function ZeinaScreen() {
               )}
             </TouchableOpacity>
           </View>
+          <Text style={styles.figmaPrivacyTipText}>
+            {isRTL
+              ? "نصيحة خصوصية: تجنّب كتابة الاسم أو رقم الهاتف أو البريد الإلكتروني أو العنوان في الرسالة."
+              : "Privacy tip: avoid typing names, phone numbers, emails, or addresses in your message."}
+          </Text>
         </View>
       </KeyboardAvoidingView>
 
@@ -1079,10 +1104,11 @@ const styles = StyleSheet.create({
   },
   figmaMessagesContainer: {
     flex: 1,
+    flexGrow: 1,
   },
   figmaMessagesContent: {
     paddingHorizontal: 24,
-    paddingBottom: 24,
+    paddingBottom: 200, // Extra padding to ensure content isn't hidden behind input bar
     paddingTop: 8,
   },
   figmaMessageRow: {
@@ -1194,10 +1220,11 @@ const styles = StyleSheet.create({
     borderTopColor: "#E5E7EB",
     paddingHorizontal: 24,
     paddingTop: 12,
+    flexShrink: 0,
   },
   figmaInputRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-end",
     gap: 8,
   },
   figmaInputField: {
@@ -1206,6 +1233,13 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 10,
+  },
+  figmaPrivacyTipText: {
+    marginTop: 8,
+    fontSize: 11,
+    lineHeight: 14,
+    color: "#64748B",
+    paddingBottom: 4,
   },
   figmaTextInput: {
     fontSize: 14,

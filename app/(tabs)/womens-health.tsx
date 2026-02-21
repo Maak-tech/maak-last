@@ -4,19 +4,21 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
   ArrowLeft,
   Calendar,
+  ChevronLeft,
+  ChevronRight,
   Droplet,
   Edit,
-  Flower2,
   Plus,
   Trash2,
   X,
 } from "lucide-react-native";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
   Modal,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -25,7 +27,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import GradientScreen from "@/components/figma/GradientScreen";
 import WavyBackground from "@/components/figma/WavyBackground";
 import { Colors, Shadows } from "@/constants/theme";
@@ -69,6 +71,7 @@ export default function WomensHealthScreen() {
   const { user } = useAuth();
   const params = useLocalSearchParams<{ returnTo?: string }>();
   const isRTL = i18n.language === "ar";
+  const insets = useSafeAreaInsets();
 
   const [periodEntries, setPeriodEntries] = useState<PeriodEntry[]>([]);
   const [cycleInfo, setCycleInfo] = useState<{
@@ -81,6 +84,13 @@ export default function WomensHealthScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingEntry, setEditingEntry] = useState<PeriodEntry | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [activeDateField, setActiveDateField] = useState<"start" | "end">(
+    "start"
+  );
+  const [datePickerMonth, setDatePickerMonth] = useState(new Date());
+  const [calendarMonth, setCalendarMonth] = useState(new Date());
+  const didInitCalendarMonthRef = useRef(false);
   const [formData, setFormData] = useState({
     startDate: new Date(),
     endDate: undefined as Date | undefined,
@@ -223,6 +233,198 @@ export default function WomensHealthScreen() {
     [isRTL]
   );
 
+  const toDateOnly = useCallback(
+    (date: Date) =>
+      new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12),
+    []
+  );
+
+  useEffect(() => {
+    if (didInitCalendarMonthRef.current) {
+      return;
+    }
+    if (cycleInfo?.ovulationPredicted) {
+      setCalendarMonth(cycleInfo.ovulationPredicted);
+      didInitCalendarMonthRef.current = true;
+      return;
+    }
+    if (cycleInfo?.nextPeriodPredicted) {
+      setCalendarMonth(cycleInfo.nextPeriodPredicted);
+      didInitCalendarMonthRef.current = true;
+    }
+  }, [cycleInfo?.nextPeriodPredicted, cycleInfo?.ovulationPredicted]);
+
+  const openDatePicker = useCallback(
+    (field: "start" | "end") => {
+      setActiveDateField(field);
+      const initial =
+        field === "start"
+          ? formData.startDate
+          : (formData.endDate ?? formData.startDate);
+      setDatePickerMonth(initial);
+      setShowDatePicker(true);
+    },
+    [formData.endDate, formData.startDate]
+  );
+
+  const setDateFieldValue = useCallback(
+    (nextDate: Date) => {
+      const selected = toDateOnly(nextDate);
+      setFormData((prev) => {
+        if (activeDateField === "start") {
+          const nextStart = selected;
+          const nextEnd =
+            prev.endDate && prev.endDate.getTime() < nextStart.getTime()
+              ? undefined
+              : prev.endDate;
+          return { ...prev, startDate: nextStart, endDate: nextEnd };
+        }
+
+        const nextEnd =
+          selected.getTime() < prev.startDate.getTime()
+            ? prev.startDate
+            : selected;
+        return { ...prev, endDate: nextEnd };
+      });
+    },
+    [activeDateField, toDateOnly]
+  );
+
+  const clearEndDate = useCallback(() => {
+    setFormData((prev) => ({ ...prev, endDate: undefined }));
+    setShowDatePicker(false);
+  }, []);
+
+  const addDays = useCallback((date: Date, deltaDays: number) => {
+    const next = new Date(date);
+    next.setDate(next.getDate() + deltaDays);
+    return next;
+  }, []);
+
+  const dateKey = useCallback((date: Date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }, []);
+
+  const weekStartsOn = isRTL ? 6 : 0; // ar: Sat, en: Sun
+
+  const weekdayLabels = useMemo(() => {
+    if (isRTL) {
+      return [
+        { key: "sat", label: "س" },
+        { key: "sun", label: "ح" },
+        { key: "mon", label: "ن" },
+        { key: "tue", label: "ث" },
+        { key: "wed", label: "ر" },
+        { key: "thu", label: "خ" },
+        { key: "fri", label: "ج" },
+      ] as const;
+    }
+
+    return [
+      { key: "sun", label: "S" },
+      { key: "mon", label: "M" },
+      { key: "tue", label: "T" },
+      { key: "wed", label: "W" },
+      { key: "thu", label: "T" },
+      { key: "fri", label: "F" },
+      { key: "sat", label: "S" },
+    ] as const;
+  }, [isRTL]);
+
+  const buildMonthGrid = useCallback(
+    (monthDate: Date) => {
+      const firstOfMonth = new Date(
+        monthDate.getFullYear(),
+        monthDate.getMonth(),
+        1,
+        12
+      );
+      const firstDow = firstOfMonth.getDay(); // 0..6, Sun..Sat
+      const offset = (firstDow - weekStartsOn + 7) % 7;
+      const gridStart = addDays(firstOfMonth, -offset);
+
+      const days: { date: Date; inMonth: boolean }[] = [];
+      for (let i = 0; i < 42; i++) {
+        const day = addDays(gridStart, i);
+        days.push({
+          date: day,
+          inMonth:
+            day.getMonth() === firstOfMonth.getMonth() &&
+            day.getFullYear() === firstOfMonth.getFullYear(),
+        });
+      }
+
+      return { days };
+    },
+    [addDays, weekStartsOn]
+  );
+
+  const actualPeriodDays = useMemo(() => {
+    const keys = new Set<string>();
+    for (const entry of periodEntries) {
+      const start = toDateOnly(entry.startDate);
+      const end = toDateOnly(entry.endDate ?? entry.startDate);
+      const spanDays = Math.max(
+        0,
+        Math.floor((end.getTime() - start.getTime()) / 86_400_000)
+      );
+      for (let i = 0; i <= spanDays; i++) {
+        keys.add(dateKey(addDays(start, i)));
+      }
+    }
+    return keys;
+  }, [addDays, dateKey, periodEntries, toDateOnly]);
+
+  const predictedPeriodDays = useMemo(() => {
+    const keys = new Set<string>();
+    if (!cycleInfo?.nextPeriodPredicted) {
+      return keys;
+    }
+    const start = toDateOnly(cycleInfo.nextPeriodPredicted);
+    const len = cycleInfo.averagePeriodLength ?? 5;
+    for (let i = 0; i < len; i++) {
+      keys.add(dateKey(addDays(start, i)));
+    }
+    return keys;
+  }, [
+    addDays,
+    cycleInfo?.averagePeriodLength,
+    cycleInfo?.nextPeriodPredicted,
+    dateKey,
+    toDateOnly,
+  ]);
+
+  const fertileWindowDays = useMemo(() => {
+    const keys = new Set<string>();
+    if (!cycleInfo?.ovulationPredicted) {
+      return keys;
+    }
+    const ov = toDateOnly(cycleInfo.ovulationPredicted);
+    for (let i = -2; i <= 2; i++) {
+      keys.add(dateKey(addDays(ov, i)));
+    }
+    return keys;
+  }, [addDays, cycleInfo?.ovulationPredicted, dateKey, toDateOnly]);
+
+  const ovulationKey = useMemo(() => {
+    if (!cycleInfo?.ovulationPredicted) {
+      return null;
+    }
+    return dateKey(toDateOnly(cycleInfo.ovulationPredicted));
+  }, [cycleInfo?.ovulationPredicted, dateKey, toDateOnly]);
+
+  const calendarMonthLabel = useMemo(
+    () =>
+      safeFormatDate(calendarMonth, isRTL ? "ar-u-ca-gregory" : "en-US", {
+        month: "long",
+        year: "numeric",
+      }),
+    [calendarMonth, isRTL]
+  );
+
   const getDaysUntilNextPeriod = useCallback(() => {
     if (!cycleInfo?.nextPeriodPredicted) {
       return null;
@@ -275,213 +477,403 @@ export default function WomensHealthScreen() {
 
   return (
     <GradientScreen
-      edges={["top"]}
+      edges={[]}
       pointerEvents="box-none"
       style={styles.container}
     >
-      <SafeAreaView edges={["top"]} style={styles.safeArea}>
-        <WavyBackground curve="home" height={200} variant="teal">
-          <View style={styles.header}>
-            <TouchableOpacity
-              onPress={() => {
-                if (params.returnTo) {
-                  if (params.returnTo === "track") {
-                    router.push("/(tabs)/track");
-                  } else {
-                    router.back();
-                  }
-                } else {
-                  router.back();
-                }
-              }}
-              style={styles.backButton}
-            >
-              <ArrowLeft color="#FFFFFF" size={24} />
-            </TouchableOpacity>
-            <View style={styles.headerTitleContainer}>
-              <Flower2 color="#FFFFFF" size={24} />
-              <Text style={styles.headerTitle}>
-                {isRTL ? "صحة المرأة" : "Women's Health"}
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={handleAddPeriod}
-              style={styles.addButton}
-            >
-              <Plus color="#FFFFFF" size={24} />
-            </TouchableOpacity>
-          </View>
-        </WavyBackground>
-
-        <ScrollView
-          contentContainerStyle={styles.content}
-          refreshControl={
-            <RefreshControl
-              onRefresh={handleRefresh}
-              refreshing={refreshing}
-              tintColor={Colors.primary.main}
-            />
-          }
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: 40 + insets.bottom },
+        ]}
+        refreshControl={
+          <RefreshControl
+            onRefresh={handleRefresh}
+            refreshing={refreshing}
+            tintColor={Colors.primary.main}
+          />
+        }
+      >
+        <View
+          style={[
+            styles.wavyHeaderWrapper,
+            isRTL && styles.wavyHeaderWrapperRTL,
+          ]}
         >
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator color={Colors.primary.main} size="large" />
-              <Text style={styles.loadingText}>
-                {isRTL ? "جاري التحميل..." : "Loading..."}
-              </Text>
+          <WavyBackground
+            contentPosition="top"
+            curve="home"
+            height={200 + insets.top}
+            variant="teal"
+          >
+            <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+              <View
+                style={[
+                  styles.headerRow,
+                  isRTL && { flexDirection: "row-reverse" as const },
+                ]}
+              >
+                <TouchableOpacity
+                  onPress={() => {
+                    if (params.returnTo) {
+                      if (params.returnTo === "track") {
+                        router.push("/(tabs)/track");
+                      } else {
+                        router.back();
+                      }
+                    } else {
+                      router.back();
+                    }
+                  }}
+                  style={styles.backButton}
+                >
+                  <ArrowLeft color="#FFFFFF" size={24} />
+                </TouchableOpacity>
+                <Text
+                  style={[
+                    styles.headerTitle,
+                    { color: "#FFFFFF" },
+                    isRTL && { textAlign: "right" as const },
+                    isRTL && styles.headerTitleRTL,
+                  ]}
+                >
+                  {isRTL ? "صحة المرأة" : "Women's Health"}
+                </Text>
+              </View>
             </View>
-          ) : (
-            <>
-              {/* Next Period Prediction Card - Prominent */}
-              {!cycleInfo?.nextPeriodPredicted && periodEntries.length === 0 ? (
-                <View style={styles.predictionCard}>
-                  <View style={styles.predictionHeader}>
-                    <View style={styles.predictionIconContainer}>
-                      <Calendar color={Colors.text.inverse} size={28} />
-                    </View>
-                    <View style={styles.predictionTitleContainer}>
-                      <Text style={styles.predictionTitle}>
-                        {isRTL ? "ابدأ التتبع" : "Start Tracking"}
-                      </Text>
-                      <Text style={styles.predictionSubtitle}>
-                        {isRTL
-                          ? "أضف أول سجل لدورتك الشهرية للحصول على توقعات دقيقة"
-                          : "Add your first period entry to get accurate predictions"}
-                      </Text>
-                    </View>
+          </WavyBackground>
+        </View>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator color={Colors.primary.main} size="large" />
+            <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
+              {isRTL ? "جاري التحميل..." : "Loading..."}
+            </Text>
+          </View>
+        ) : (
+          <>
+            {/* Next Period Prediction Card - Prominent */}
+            {!cycleInfo?.nextPeriodPredicted && periodEntries.length === 0 ? (
+              <View style={styles.predictionCard}>
+                <View style={styles.predictionHeader}>
+                  <View style={styles.predictionIconContainer}>
+                    <Calendar color={Colors.text.inverse} size={28} />
                   </View>
-                  <TouchableOpacity
-                    onPress={handleAddPeriod}
-                    style={styles.predictionButton}
-                  >
-                    <Plus color={Colors.primary.main} size={20} />
-                    <Text style={styles.predictionButtonText}>
-                      {isRTL ? "إضافة سجل" : "Add Entry"}
+                  <View style={styles.predictionTitleContainer}>
+                    <Text
+                      style={[styles.predictionTitle, isRTL && styles.rtlText]}
+                    >
+                      {isRTL ? "ابدأ التتبع" : "Start Tracking"}
                     </Text>
-                  </TouchableOpacity>
-                </View>
-              ) : null}
-
-              {/* Next Period Prediction Card - Prominent */}
-              {cycleInfo?.nextPeriodPredicted ? (
-                <View style={styles.predictionCard}>
-                  <View style={styles.predictionHeader}>
-                    <View style={styles.predictionIconContainer}>
-                      <Calendar color={Colors.primary.main} size={28} />
-                    </View>
-                    <View style={styles.predictionTitleContainer}>
-                      <Text style={styles.predictionTitle}>
-                        {isRTL
-                          ? "الدورة القادمة المتوقعة"
-                          : "Next Period Prediction"}
-                      </Text>
-                      <Text style={styles.predictionSubtitle}>
-                        {isRTL
-                          ? "بناءً على بياناتك السابقة"
-                          : "Based on your cycle history"}
-                      </Text>
-                    </View>
+                    <Text
+                      style={[
+                        styles.predictionSubtitle,
+                        isRTL && styles.rtlText,
+                      ]}
+                    >
+                      {isRTL
+                        ? "أضف أول سجل لدورتك الشهرية للحصول على توقعات دقيقة"
+                        : "Add your first period entry to get accurate predictions"}
+                    </Text>
                   </View>
-                  <View style={styles.predictionContent}>
-                    <View style={styles.predictionDateContainer}>
-                      <View style={styles.predictionDateInfo}>
-                        <Text style={styles.predictionDate}>
-                          {formatDate(cycleInfo.nextPeriodPredicted)}
-                        </Text>
-                        {getPredictionStatus() ? (
-                          <View
-                            style={[
-                              styles.statusBadge,
-                              {
-                                backgroundColor: `${getPredictionStatus()?.color}20`,
-                              },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.statusBadgeText,
-                                { color: getPredictionStatus()?.color },
-                              ]}
-                            >
-                              {getPredictionStatus()?.label}
-                            </Text>
-                          </View>
-                        ) : null}
-                      </View>
-                      {getDaysUntilNextPeriod() !== null ? (
+                </View>
+                <TouchableOpacity
+                  onPress={handleAddPeriod}
+                  style={styles.predictionButton}
+                >
+                  <Plus color={Colors.primary.main} size={20} />
+                  <Text
+                    style={[
+                      styles.predictionButtonText,
+                      isRTL && styles.rtlText,
+                    ]}
+                  >
+                    {isRTL ? "إضافة سجل" : "Add Entry"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
+            {/* Next Period Prediction Card - Prominent */}
+            {cycleInfo?.nextPeriodPredicted ? (
+              <View style={styles.predictionCard}>
+                <View style={styles.predictionHeader}>
+                  <View style={styles.predictionIconContainer}>
+                    <Calendar color={Colors.primary.main} size={28} />
+                  </View>
+                  <View style={styles.predictionTitleContainer}>
+                    <Text style={styles.predictionTitle}>
+                      {isRTL
+                        ? "الدورة القادمة المتوقعة"
+                        : "Next Period Prediction"}
+                    </Text>
+                    <Text style={styles.predictionSubtitle}>
+                      {isRTL
+                        ? "بناءً على بياناتك السابقة"
+                        : "Based on your cycle history"}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.predictionContent}>
+                  <View style={styles.predictionDateContainer}>
+                    <View style={styles.predictionDateInfo}>
+                      <Text style={styles.predictionDate}>
+                        {formatDate(cycleInfo.nextPeriodPredicted)}
+                      </Text>
+                      {getPredictionStatus() ? (
                         <View
                           style={[
-                            styles.countdownContainer,
+                            styles.statusBadge,
                             {
-                              backgroundColor:
-                                getPredictionStatus()?.type === "overdue"
-                                  ? Colors.accent.error
-                                  : getPredictionStatus()?.type === "today" ||
-                                      getPredictionStatus()?.type === "soon"
-                                    ? Colors.accent.warning
-                                    : Colors.accent.success,
+                              backgroundColor: `${getPredictionStatus()?.color}20`,
                             },
                           ]}
                         >
-                          <Text style={styles.countdownNumber}>
-                            {Math.abs(getDaysUntilNextPeriod() || 0)}
-                          </Text>
-                          <Text style={styles.countdownLabel}>
-                            {getDaysUntilNextPeriod() === 0
-                              ? isRTL
-                                ? "اليوم"
-                                : "today"
-                              : getDaysUntilNextPeriod() === 1
-                                ? isRTL
-                                  ? "يوم"
-                                  : "day"
-                                : getDaysUntilNextPeriod() === -1
-                                  ? isRTL
-                                    ? "يوم متأخر"
-                                    : "day late"
-                                  : (getDaysUntilNextPeriod() ?? 0) < 0
-                                    ? isRTL
-                                      ? "أيام متأخرة"
-                                      : "days late"
-                                    : isRTL
-                                      ? "أيام"
-                                      : "days"}
+                          <Text
+                            style={[
+                              styles.statusBadgeText,
+                              { color: getPredictionStatus()?.color },
+                            ]}
+                          >
+                            {getPredictionStatus()?.label}
                           </Text>
                         </View>
                       ) : null}
                     </View>
-                    {cycleInfo.ovulationPredicted ? (
-                      <View style={styles.ovulationInfo}>
-                        <Text style={styles.ovulationLabel}>
-                          {isRTL ? "الإباضة المتوقعة" : "Predicted Ovulation"}
+                    {getDaysUntilNextPeriod() !== null ? (
+                      <View
+                        style={[
+                          styles.countdownContainer,
+                          {
+                            backgroundColor:
+                              getPredictionStatus()?.type === "overdue"
+                                ? Colors.accent.error
+                                : getPredictionStatus()?.type === "today" ||
+                                    getPredictionStatus()?.type === "soon"
+                                  ? Colors.accent.warning
+                                  : Colors.accent.success,
+                          },
+                        ]}
+                      >
+                        <Text style={styles.countdownNumber}>
+                          {Math.abs(getDaysUntilNextPeriod() || 0)}
                         </Text>
-                        <Text style={styles.ovulationDate}>
-                          {formatDate(cycleInfo.ovulationPredicted)}
+                        <Text style={styles.countdownLabel}>
+                          {getDaysUntilNextPeriod() === 0
+                            ? isRTL
+                              ? "اليوم"
+                              : "today"
+                            : getDaysUntilNextPeriod() === 1
+                              ? isRTL
+                                ? "يوم"
+                                : "day"
+                              : getDaysUntilNextPeriod() === -1
+                                ? isRTL
+                                  ? "يوم متأخر"
+                                  : "day late"
+                                : (getDaysUntilNextPeriod() ?? 0) < 0
+                                  ? isRTL
+                                    ? "أيام متأخرة"
+                                    : "days late"
+                                  : isRTL
+                                    ? "أيام"
+                                    : "days"}
                         </Text>
                       </View>
                     ) : null}
                   </View>
-                </View>
-              ) : null}
-
-              {/* Cycle Info Card */}
-              {cycleInfo ? (
-                <View style={styles.infoCard}>
-                  <View style={styles.infoCardHeader}>
-                    <View style={styles.infoIconContainer}>
-                      <Calendar color={Colors.primary.main} size={24} />
+                  {cycleInfo.ovulationPredicted ? (
+                    <View style={styles.ovulationInfo}>
+                      <Text style={styles.ovulationLabel}>
+                        {isRTL ? "الإباضة المتوقعة" : "Predicted Ovulation"}
+                      </Text>
+                      <Text style={styles.ovulationDate}>
+                        {formatDate(cycleInfo.ovulationPredicted)}
+                      </Text>
                     </View>
-                    <Text style={styles.infoCardTitle}>
-                      {isRTL ? "معلومات الدورة" : "Cycle Information"}
+                  ) : null}
+
+                  <View style={styles.cycleCalendarCard}>
+                    <View style={styles.cycleCalendarHeader}>
+                      <TouchableOpacity
+                        onPress={() =>
+                          setCalendarMonth(
+                            (prev) =>
+                              new Date(
+                                prev.getFullYear(),
+                                prev.getMonth() - 1,
+                                1,
+                                12
+                              )
+                          )
+                        }
+                        style={styles.cycleCalendarNavButton}
+                      >
+                        <ChevronLeft color={Colors.text.primary} size={18} />
+                      </TouchableOpacity>
+                      <Text style={styles.cycleCalendarMonthLabel}>
+                        {calendarMonthLabel}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() =>
+                          setCalendarMonth(
+                            (prev) =>
+                              new Date(
+                                prev.getFullYear(),
+                                prev.getMonth() + 1,
+                                1,
+                                12
+                              )
+                          )
+                        }
+                        style={styles.cycleCalendarNavButton}
+                      >
+                        <ChevronRight color={Colors.text.primary} size={18} />
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.weekdayRowCompact}>
+                      {weekdayLabels.map(({ key, label }) => (
+                        <Text key={key} style={styles.weekdayLabelCompact}>
+                          {label}
+                        </Text>
+                      ))}
+                    </View>
+
+                    <View style={styles.monthGridCompact}>
+                      {buildMonthGrid(calendarMonth).days.map(
+                        ({ date, inMonth }) => {
+                          const key = dateKey(date);
+                          const isActualPeriod = actualPeriodDays.has(key);
+                          const isPredictedPeriod =
+                            predictedPeriodDays.has(key);
+                          const isFertile = fertileWindowDays.has(key);
+                          const isOvulation = ovulationKey === key;
+
+                          return (
+                            <View
+                              key={key}
+                              style={[
+                                styles.dayCellCompact,
+                                !inMonth && styles.dayCellCompactMuted,
+                                isActualPeriod && styles.dayCellCompactPeriod,
+                                !isActualPeriod &&
+                                  isPredictedPeriod &&
+                                  styles.dayCellCompactPredicted,
+                                !(isActualPeriod || isPredictedPeriod) &&
+                                  isFertile &&
+                                  styles.dayCellCompactFertile,
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.dayTextCompact,
+                                  !inMonth && styles.dayTextCompactMuted,
+                                ]}
+                              >
+                                {date.getDate()}
+                              </Text>
+                              <View style={styles.dayDotsRow}>
+                                {isOvulation ? (
+                                  <View
+                                    style={[
+                                      styles.legendDot,
+                                      styles.dotOvulation,
+                                    ]}
+                                  />
+                                ) : null}
+                                {!isOvulation && isFertile ? (
+                                  <View
+                                    style={[
+                                      styles.legendDot,
+                                      styles.dotFertile,
+                                    ]}
+                                  />
+                                ) : null}
+                                {isActualPeriod ? (
+                                  <View
+                                    style={[styles.legendDot, styles.dotPeriod]}
+                                  />
+                                ) : null}
+                                {!isActualPeriod && isPredictedPeriod ? (
+                                  <View
+                                    style={[
+                                      styles.legendDot,
+                                      styles.dotPredicted,
+                                    ]}
+                                  />
+                                ) : null}
+                              </View>
+                            </View>
+                          );
+                        }
+                      )}
+                    </View>
+
+                    <View style={styles.cycleLegendRow}>
+                      <View style={styles.cycleLegendItem}>
+                        <View style={[styles.legendDot, styles.dotPeriod]} />
+                        <Text style={styles.cycleLegendText}>
+                          {isRTL ? "الدورة" : "Period"}
+                        </Text>
+                      </View>
+                      <View style={styles.cycleLegendItem}>
+                        <View style={[styles.legendDot, styles.dotPredicted]} />
+                        <Text style={styles.cycleLegendText}>
+                          {isRTL ? "متوقعة" : "Predicted"}
+                        </Text>
+                      </View>
+                      <View style={styles.cycleLegendItem}>
+                        <View style={[styles.legendDot, styles.dotFertile]} />
+                        <Text style={styles.cycleLegendText}>
+                          {isRTL ? "خصوبة" : "Fertile"}
+                        </Text>
+                      </View>
+                      <View style={styles.cycleLegendItem}>
+                        <View style={[styles.legendDot, styles.dotOvulation]} />
+                        <Text style={styles.cycleLegendText}>
+                          {isRTL ? "إباضة" : "Ovulation"}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            ) : null}
+
+            {/* Cycle Info Card */}
+            {cycleInfo ? (
+              <View style={styles.infoCard}>
+                <View style={styles.infoCardHeader}>
+                  <View style={styles.infoIconContainer}>
+                    <Calendar color={Colors.primary.main} size={24} />
+                  </View>
+                  <Text style={styles.infoCardTitle}>
+                    {isRTL ? "معلومات الدورة" : "Cycle Information"}
+                  </Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>
+                    {isRTL ? "متوسط طول الدورة" : "Average Cycle Length"}
+                  </Text>
+                  <View style={styles.infoValueContainer}>
+                    <Text style={styles.infoValue}>
+                      {cycleInfo.averageCycleLength || 28}
+                    </Text>
+                    <Text style={styles.infoUnit}>
+                      {" "}
+                      {isRTL ? "يوم" : "days"}
                     </Text>
                   </View>
+                </View>
+                {typeof cycleInfo.averagePeriodLength === "number" ? (
                   <View style={styles.infoRow}>
                     <Text style={styles.infoLabel}>
-                      {isRTL ? "متوسط طول الدورة" : "Average Cycle Length"}
+                      {isRTL ? "متوسط مدة الدورة" : "Average Period Length"}
                     </Text>
                     <View style={styles.infoValueContainer}>
                       <Text style={styles.infoValue}>
-                        {cycleInfo.averageCycleLength || 28}
+                        {cycleInfo.averagePeriodLength}
                       </Text>
                       <Text style={styles.infoUnit}>
                         {" "}
@@ -489,295 +881,432 @@ export default function WomensHealthScreen() {
                       </Text>
                     </View>
                   </View>
-                  {typeof cycleInfo.averagePeriodLength === "number" ? (
-                    <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>
-                        {isRTL ? "متوسط مدة الدورة" : "Average Period Length"}
-                      </Text>
-                      <View style={styles.infoValueContainer}>
-                        <Text style={styles.infoValue}>
-                          {cycleInfo.averagePeriodLength}
-                        </Text>
-                        <Text style={styles.infoUnit}>
-                          {" "}
-                          {isRTL ? "يوم" : "days"}
-                        </Text>
+                ) : null}
+              </View>
+            ) : null}
+
+            {/* Period Entries */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>
+                {isRTL ? "سجلات الدورة الشهرية" : "Period History"}
+              </Text>
+              {periodEntries.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <View style={styles.emptyIconContainer}>
+                    <Droplet color={Colors.neutral[400]} size={48} />
+                  </View>
+                  <Text style={styles.emptyText}>
+                    {isRTL ? "لا توجد سجلات حتى الآن" : "No period entries yet"}
+                  </Text>
+                  <Text style={styles.emptySubtext}>
+                    {isRTL
+                      ? "ابدأ بتسجيل دورتك الشهرية"
+                      : "Start tracking your period"}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={handleAddPeriod}
+                    style={styles.emptyButton}
+                  >
+                    <Plus color={Colors.primary.main} size={20} />
+                    <Text style={styles.emptyButtonText}>
+                      {isRTL ? "إضافة سجل" : "Add Entry"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                periodEntries.map((entry) => (
+                  <View key={entry.id} style={styles.entryCard}>
+                    <View style={styles.entryHeader}>
+                      <View style={styles.entryDateContainer}>
+                        <View style={styles.entryIconContainer}>
+                          <Calendar color={Colors.primary.main} size={20} />
+                        </View>
+                        <View>
+                          <Text style={styles.entryDate}>
+                            {formatDate(entry.startDate)}
+                          </Text>
+                          {entry.endDate ? (
+                            <Text style={styles.entryDateEnd}>
+                              {formatDate(entry.endDate)}
+                            </Text>
+                          ) : null}
+                        </View>
+                      </View>
+                      <View style={styles.entryActions}>
+                        <TouchableOpacity
+                          onPress={() => handleEditPeriod(entry)}
+                          style={styles.actionButton}
+                        >
+                          <Edit color={Colors.neutral[600]} size={18} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => handleDeletePeriod(entry.id)}
+                          style={styles.actionButton}
+                        >
+                          <Trash2 color={Colors.accent.error} size={18} />
+                        </TouchableOpacity>
                       </View>
                     </View>
-                  ) : null}
-                </View>
-              ) : null}
+                    {entry.flowIntensity ? (
+                      <View style={styles.entryDetail}>
+                        <Text style={styles.entryLabel}>
+                          {isRTL ? "الشدة" : "Flow"}
+                        </Text>
+                        <View style={styles.flowBadge}>
+                          <Text style={styles.flowEmoji}>
+                            {FLOW_INTENSITY_OPTIONS.find(
+                              (f) => f.value === entry.flowIntensity
+                            )?.emoji || ""}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.flowText,
+                              {
+                                color:
+                                  FLOW_INTENSITY_OPTIONS.find(
+                                    (f) => f.value === entry.flowIntensity
+                                  )?.color || Colors.neutral[600],
+                              },
+                            ]}
+                          >
+                            {FLOW_INTENSITY_OPTIONS.find(
+                              (f) => f.value === entry.flowIntensity
+                            )?.label || entry.flowIntensity}
+                          </Text>
+                        </View>
+                      </View>
+                    ) : null}
+                    {entry.symptoms && entry.symptoms.length > 0 ? (
+                      <View style={styles.entryDetail}>
+                        <Text style={styles.entryLabel}>
+                          {isRTL ? "الأعراض" : "Symptoms"}
+                        </Text>
+                        <View style={styles.symptomsContainer}>
+                          {entry.symptoms.map((symptom) => (
+                            <View key={symptom} style={styles.symptomTag}>
+                              <Text style={styles.symptomTagText}>
+                                {t(symptom, symptom)}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    ) : null}
+                    {entry.notes ? (
+                      <View style={styles.entryDetail}>
+                        <Text style={styles.entryNotes}>{entry.notes}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                ))
+              )}
+            </View>
+          </>
+        )}
+      </ScrollView>
 
-              {/* Period Entries */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>
-                  {isRTL ? "سجلات الدورة الشهرية" : "Period History"}
+      <TouchableOpacity
+        accessibilityLabel={isRTL ? "إضافة سجل" : "Add entry"}
+        onPress={handleAddPeriod}
+        style={[styles.fabButton, { bottom: insets.bottom + 24 }]}
+      >
+        <Plus color={Colors.text.inverse} size={26} />
+      </TouchableOpacity>
+
+      {/* Add/Edit Modal */}
+      <Modal
+        animationType="slide"
+        onRequestClose={() => setShowAddModal(false)}
+        transparent
+        visible={showAddModal}
+      >
+        <View style={[styles.modalOverlay, styles.calendarOverlay]}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {editingEntry
+                  ? isRTL
+                    ? "تعديل السجل"
+                    : "Edit Entry"
+                  : isRTL
+                    ? "إضافة سجل جديد"
+                    : "Add Period Entry"}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowAddModal(false)}
+                style={styles.closeButton}
+              >
+                <X color={Colors.neutral[600]} size={24} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>
+                  {isRTL ? "تاريخ البداية" : "Start Date"}
                 </Text>
-                {periodEntries.length === 0 ? (
-                  <View style={styles.emptyContainer}>
-                    <View style={styles.emptyIconContainer}>
-                      <Droplet color={Colors.neutral[400]} size={48} />
-                    </View>
-                    <Text style={styles.emptyText}>
-                      {isRTL
-                        ? "لا توجد سجلات حتى الآن"
-                        : "No period entries yet"}
-                    </Text>
-                    <Text style={styles.emptySubtext}>
-                      {isRTL
-                        ? "ابدأ بتسجيل دورتك الشهرية"
-                        : "Start tracking your period"}
-                    </Text>
+                <Pressable
+                  onPress={() => openDatePicker("start")}
+                  style={styles.dateInputContainer}
+                >
+                  <Text style={styles.dateInputText}>
+                    {formatDate(formData.startDate)}
+                  </Text>
+                  <Calendar color={Colors.neutral[500]} size={18} />
+                </Pressable>
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>
+                  {isRTL ? "تاريخ النهاية" : "End Date"}
+                </Text>
+                <Pressable
+                  onPress={() => openDatePicker("end")}
+                  style={styles.dateInputContainer}
+                >
+                  <Text style={styles.dateInputText}>
+                    {formData.endDate
+                      ? formatDate(formData.endDate)
+                      : isRTL
+                        ? "اختياري"
+                        : "Optional"}
+                  </Text>
+                  <Calendar color={Colors.neutral[500]} size={18} />
+                </Pressable>
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>
+                  {isRTL ? "شدة التدفق" : "Flow Intensity"}
+                </Text>
+                <View style={styles.flowOptions}>
+                  {FLOW_INTENSITY_OPTIONS.map((option) => (
                     <TouchableOpacity
-                      onPress={handleAddPeriod}
-                      style={styles.emptyButton}
+                      key={option.value}
+                      onPress={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          flowIntensity: option.value as
+                            | "light"
+                            | "medium"
+                            | "heavy",
+                        }))
+                      }
+                      style={[
+                        styles.flowOption,
+                        formData.flowIntensity === option.value &&
+                          styles.flowOptionSelected,
+                      ]}
                     >
-                      <Plus color={Colors.primary.main} size={20} />
-                      <Text style={styles.emptyButtonText}>
-                        {isRTL ? "إضافة سجل" : "Add Entry"}
+                      <Text style={styles.flowEmojiLarge}>{option.emoji}</Text>
+                      <Text
+                        style={[
+                          styles.flowLabel,
+                          formData.flowIntensity === option.value &&
+                            styles.flowLabelSelected,
+                        ]}
+                      >
+                        {option.label}
                       </Text>
                     </TouchableOpacity>
-                  </View>
-                ) : (
-                  periodEntries.map((entry) => (
-                    <View key={entry.id} style={styles.entryCard}>
-                      <View style={styles.entryHeader}>
-                        <View style={styles.entryDateContainer}>
-                          <View style={styles.entryIconContainer}>
-                            <Calendar color={Colors.primary.main} size={20} />
-                          </View>
-                          <View>
-                            <Text style={styles.entryDate}>
-                              {formatDate(entry.startDate)}
-                            </Text>
-                            {entry.endDate ? (
-                              <Text style={styles.entryDateEnd}>
-                                {formatDate(entry.endDate)}
-                              </Text>
-                            ) : null}
-                          </View>
-                        </View>
-                        <View style={styles.entryActions}>
-                          <TouchableOpacity
-                            onPress={() => handleEditPeriod(entry)}
-                            style={styles.actionButton}
-                          >
-                            <Edit color={Colors.neutral[600]} size={18} />
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            onPress={() => handleDeletePeriod(entry.id)}
-                            style={styles.actionButton}
-                          >
-                            <Trash2 color={Colors.accent.error} size={18} />
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                      {entry.flowIntensity ? (
-                        <View style={styles.entryDetail}>
-                          <Text style={styles.entryLabel}>
-                            {isRTL ? "الشدة" : "Flow"}
-                          </Text>
-                          <View style={styles.flowBadge}>
-                            <Text style={styles.flowEmoji}>
-                              {FLOW_INTENSITY_OPTIONS.find(
-                                (f) => f.value === entry.flowIntensity
-                              )?.emoji || ""}
-                            </Text>
-                            <Text
-                              style={[
-                                styles.flowText,
-                                {
-                                  color:
-                                    FLOW_INTENSITY_OPTIONS.find(
-                                      (f) => f.value === entry.flowIntensity
-                                    )?.color || Colors.neutral[600],
-                                },
-                              ]}
-                            >
-                              {FLOW_INTENSITY_OPTIONS.find(
-                                (f) => f.value === entry.flowIntensity
-                              )?.label || entry.flowIntensity}
-                            </Text>
-                          </View>
-                        </View>
-                      ) : null}
-                      {entry.symptoms && entry.symptoms.length > 0 ? (
-                        <View style={styles.entryDetail}>
-                          <Text style={styles.entryLabel}>
-                            {isRTL ? "الأعراض" : "Symptoms"}
-                          </Text>
-                          <View style={styles.symptomsContainer}>
-                            {entry.symptoms.map((symptom) => (
-                              <View key={symptom} style={styles.symptomTag}>
-                                <Text style={styles.symptomTagText}>
-                                  {t(symptom, symptom)}
-                                </Text>
-                              </View>
-                            ))}
-                          </View>
-                        </View>
-                      ) : null}
-                      {entry.notes ? (
-                        <View style={styles.entryDetail}>
-                          <Text style={styles.entryNotes}>{entry.notes}</Text>
-                        </View>
-                      ) : null}
-                    </View>
-                  ))
-                )}
+                  ))}
+                </View>
               </View>
-            </>
-          )}
-        </ScrollView>
 
-        {/* Add/Edit Modal */}
-        <Modal
-          animationType="slide"
-          onRequestClose={() => setShowAddModal(false)}
-          transparent
-          visible={showAddModal}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
-                  {editingEntry
-                    ? isRTL
-                      ? "تعديل السجل"
-                      : "Edit Entry"
-                    : isRTL
-                      ? "إضافة سجل جديد"
-                      : "Add Period Entry"}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>
+                  {isRTL ? "الأعراض" : "Symptoms"}
                 </Text>
-                <TouchableOpacity
-                  onPress={() => setShowAddModal(false)}
-                  style={styles.closeButton}
-                >
-                  <X color={Colors.neutral[600]} size={24} />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView style={styles.modalBody}>
-                <View style={styles.formGroup}>
-                  <Text style={styles.formLabel}>
-                    {isRTL ? "تاريخ البداية" : "Start Date"}
-                  </Text>
-                  <View style={styles.dateInputContainer}>
-                    <Text style={styles.dateInputText}>
-                      {formatDate(formData.startDate)}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.formGroup}>
-                  <Text style={styles.formLabel}>
-                    {isRTL ? "شدة التدفق" : "Flow Intensity"}
-                  </Text>
-                  <View style={styles.flowOptions}>
-                    {FLOW_INTENSITY_OPTIONS.map((option) => (
-                      <TouchableOpacity
-                        key={option.value}
-                        onPress={() =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            flowIntensity: option.value as
-                              | "light"
-                              | "medium"
-                              | "heavy",
-                          }))
-                        }
+                <View style={styles.symptomsGrid}>
+                  {PERIOD_SYMPTOMS.map((symptom) => (
+                    <TouchableOpacity
+                      key={symptom}
+                      onPress={() => toggleSymptom(symptom)}
+                      style={[
+                        styles.symptomChip,
+                        formData.symptoms.includes(symptom) &&
+                          styles.symptomChipSelected,
+                      ]}
+                    >
+                      <Text
                         style={[
-                          styles.flowOption,
-                          formData.flowIntensity === option.value &&
-                            styles.flowOptionSelected,
-                        ]}
-                      >
-                        <Text style={styles.flowEmojiLarge}>
-                          {option.emoji}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.flowLabel,
-                            formData.flowIntensity === option.value &&
-                              styles.flowLabelSelected,
-                          ]}
-                        >
-                          {option.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-
-                <View style={styles.formGroup}>
-                  <Text style={styles.formLabel}>
-                    {isRTL ? "الأعراض" : "Symptoms"}
-                  </Text>
-                  <View style={styles.symptomsGrid}>
-                    {PERIOD_SYMPTOMS.map((symptom) => (
-                      <TouchableOpacity
-                        key={symptom}
-                        onPress={() => toggleSymptom(symptom)}
-                        style={[
-                          styles.symptomChip,
+                          styles.symptomText,
                           formData.symptoms.includes(symptom) &&
-                            styles.symptomChipSelected,
+                            styles.symptomTextSelected,
                         ]}
                       >
-                        <Text
-                          style={[
-                            styles.symptomText,
-                            formData.symptoms.includes(symptom) &&
-                              styles.symptomTextSelected,
-                          ]}
-                        >
-                          {t(symptom, symptom)}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+                        {t(symptom, symptom)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
-
-                <View style={styles.formGroup}>
-                  <Text style={styles.formLabel}>
-                    {isRTL ? "ملاحظات" : "Notes"}
-                  </Text>
-                  <TextInput
-                    multiline
-                    numberOfLines={4}
-                    onChangeText={(text) =>
-                      setFormData((prev) => ({ ...prev, notes: text }))
-                    }
-                    placeholder={isRTL ? "أضف ملاحظات..." : "Add notes..."}
-                    placeholderTextColor={Colors.neutral[400]}
-                    style={[styles.formInput, styles.textArea]}
-                    value={formData.notes}
-                  />
-                </View>
-              </ScrollView>
-
-              <View style={styles.modalFooter}>
-                <TouchableOpacity
-                  onPress={() => setShowAddModal(false)}
-                  style={styles.cancelButton}
-                >
-                  <Text style={styles.cancelButtonText}>
-                    {isRTL ? "إلغاء" : "Cancel"}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={handleSavePeriod}
-                  style={styles.saveButton}
-                >
-                  <Text style={styles.saveButtonText}>
-                    {isRTL ? "حفظ" : "Save"}
-                  </Text>
-                </TouchableOpacity>
               </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>
+                  {isRTL ? "ملاحظات" : "Notes"}
+                </Text>
+                <TextInput
+                  multiline
+                  numberOfLines={4}
+                  onChangeText={(text) =>
+                    setFormData((prev) => ({ ...prev, notes: text }))
+                  }
+                  placeholder={isRTL ? "أضف ملاحظات..." : "Add notes..."}
+                  placeholderTextColor={Colors.neutral[400]}
+                  style={[styles.formInput, styles.textArea]}
+                  value={formData.notes}
+                />
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                onPress={() => setShowAddModal(false)}
+                style={styles.cancelButton}
+              >
+                <Text style={styles.cancelButtonText}>
+                  {isRTL ? "إلغاء" : "Cancel"}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleSavePeriod}
+                style={styles.saveButton}
+              >
+                <Text style={styles.saveButtonText}>
+                  {isRTL ? "حفظ" : "Save"}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
-        </Modal>
-      </SafeAreaView>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setShowDatePicker(false)}
+        transparent
+        visible={showDatePicker}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.calendarModalContent}>
+            <View style={styles.calendarModalHeader}>
+              <Text style={styles.calendarModalTitle}>
+                {activeDateField === "start"
+                  ? isRTL
+                    ? "تاريخ البداية"
+                    : "Start date"
+                  : isRTL
+                    ? "تاريخ النهاية"
+                    : "End date"}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowDatePicker(false)}
+                style={styles.closeButton}
+              >
+                <X color={Colors.neutral[600]} size={24} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.calendarHeaderRow}>
+              <TouchableOpacity
+                onPress={() =>
+                  setDatePickerMonth(
+                    (prev) =>
+                      new Date(prev.getFullYear(), prev.getMonth() - 1, 1, 12)
+                  )
+                }
+                style={styles.calendarNavButton}
+              >
+                <ChevronLeft color={Colors.text.primary} size={20} />
+              </TouchableOpacity>
+              <Text style={styles.calendarMonthLabel}>
+                {safeFormatDate(
+                  datePickerMonth,
+                  isRTL ? "ar-u-ca-gregory" : "en-US",
+                  { month: "long", year: "numeric" }
+                )}
+              </Text>
+              <TouchableOpacity
+                onPress={() =>
+                  setDatePickerMonth(
+                    (prev) =>
+                      new Date(prev.getFullYear(), prev.getMonth() + 1, 1, 12)
+                  )
+                }
+                style={styles.calendarNavButton}
+              >
+                <ChevronRight color={Colors.text.primary} size={20} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.weekdayRow}>
+              {weekdayLabels.map(({ key, label }) => (
+                <Text key={key} style={styles.weekdayLabel}>
+                  {label}
+                </Text>
+              ))}
+            </View>
+
+            <View style={styles.monthGrid}>
+              {buildMonthGrid(datePickerMonth).days.map(({ date, inMonth }) => {
+                const key = dateKey(date);
+                const selectedKey =
+                  activeDateField === "start"
+                    ? dateKey(formData.startDate)
+                    : formData.endDate
+                      ? dateKey(formData.endDate)
+                      : null;
+                const isSelected = selectedKey === key;
+                return (
+                  <Pressable
+                    key={key}
+                    onPress={() => setDateFieldValue(date)}
+                    style={[
+                      styles.dayCell,
+                      !inMonth && styles.dayCellMuted,
+                      isSelected && styles.dayCellSelected,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.dayText,
+                        !inMonth && styles.dayTextMuted,
+                        isSelected && styles.dayTextSelected,
+                      ]}
+                    >
+                      {date.getDate()}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <View style={styles.calendarModalFooter}>
+              {activeDateField === "end" ? (
+                <TouchableOpacity
+                  onPress={clearEndDate}
+                  style={styles.calendarSecondaryButton}
+                >
+                  <Text style={styles.calendarSecondaryButtonText}>
+                    {isRTL ? "إزالة" : "Clear"}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <View />
+              )}
+              <TouchableOpacity
+                onPress={() => setShowDatePicker(false)}
+                style={styles.calendarPrimaryButton}
+              >
+                <Text style={styles.calendarPrimaryButtonText}>
+                  {isRTL ? "تم" : "Done"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </GradientScreen>
   );
 }
@@ -787,16 +1316,24 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background.primary,
   },
-  safeArea: {
-    flex: 1,
+  wavyHeaderWrapper: {
+    marginHorizontal: -20,
+    marginTop: 0,
+    marginBottom: 12,
+  },
+  wavyHeaderWrapperRTL: {
+    marginBottom: 0,
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: 16,
     paddingBottom: 20,
+  },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
   },
   backButton: {
     width: 40,
@@ -806,26 +1343,37 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitleContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontFamily: "Inter-Bold",
     color: "#FFFFFF",
+    flex: 1,
   },
-  addButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+  headerTitleRTL: {
+    fontFamily: "NotoSansArabic-Regular",
+  },
+  rtlText: {
+    fontFamily: "NotoSansArabic-Regular",
+  },
+  fabButton: {
+    position: "absolute",
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.secondary.main,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 6,
   },
   content: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    marginTop: -40,
     paddingBottom: 100,
   },
   loadingContainer: {
@@ -943,6 +1491,113 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Inter-SemiBold",
     color: Colors.text.inverse,
+  },
+  cycleCalendarCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.92)",
+    borderRadius: 16,
+    padding: 14,
+  },
+  cycleCalendarHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  cycleCalendarNavButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: Colors.neutral[50],
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cycleCalendarMonthLabel: {
+    fontSize: 14,
+    fontFamily: "Inter-SemiBold",
+    color: Colors.text.primary,
+  },
+  weekdayRowCompact: {
+    flexDirection: "row",
+    marginBottom: 6,
+  },
+  weekdayLabelCompact: {
+    width: "14.2857%",
+    textAlign: "center",
+    fontSize: 11,
+    fontFamily: "Inter-SemiBold",
+    color: Colors.text.secondary,
+  },
+  monthGridCompact: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  dayCellCompact: {
+    width: "14.2857%",
+    aspectRatio: 1,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 6,
+  },
+  dayCellCompactMuted: {
+    opacity: 0.35,
+  },
+  dayCellCompactPeriod: {
+    backgroundColor: "rgba(239, 68, 68, 0.14)",
+  },
+  dayCellCompactPredicted: {
+    backgroundColor: "rgba(236, 72, 153, 0.12)",
+  },
+  dayCellCompactFertile: {
+    backgroundColor: "rgba(234, 179, 8, 0.16)",
+  },
+  dayTextCompact: {
+    fontSize: 12,
+    fontFamily: "Inter-SemiBold",
+    color: Colors.text.primary,
+  },
+  dayTextCompactMuted: {
+    color: Colors.text.secondary,
+  },
+  dayDotsRow: {
+    flexDirection: "row",
+    gap: 3,
+    marginTop: 4,
+    minHeight: 6,
+    alignItems: "center",
+  },
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  dotPeriod: {
+    backgroundColor: "#EF4444",
+  },
+  dotPredicted: {
+    backgroundColor: "#EC4899",
+  },
+  dotFertile: {
+    backgroundColor: "#EAB308",
+  },
+  dotOvulation: {
+    backgroundColor: Colors.primary.main,
+  },
+  cycleLegendRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 10,
+  },
+  cycleLegendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  cycleLegendText: {
+    fontSize: 11,
+    fontFamily: "Inter-Medium",
+    color: Colors.text.secondary,
   },
   predictionButton: {
     flexDirection: "row",
@@ -1172,6 +1827,10 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "flex-end",
   },
+  calendarOverlay: {
+    justifyContent: "center",
+    paddingVertical: 24,
+  },
   modalContent: {
     backgroundColor: Colors.background.secondary,
     borderTopLeftRadius: 24,
@@ -1197,6 +1856,119 @@ const styles = StyleSheet.create({
   modalBody: {
     padding: 20,
   },
+  calendarModalContent: {
+    backgroundColor: Colors.background.secondary,
+    borderRadius: 20,
+    marginHorizontal: 16,
+    padding: 16,
+    maxHeight: "85%",
+  },
+  calendarModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border.light,
+    marginBottom: 12,
+  },
+  calendarModalTitle: {
+    fontSize: 16,
+    fontFamily: "Inter-Bold",
+    color: Colors.text.primary,
+  },
+  calendarHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 4,
+    marginBottom: 12,
+  },
+  calendarNavButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: Colors.neutral[50],
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  calendarMonthLabel: {
+    fontSize: 15,
+    fontFamily: "Inter-SemiBold",
+    color: Colors.text.primary,
+  },
+  weekdayRow: {
+    flexDirection: "row",
+    marginBottom: 8,
+  },
+  weekdayLabel: {
+    width: "14.2857%",
+    textAlign: "center",
+    fontSize: 12,
+    fontFamily: "Inter-SemiBold",
+    color: Colors.text.secondary,
+  },
+  monthGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  dayCell: {
+    width: "14.2857%",
+    aspectRatio: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+    marginBottom: 6,
+  },
+  dayCellMuted: {
+    opacity: 0.35,
+  },
+  dayCellSelected: {
+    backgroundColor: Colors.primary[50],
+    borderWidth: 1,
+    borderColor: Colors.primary.main,
+  },
+  dayText: {
+    fontSize: 14,
+    fontFamily: "Inter-SemiBold",
+    color: Colors.text.primary,
+  },
+  dayTextMuted: {
+    color: Colors.text.secondary,
+  },
+  dayTextSelected: {
+    color: Colors.primary.main,
+  },
+  calendarModalFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 12,
+    gap: 12,
+  },
+  calendarPrimaryButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: Colors.primary.main,
+    alignItems: "center",
+  },
+  calendarPrimaryButtonText: {
+    fontSize: 14,
+    fontFamily: "Inter-SemiBold",
+    color: Colors.text.inverse,
+  },
+  calendarSecondaryButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: Colors.neutral[100],
+  },
+  calendarSecondaryButtonText: {
+    fontSize: 14,
+    fontFamily: "Inter-SemiBold",
+    color: Colors.text.primary,
+  },
   formGroup: {
     marginBottom: 24,
   },
@@ -1212,6 +1984,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     backgroundColor: Colors.background.secondary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
   },
   dateInputText: {
     fontSize: 16,

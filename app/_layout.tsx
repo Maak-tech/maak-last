@@ -42,6 +42,7 @@ import { isFirebaseReady } from "@/lib/firebase";
 import i18n from "@/lib/i18n";
 import { routingInstrumentation } from "@/lib/sentry";
 import { revenueCatService } from "@/lib/services/revenueCatService";
+import { initializeTrackingTransparency } from "@/lib/services/trackingTransparencyService";
 import { initializeErrorHandlers } from "@/lib/utils/errorHandler";
 import { logger } from "@/lib/utils/logger";
 
@@ -132,7 +133,44 @@ function RootLayout() {
       }
     };
 
+    const initializeTracking = async () => {
+      try {
+        // Request App Tracking Transparency permission on iOS
+        // This must be done before collecting any tracking data
+        // The permission dialog will only show once per app install
+        // Wrap in Promise.resolve to catch any synchronous errors during module loading
+        await Promise.resolve().then(() => initializeTrackingTransparency());
+      } catch (error) {
+        // Silently handle errors - native module may not be linked yet
+        // This is expected if the app hasn't been rebuilt after adding the plugin
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        if (
+          errorMessage.includes("Cannot find native module") ||
+          errorMessage.includes("ExpoTrackingTransparency")
+        ) {
+          // Expected error - module not linked, will work after rebuild
+          if (IS_DEV_BUILD) {
+            logger.debug(
+              "Tracking transparency module not linked - rebuild required",
+              undefined,
+              "RootLayout"
+            );
+          }
+        } else {
+          // Unexpected error - log it
+          logger.error(
+            "Failed to initialize tracking transparency",
+            error,
+            "RootLayout"
+          );
+        }
+        // Don't block app startup if tracking transparency fails
+      }
+    };
+
     initializeRevenueCat();
+    initializeTracking();
   }, [isAppActive]);
 
   // HealthKit module check removed for production

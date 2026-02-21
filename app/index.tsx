@@ -4,6 +4,7 @@ import { Platform, StyleSheet, Text, View } from "react-native";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function Index() {
+  // Hooks must be called unconditionally - AuthProvider should wrap this component
   const { user, loading } = useAuth();
   const router = useRouter();
   const lastNavigationTarget = useRef<string | null>(null);

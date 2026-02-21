@@ -27,7 +27,55 @@ let originalPromiseRejectionHandler:
  */
 function handleGlobalError(error: Error, isFatal = false) {
   try {
-    const errorMessage = error?.message || String(error || "");
+    // Extract error message - handle nested errors
+    let errorMessage = error?.message || String(error || "");
+    const errorStack = error?.stack || "";
+
+    // Check for nested error (e.g., "[Error: ...]")
+    if (
+      errorMessage.startsWith("[Error:") ||
+      errorMessage.includes("[Error:")
+    ) {
+      // Extract inner error message
+      const match = errorMessage.match(/\[Error:\s*(.+?)\]/);
+      if (match) {
+        errorMessage = match[1];
+      }
+    }
+
+    // Also check error.toString() in case message doesn't capture everything
+    const errorString = error?.toString() || "";
+    const combinedErrorText =
+      `${errorMessage} ${errorString} ${errorStack}`.toLowerCase();
+
+    // Check if this is a tracking transparency error by looking at:
+    // 1. Error message content
+    // 2. Stack trace containing our service file
+    // 3. Any reference to the tracking transparency module
+    const isTrackingTransparencyError =
+      // Check error message (handle wrapped error format)
+      (errorMessage.includes("Cannot find native module") &&
+        (errorMessage.includes("ExpoTrackingTransparency") ||
+          errorMessage.includes("TrackingTransparency"))) ||
+      // Check error.toString() as well
+      (errorString.includes("Cannot find native module") &&
+        errorString.includes("ExpoTrackingTransparency")) ||
+      // Check combined text (case-insensitive) for module references
+      combinedErrorText.includes("expo-tracking-transparency") ||
+      combinedErrorText.includes("trackingtransparency") ||
+      combinedErrorText.includes("expo tracking transparency") ||
+      // Check stack trace for our service file path (most reliable)
+      errorStack.includes("trackingTransparencyService.ts") ||
+      errorStack.includes("trackingTransparencyService") ||
+      errorStack.includes("loadModule") ||
+      errorStack.includes("getTrackingTransparencyModule") ||
+      errorStack.includes("initializeTrackingTransparency");
+
+    if (isTrackingTransparencyError) {
+      // Silently suppress this error - it's expected until rebuild
+      // Don't log, don't report to Sentry, don't call console.error, just return
+      return;
+    }
 
     // Let TextImpl patch handle TextImpl-specific errors first
     // (it will suppress them if they're TextImpl errors)
@@ -160,9 +208,23 @@ function handleUnhandledRejection(event: PromiseRejectionEvent | any) {
   try {
     const error =
       event?.reason || event?.error || new Error("Unhandled Promise Rejection");
+    const errorMessage = error?.message || String(error);
     const stack = error?.stack ? error.stack.slice(0, 2000) : undefined;
+
+    // Suppress tracking transparency errors - these are expected until app is rebuilt
+    if (
+      (errorMessage.includes("Cannot find native module") &&
+        errorMessage.includes("ExpoTrackingTransparency")) ||
+      (stack &&
+        (stack.includes("ExpoTrackingTransparency") ||
+          stack.includes("expo-tracking-transparency")))
+    ) {
+      // Silently suppress this error - it's expected until rebuild
+      return;
+    }
+
     const errorDetails = {
-      message: error?.message || String(error),
+      message: errorMessage,
       stack,
       name: error?.name,
       platform: Platform.OS,

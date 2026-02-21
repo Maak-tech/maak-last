@@ -24,6 +24,8 @@ export default function ProfileLayout() {
         options={{ headerShown: false }}
       />
       <Stack.Screen name="help-support" options={{ headerShown: false }} />
+      <Stack.Screen name="ai-data-sharing" options={{ headerShown: false }} />
+      <Stack.Screen name="delete-account" options={{ headerShown: false }} />
       <Stack.Screen name="privacy-policy" options={{ headerShown: false }} />
       <Stack.Screen name="terms-conditions" options={{ headerShown: false }} />
       <Stack.Screen name="admin-settings" options={{ headerShown: false }} />

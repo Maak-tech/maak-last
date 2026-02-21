@@ -5,6 +5,7 @@
  */
 /* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Withings OAuth and metric normalization flows intentionally consolidate many provider-specific branches in one integration module. */
 
+import CryptoJS from "crypto-js";
 import Constants from "expo-constants";
 import { deleteItemAsync, getItemAsync, setItemAsync } from "expo-secure-store";
 import {
@@ -32,13 +33,168 @@ const WITHINGS_CLIENT_SECRET =
   Constants.expoConfig?.extra?.withingsClientSecret ||
   "YOUR_WITHINGS_CLIENT_SECRET";
 const WITHINGS_AUTH_URL = "https://account.withings.com/oauth2_user/authorize2";
-const WITHINGS_TOKEN_URL = "https://wbsapi.withings.net/v2/oauth2";
-const WITHINGS_API_BASE = "https://wbsapi.withings.net";
+const WITHINGS_API_BASE =
+  Constants.expoConfig?.extra?.withingsApiBase ||
+  process.env.WITHINGS_API_BASE ||
+  "https://wbsapi.withings.net";
+const WITHINGS_TOKEN_URL = `${WITHINGS_API_BASE}/v2/oauth2`;
 // OAuth redirect URI - must match what's registered with Withings (web URL)
 const REDIRECT_URI = "https://maak-5caad.web.app/withings-callback";
 
 // Complete OAuth flow
 maybeCompleteAuthSession();
+
+/**
+ * Generate HMAC SHA-256 signature for Withings API requests
+ * @param params - Parameters to sign (action, client_id, and optionally timestamp or nonce)
+ * @param clientSecret - Client secret for HMAC key
+ * @returns HMAC SHA-256 signature as hex string
+ */
+function generateSignature(
+  params: {
+    action: string;
+    client_id: string;
+    timestamp?: string;
+    nonce?: string;
+  },
+  clientSecret: string
+): string {
+  // Build params object with only the fields we need to sign
+  const paramsToSign: Record<string, string> = {
+    action: params.action,
+    client_id: params.client_id,
+  };
+
+  if (params.timestamp) {
+    paramsToSign.timestamp = params.timestamp;
+  }
+  if (params.nonce) {
+    paramsToSign.nonce = params.nonce;
+  }
+
+  // Sort keys alphabetically and concatenate values with commas
+  // This matches the Withings documentation: "Concatenate the sorted values (alphabetically by key name)"
+  const sortedKeys = Object.keys(paramsToSign).sort();
+  const sortedValues = sortedKeys.map((key) => paramsToSign[key]).join(",");
+
+  // Generate HMAC SHA-256 signature using crypto-js
+  // Withings expects hex format output
+  const signature = CryptoJS.HmacSHA256(sortedValues, clientSecret);
+  return signature.toString(CryptoJS.enc.Hex);
+}
+
+/**
+ * Get a nonce from Withings API
+ * Required for signing API requests
+ * Step 1: Obtain a nonce using HMAC SHA-256 signature
+ * @returns Nonce string
+ */
+async function getNonce(): Promise<string> {
+  const timestamp = Math.floor(Date.now() / 1000).toString();
+
+  const params = {
+    action: "getnonce",
+    client_id: WITHINGS_CLIENT_ID,
+    timestamp,
+  };
+
+  // Generate signature for nonce request
+  // For nonce request: concatenate action, client_id, timestamp (in that order per docs)
+  const signature = generateSignature(params, WITHINGS_CLIENT_SECRET);
+
+  // Request nonce from Withings API
+  const response = await fetch(`${WITHINGS_API_BASE}/v2/signature`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      action: params.action,
+      client_id: params.client_id,
+      timestamp,
+      signature,
+    }).toString(),
+  });
+
+  const responseData = await response.json();
+
+  if (responseData.status !== 0) {
+    const errorMsg = responseData.error || "Failed to get nonce";
+    const errorText = responseData.error_text || "";
+    throw new Error(
+      `Failed to get Withings nonce: ${errorMsg}${errorText ? ` - ${errorText}` : ""}`
+    );
+  }
+
+  return responseData.body.nonce;
+}
+
+/**
+ * Make a signed API request to Withings
+ * Step 2: Sign the actual API request using the nonce
+ * Automatically handles nonce retrieval and request signing
+ * @param endpoint - API endpoint path (e.g., "/v2/user")
+ * @param action - API action name
+ * @param additionalParams - Additional parameters to include in the request
+ * @param accessToken - Optional access token for authenticated requests
+ * @returns API response data
+ */
+async function makeSignedRequest(
+  endpoint: string,
+  action: string,
+  additionalParams: Record<string, string> = {},
+  accessToken?: string
+): Promise<any> {
+  // Step 1: Get nonce for signing
+  const nonce = await getNonce();
+
+  // Step 2: Build parameters for signing (action, client_id, nonce - sorted alphabetically)
+  const signParams = {
+    action,
+    client_id: WITHINGS_CLIENT_ID,
+    nonce,
+  };
+
+  // Generate signature using HMAC SHA-256
+  const signature = generateSignature(signParams, WITHINGS_CLIENT_SECRET);
+
+  // Build request body with signature
+  const bodyParams = new URLSearchParams({
+    action,
+    client_id: WITHINGS_CLIENT_ID,
+    nonce,
+    signature,
+    ...additionalParams,
+  });
+
+  // Build headers
+  const headers: Record<string, string> = {
+    "Content-Type": "application/x-www-form-urlencoded",
+  };
+
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+
+  // Make the signed request
+  const response = await fetch(`${WITHINGS_API_BASE}${endpoint}`, {
+    method: "POST",
+    headers,
+    body: bodyParams.toString(),
+  });
+
+  const responseData = await response.json();
+
+  if (responseData.status !== 0) {
+    const errorMsg = responseData.error || "API request failed";
+    const errorText = responseData.error_text || "";
+    throw new Error(
+      `Withings API error: ${errorMsg}${errorText ? ` - ${errorText}` : ""}`
+    );
+  }
+
+  return responseData;
+}
 
 /**
  * Withings measurement types mapping
@@ -109,9 +265,33 @@ export const withingsService = {
   },
 
   /**
-   * Start OAuth authentication flow
+   * Generate a random state parameter for CSRF protection
    */
-  startAuth: async (selectedMetrics: string[]): Promise<void> => {
+  generateState: (): string => {
+    // Generate a cryptographically random state string
+    const array = new Uint8Array(32);
+    if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+      crypto.getRandomValues(array);
+    } else {
+      // Fallback for environments without crypto.getRandomValues
+      for (let i = 0; i < array.length; i++) {
+        array[i] = Math.floor(Math.random() * 256);
+      }
+    }
+    return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join(
+      ""
+    );
+  },
+
+  /**
+   * Start OAuth authentication flow
+   * @param selectedMetrics - Array of metric keys to request access for
+   * @param useDemoMode - Optional: Set to true to use demo user mode for testing
+   */
+  startAuth: async (
+    selectedMetrics: string[],
+    useDemoMode = false
+  ): Promise<void> => {
     try {
       // Validate redirect URI is not empty
       if (!REDIRECT_URI || REDIRECT_URI.trim() === "") {
@@ -139,17 +319,36 @@ export const withingsService = {
         );
       }
 
+      // Get required scopes for selected metrics
       const scopes = getWithingsScopesForMetrics(selectedMetrics);
+      if (scopes.length === 0) {
+        throw new Error(
+          "No valid scopes found for selected metrics. Please select at least one metric."
+        );
+      }
 
-      // Build OAuth URL with proper encoding
+      // Generate and store state parameter for CSRF protection
+      const state = withingsService.generateState();
+      await setItemAsync(
+        HEALTH_STORAGE_KEYS.WITHINGS_OAUTH_STATE,
+        JSON.stringify({
+          state,
+          selectedMetrics,
+          timestamp: Date.now(),
+        })
+      );
+
+      // Build OAuth URL following Withings documentation:
+      // https://account.withings.com/oauth2_user/authorize2?response_type=code&client_id=YOUR_CLIENT_ID&scope=user.info,user.metrics,user.activity&redirect_uri=YOUR_REDIRECT_URI&state=YOUR_STATE
       const redirectUriEncoded = encodeURIComponent(REDIRECT_URI);
       const authUrl =
         `${WITHINGS_AUTH_URL}?` +
         "response_type=code&" +
         `client_id=${encodeURIComponent(WITHINGS_CLIENT_ID)}&` +
-        `redirect_uri=${redirectUriEncoded}&` +
         `scope=${encodeURIComponent(scopes.join(","))}&` +
-        `state=${encodeURIComponent("withings_auth")}`;
+        `redirect_uri=${redirectUriEncoded}&` +
+        `state=${encodeURIComponent(state)}` +
+        (useDemoMode ? "&mode=demo" : "");
 
       // Use web callback URL for OAuth (registered with Withings)
       // The web page will redirect to deep link after extracting the code
@@ -157,11 +356,19 @@ export const withingsService = {
 
       if (result.type === "success" && result.url) {
         // Handle both web callback URL and deep link redirect
-        await withingsService.handleRedirect(result.url, selectedMetrics);
+        await withingsService.handleRedirect(result.url);
       } else {
+        // Clean up stored state on cancellation
+        await deleteItemAsync(HEALTH_STORAGE_KEYS.WITHINGS_OAUTH_STATE);
         throw new Error("Authentication cancelled or failed");
       }
     } catch (error: unknown) {
+      // Clean up stored state on error
+      try {
+        await deleteItemAsync(HEALTH_STORAGE_KEYS.WITHINGS_OAUTH_STATE);
+      } catch {
+        // Ignore cleanup errors
+      }
       throw new Error(
         `Withings authentication failed: ${getErrorMessage(error)}`
       );
@@ -171,11 +378,9 @@ export const withingsService = {
   /**
    * Handle OAuth redirect callback
    * Handles both web callback URL and deep link redirects
+   * Validates state parameter for CSRF protection per Withings documentation
    */
-  handleRedirect: async (
-    url: string,
-    selectedMetrics?: string[]
-  ): Promise<void> => {
+  handleRedirect: async (url: string): Promise<void> => {
     try {
       // Handle both web URLs and deep links (maak://)
       let urlObj: URL;
@@ -188,6 +393,46 @@ export const withingsService = {
 
       const code = urlObj.searchParams.get("code");
       const error = urlObj.searchParams.get("error");
+      const returnedState = urlObj.searchParams.get("state");
+
+      // Retrieve and validate state parameter for CSRF protection
+      let storedStateData: {
+        state: string;
+        selectedMetrics: string[];
+        timestamp: number;
+      } | null = null;
+      try {
+        const storedStateStr = await getItemAsync(
+          HEALTH_STORAGE_KEYS.WITHINGS_OAUTH_STATE
+        );
+        if (storedStateStr) {
+          storedStateData = JSON.parse(storedStateStr);
+          // Clean up stored state after retrieval
+          await deleteItemAsync(HEALTH_STORAGE_KEYS.WITHINGS_OAUTH_STATE);
+        }
+      } catch {
+        // State not found or invalid - will fail validation below
+      }
+
+      // Validate state parameter matches (CSRF protection)
+      if (
+        !(returnedState && storedStateData) ||
+        returnedState !== storedStateData.state
+      ) {
+        throw new Error(
+          "Invalid state parameter. The authorization response may have been tampered with or expired. Please try again."
+        );
+      }
+
+      // Check if state is too old (more than 10 minutes)
+      const stateAge = Date.now() - storedStateData.timestamp;
+      if (stateAge > 10 * 60 * 1000) {
+        throw new Error(
+          "Authorization state expired. Please try connecting again."
+        );
+      }
+
+      const selectedMetrics = storedStateData.selectedMetrics || [];
 
       if (error) {
         const errorDescription =
@@ -230,6 +475,22 @@ export const withingsService = {
         throw new Error("No authorization code received");
       }
 
+      // Note: Authorization code is only valid for 30 seconds per Withings documentation
+      // Exchange authorization code for access token using signed request
+      // Token requests must be signed with nonce and signature per Withings API requirements
+      const nonce = await getNonce();
+
+      // Build parameters for signing (action, client_id, nonce - sorted alphabetically)
+      const signParams = {
+        action: "requesttoken",
+        client_id: WITHINGS_CLIENT_ID,
+        nonce,
+      };
+
+      // Generate signature
+      const signature = generateSignature(signParams, WITHINGS_CLIENT_SECRET);
+
+      // Exchange authorization code for tokens using signed request
       const tokenResponse = await fetch(WITHINGS_TOKEN_URL, {
         method: "POST",
         headers: {
@@ -238,10 +499,11 @@ export const withingsService = {
         body: new URLSearchParams({
           action: "requesttoken",
           client_id: WITHINGS_CLIENT_ID,
-          client_secret: WITHINGS_CLIENT_SECRET,
           code,
           grant_type: "authorization_code",
+          nonce,
           redirect_uri: REDIRECT_URI, // Must match registered callback URL
+          signature,
         }).toString(),
       });
 
@@ -356,6 +618,9 @@ export const withingsService = {
 
   /**
    * Refresh access token if expired
+   * Uses signed request per Withings API requirements
+   * Important: Always replaces the previous refresh_token with the new one
+   * Token expiration: access_token expires after 3 hours, refresh_token expires after 1 year
    */
   refreshTokenIfNeeded: async (): Promise<string | null> => {
     try {
@@ -365,10 +630,25 @@ export const withingsService = {
       }
 
       // Return existing token if still valid (with 5 min buffer)
+      // access_token expires after 3 hours per Withings documentation
       if (tokens.expiresAt > Date.now() + 5 * 60 * 1000) {
         return tokens.accessToken;
       }
 
+      // Get nonce for signing the refresh token request
+      const nonce = await getNonce();
+
+      // Build parameters for signing (action, client_id, nonce - sorted alphabetically)
+      const signParams = {
+        action: "requesttoken",
+        client_id: WITHINGS_CLIENT_ID,
+        nonce,
+      };
+
+      // Generate signature
+      const signature = generateSignature(signParams, WITHINGS_CLIENT_SECRET);
+
+      // Refresh token using signed request
       const response = await fetch(WITHINGS_TOKEN_URL, {
         method: "POST",
         headers: {
@@ -377,9 +657,10 @@ export const withingsService = {
         body: new URLSearchParams({
           action: "requesttoken",
           client_id: WITHINGS_CLIENT_ID,
-          client_secret: WITHINGS_CLIENT_SECRET,
-          refresh_token: tokens.refreshToken,
           grant_type: "refresh_token",
+          nonce,
+          refresh_token: tokens.refreshToken,
+          signature,
         }).toString(),
       });
 
@@ -391,10 +672,12 @@ export const withingsService = {
 
       const newTokens = responseData.body;
 
+      // Important: Always replace the previous refresh_token with the new one
+      // Old refresh_token expires 8 hours after new issuance or once the new access_token is used
       await withingsService.saveTokens({
         accessToken: newTokens.access_token,
-        refreshToken: newTokens.refresh_token || tokens.refreshToken,
-        expiresAt: Date.now() + newTokens.expires_in * 1000,
+        refreshToken: newTokens.refresh_token || tokens.refreshToken, // Fallback to old if not provided
+        expiresAt: Date.now() + newTokens.expires_in * 1000, // expires_in is in seconds
         scope: newTokens.scope || tokens.scope,
         userId: newTokens.userid?.toString() || tokens.userId,
       });
@@ -749,6 +1032,7 @@ export const withingsService = {
 
   /**
    * Revoke access
+   * Uses signed request for user unlink action
    */
   revokeAccess: async (): Promise<boolean> => {
     try {
@@ -757,17 +1041,8 @@ export const withingsService = {
         return true;
       }
 
-      // Notify Withings to revoke the token
-      await fetch(`${WITHINGS_API_BASE}/v2/user`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Authorization: `Bearer ${tokens.accessToken}`,
-        },
-        body: new URLSearchParams({
-          action: "unlink",
-        }).toString(),
-      });
+      // Use signed request for unlink action
+      await makeSignedRequest("/v2/user", "unlink", {}, tokens.accessToken);
 
       await withingsService.disconnect();
       return true;
@@ -775,6 +1050,28 @@ export const withingsService = {
       return false;
     }
   },
+
+  /**
+   * Get a nonce from Withings API (exposed for testing/debugging)
+   * @returns Nonce string
+   */
+  getNonce: async (): Promise<string> => getNonce(),
+
+  /**
+   * Make a signed API request to Withings (exposed for advanced usage)
+   * @param endpoint - API endpoint path
+   * @param action - API action name
+   * @param additionalParams - Additional parameters
+   * @param accessToken - Optional access token
+   * @returns API response data
+   */
+  makeSignedRequest: async (
+    endpoint: string,
+    action: string,
+    additionalParams: Record<string, string> = {},
+    accessToken?: string
+  ): Promise<any> =>
+    makeSignedRequest(endpoint, action, additionalParams, accessToken),
 };
 
 // Helper function

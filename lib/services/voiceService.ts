@@ -39,6 +39,7 @@ import * as FileSystem from "expo-file-system";
 import { httpsCallable } from "firebase/functions";
 import { Platform } from "react-native";
 import { functions as firebaseFunctions } from "@/lib/firebase";
+import aiConsentService from "@/lib/services/aiConsentService";
 import openaiService from "./openaiService";
 
 // Dynamic import for expo-av with proper error handling
@@ -420,6 +421,13 @@ class VoiceService {
     language?: string
   ): Promise<SpeechRecognitionResult> {
     try {
+      const consent = await aiConsentService.getConsent();
+      if (!consent.consented) {
+        throw new Error(
+          "AI Data Sharing is disabled. Enable it in Profile > AI Data Sharing to use voice input."
+        );
+      }
+
       // Read audio file as base64
       const audioBase64 = await FileSystem.readAsStringAsync(audioUri, {
         encoding: "base64",
