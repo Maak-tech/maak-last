@@ -1256,7 +1256,8 @@ export default function PPGVitalMonitorVisionCamera({
           consecutiveNoFingerFrames.current = 0;
         }
 
-        // Early finish for quick HR mode (20-30s) when quality is stable
+        // Track quality stability for potential quick finish (disabled for now to ensure full 60s)
+        // Early finish disabled - always run full 60 seconds for comprehensive vitals
         const elapsedSeconds = (Date.now() - startTimeRef.current) / 1000;
         if (signalQualityScore >= QUICK_HR_MIN_QUALITY) {
           qualityStableSecondsRef.current += 1;
@@ -1264,25 +1265,27 @@ export default function PPGVitalMonitorVisionCamera({
           qualityStableSecondsRef.current = 0;
         }
 
-        if (
-          !quickFinishTriggeredRef.current &&
-          elapsedSeconds >= QUICK_HR_MIN_SECONDS &&
-          qualityStableSecondsRef.current >= QUICK_HR_STABLE_SECONDS
-        ) {
-          quickFinishTriggeredRef.current = true;
-          stopPPGCaptureRef.current?.({ quick: true });
-          return;
-        }
+        // DISABLED: Quick finish logic - always run full 60 seconds
+        // This ensures we capture enough frames for accurate HRV and respiratory rate
+        // if (
+        //   !quickFinishTriggeredRef.current &&
+        //   elapsedSeconds >= QUICK_HR_MIN_SECONDS &&
+        //   qualityStableSecondsRef.current >= QUICK_HR_STABLE_SECONDS
+        // ) {
+        //   quickFinishTriggeredRef.current = true;
+        //   stopPPGCaptureRef.current?.({ quick: true });
+        //   return;
+        // }
 
-        if (
-          !quickFinishTriggeredRef.current &&
-          elapsedSeconds >= QUICK_HR_MAX_SECONDS &&
-          signalQualityScore >= QUICK_HR_MIN_QUALITY
-        ) {
-          quickFinishTriggeredRef.current = true;
-          stopPPGCaptureRef.current?.({ quick: true });
-          return;
-        }
+        // if (
+        //   !quickFinishTriggeredRef.current &&
+        //   elapsedSeconds >= QUICK_HR_MAX_SECONDS &&
+        //   signalQualityScore >= QUICK_HR_MIN_QUALITY
+        // ) {
+        //   quickFinishTriggeredRef.current = true;
+        //   stopPPGCaptureRef.current?.({ quick: true });
+        //   return;
+        // }
       }
 
       // Optimized beat detection with time-based calculation
@@ -1363,9 +1366,8 @@ export default function PPGVitalMonitorVisionCamera({
       );
 
       // Use lower thresholds: real cameras often deliver 15-20 fps, not full 30
-      const minFramesRequired = isQuick
-        ? Math.floor(MIN_ACCEPTABLE_FPS * QUICK_HR_MIN_SECONDS) // ~280 at 14 fps
-        : Math.floor(TARGET_FRAMES * 0.3); // 30% of target (~540 at 30fps)
+      // Always use full measurement threshold (quick finish disabled)
+      const minFramesRequired = Math.floor(TARGET_FRAMES * 0.3); // 30% of target (~540 at 30fps, ~252 at 14fps)
 
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current);
@@ -1683,13 +1685,6 @@ export default function PPGVitalMonitorVisionCamera({
 
       // Only process frames if we're capturing
       if (!isCapturingSV.value) {
-        // Flush any remaining frames in the batch before clearing (avoids data loss)
-        const remaining = frameBatchSV.value;
-        if (remaining.length > 0) {
-          processPPGFrameBatchDataOnJS(remaining, frameBatchStartIndexSV.value);
-        }
-        frameBatchSV.value = [];
-        frameBatchStartIndexSV.value = 0;
         return;
       }
 
@@ -1756,42 +1751,20 @@ export default function PPGVitalMonitorVisionCamera({
         // Successfully extracted valid frame data
         resetFrameFailureCounterOnJS();
 
-        const batch = frameBatchSV.value;
-        if (batch.length === 0) {
-          frameBatchStartIndexSV.value = frameCountSV.value;
-        }
-        frameBatchSV.value = [...batch, redAverage];
-        frameCountSV.value = frameCountSV.value + 1;
-
-        const newBatch = frameBatchSV.value;
-        if (newBatch.length >= FRAME_BATCH_SIZE) {
-          processPPGFrameBatchDataOnJS(newBatch, frameBatchStartIndexSV.value);
-          frameBatchSV.value = [];
-          frameBatchStartIndexSV.value = frameCountSV.value;
-        }
+        // Send each frame immediately to JS - no batching
+        // This avoids shared value timing issues and ensures frames are processed
+        const currentFrameIndex = frameCountSV.value;
+        frameCountSV.value = currentFrameIndex + 1;
+        processPPGFrameBatchDataOnJS([redAverage], currentFrameIndex);
       } catch (error) {
         // Frame processing error - track but don't crash
         handleFrameProcessingErrorOnJS(frameCountSV.value);
         frameCountSV.value = frameCountSV.value + 1;
-
-        // Periodically flush batches during failures to prevent accumulation
-        // Use frameCountSV (all frames) instead of batch.length (only successful frames)
-        const batch = frameBatchSV.value;
-        if (batch.length > 0 && frameCountSV.value % 20 === 0) {
-          processPPGFrameBatchDataOnJS(batch, frameBatchStartIndexSV.value);
-          frameBatchSV.value = [];
-          frameBatchStartIndexSV.value = frameCountSV.value;
-        }
       }
     },
     [
-      // CRITICAL: Only include truly stable dependencies here
-      // Shared values (useSharedValue) are stable references - their .value changes but object identity doesn't
-      // The callbacks are now stable wrappers that use refs internally
-      FRAME_BATCH_SIZE,
+      // Stable dependencies - shared values and memoized callbacks
       cameraReadySV,
-      frameBatchSV,
-      frameBatchStartIndexSV,
       frameCountSV,
       frameProcessorInitializedSV,
       handleFrameProcessingErrorOnJS,

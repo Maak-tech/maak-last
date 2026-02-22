@@ -124,6 +124,7 @@ export default function WomensHealthScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingEntry, setEditingEntry] = useState<PeriodEntry | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showCalendarView, setShowCalendarView] = useState(false);
   const [activeDateField, setActiveDateField] = useState<"start" | "end">(
     "start"
   );
@@ -1306,6 +1307,12 @@ export default function WomensHealthScreen() {
                 >
                   {isRTL ? "صحة المرأة" : "Women's Health"}
                 </Text>
+                <TouchableOpacity
+                  onPress={() => setShowCalendarView(true)}
+                  style={styles.backButton}
+                >
+                  <Calendar color="#FFFFFF" size={22} />
+                </TouchableOpacity>
               </View>
             </View>
           </WavyBackground>
@@ -1544,430 +1551,644 @@ export default function WomensHealthScreen() {
                   ) : null}
 
                   {false ? (
-                    <View style={styles.cycleCalendarCard}>
-                    <View style={styles.cycleCalendarHeader}>
-                      <TouchableOpacity
-                        onPress={() =>
-                          setCalendarMonth(
-                            (prev) =>
-                              new Date(
-                                prev.getFullYear(),
-                                prev.getMonth() - 1,
-                                1,
-                                12
+                    <>
+                      <View style={styles.cycleCalendarCard}>
+                        <View style={styles.cycleCalendarHeader}>
+                          <TouchableOpacity
+                            onPress={() =>
+                              setCalendarMonth(
+                                (prev) =>
+                                  new Date(
+                                    prev.getFullYear(),
+                                    prev.getMonth() - 1,
+                                    1,
+                                    12
+                                  )
                               )
-                          )
-                        }
-                        style={styles.cycleCalendarNavButton}
-                      >
-                        <ChevronLeft color={Colors.text.primary} size={18} />
-                      </TouchableOpacity>
-                      <Text style={styles.cycleCalendarMonthLabel}>
-                        {calendarMonthLabel}
-                      </Text>
-                      <TouchableOpacity
-                        onPress={() =>
-                          setCalendarMonth(
-                            (prev) =>
-                              new Date(
-                                prev.getFullYear(),
-                                prev.getMonth() + 1,
-                                1,
-                                12
+                            }
+                            style={styles.cycleCalendarNavButton}
+                          >
+                            <ChevronLeft
+                              color={Colors.text.primary}
+                              size={18}
+                            />
+                          </TouchableOpacity>
+                          <Text style={styles.cycleCalendarMonthLabel}>
+                            {calendarMonthLabel}
+                          </Text>
+                          <TouchableOpacity
+                            onPress={() =>
+                              setCalendarMonth(
+                                (prev) =>
+                                  new Date(
+                                    prev.getFullYear(),
+                                    prev.getMonth() + 1,
+                                    1,
+                                    12
+                                  )
                               )
-                          )
-                        }
-                        style={styles.cycleCalendarNavButton}
-                      >
-                        <ChevronRight color={Colors.text.primary} size={18} />
-                      </TouchableOpacity>
-                    </View>
+                            }
+                            style={styles.cycleCalendarNavButton}
+                          >
+                            <ChevronRight
+                              color={Colors.text.primary}
+                              size={18}
+                            />
+                          </TouchableOpacity>
+                        </View>
 
-                    <Text style={[styles.calendarHint, isRTL && styles.rtlText]}>
-                      {isRTL ? "اضغطي على أي يوم للتسجيل" : "Tap any day to log"}
-                    </Text>
-
-                    <View style={styles.weekdayRowCompact}>
-                      {weekdayLabels.map(({ key, label }) => (
-                        <Text key={key} style={styles.weekdayLabelCompact}>
-                          {label}
-                        </Text>
-                      ))}
-                    </View>
-
-                    <View style={styles.monthGridCompact}>
-                      {buildMonthGrid(calendarMonth).days.map(
-                        ({ date, inMonth }) => {
-                          const key = dateKey(date);
-                          const isActualPeriod = actualPeriodDays.has(key);
-                          const isPredictedPeriod =
-                            predictedPeriodDays.has(key);
-                          const isFertile = fertileWindowDays.has(key);
-                          const isOvulation = ovulationKey === key;
-                          const hasDailyLog = dailyEntryByKey.has(key);
-
-                          return (
-                            <Pressable
-                              key={key}
-                              onPress={() => openDailyLog(date)}
-                              style={[
-                                styles.dayCellCompact,
-                                !inMonth && styles.dayCellCompactMuted,
-                                isActualPeriod && styles.dayCellCompactPeriod,
-                                !(isActualPeriod || isPredictedPeriod) &&
-                                  isOvulation &&
-                                  styles.dayCellCompactOvulation,
-                                !isActualPeriod &&
-                                  isPredictedPeriod &&
-                                  styles.dayCellCompactPredicted,
-                                !(isActualPeriod || isPredictedPeriod) &&
-                                  isFertile &&
-                                  styles.dayCellCompactFertile,
-                              ]}
-                            >
-                              <Text
-                                style={[
-                                  styles.dayTextCompact,
-                                  !inMonth && styles.dayTextCompactMuted,
-                                ]}
-                              >
-                                {date.getDate()}
-                              </Text>
-                              <View style={styles.dayDotsRow}>
-                                {isOvulation ? (
-                                  <View
-                                    style={[
-                                      styles.legendDot,
-                                      styles.dotOvulation,
-                                    ]}
-                                  />
-                                ) : null}
-                                {!isOvulation && isFertile ? (
-                                  <View
-                                    style={[
-                                      styles.legendDot,
-                                      styles.dotFertile,
-                                    ]}
-                                  />
-                                ) : null}
-                                {isActualPeriod ? (
-                                  <View
-                                    style={[styles.legendDot, styles.dotPeriod]}
-                                  />
-                                ) : null}
-                                {!isActualPeriod && isPredictedPeriod ? (
-                                  <View
-                                    style={[
-                                      styles.legendDot,
-                                      styles.dotPredicted,
-                                    ]}
-                                  />
-                                ) : null}
-                                {hasDailyLog ? (
-                                  <View
-                                    style={[
-                                      styles.legendDot,
-                                      styles.dotDailyLog,
-                                    ]}
-                                  />
-                                ) : null}
-                              </View>
-                            </Pressable>
-                          );
-                        }
-                      )}
-                    </View>
-
-                    <View style={styles.cycleLegendRow}>
-                      <View style={styles.cycleLegendItem}>
-                        <View style={[styles.legendDot, styles.dotPeriod]} />
-                        <Text style={styles.cycleLegendText}>
-                          {isRTL ? "الدورة" : "Period"}
-                        </Text>
-                      </View>
-                      <View style={styles.cycleLegendItem}>
-                        <View style={[styles.legendDot, styles.dotPredicted]} />
-                        <Text style={styles.cycleLegendText}>
-                          {isRTL ? "متوقعة" : "Predicted"}
-                        </Text>
-                      </View>
-                      <View style={styles.cycleLegendItem}>
-                        <View style={[styles.legendDot, styles.dotFertile]} />
-                        <Text style={styles.cycleLegendText}>
-                          {isRTL ? "خصوبة" : "Fertile"}
-                        </Text>
-                      </View>
-                      <View style={styles.cycleLegendItem}>
-                        <View style={[styles.legendDot, styles.dotOvulation]} />
-                        <Text style={styles.cycleLegendText}>
-                          {isRTL ? "إباضة" : "Ovulation"}
-                        </Text>
-                      </View>
-                      <View style={styles.cycleLegendItem}>
-                        <View style={[styles.legendDot, styles.dotDailyLog]} />
-                        <Text style={styles.cycleLegendText}>
-                          {isRTL ? "مُسجَّل" : "Logged"}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-
-                  <View style={styles.reminderCard}>
-                    <View
-                      style={[
-                        styles.reminderHeaderRow,
-                        isRTL && { flexDirection: "row-reverse" as const },
-                      ]}
-                    >
-                      <View style={styles.reminderIconContainer}>
-                        <Pill color={Colors.primary.main} size={18} />
-                      </View>
-                      <View style={styles.reminderTitleContainer}>
                         <Text
-                          style={[
-                            styles.reminderTitle,
-                            isRTL && styles.rtlText,
-                          ]}
-                        >
-                          {isRTL ? "تذكير منع الحمل" : "Birth Control Reminder"}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.reminderSubtitle,
-                            isRTL && styles.rtlText,
-                          ]}
+                          style={[styles.calendarHint, isRTL && styles.rtlText]}
                         >
                           {isRTL
-                            ? `يوميًا ${String(pillReminderTime.hour).padStart(2, "0")}:${String(pillReminderTime.minute).padStart(2, "0")}`
-                            : `Daily at ${String(pillReminderTime.hour).padStart(2, "0")}:${String(pillReminderTime.minute).padStart(2, "0")}`}
+                            ? "اضغطي على أي يوم للتسجيل"
+                            : "Tap any day to log"}
                         </Text>
-                      </View>
-                      <TouchableOpacity
-                        onPress={() =>
-                          pillReminderId
-                            ? disablePillReminder()
-                            : schedulePillReminder(pillReminderTime)
-                        }
-                        style={[
-                          styles.reminderToggle,
-                          pillReminderId
-                            ? styles.reminderToggleOn
-                            : styles.reminderToggleOff,
-                        ]}
-                      >
-                        <Text style={styles.reminderToggleText}>
-                          {pillReminderId
-                            ? isRTL
-                              ? "مفعّل"
-                              : "On"
-                            : isRTL
-                              ? "تفعيل"
-                              : "Enable"}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
 
-                    <View
-                      style={[
-                        styles.reminderTimesRow,
-                        isRTL && { flexDirection: "row-reverse" as const },
-                      ]}
-                    >
-                      {[
-                        { label: "08:00", hour: 8, minute: 0 },
-                        { label: "12:00", hour: 12, minute: 0 },
-                        { label: "20:00", hour: 20, minute: 0 },
-                        { label: "22:00", hour: 22, minute: 0 },
-                      ].map((time) => {
-                        const isSelected =
-                          pillReminderTime.hour === time.hour &&
-                          pillReminderTime.minute === time.minute;
-                        return (
-                          <TouchableOpacity
-                            key={time.label}
-                            onPress={() => {
-                              setPillReminderTime({
-                                hour: time.hour,
-                                minute: time.minute,
-                              });
-                              if (pillReminderId) {
-                                schedulePillReminder({
-                                  hour: time.hour,
-                                  minute: time.minute,
-                                });
-                              }
-                            }}
-                            style={[
-                              styles.reminderTimeChip,
-                              isSelected && styles.reminderTimeChipSelected,
-                            ]}
-                          >
+                        <View style={styles.weekdayRowCompact}>
+                          {weekdayLabels.map(({ key, label }) => (
+                            <Text key={key} style={styles.weekdayLabelCompact}>
+                              {label}
+                            </Text>
+                          ))}
+                        </View>
+
+                        <View style={styles.monthGridCompact}>
+                          {buildMonthGrid(calendarMonth).days.map(
+                            ({ date, inMonth }) => {
+                              const key = dateKey(date);
+                              const isActualPeriod = actualPeriodDays.has(key);
+                              const isPredictedPeriod =
+                                predictedPeriodDays.has(key);
+                              const isFertile = fertileWindowDays.has(key);
+                              const isOvulation = ovulationKey === key;
+                              const hasDailyLog = dailyEntryByKey.has(key);
+
+                              return (
+                                <Pressable
+                                  key={key}
+                                  onPress={() => openDailyLog(date)}
+                                  style={[
+                                    styles.dayCellCompact,
+                                    !inMonth && styles.dayCellCompactMuted,
+                                    isActualPeriod &&
+                                      styles.dayCellCompactPeriod,
+                                    !(isActualPeriod || isPredictedPeriod) &&
+                                      isOvulation &&
+                                      styles.dayCellCompactOvulation,
+                                    !isActualPeriod &&
+                                      isPredictedPeriod &&
+                                      styles.dayCellCompactPredicted,
+                                    !(isActualPeriod || isPredictedPeriod) &&
+                                      isFertile &&
+                                      styles.dayCellCompactFertile,
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.dayTextCompact,
+                                      !inMonth && styles.dayTextCompactMuted,
+                                    ]}
+                                  >
+                                    {date.getDate()}
+                                  </Text>
+                                  <View style={styles.dayDotsRow}>
+                                    {isOvulation ? (
+                                      <View
+                                        style={[
+                                          styles.legendDot,
+                                          styles.dotOvulation,
+                                        ]}
+                                      />
+                                    ) : null}
+                                    {!isOvulation && isFertile ? (
+                                      <View
+                                        style={[
+                                          styles.legendDot,
+                                          styles.dotFertile,
+                                        ]}
+                                      />
+                                    ) : null}
+                                    {isActualPeriod ? (
+                                      <View
+                                        style={[
+                                          styles.legendDot,
+                                          styles.dotPeriod,
+                                        ]}
+                                      />
+                                    ) : null}
+                                    {!isActualPeriod && isPredictedPeriod ? (
+                                      <View
+                                        style={[
+                                          styles.legendDot,
+                                          styles.dotPredicted,
+                                        ]}
+                                      />
+                                    ) : null}
+                                    {hasDailyLog ? (
+                                      <View
+                                        style={[
+                                          styles.legendDot,
+                                          styles.dotDailyLog,
+                                        ]}
+                                      />
+                                    ) : null}
+                                  </View>
+                                </Pressable>
+                              );
+                            }
+                          )}
+                        </View>
+
+                        <View style={styles.cycleLegendRow}>
+                          <View style={styles.cycleLegendItem}>
+                            <View
+                              style={[styles.legendDot, styles.dotPeriod]}
+                            />
+                            <Text style={styles.cycleLegendText}>
+                              {isRTL ? "الدورة" : "Period"}
+                            </Text>
+                          </View>
+                          <View style={styles.cycleLegendItem}>
+                            <View
+                              style={[styles.legendDot, styles.dotPredicted]}
+                            />
+                            <Text style={styles.cycleLegendText}>
+                              {isRTL ? "متوقعة" : "Predicted"}
+                            </Text>
+                          </View>
+                          <View style={styles.cycleLegendItem}>
+                            <View
+                              style={[styles.legendDot, styles.dotFertile]}
+                            />
+                            <Text style={styles.cycleLegendText}>
+                              {isRTL ? "خصوبة" : "Fertile"}
+                            </Text>
+                          </View>
+                          <View style={styles.cycleLegendItem}>
+                            <View
+                              style={[styles.legendDot, styles.dotOvulation]}
+                            />
+                            <Text style={styles.cycleLegendText}>
+                              {isRTL ? "إباضة" : "Ovulation"}
+                            </Text>
+                          </View>
+                          <View style={styles.cycleLegendItem}>
+                            <View
+                              style={[styles.legendDot, styles.dotDailyLog]}
+                            />
+                            <Text style={styles.cycleLegendText}>
+                              {isRTL ? "مُسجَّل" : "Logged"}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      <View style={styles.reminderCard}>
+                        <View
+                          style={[
+                            styles.reminderHeaderRow,
+                            isRTL && { flexDirection: "row-reverse" as const },
+                          ]}
+                        >
+                          <View style={styles.reminderIconContainer}>
+                            <Pill color={Colors.primary.main} size={18} />
+                          </View>
+                          <View style={styles.reminderTitleContainer}>
                             <Text
                               style={[
-                                styles.reminderTimeChipText,
-                                isSelected &&
-                                  styles.reminderTimeChipTextSelected,
+                                styles.reminderTitle,
+                                isRTL && styles.rtlText,
                               ]}
                             >
-                              {time.label}
+                              {isRTL
+                                ? "تذكير منع الحمل"
+                                : "Birth Control Reminder"}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.reminderSubtitle,
+                                isRTL && styles.rtlText,
+                              ]}
+                            >
+                              {isRTL
+                                ? `يوميًا ${String(pillReminderTime.hour).padStart(2, "0")}:${String(pillReminderTime.minute).padStart(2, "0")}`
+                                : `Daily at ${String(pillReminderTime.hour).padStart(2, "0")}:${String(pillReminderTime.minute).padStart(2, "0")}`}
+                            </Text>
+                          </View>
+                          <TouchableOpacity
+                            onPress={() =>
+                              pillReminderId
+                                ? disablePillReminder()
+                                : schedulePillReminder(pillReminderTime)
+                            }
+                            style={[
+                              styles.reminderToggle,
+                              pillReminderId
+                                ? styles.reminderToggleOn
+                                : styles.reminderToggleOff,
+                            ]}
+                          >
+                            <Text style={styles.reminderToggleText}>
+                              {pillReminderId
+                                ? isRTL
+                                  ? "مفعّل"
+                                  : "On"
+                                : isRTL
+                                  ? "تفعيل"
+                                  : "Enable"}
                             </Text>
                           </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  </View>
+                        </View>
 
-                  <View style={styles.cycleCalendarCard}>
-                    <View style={styles.cycleCalendarHeader}>
-                      <TouchableOpacity
-                        onPress={() =>
-                          setCalendarMonth(
-                            (prev) =>
-                              new Date(
-                                prev.getFullYear(),
-                                prev.getMonth() - 1,
-                                1,
-                                12
-                              )
-                          )
-                        }
-                        style={styles.cycleCalendarNavButton}
-                      >
-                        <ChevronLeft color={Colors.text.primary} size={18} />
-                      </TouchableOpacity>
-                      <Text style={styles.cycleCalendarMonthLabel}>
-                        {calendarMonthLabel}
-                      </Text>
-                      <TouchableOpacity
-                        onPress={() =>
-                          setCalendarMonth(
-                            (prev) =>
-                              new Date(
-                                prev.getFullYear(),
-                                prev.getMonth() + 1,
-                                1,
-                                12
-                              )
-                          )
-                        }
-                        style={styles.cycleCalendarNavButton}
-                      >
-                        <ChevronRight color={Colors.text.primary} size={18} />
-                      </TouchableOpacity>
-                    </View>
-
-                    <View style={styles.weekdayRowCompact}>
-                      {weekdayLabels.map(({ key, label }) => (
-                        <Text key={key} style={styles.weekdayLabelCompact}>
-                          {label}
-                        </Text>
-                      ))}
-                    </View>
-
-                    <View style={styles.monthGridCompact}>
-                      {buildMonthGrid(calendarMonth).days.map(
-                        ({ date, inMonth }) => {
-                          const key = dateKey(date);
-                          const isActualPeriod = actualPeriodDays.has(key);
-                          const isPredictedPeriod =
-                            predictedPeriodDays.has(key);
-                          const isFertile = fertileWindowDays.has(key);
-                          const isOvulation = ovulationKey === key;
-
-                          return (
-                            <View
-                              key={key}
-                              style={[
-                                styles.dayCellCompact,
-                                !inMonth && styles.dayCellCompactMuted,
-                                isActualPeriod && styles.dayCellCompactPeriod,
-                                !(isActualPeriod || isPredictedPeriod) &&
-                                  isOvulation &&
-                                  styles.dayCellCompactOvulation,
-                                !isActualPeriod &&
-                                  isPredictedPeriod &&
-                                  styles.dayCellCompactPredicted,
-                                !(isActualPeriod || isPredictedPeriod) &&
-                                  isFertile &&
-                                  styles.dayCellCompactFertile,
-                              ]}
-                            >
-                              <Text
+                        <View
+                          style={[
+                            styles.reminderTimesRow,
+                            isRTL && { flexDirection: "row-reverse" as const },
+                          ]}
+                        >
+                          {[
+                            { label: "08:00", hour: 8, minute: 0 },
+                            { label: "12:00", hour: 12, minute: 0 },
+                            { label: "20:00", hour: 20, minute: 0 },
+                            { label: "22:00", hour: 22, minute: 0 },
+                          ].map((time) => {
+                            const isSelected =
+                              pillReminderTime.hour === time.hour &&
+                              pillReminderTime.minute === time.minute;
+                            return (
+                              <TouchableOpacity
+                                key={time.label}
+                                onPress={() => {
+                                  setPillReminderTime({
+                                    hour: time.hour,
+                                    minute: time.minute,
+                                  });
+                                  if (pillReminderId) {
+                                    schedulePillReminder({
+                                      hour: time.hour,
+                                      minute: time.minute,
+                                    });
+                                  }
+                                }}
                                 style={[
-                                  styles.dayTextCompact,
-                                  !inMonth && styles.dayTextCompactMuted,
+                                  styles.reminderTimeChip,
+                                  isSelected && styles.reminderTimeChipSelected,
                                 ]}
                               >
-                                {date.getDate()}
-                              </Text>
-                              <View style={styles.dayDotsRow}>
-                                {isOvulation ? (
-                                  <View
-                                    style={[
-                                      styles.legendDot,
-                                      styles.dotOvulation,
-                                    ]}
-                                  />
-                                ) : null}
-                                {!isOvulation && isFertile ? (
-                                  <View
-                                    style={[
-                                      styles.legendDot,
-                                      styles.dotFertile,
-                                    ]}
-                                  />
-                                ) : null}
-                                {isActualPeriod ? (
-                                  <View
-                                    style={[styles.legendDot, styles.dotPeriod]}
-                                  />
-                                ) : null}
-                                {!isActualPeriod && isPredictedPeriod ? (
-                                  <View
-                                    style={[
-                                      styles.legendDot,
-                                      styles.dotPredicted,
-                                    ]}
-                                  />
-                                ) : null}
-                              </View>
-                            </View>
-                          );
-                        }
-                      )}
-                    </View>
+                                <Text
+                                  style={[
+                                    styles.reminderTimeChipText,
+                                    isSelected &&
+                                      styles.reminderTimeChipTextSelected,
+                                  ]}
+                                >
+                                  {time.label}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </View>
 
-                    <View style={styles.cycleLegendRow}>
-                      <View style={styles.cycleLegendItem}>
-                        <View style={[styles.legendDot, styles.dotPeriod]} />
-                        <Text style={styles.cycleLegendText}>
-                          {isRTL ? "الدورة" : "Period"}
-                        </Text>
+                      <View style={styles.cycleCalendarCard}>
+                        <View style={styles.cycleCalendarHeader}>
+                          <TouchableOpacity
+                            onPress={() =>
+                              setCalendarMonth(
+                                (prev) =>
+                                  new Date(
+                                    prev.getFullYear(),
+                                    prev.getMonth() - 1,
+                                    1,
+                                    12
+                                  )
+                              )
+                            }
+                            style={styles.cycleCalendarNavButton}
+                          >
+                            <ChevronLeft
+                              color={Colors.text.primary}
+                              size={18}
+                            />
+                          </TouchableOpacity>
+                          <Text style={styles.cycleCalendarMonthLabel}>
+                            {calendarMonthLabel}
+                          </Text>
+                          <TouchableOpacity
+                            onPress={() =>
+                              setCalendarMonth(
+                                (prev) =>
+                                  new Date(
+                                    prev.getFullYear(),
+                                    prev.getMonth() + 1,
+                                    1,
+                                    12
+                                  )
+                              )
+                            }
+                            style={styles.cycleCalendarNavButton}
+                          >
+                            <ChevronRight
+                              color={Colors.text.primary}
+                              size={18}
+                            />
+                          </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.weekdayRowCompact}>
+                          {weekdayLabels.map(({ key, label }) => (
+                            <Text key={key} style={styles.weekdayLabelCompact}>
+                              {label}
+                            </Text>
+                          ))}
+                        </View>
+
+                        <View style={styles.monthGridCompact}>
+                          {buildMonthGrid(calendarMonth).days.map(
+                            ({ date, inMonth }) => {
+                              const key = dateKey(date);
+                              const isActualPeriod = actualPeriodDays.has(key);
+                              const isPredictedPeriod =
+                                predictedPeriodDays.has(key);
+                              const isFertile = fertileWindowDays.has(key);
+                              const isOvulation = ovulationKey === key;
+
+                              return (
+                                <View
+                                  key={key}
+                                  style={[
+                                    styles.dayCellCompact,
+                                    !inMonth && styles.dayCellCompactMuted,
+                                    isActualPeriod &&
+                                      styles.dayCellCompactPeriod,
+                                    !(isActualPeriod || isPredictedPeriod) &&
+                                      isOvulation &&
+                                      styles.dayCellCompactOvulation,
+                                    !isActualPeriod &&
+                                      isPredictedPeriod &&
+                                      styles.dayCellCompactPredicted,
+                                    !(isActualPeriod || isPredictedPeriod) &&
+                                      isFertile &&
+                                      styles.dayCellCompactFertile,
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.dayTextCompact,
+                                      !inMonth && styles.dayTextCompactMuted,
+                                    ]}
+                                  >
+                                    {date.getDate()}
+                                  </Text>
+                                  <View style={styles.dayDotsRow}>
+                                    {isOvulation ? (
+                                      <View
+                                        style={[
+                                          styles.legendDot,
+                                          styles.dotOvulation,
+                                        ]}
+                                      />
+                                    ) : null}
+                                    {!isOvulation && isFertile ? (
+                                      <View
+                                        style={[
+                                          styles.legendDot,
+                                          styles.dotFertile,
+                                        ]}
+                                      />
+                                    ) : null}
+                                    {isActualPeriod ? (
+                                      <View
+                                        style={[
+                                          styles.legendDot,
+                                          styles.dotPeriod,
+                                        ]}
+                                      />
+                                    ) : null}
+                                    {!isActualPeriod && isPredictedPeriod ? (
+                                      <View
+                                        style={[
+                                          styles.legendDot,
+                                          styles.dotPredicted,
+                                        ]}
+                                      />
+                                    ) : null}
+                                  </View>
+                                </View>
+                              );
+                            }
+                          )}
+                        </View>
+
+                        <View style={styles.cycleLegendRow}>
+                          <View style={styles.cycleLegendItem}>
+                            <View
+                              style={[styles.legendDot, styles.dotPeriod]}
+                            />
+                            <Text style={styles.cycleLegendText}>
+                              {isRTL ? "الدورة" : "Period"}
+                            </Text>
+                          </View>
+                          <View style={styles.cycleLegendItem}>
+                            <View
+                              style={[styles.legendDot, styles.dotPredicted]}
+                            />
+                            <Text style={styles.cycleLegendText}>
+                              {isRTL ? "متوقعة" : "Predicted"}
+                            </Text>
+                          </View>
+                          <View style={styles.cycleLegendItem}>
+                            <View
+                              style={[styles.legendDot, styles.dotFertile]}
+                            />
+                            <Text style={styles.cycleLegendText}>
+                              {isRTL ? "خصوبة" : "Fertile"}
+                            </Text>
+                          </View>
+                          <View style={styles.cycleLegendItem}>
+                            <View
+                              style={[styles.legendDot, styles.dotOvulation]}
+                            />
+                            <Text style={styles.cycleLegendText}>
+                              {isRTL ? "إباضة" : "Ovulation"}
+                            </Text>
+                          </View>
+                        </View>
                       </View>
-                      <View style={styles.cycleLegendItem}>
-                        <View style={[styles.legendDot, styles.dotPredicted]} />
-                        <Text style={styles.cycleLegendText}>
-                          {isRTL ? "متوقعة" : "Predicted"}
-                        </Text>
-                      </View>
-                      <View style={styles.cycleLegendItem}>
-                        <View style={[styles.legendDot, styles.dotFertile]} />
-                        <Text style={styles.cycleLegendText}>
-                          {isRTL ? "خصوبة" : "Fertile"}
-                        </Text>
-                      </View>
-                      <View style={styles.cycleLegendItem}>
-                        <View style={[styles.legendDot, styles.dotOvulation]} />
-                        <Text style={styles.cycleLegendText}>
-                          {isRTL ? "إباضة" : "Ovulation"}
-                        </Text>
-                      </View>
-                    </View>
-                    </View>
+                    </>
                   ) : null}
                 </View>
               </View>
             ) : null}
+
+            {/* Monthly Calendar (period, fertile window, ovulation) */}
+            <View style={styles.infoCard}>
+              <View style={styles.infoCardHeader}>
+                <View style={styles.infoIconContainer}>
+                  <Calendar color={Colors.primary.main} size={24} />
+                </View>
+                <Text style={styles.infoCardTitle}>
+                  {isRTL ? "التقويم الشهري" : "Monthly Calendar"}
+                </Text>
+              </View>
+
+              {cycleInfo ? null : (
+                <Text style={[styles.disclaimerText, isRTL && styles.rtlText]}>
+                  {isRTL
+                    ? "أضيفي سجلات دورة أكثر لعرض توقعات الخصوبة والإباضة."
+                    : "Add more cycle entries to see fertile & ovulation predictions."}
+                </Text>
+              )}
+
+              <View style={styles.calendarHeaderRow}>
+                <TouchableOpacity
+                  onPress={() =>
+                    setCalendarMonth(
+                      (prev) =>
+                        new Date(prev.getFullYear(), prev.getMonth() - 1, 1, 12)
+                    )
+                  }
+                  style={styles.calendarNavButton}
+                >
+                  <ChevronLeft color={Colors.text.primary} size={20} />
+                </TouchableOpacity>
+                <Text style={styles.calendarMonthLabel}>
+                  {safeFormatDate(
+                    calendarMonth,
+                    isRTL ? "ar-u-ca-gregory" : "en-US",
+                    { month: "long", year: "numeric" }
+                  )}
+                </Text>
+                <TouchableOpacity
+                  onPress={() =>
+                    setCalendarMonth(
+                      (prev) =>
+                        new Date(prev.getFullYear(), prev.getMonth() + 1, 1, 12)
+                    )
+                  }
+                  style={styles.calendarNavButton}
+                >
+                  <ChevronRight color={Colors.text.primary} size={20} />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={[styles.calendarHint, isRTL && styles.rtlText]}>
+                {isRTL ? "اضغطي على أي يوم للتسجيل" : "Tap any day to log"}
+              </Text>
+
+              <View style={styles.weekdayRow}>
+                {weekdayLabels.map(({ key, label }) => (
+                  <Text key={key} style={styles.weekdayLabel}>
+                    {label}
+                  </Text>
+                ))}
+              </View>
+
+              <View style={styles.monthGrid}>
+                {buildMonthGrid(calendarMonth).days.map(({ date, inMonth }) => {
+                  const key = dateKey(date);
+                  const isActualPeriod = actualPeriodDays.has(key);
+                  const isPredictedPeriod = predictedPeriodDays.has(key);
+                  const isFertile = fertileWindowDays.has(key);
+                  const isOvulation = ovulationKey === key;
+                  const hasDailyLog = dailyEntryByKey.has(key);
+
+                  return (
+                    <Pressable
+                      key={key}
+                      onPress={() => openDailyLog(date)}
+                      style={[
+                        styles.dayCell,
+                        !inMonth && styles.dayCellMuted,
+                        isActualPeriod && styles.dayCellPeriod,
+                        !isActualPeriod &&
+                          isPredictedPeriod &&
+                          styles.dayCellPredicted,
+                        !(isActualPeriod || isPredictedPeriod) &&
+                          isFertile &&
+                          styles.dayCellFertile,
+                        !(isActualPeriod || isPredictedPeriod) &&
+                          isOvulation &&
+                          styles.dayCellOvulation,
+                        hasDailyLog && styles.dayCellLogged,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.dayText,
+                          !inMonth && styles.dayTextMuted,
+                          (isActualPeriod ||
+                            isPredictedPeriod ||
+                            isFertile ||
+                            isOvulation ||
+                            hasDailyLog) &&
+                            styles.dayTextHighlighted,
+                        ]}
+                      >
+                        {date.getDate()}
+                      </Text>
+                      <View style={styles.dayDotsRow}>
+                        {isOvulation ? (
+                          <View
+                            style={[styles.legendDot, styles.dotOvulation]}
+                          />
+                        ) : null}
+                        {!isOvulation && isFertile ? (
+                          <View style={[styles.legendDot, styles.dotFertile]} />
+                        ) : null}
+                        {isActualPeriod ? (
+                          <View style={[styles.legendDot, styles.dotPeriod]} />
+                        ) : null}
+                        {!isActualPeriod && isPredictedPeriod ? (
+                          <View
+                            style={[styles.legendDot, styles.dotPredicted]}
+                          />
+                        ) : null}
+                        {hasDailyLog ? (
+                          <View
+                            style={[styles.legendDot, styles.dotDailyLog]}
+                          />
+                        ) : null}
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <View style={styles.cycleLegendRow}>
+                <View style={styles.cycleLegendItem}>
+                  <View style={[styles.legendDot, styles.dotPeriod]} />
+                  <Text style={styles.cycleLegendText}>
+                    {isRTL ? "الدورة" : "Period"}
+                  </Text>
+                </View>
+                <View style={styles.cycleLegendItem}>
+                  <View style={[styles.legendDot, styles.dotPredicted]} />
+                  <Text style={styles.cycleLegendText}>
+                    {isRTL ? "متوقعة" : "Predicted"}
+                  </Text>
+                </View>
+                <View style={styles.cycleLegendItem}>
+                  <View style={[styles.legendDot, styles.dotFertile]} />
+                  <Text style={styles.cycleLegendText}>
+                    {isRTL ? "خصوبة" : "Fertile"}
+                  </Text>
+                </View>
+                <View style={styles.cycleLegendItem}>
+                  <View style={[styles.legendDot, styles.dotOvulation]} />
+                  <Text style={styles.cycleLegendText}>
+                    {isRTL ? "إباضة" : "Ovulation"}
+                  </Text>
+                </View>
+                <View style={styles.cycleLegendItem}>
+                  <View style={[styles.legendDot, styles.dotDailyLog]} />
+                  <Text style={styles.cycleLegendText}>
+                    {isRTL ? "مُسجَّل" : "Logged"}
+                  </Text>
+                </View>
+              </View>
+            </View>
 
             {/* Cycle Info Card */}
             {cycleInfo ? (
@@ -2187,7 +2408,7 @@ export default function WomensHealthScreen() {
               )}
             </View>
 
-            {/* Daily Logs */}
+            {/*
             <View style={styles.section}>
               <View
                 style={[
@@ -2333,6 +2554,7 @@ export default function WomensHealthScreen() {
                 ))
               )}
             </View>
+            */}
           </>
         )}
       </ScrollView>
@@ -2509,6 +2731,176 @@ export default function WomensHealthScreen() {
                   {isRTL ? "حفظ" : "Save"}
                 </Text>
               </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setShowCalendarView(false)}
+        transparent
+        visible={showCalendarView}
+      >
+        <View style={[styles.modalOverlay, styles.calendarOverlay]}>
+          <View style={styles.calendarModalContent}>
+            <View style={styles.calendarModalHeader}>
+              <Text style={styles.calendarModalTitle}>
+                {isRTL ? "التقويم" : "Calendar"}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowCalendarView(false)}
+                style={styles.closeButton}
+              >
+                <X color={Colors.neutral[600]} size={24} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.calendarHeaderRow}>
+              <TouchableOpacity
+                onPress={() =>
+                  setCalendarMonth(
+                    (prev) =>
+                      new Date(prev.getFullYear(), prev.getMonth() - 1, 1, 12)
+                  )
+                }
+                style={styles.calendarNavButton}
+              >
+                <ChevronLeft color={Colors.text.primary} size={20} />
+              </TouchableOpacity>
+              <Text style={styles.calendarMonthLabel}>
+                {safeFormatDate(
+                  calendarMonth,
+                  isRTL ? "ar-u-ca-gregory" : "en-US",
+                  { month: "long", year: "numeric" }
+                )}
+              </Text>
+              <TouchableOpacity
+                onPress={() =>
+                  setCalendarMonth(
+                    (prev) =>
+                      new Date(prev.getFullYear(), prev.getMonth() + 1, 1, 12)
+                  )
+                }
+                style={styles.calendarNavButton}
+              >
+                <ChevronRight color={Colors.text.primary} size={20} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.calendarHint, isRTL && styles.rtlText]}>
+              {isRTL
+                ? "اضغطي على أي يوم لفتح السجل اليومي"
+                : "Tap any day to open the daily log"}
+            </Text>
+
+            <View style={styles.weekdayRow}>
+              {weekdayLabels.map(({ key, label }) => (
+                <Text key={key} style={styles.weekdayLabel}>
+                  {label}
+                </Text>
+              ))}
+            </View>
+
+            <View style={styles.monthGrid}>
+              {buildMonthGrid(calendarMonth).days.map(({ date, inMonth }) => {
+                const key = dateKey(date);
+                const isActualPeriod = actualPeriodDays.has(key);
+                const isPredictedPeriod = predictedPeriodDays.has(key);
+                const isFertile = fertileWindowDays.has(key);
+                const isOvulation = ovulationKey === key;
+                const hasDailyLog = dailyEntryByKey.has(key);
+
+                return (
+                  <Pressable
+                    key={key}
+                    onPress={() => {
+                      setShowCalendarView(false);
+                      requestAnimationFrame(() => openDailyLog(date));
+                    }}
+                    style={[
+                      styles.dayCell,
+                      !inMonth && styles.dayCellMuted,
+                      isActualPeriod && styles.dayCellPeriod,
+                      !isActualPeriod &&
+                        isPredictedPeriod &&
+                        styles.dayCellPredicted,
+                      !(isActualPeriod || isPredictedPeriod) &&
+                        isFertile &&
+                        styles.dayCellFertile,
+                      !(isActualPeriod || isPredictedPeriod) &&
+                        isOvulation &&
+                        styles.dayCellOvulation,
+                      hasDailyLog && styles.dayCellLogged,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.dayText,
+                        !inMonth && styles.dayTextMuted,
+                        (isActualPeriod ||
+                          isPredictedPeriod ||
+                          isFertile ||
+                          isOvulation ||
+                          hasDailyLog) &&
+                          styles.dayTextHighlighted,
+                      ]}
+                    >
+                      {date.getDate()}
+                    </Text>
+                    <View style={styles.dayDotsRow}>
+                      {isOvulation ? (
+                        <View style={[styles.legendDot, styles.dotOvulation]} />
+                      ) : null}
+                      {!isOvulation && isFertile ? (
+                        <View style={[styles.legendDot, styles.dotFertile]} />
+                      ) : null}
+                      {isActualPeriod ? (
+                        <View style={[styles.legendDot, styles.dotPeriod]} />
+                      ) : null}
+                      {!isActualPeriod && isPredictedPeriod ? (
+                        <View style={[styles.legendDot, styles.dotPredicted]} />
+                      ) : null}
+                      {hasDailyLog ? (
+                        <View style={[styles.legendDot, styles.dotDailyLog]} />
+                      ) : null}
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <View style={styles.cycleLegendRow}>
+              <View style={styles.cycleLegendItem}>
+                <View style={[styles.legendDot, styles.dotPeriod]} />
+                <Text style={styles.cycleLegendText}>
+                  {isRTL ? "الدورة" : "Period"}
+                </Text>
+              </View>
+              <View style={styles.cycleLegendItem}>
+                <View style={[styles.legendDot, styles.dotPredicted]} />
+                <Text style={styles.cycleLegendText}>
+                  {isRTL ? "متوقعة" : "Predicted"}
+                </Text>
+              </View>
+              <View style={styles.cycleLegendItem}>
+                <View style={[styles.legendDot, styles.dotFertile]} />
+                <Text style={styles.cycleLegendText}>
+                  {isRTL ? "خصوبة" : "Fertile"}
+                </Text>
+              </View>
+              <View style={styles.cycleLegendItem}>
+                <View style={[styles.legendDot, styles.dotOvulation]} />
+                <Text style={styles.cycleLegendText}>
+                  {isRTL ? "إباضة" : "Ovulation"}
+                </Text>
+              </View>
+              <View style={styles.cycleLegendItem}>
+                <View style={[styles.legendDot, styles.dotDailyLog]} />
+                <Text style={styles.cycleLegendText}>
+                  {isRTL ? "مُسجَّل" : "Logged"}
+                </Text>
+              </View>
             </View>
           </View>
         </View>
@@ -3787,6 +4179,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.primary.main,
   },
+  dayCellPeriod: {
+    backgroundColor: "rgba(239, 68, 68, 0.14)",
+  },
+  dayCellPredicted: {
+    backgroundColor: "rgba(236, 72, 153, 0.14)",
+  },
+  dayCellFertile: {
+    backgroundColor: "rgba(234, 179, 8, 0.14)",
+  },
+  dayCellOvulation: {
+    backgroundColor: "rgba(20, 184, 166, 0.12)",
+  },
+  dayCellLogged: {
+    borderWidth: 1,
+    borderColor: "rgba(20, 184, 166, 0.45)",
+  },
   dayText: {
     fontSize: 14,
     fontFamily: "Inter-SemiBold",
@@ -3797,6 +4205,9 @@ const styles = StyleSheet.create({
   },
   dayTextSelected: {
     color: Colors.primary.main,
+  },
+  dayTextHighlighted: {
+    color: Colors.text.primary,
   },
   calendarModalFooter: {
     flexDirection: "row",

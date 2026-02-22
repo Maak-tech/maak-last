@@ -65,7 +65,10 @@ export default function MedicalHistoryScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const navigation = useNavigation();
-  const params = useLocalSearchParams<{ returnTo?: string }>();
+  const params = useLocalSearchParams<{
+    returnTo?: string;
+    familyMemberId?: string;
+  }>();
 
   // Hide the default header to prevent duplicate headers
   useLayoutEffect(() => {
