@@ -129,6 +129,21 @@ service cloud.firestore {
         allow read: if canReadPHI(userId);
         allow update, delete: if canWritePHI(userId);
       }
+
+      match /discoveries/{discoveryId} {
+        // Health correlation discoveries - owner and family admin can read
+        allow create: if request.auth != null && request.auth.uid == userId;
+        // PHI access control: use same rules as other PHI-protected subcollections
+        allow read: if canReadPHI(userId);
+        allow update, delete: if request.auth != null && request.auth.uid == userId;
+      }
+
+      match /anomalies/{anomalyId} {
+        // Vital anomaly detection history - owner and family admin can read
+        allow create, update: if request.auth != null && request.auth.uid == userId;
+        allow read: if canReadPHI(userId);
+        allow delete: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
     // Symptoms collection - PHI protected (used by Zeina healthContextService)
@@ -424,5 +439,123 @@ service cloud.firestore {
       // PHI access control: update/delete only if user can write PHI for the target user
       allow update, delete: if canWritePHI(resource.data.userId);
     }
+
+    // ─── Organization Layer (B2B Multi-tenancy) ───────────────────────────────
+
+    // Helper: check if requesting user is an active member of the given org
+    function isOrgMemberActive(orgId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)).data.isActive == true;
+    }
+
+    function getOrgMemberRole(orgId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)).data.role;
+    }
+
+    function isOrgAdmin(orgId) {
+      return isOrgMemberActive(orgId) && getOrgMemberRole(orgId) == 'org_admin';
+    }
+
+    // Provider-level access: org_admin, provider, or care_coordinator
+    function isOrgProvider(orgId) {
+      return isOrgMemberActive(orgId) && (
+        getOrgMemberRole(orgId) == 'org_admin' ||
+        getOrgMemberRole(orgId) == 'provider' ||
+        getOrgMemberRole(orgId) == 'care_coordinator'
+      );
+    }
+
+    // Helper: verify active consent exists for org to access patient data
+    function orgHasActiveConsent(orgId, patientUserId) {
+      return exists(/databases/$(database)/documents/consents/$(patientUserId)/organizations/$(orgId)) &&
+        get(/databases/$(database)/documents/consents/$(patientUserId)/organizations/$(orgId)).data.isActive == true;
+    }
+
+    // Organizations collection
+    match /organizations/{orgId} {
+      // Any active org member can read the org document
+      allow read: if isOrgMemberActive(orgId);
+      // Any authenticated user can create an org (they become org_admin via Cloud Function)
+      allow create: if isSignedIn();
+      // Only org admins can update org settings
+      allow update: if isOrgAdmin(orgId);
+      // No client-side deletion
+      allow delete: if false;
+
+      // Members subcollection
+      match /members/{memberId} {
+        // Any active org member can list/read members
+        allow read: if isOrgMemberActive(orgId);
+        // Org admins can add/update/remove members
+        allow create, update, delete: if isOrgAdmin(orgId);
+      }
+
+      // Cohorts subcollection
+      match /cohorts/{cohortId} {
+        // Any active org member can read cohorts
+        allow read: if isOrgMemberActive(orgId);
+        // Providers and admins can manage cohorts
+        allow create, update: if isOrgProvider(orgId);
+        allow delete: if isOrgAdmin(orgId);
+      }
+    }
+
+    // Patient Roster — org-level enrollment records (Document ID: {orgId}_{userId})
+    match /patient_roster/{rosterId} {
+      allow read: if isSignedIn() && (
+        // The patient can read their own roster entry
+        resource.data.userId == request.auth.uid ||
+        // Org providers can read when patient has active consent
+        (isOrgProvider(resource.data.orgId) &&
+         orgHasActiveConsent(resource.data.orgId, resource.data.userId))
+      );
+      // Org providers can enroll patients
+      allow create: if isSignedIn() && isOrgProvider(request.resource.data.orgId);
+      // Org providers or the patient can update roster fields
+      allow update: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        isOrgProvider(resource.data.orgId)
+      );
+      // No deletion — discharge changes status field instead
+      allow delete: if false;
+    }
+
+    // HIPAA Audit Trail — append-only, no client reads
+    match /audit_trail/{auditId} {
+      // Authenticated writes only (Cloud Functions use admin SDK, bypassing rules)
+      allow create: if isSignedIn();
+      // No client reads — use admin SDK / Cloud Functions for audit queries
+      allow read: if false;
+      // Immutable: never update or delete
+      allow update, delete: if false;
+    }
+
+    // Patient Consent — per-user, per-org consent records
+    match /consents/{userId} {
+      match /organizations/{orgId} {
+        // Patient reads all their own consent records
+        allow read: if request.auth != null && request.auth.uid == userId;
+        // Patient creates/updates their own consent (grant / scope change)
+        allow create, update: if request.auth != null && request.auth.uid == userId;
+        // Org admins can read consent status for their org to verify before PHI access
+        allow read: if isOrgAdmin(orgId);
+        // Consent history is never deleted
+        allow delete: if false;
+      }
+    }
+
+    // Org Consents mirror — denormalized for efficient org-level queries
+    // Document ID: {orgId}_{userId}
+    match /org_consents/{consentId} {
+      // Org providers can query consent records for their org
+      allow read: if isSignedIn() && isOrgProvider(resource.data.orgId);
+      // Written by the patient (or system) when granting/revoking consent
+      allow create, update: if isSignedIn() && (
+        request.auth.uid == request.resource.data.userId
+      );
+      // Never delete — set isActive: false on revocation
+      allow delete: if false;
+    }
   }
-} 
+}

@@ -40,6 +40,7 @@ import GradientScreen from "@/components/figma/GradientScreen";
 import WavyBackground from "@/components/figma/WavyBackground";
 import { useTheme } from "@/contexts/ThemeContext";
 import aiConsentService from "@/lib/services/aiConsentService";
+import { correlationDiscoveryService } from "@/lib/services/correlationDiscoveryService";
 import { safeFormatTime } from "@/utils/dateFormat";
 import healthContextService from "../../lib/services/healthContextService";
 import openaiService, {
@@ -317,7 +318,50 @@ export default function ZeinaScreen() {
         timestamp: new Date(),
       };
 
-      setMessages([systemMessage, welcomeMessage]);
+      // Check for new health discoveries to proactively surface
+      let proactiveMessage: AIMessage | undefined;
+      try {
+        const userId = user?.id;
+        if (userId) {
+          const lastChatKey = `zeina_last_chat_${userId}`;
+          const lastChatTimestamp = await AsyncStorage.getItem(lastChatKey);
+          const sinceDate = lastChatTimestamp
+            ? new Date(lastChatTimestamp)
+            : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+          const newDiscoveries =
+            await correlationDiscoveryService.getNewDiscoveriesSince(
+              userId,
+              sinceDate
+            );
+
+          if (newDiscoveries.length > 0 && isMountedRef.current) {
+            const topDiscovery = newDiscoveries[0];
+            const desc = isRTL
+              ? topDiscovery.descriptionAr || topDiscovery.description
+              : topDiscovery.description;
+
+            proactiveMessage = {
+              id: (Date.now() + 2).toString(),
+              role: "assistant",
+              content: isRTL
+                ? `لاحظت شيئاً مثيراً للاهتمام في بياناتك الصحية — ${desc}. هل تريد مناقشة هذا؟`
+                : `I noticed something interesting in your health data — ${desc}. Would you like to discuss this?`,
+              timestamp: new Date(),
+            };
+          }
+
+          await AsyncStorage.setItem(lastChatKey, new Date().toISOString());
+        }
+      } catch {
+        // Silently fail - proactive insights are optional
+      }
+
+      setMessages([
+        systemMessage,
+        welcomeMessage,
+        ...(proactiveMessage ? [proactiveMessage] : []),
+      ]);
 
       if (isMountedRef.current) {
         setIsLoading(false);

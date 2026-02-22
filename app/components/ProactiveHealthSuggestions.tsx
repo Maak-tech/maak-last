@@ -280,7 +280,26 @@ export default function ProactiveHealthSuggestions({
   }
 
   if (suggestions.length === 0) {
-    return null;
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Heading
+            level={6}
+            style={[styles.headerTitle, isRTL && styles.rtlText]}
+          >
+            {isRTL ? "اقتراحات صحية" : "Health Suggestions"}
+          </Heading>
+        </View>
+        <View style={styles.emptyContainer}>
+          <Lightbulb color={theme.colors.text.secondary} size={24} />
+          <TypographyText style={[styles.emptyText, { marginTop: theme.spacing.sm }]}>
+            {isRTL
+              ? "لا توجد اقتراحات حالياً. استمر في تتبع صحتك للحصول على رؤى مخصصة!"
+              : "No suggestions right now. Keep tracking your health for personalized insights!"}
+          </TypographyText>
+        </View>
+      </View>
+    );
   }
 
   return (

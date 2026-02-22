@@ -12,6 +12,7 @@ import {
 } from "firebase/firestore";
 import { safeFormatDate } from "@/utils/dateFormat";
 import { auth, db } from "../firebase";
+import { correlationDiscoveryService } from "./correlationDiscoveryService";
 import {
   healthInsightsService,
   type PatternInsight,
@@ -105,6 +106,18 @@ export type HealthContext = {
   insightsMetrics: HealthInsightsMetrics | null;
   /** Full 30-day health insights for Zeina (patterns, trends, ML, correlations) */
   userDetailedInsights: PatternInsight[];
+  /** Top AI-detected health pattern discoveries */
+  topDiscoveries: Array<{
+    title: string;
+    titleAr?: string;
+    description: string;
+    descriptionAr?: string;
+    recommendation?: string;
+    recommendationAr?: string;
+    category: string;
+    confidence: number;
+    strength: number;
+  }>;
   recentAlerts: Array<{
     type: string;
     timestamp: Date;
@@ -320,6 +333,10 @@ class HealthContextService {
       ),
       healthInsightsService.getWeeklySummary(uid, undefined, isArabic),
       healthInsightsService.getAllInsights(uid, isArabic),
+      // Top correlation discoveries for Zeina context
+      correlationDiscoveryService
+        .getTopDiscoveries(uid, 5)
+        .catch(() => []),
       // Period tracking query (only for female users)
       userData.gender === "female"
         ? Promise.all([
@@ -351,6 +368,7 @@ class HealthContextService {
       vitalsSnapshot,
       insightsMetricsSummary,
       userDetailedInsightsResult,
+      topDiscoveriesResult,
       periodDataResult,
     ] = results;
 
@@ -498,6 +516,23 @@ class HealthContextService {
     const userDetailedInsights: PatternInsight[] =
       userDetailedInsightsResult?.status === "fulfilled"
         ? userDetailedInsightsResult.value.slice(0, 10)
+        : [];
+
+    // Process top correlation discoveries
+    const topDiscoveries: HealthContext["topDiscoveries"] =
+      topDiscoveriesResult?.status === "fulfilled" &&
+      Array.isArray(topDiscoveriesResult.value)
+        ? topDiscoveriesResult.value.map((d) => ({
+            title: d.title,
+            titleAr: d.titleAr,
+            description: d.description,
+            descriptionAr: d.descriptionAr,
+            recommendation: d.recommendation,
+            recommendationAr: d.recommendationAr,
+            category: d.category,
+            confidence: d.confidence,
+            strength: d.strength,
+          }))
         : [];
 
     // Process user-level health insights metrics
@@ -867,6 +902,7 @@ class HealthContextService {
       familyInsights,
       insightsMetrics,
       userDetailedInsights,
+      topDiscoveries,
       recentAlerts,
       vitalSigns: latestVitals,
       periodTracking,
@@ -1056,6 +1092,19 @@ ${context.userDetailedInsights
     : ""
 }
 
+${
+  context.topDiscoveries.length > 0
+    ? `
+${isArabic ? "اكتشافات الأنماط الصحية (ارتباطات مكتشفة بالذكاء الاصطناعي):" : "HEALTH PATTERN DISCOVERIES (AI-detected correlations in user's data):"}
+${context.topDiscoveries
+  .map(
+    (d) =>
+      `• [${Math.round(d.confidence)}% confidence | ${d.category}] ${isArabic && d.titleAr ? d.titleAr : d.title}: ${isArabic && d.descriptionAr ? d.descriptionAr : d.description}${d.recommendation ? ` — ${isArabic ? "توصية" : "Recommendation"}: ${isArabic && d.recommendationAr ? d.recommendationAr : d.recommendation}` : ""}`
+  )
+  .join("\n")}`
+    : ""
+}
+
 ${isArabic ? "أفراد العائلة:" : "FAMILY MEMBERS:"}
 ${
   context.familyMembers.length > 0
@@ -1187,6 +1236,7 @@ ${
 10. إذا لاحظت أنماطاً مقلقة في الأعراض أو العلامات الحيوية، اقترح بلطف استشارة طبية
 11. استخدم رؤى الصحة التفصيلية (أنماط 30 يوماً) عند سؤال المستخدم عن صحته أو أعراضه أو أدويته أو اتجاهاته — هذه الرؤى تتضمن أنماط ML والارتباطات والتوصيات القابلة للتنفيذ
 12. للمستخدمات الإناث، ضع في اعتبارك بيانات تتبع الدورة الشهرية عند تقديم الرؤى الصحية — ربط الأعراض بمراحل الدورة، وتقديم توصيات تراعي الدورة، والإشارة إلى فترات/الإباضة المتوقعة عند الاقتضاء
+13. أشر إلى اكتشافات الأنماط الصحية عند الاقتضاء — هذه ارتباطات فريدة مكتشفة بالذكاء الاصطناعي من بيانات المستخدم (مثل: أنماط الأدوية والأعراض، وصلات المزاج بالمؤشرات الحيوية)
 
 تذكر: أنت مساعد ذكي تقدم معلومات ودعماً، وليس بديلاً عن النصيحة الطبية المهنية. شجع دائماً المستخدمين على طلب المساعدة الطبية المهنية للاهتمامات الخطيرة.`
     : `1. Provide personalized health insights based on the complete medical profile
@@ -1202,6 +1252,7 @@ ${
 11. Use weekly health insight metrics (symptom trend, adherence, mood trend, and top signals) when relevant
 12. Proactively reference and discuss the detailed health insights (30-day patterns) when the user asks about their health, symptoms, medications, or trends — these insights include ML patterns, correlations, and actionable recommendations
 13. For female users, consider period tracking data when providing health insights — correlate symptoms with cycle phases, provide cycle-aware recommendations, and reference predicted periods/ovulation when relevant
+14. Reference the HEALTH PATTERN DISCOVERIES when relevant — these are AI-detected correlations unique to this user's data (e.g., medication→symptom patterns, mood→vital links). Bring them up proactively when discussing the related health factors
 
 Remember: You are an AI assistant providing information and support, not a replacement for professional medical advice. Always encourage users to seek professional medical help for serious concerns.`
 }`;

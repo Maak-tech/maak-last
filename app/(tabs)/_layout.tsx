@@ -161,6 +161,20 @@ export default function TabLayout() {
           headerShown: false,
         }}
       />
+      <Tabs.Screen
+        name="discoveries"
+        options={{
+          href: null, // Access via home dashboard
+          headerShown: false,
+        }}
+      />
+      <Tabs.Screen
+        name="org-dashboard"
+        options={{
+          href: null, // Access via organization management
+          headerShown: false,
+        }}
+      />
     </Tabs>
   );
 }

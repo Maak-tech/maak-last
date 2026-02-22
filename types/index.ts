@@ -405,3 +405,157 @@ export type PeriodCycle = {
   cycleLengthStdDev?: number;
   updatedAt: Date;
 };
+
+// ─── Organization Layer (B2B Multi-tenancy) ───────────────────────────────────
+
+export type OrgType =
+  | "clinic"
+  | "hospital"
+  | "employer"
+  | "insurer"
+  | "homecare";
+
+export type OrgPlan = "starter" | "growth" | "enterprise";
+
+export type OrgRole = "org_admin" | "provider" | "care_coordinator" | "viewer";
+
+export type Organization = {
+  id: string;
+  name: string;
+  type: OrgType;
+  plan: OrgPlan;
+  createdAt: Date;
+  createdBy: string;
+  settings: {
+    timezone: string;
+    language: "en" | "ar";
+    branding?: {
+      logoUrl?: string;
+      primaryColor?: string;
+    };
+    alertThresholds?: Record<string, number>;
+    features: string[];
+    dataRegion: "us" | "eu" | "uae";
+  };
+  billing?: {
+    seatCount: number;
+    patientCount: number;
+    subscriptionId?: string;
+    currentPeriodEnd?: Date;
+  };
+};
+
+export type OrgMember = {
+  id: string;
+  orgId: string;
+  userId: string;
+  role: OrgRole;
+  displayName: string;
+  email?: string;
+  specialty?: string;
+  joinedAt: Date;
+  invitedBy: string;
+  isActive: boolean;
+};
+
+export type OrgCohort = {
+  id: string;
+  orgId: string;
+  name: string;
+  description?: string;
+  condition?: string;
+  program?: string;
+  createdAt: Date;
+  createdBy: string;
+  patientCount: number;
+};
+
+export type PatientRosterStatus = "active" | "inactive" | "discharged";
+
+export type ConsentScope =
+  | "vitals"
+  | "medications"
+  | "symptoms"
+  | "lab_results"
+  | "ai_analysis"
+  | "data_export"
+  | "wearable_data";
+
+export type PatientRoster = {
+  id: string;
+  orgId: string;
+  userId: string;
+  enrolledAt: Date;
+  enrolledBy: string;
+  status: PatientRosterStatus;
+  cohortIds: string[];
+  assignedProviders: string[];
+  riskScore?: number;
+  lastContact?: Date;
+  dischargedAt?: Date;
+  dischargeReason?: string;
+  consentGrantedAt?: Date;
+  consentScope: ConsentScope[];
+};
+
+// ─── HIPAA Audit Trail (append-only) ─────────────────────────────────────────
+
+export type AuditAction =
+  | "phi_read"
+  | "phi_write"
+  | "phi_delete"
+  | "phi_export"
+  | "login"
+  | "logout"
+  | "api_key_created"
+  | "api_key_revoked"
+  | "api_key_used"
+  | "role_changed"
+  | "patient_enrolled"
+  | "patient_discharged"
+  | "consent_granted"
+  | "consent_revoked"
+  | "agent_action"
+  | "alert_created"
+  | "alert_resolved"
+  | "webhook_triggered";
+
+export type AuditTrailEntry = {
+  id: string;
+  timestamp: Date;
+  actorId: string;
+  actorType: "user" | "system" | "agent" | "api_key";
+  actorOrgId?: string;
+  action: AuditAction;
+  resourceType: string;
+  resourceId: string;
+  patientUserId?: string;
+  orgId?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  details?: Record<string, unknown>;
+  outcome: "success" | "failure" | "denied";
+  denialReason?: string;
+};
+
+// ─── Patient Consent Management ───────────────────────────────────────────────
+
+export type ConsentGrantMethod =
+  | "in_app"
+  | "provider_initiated"
+  | "sms_link"
+  | "admin_granted";
+
+export type PatientConsent = {
+  id: string;
+  userId: string;
+  orgId: string;
+  grantedAt: Date;
+  grantedBy: string;
+  grantMethod: ConsentGrantMethod;
+  scope: ConsentScope[];
+  version: string;
+  revokedAt?: Date;
+  revokedBy?: string;
+  isActive: boolean;
+};

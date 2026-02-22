@@ -138,6 +138,28 @@ async function saveVitalSample(
     .catch(() => {
       // Silently handle import errors
     });
+
+  // Run personalized anomaly detection (non-blocking)
+  const anomalyVitalType = VITAL_TYPE_TO_RULES_FORMAT[vitalType];
+  if (anomalyVitalType) {
+    import("./anomalyDetectionService")
+      .then(({ anomalyDetectionService }) => {
+        anomalyDetectionService
+          .checkAndPersistAnomaly(userId, {
+            type: anomalyVitalType,
+            value,
+            unit,
+            timestamp,
+            userId,
+          })
+          .catch(() => {
+            // Silently handle errors - anomaly detection is non-critical
+          });
+      })
+      .catch(() => {
+        // Silently handle import errors
+      });
+  }
 }
 
 /**

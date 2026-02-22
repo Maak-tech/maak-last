@@ -58,6 +58,7 @@ import GradientScreen from "@/components/figma/GradientScreen";
 import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useAnomalyDetection } from "@/hooks/useAnomalyDetection";
 import {
   getAllGroups,
   getAvailableMetricsForProvider,
@@ -127,6 +128,27 @@ export default function VitalsScreen() {
     error instanceof Error ? error.message : fallback;
 
   const isRTL = i18n.language.toLowerCase().startsWith("ar");
+
+  // Load recent anomalies to show badges on affected vital cards
+  const { recentAnomalies } = useAnomalyDetection(user?.id, { historyDays: 1 });
+
+  // Map from vital card key to anomaly detection vitalType format
+  const CARD_KEY_TO_VITAL_TYPE: Record<string, string> = {
+    heartRate: "heart_rate",
+    restingHeartRate: "heart_rate",
+    walkingHeartRateAverage: "heart_rate",
+    oxygenSaturation: "blood_oxygen",
+    bloodPressureSystolic: "systolic_bp",
+    bloodPressureDiastolic: "diastolic_bp",
+    bodyTemperature: "temperature",
+    bloodGlucose: "blood_glucose",
+    respiratoryRate: "respiratory_rate",
+  };
+
+  // Build set of anomalous vital types for quick lookup
+  const anomalyMap = new Map(
+    recentAnomalies.filter((a) => !a.acknowledged).map((a) => [a.vitalType, a])
+  );
 
   useEffect(() => {
     if (params.tour === "1") {
@@ -2130,21 +2152,46 @@ export default function VitalsScreen() {
                   {rowCards.map((vital) => {
                     const IconComponent = vital.icon;
                     const TrendIcon = getTrendIcon(vital.trend);
+                    const anomalyVitalType = CARD_KEY_TO_VITAL_TYPE[vital.key];
+                    const anomaly = anomalyVitalType
+                      ? anomalyMap.get(anomalyVitalType)
+                      : undefined;
                     return (
                       <View
                         key={vital.key}
                         style={[styles.vitalCard] as StyleProp<ViewStyle>}
                       >
                         <View style={styles.vitalHeader as ViewStyle}>
-                          <View
-                            style={
-                              [
-                                styles.vitalIcon,
-                                { backgroundColor: `${vital.color}20` },
-                              ] as StyleProp<ViewStyle>
-                            }
-                          >
-                            <IconComponent color={vital.color} size={20} />
+                          <View style={{ position: "relative" as const }}>
+                            <View
+                              style={
+                                [
+                                  styles.vitalIcon,
+                                  { backgroundColor: `${vital.color}20` },
+                                ] as StyleProp<ViewStyle>
+                              }
+                            >
+                              <IconComponent color={vital.color} size={20} />
+                            </View>
+                            {anomaly ? (
+                              <View
+                                style={{
+                                  position: "absolute" as const,
+                                  top: -3,
+                                  right: -3,
+                                  width: 12,
+                                  height: 12,
+                                  borderRadius: 6,
+                                  backgroundColor:
+                                    anomaly.severity === "critical"
+                                      ? "#EF4444"
+                                      : "#F59E0B",
+                                  borderWidth: 2,
+                                  borderColor:
+                                    theme.colors.background.secondary,
+                                }}
+                              />
+                            ) : null}
                           </View>
                           <View style={styles.vitalTrend as ViewStyle}>
                             <TrendIcon

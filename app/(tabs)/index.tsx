@@ -44,6 +44,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 // Design System Components
+import AnomalyDashboardSection from "@/app/components/AnomalyDashboardSection";
+import DiscoveryCardsSection from "@/app/components/DiscoveryCardsSection";
 import ProactiveHealthSuggestions from "@/app/components/ProactiveHealthSuggestions";
 import { Card } from "@/components/design-system";
 import { Heading, Text } from "@/components/design-system/Typography";
@@ -1610,7 +1612,6 @@ export default function DashboardScreen() {
   const enabledWidgets = [
     "stats",
     "alerts",
-    "healthInsights",
     "todaysMedications",
     "recentSymptoms",
   ];
@@ -2296,6 +2297,17 @@ export default function DashboardScreen() {
 
           {/* Render widgets dynamically */}
           {isAdmin && enabledWidgets.map((widgetId) => renderWidget(widgetId))}
+
+          {/* Health Insights - visible to all users */}
+          <View style={styles.section as ViewStyle}>
+            <ProactiveHealthSuggestions maxSuggestions={5} />
+          </View>
+          <View style={styles.section as ViewStyle}>
+            <AnomalyDashboardSection />
+          </View>
+          <View style={styles.section as ViewStyle}>
+            <DiscoveryCardsSection />
+          </View>
 
           {/* Alerts Modal */}
           <Modal

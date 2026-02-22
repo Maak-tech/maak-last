@@ -1,3 +1,12 @@
+import {
+  collection,
+  limit,
+  onSnapshot,
+  orderBy,
+  query,
+  Timestamp,
+  where,
+} from "firebase/firestore";
 import type React from "react";
 import {
   createContext,
@@ -12,11 +21,13 @@ import { useTranslation } from "react-i18next";
 import { Alert } from "react-native";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRealtimeHealth } from "@/hooks/useRealtimeHealth";
+import { db } from "@/lib/firebase";
 import type {
   FamilyMemberUpdate,
   TrendAlert,
 } from "@/lib/services/realtimeHealthService";
 import type { EmergencyAlert } from "@/types";
+import type { VitalAnomaly } from "@/types/discoveries";
 
 type RealtimeEvent<T> = {
   id: number;
@@ -42,6 +53,7 @@ type RealtimeHealthContextType = {
   alertCreatedEvent: RealtimeEvent<EmergencyAlert> | null;
   alertResolvedEvent: RealtimeEvent<AlertResolvedPayload> | null;
   vitalAddedEvent: RealtimeEvent<VitalAddedPayload> | null;
+  anomalyDetectedEvent: RealtimeEvent<VitalAnomaly> | null;
   errorEvent: RealtimeEvent<Error> | null;
   familyMemberIds: string[];
   setFamilyMemberIds: (ids: string[]) => void;
@@ -100,6 +112,8 @@ export const RealtimeHealthProvider: React.FC<{
     useState<RealtimeEvent<AlertResolvedPayload> | null>(null);
   const [vitalAddedEvent, setVitalAddedEvent] =
     useState<RealtimeEvent<VitalAddedPayload> | null>(null);
+  const [anomalyDetectedEvent, setAnomalyDetectedEvent] =
+    useState<RealtimeEvent<VitalAnomaly> | null>(null);
   const [errorEvent, setErrorEvent] = useState<RealtimeEvent<Error> | null>(
     null
   );
@@ -177,6 +191,55 @@ export const RealtimeHealthProvider: React.FC<{
     [nextEventId]
   );
 
+  // Listen for new anomaly detections in Firestore
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const twentyFourHoursAgo = new Date();
+    twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+
+    let isInitialLoad = true;
+
+    const q = query(
+      collection(db, "users", user.id, "anomalies"),
+      where("acknowledged", "==", false),
+      where("timestamp", ">=", Timestamp.fromDate(twentyFourHoursAgo)),
+      orderBy("timestamp", "desc"),
+      limit(10)
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        if (isInitialLoad) {
+          isInitialLoad = false;
+          return;
+        }
+        const added = snapshot
+          .docChanges()
+          .filter((change) => change.type === "added");
+        if (added.length > 0) {
+          const latestChange = added[0];
+          const data = latestChange.doc.data();
+          setAnomalyDetectedEvent({
+            id: nextEventId(),
+            payload: {
+              ...data,
+              id: latestChange.doc.id,
+              timestamp: data.timestamp?.toDate?.() ?? new Date(),
+            } as VitalAnomaly,
+            receivedAt: new Date(),
+          });
+        }
+      },
+      () => {
+        // Silently handle listener errors
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user?.id, nextEventId]);
+
   useRealtimeHealth({
     userId: user?.id,
     familyId: user?.familyId,
@@ -212,6 +275,7 @@ export const RealtimeHealthProvider: React.FC<{
       alertCreatedEvent,
       alertResolvedEvent,
       vitalAddedEvent,
+      anomalyDetectedEvent,
       errorEvent,
       familyMemberIds,
       setFamilyMemberIds,
@@ -222,6 +286,7 @@ export const RealtimeHealthProvider: React.FC<{
       alertCreatedEvent,
       alertResolvedEvent,
       vitalAddedEvent,
+      anomalyDetectedEvent,
       errorEvent,
       familyMemberIds,
       setFamilyMemberIds,
