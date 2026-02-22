@@ -1597,7 +1597,7 @@ export default function PPGVitalMonitorVisionCamera({
   }, [cameraReadySV]);
 
   const setFrameMetaFromWorklet = useCallback((meta: string) => {
-    setFrameMeta((prev) => prev ?? meta);
+    setFrameMeta(meta);
   }, []);
 
   // Stable wrapper that calls the ref - identity never changes

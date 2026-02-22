@@ -1585,11 +1585,6 @@ export default function ProfileScreen() {
           icon: Activity,
           onPress: () => router.push("/profile/health-integrations"),
         },
-        {
-          label: t("healthInsights", "Health Insights"),
-          icon: Brain,
-          onPress: () => router.push("/profile/health-insights"),
-        },
       ],
     },
     {

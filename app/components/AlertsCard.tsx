@@ -311,8 +311,29 @@ export default function AlertsCard({
         return <Clock color="#F59E0B" size={24} />;
       case "emergency":
         return <AlertTriangle color="#DC2626" size={24} />;
+      case "symptom":
+        return <AlertTriangle color="#F59E0B" size={24} />;
+      case "medical_history":
+        return <AlertTriangle color="#6B7280" size={24} />;
       default:
         return <AlertTriangle color="#6B7280" size={24} />;
+    }
+  };
+
+  const getAlertTitle = (type: string): string => {
+    switch (type) {
+      case "fall":
+        return isRTL ? "تنبيه سقوط" : "Fall Alert";
+      case "medication":
+        return isRTL ? "تنبيه الدواء" : "Medication Alert";
+      case "emergency":
+        return isRTL ? "تنبيه طوارئ" : "Emergency Alert";
+      case "symptom":
+        return isRTL ? "تنبيه أعراض" : "Symptom Alert";
+      case "medical_history":
+        return isRTL ? "تحديث السجل الطبي" : "Medical History Update";
+      default:
+        return isRTL ? "تنبيه صحي" : "Health Alert";
     }
   };
 
@@ -324,7 +345,11 @@ export default function AlertsCard({
         return "#EF4444";
       case "medium":
         return "#F59E0B";
+      case "warning":
+        return "#F59E0B";
       case "low":
+        return "#10B981";
+      case "info":
         return "#10B981";
       default:
         return "#6B7280";
@@ -364,6 +389,13 @@ export default function AlertsCard({
         <View style={styles.alertHeader}>
           <View style={styles.alertIcon}>{getAlertIcon(item.type)}</View>
           <View style={styles.alertInfo}>
+            {item.type !== "fall" &&
+            item.type !== "medication" &&
+            item.type !== "emergency" ? (
+              <Text style={[styles.alertTitle, isRTL && styles.rtlText]}>
+                {getAlertTitle(item.type)}
+              </Text>
+            ) : null}
             <Text style={[styles.alertTitle, isRTL && styles.rtlText]}>
               {item.type === "fall" && (isRTL ? "تنبيه سقوط" : "Fall Alert")}
               {item.type === "medication" &&

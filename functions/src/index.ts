@@ -1061,11 +1061,14 @@ export const generateBiometricToken = functions.https.onCall(
 
 // Re-export health trends analysis job
 export { analyzeHealthTrends } from "./jobs/healthTrends";
+
 /**
  * Get admin users for a family
  */
 // Removed deprecated sendVitalAlertToAdmins export - use processVitalReading from modules/vitals/pipeline.ts instead
 
+// Re-export medical history trigger
+export { checkMedicalHistoryBenchmarks } from "./triggers/medicalHistory";
 // Re-export symptoms trigger
 export { checkSymptomBenchmarks } from "./triggers/symptoms";
 // Re-export vitals trigger

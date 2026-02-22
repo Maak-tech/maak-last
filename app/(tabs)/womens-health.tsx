@@ -1543,6 +1543,175 @@ export default function WomensHealthScreen() {
                     </View>
                   ) : null}
 
+                  {false ? (
+                    <View style={styles.cycleCalendarCard}>
+                    <View style={styles.cycleCalendarHeader}>
+                      <TouchableOpacity
+                        onPress={() =>
+                          setCalendarMonth(
+                            (prev) =>
+                              new Date(
+                                prev.getFullYear(),
+                                prev.getMonth() - 1,
+                                1,
+                                12
+                              )
+                          )
+                        }
+                        style={styles.cycleCalendarNavButton}
+                      >
+                        <ChevronLeft color={Colors.text.primary} size={18} />
+                      </TouchableOpacity>
+                      <Text style={styles.cycleCalendarMonthLabel}>
+                        {calendarMonthLabel}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() =>
+                          setCalendarMonth(
+                            (prev) =>
+                              new Date(
+                                prev.getFullYear(),
+                                prev.getMonth() + 1,
+                                1,
+                                12
+                              )
+                          )
+                        }
+                        style={styles.cycleCalendarNavButton}
+                      >
+                        <ChevronRight color={Colors.text.primary} size={18} />
+                      </TouchableOpacity>
+                    </View>
+
+                    <Text style={[styles.calendarHint, isRTL && styles.rtlText]}>
+                      {isRTL ? "اضغطي على أي يوم للتسجيل" : "Tap any day to log"}
+                    </Text>
+
+                    <View style={styles.weekdayRowCompact}>
+                      {weekdayLabels.map(({ key, label }) => (
+                        <Text key={key} style={styles.weekdayLabelCompact}>
+                          {label}
+                        </Text>
+                      ))}
+                    </View>
+
+                    <View style={styles.monthGridCompact}>
+                      {buildMonthGrid(calendarMonth).days.map(
+                        ({ date, inMonth }) => {
+                          const key = dateKey(date);
+                          const isActualPeriod = actualPeriodDays.has(key);
+                          const isPredictedPeriod =
+                            predictedPeriodDays.has(key);
+                          const isFertile = fertileWindowDays.has(key);
+                          const isOvulation = ovulationKey === key;
+                          const hasDailyLog = dailyEntryByKey.has(key);
+
+                          return (
+                            <Pressable
+                              key={key}
+                              onPress={() => openDailyLog(date)}
+                              style={[
+                                styles.dayCellCompact,
+                                !inMonth && styles.dayCellCompactMuted,
+                                isActualPeriod && styles.dayCellCompactPeriod,
+                                !(isActualPeriod || isPredictedPeriod) &&
+                                  isOvulation &&
+                                  styles.dayCellCompactOvulation,
+                                !isActualPeriod &&
+                                  isPredictedPeriod &&
+                                  styles.dayCellCompactPredicted,
+                                !(isActualPeriod || isPredictedPeriod) &&
+                                  isFertile &&
+                                  styles.dayCellCompactFertile,
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.dayTextCompact,
+                                  !inMonth && styles.dayTextCompactMuted,
+                                ]}
+                              >
+                                {date.getDate()}
+                              </Text>
+                              <View style={styles.dayDotsRow}>
+                                {isOvulation ? (
+                                  <View
+                                    style={[
+                                      styles.legendDot,
+                                      styles.dotOvulation,
+                                    ]}
+                                  />
+                                ) : null}
+                                {!isOvulation && isFertile ? (
+                                  <View
+                                    style={[
+                                      styles.legendDot,
+                                      styles.dotFertile,
+                                    ]}
+                                  />
+                                ) : null}
+                                {isActualPeriod ? (
+                                  <View
+                                    style={[styles.legendDot, styles.dotPeriod]}
+                                  />
+                                ) : null}
+                                {!isActualPeriod && isPredictedPeriod ? (
+                                  <View
+                                    style={[
+                                      styles.legendDot,
+                                      styles.dotPredicted,
+                                    ]}
+                                  />
+                                ) : null}
+                                {hasDailyLog ? (
+                                  <View
+                                    style={[
+                                      styles.legendDot,
+                                      styles.dotDailyLog,
+                                    ]}
+                                  />
+                                ) : null}
+                              </View>
+                            </Pressable>
+                          );
+                        }
+                      )}
+                    </View>
+
+                    <View style={styles.cycleLegendRow}>
+                      <View style={styles.cycleLegendItem}>
+                        <View style={[styles.legendDot, styles.dotPeriod]} />
+                        <Text style={styles.cycleLegendText}>
+                          {isRTL ? "الدورة" : "Period"}
+                        </Text>
+                      </View>
+                      <View style={styles.cycleLegendItem}>
+                        <View style={[styles.legendDot, styles.dotPredicted]} />
+                        <Text style={styles.cycleLegendText}>
+                          {isRTL ? "متوقعة" : "Predicted"}
+                        </Text>
+                      </View>
+                      <View style={styles.cycleLegendItem}>
+                        <View style={[styles.legendDot, styles.dotFertile]} />
+                        <Text style={styles.cycleLegendText}>
+                          {isRTL ? "خصوبة" : "Fertile"}
+                        </Text>
+                      </View>
+                      <View style={styles.cycleLegendItem}>
+                        <View style={[styles.legendDot, styles.dotOvulation]} />
+                        <Text style={styles.cycleLegendText}>
+                          {isRTL ? "إباضة" : "Ovulation"}
+                        </Text>
+                      </View>
+                      <View style={styles.cycleLegendItem}>
+                        <View style={[styles.legendDot, styles.dotDailyLog]} />
+                        <Text style={styles.cycleLegendText}>
+                          {isRTL ? "مُسجَّل" : "Logged"}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
                   <View style={styles.reminderCard}>
                     <View
                       style={[
@@ -1794,7 +1963,8 @@ export default function WomensHealthScreen() {
                         </Text>
                       </View>
                     </View>
-                  </View>
+                    </View>
+                  ) : null}
                 </View>
               </View>
             ) : null}
@@ -3193,6 +3363,12 @@ const styles = StyleSheet.create({
     fontFamily: "Inter-SemiBold",
     color: Colors.text.primary,
   },
+  calendarHint: {
+    fontSize: 12,
+    fontFamily: "Inter-Regular",
+    color: Colors.text.secondary,
+    marginBottom: 10,
+  },
   weekdayRowCompact: {
     flexDirection: "row",
     marginBottom: 6,
@@ -3262,6 +3438,9 @@ const styles = StyleSheet.create({
   },
   dotOvulation: {
     backgroundColor: Colors.primary.main,
+  },
+  dotDailyLog: {
+    backgroundColor: "#14B8A6",
   },
   cycleLegendRow: {
     flexDirection: "row",

@@ -18,14 +18,7 @@ import {
   Stethoscope,
   TrendingUp,
 } from "lucide-react-native";
-import {
-  type ComponentType,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -121,7 +114,9 @@ export default function TrackScreen() {
 
   const isRTL = i18n.language === "ar";
   const showBlockingLoading = loading && !hasLoadedOnceRef.current;
-  const isFemale = user?.gender === "female";
+  // Keep Women's Health visible even if gender isn't set; many users skip gender
+  // selection, and some non-female users may still want cycle tracking.
+  const showWomensHealth = user?.gender !== "male";
   const showTopStats = process.env.EXPO_PUBLIC_TRACK_TOP_STATS === "1";
 
   // Memoize navigation handlers to prevent recreation on every render
@@ -167,10 +162,7 @@ export default function TrackScreen() {
   }, []);
 
   const navigateToWomensHealth = useCallback(() => {
-    router.push({
-      pathname: "../womens-health",
-      params: { returnTo: "track" },
-    });
+    router.push("/(tabs)/womens-health?returnTo=track");
   }, []);
 
   const trackingCategories = [
@@ -249,8 +241,8 @@ export default function TrackScreen() {
       description: isRTL ? "حفظ نتائج الفحوصات" : "Store test results",
       onPress: navigateToLabResults,
     },
-    // Women's Health - only show for female users
-    ...(isFemale
+    // Women's Health
+    ...(showWomensHealth
       ? [
           {
             icon: Flower2,
@@ -315,61 +307,6 @@ export default function TrackScreen() {
     return value
       .replace(CAMEL_CASE_BOUNDARY_REGEX, " $1")
       .replace(FIRST_CHAR_REGEX, (char) => char.toUpperCase());
-  };
-
-  const recentActivityItems = () => {
-    const items = [] as {
-      id: string;
-      title: string;
-      detail: string;
-      color: string;
-      icon: ComponentType<{ color?: string; size?: number }>;
-    }[];
-
-    recentSymptoms.slice(0, 2).forEach((symptom) => {
-      const label = t(symptom.type, formatLabel(symptom.type));
-      items.push({
-        id: `symptom-${symptom.id}`,
-        title: label,
-        detail: `${formatRelativeTime(new Date(symptom.timestamp))}`,
-        color: "#EF4444",
-        icon: Activity,
-      });
-    });
-
-    recentMoods.slice(0, 1).forEach((mood) => {
-      const label = t(mood.mood, formatLabel(mood.mood));
-      const emoji = getMoodEmoji(mood.mood);
-      items.push({
-        id: `mood-${mood.id}`,
-        title: `${emoji} ${label}`,
-        detail: `${formatRelativeTime(new Date(mood.timestamp))}`,
-        color: "#8B5CF6",
-        icon: Brain,
-      });
-    });
-
-    recentMedicalHistory.slice(0, 1).forEach((history) => {
-      items.push({
-        id: `history-${history.id}`,
-        title: history.condition || t("medicalHistory"),
-        detail: `${formatRelativeTime(new Date(history.diagnosedDate || new Date()))}`,
-        color: "#6366F1",
-        icon: FileText,
-      });
-    });
-
-    recentAllergies.slice(0, 1).forEach((allergy) => {
-      items.push({
-        id: `allergy-${allergy.id}`,
-        title: allergy.name || t("allergyLabel"),
-        detail: `${formatRelativeTime(new Date(allergy.timestamp))}`,
-        color: "#F97316",
-        icon: AlertCircle,
-      });
-    });
-
-    return items.slice(0, 4);
   };
 
   useEffect(() => {
@@ -1374,93 +1311,6 @@ export default function TrackScreen() {
                       </TouchableOpacity>
                     );
                   })}
-                </View>
-              </View>
-
-              <View
-                style={[
-                  styles.section as ViewStyle,
-                  isRTL && styles.sectionRTL,
-                ]}
-              >
-                <View style={styles.sectionHeaderRow as ViewStyle}>
-                  <Text
-                    style={[
-                      styles.sectionTitle,
-                      isRTL && styles.sectionTitleRTL,
-                      isRTL && styles.rtlText,
-                    ]}
-                  >
-                    {isRTL ? "النشاط الأخير" : "Recent Activity"}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={navigateToTimeline}
-                    style={styles.viewAllButton as ViewStyle}
-                  >
-                    <Text
-                      style={[
-                        styles.viewAllText,
-                        isRTL && styles.viewAllTextRTL,
-                        isRTL && styles.rtlText,
-                      ]}
-                    >
-                      {isRTL ? "عرض الكل" : "View All"}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.activityList as ViewStyle}>
-                  {recentActivityItems().length > 0 ? (
-                    recentActivityItems().map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <View
-                          key={item.id}
-                          style={[
-                            styles.activityCard as ViewStyle,
-                            isRTL && styles.activityCardRTL,
-                          ]}
-                        >
-                          <View style={styles.activityRow as ViewStyle}>
-                            <View
-                              style={[
-                                styles.activityIcon,
-                                { backgroundColor: `${item.color}15` },
-                              ]}
-                            >
-                              <Icon color={item.color} size={18} />
-                            </View>
-                            <View style={styles.activityText as ViewStyle}>
-                              <Text
-                                numberOfLines={2}
-                                style={[
-                                  styles.activityTitle,
-                                  isRTL && styles.activityTitleRTL,
-                                  isRTL && styles.rtlText,
-                                ]}
-                              >
-                                {item.title}
-                              </Text>
-                              <Text
-                                numberOfLines={2}
-                                style={[
-                                  styles.activityDetail,
-                                  isRTL && styles.activityDetailRTL,
-                                  isRTL && styles.rtlText,
-                                ]}
-                              >
-                                {item.detail}
-                              </Text>
-                            </View>
-                          </View>
-                        </View>
-                      );
-                    })
-                  ) : (
-                    <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-                      {isRTL ? "لا يوجد نشاط حديث" : "No recent activity"}
-                    </Text>
-                  )}
                 </View>
               </View>
             </>

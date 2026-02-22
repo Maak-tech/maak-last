@@ -85,11 +85,9 @@ export const checkSymptomBenchmarks = onDocumentCreated(
 
       // Create an in-app alert so caregivers/admins can triage inside the app UI
       // (not only via push notifications).
-      // Use an existing, high-visibility alert type that the app UI already renders prominently.
-      // (The message/metadata still indicate it's a symptom-driven triage alert.)
       const alertRef = await db.collection("alerts").add({
         userId,
-        type: "emergency",
+        type: "symptom",
         severity: alertSeverity,
         message: `${severityText} ${symptomType} reported`,
         timestamp: Timestamp.now(),
