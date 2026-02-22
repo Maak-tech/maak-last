@@ -22,7 +22,7 @@ export type PatternInsight = {
   recommendation?: string;
 };
 
-type VitalSample = {
+export type VitalSample = {
   id: string;
   type: string;
   value: number;
@@ -272,7 +272,7 @@ const getLocalizedInsightText = (
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
-function getVitalDisplayName(type: string, isArabic: boolean): string {
+export function getVitalDisplayName(type: string, isArabic: boolean): string {
   const map: Record<string, { en: string; ar: string }> = {
     heartRate: { en: "Heart Rate", ar: "معدل ضربات القلب" },
     restingHeartRate: {
