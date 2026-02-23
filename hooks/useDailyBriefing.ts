@@ -3,8 +3,8 @@
  * Reads today's AI-generated daily briefing from Firestore.
  */
 
-import { useEffect, useRef, useState } from "react";
 import { doc, getDoc, Timestamp } from "firebase/firestore";
+import { useEffect, useRef, useState } from "react";
 import { db } from "@/lib/firebase";
 
 export type DailyBriefing = {
@@ -24,16 +24,21 @@ type UseDailyBriefingReturn = {
 
 function getTodayKey(): string {
   const d = new Date();
-  return \;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
-export function useDailyBriefing(userId: string | undefined): UseDailyBriefingReturn {
+export function useDailyBriefing(
+  userId: string | undefined
+): UseDailyBriefingReturn {
   const [briefing, setBriefing] = useState<DailyBriefing | null>(null);
   const [loading, setLoading] = useState(false);
   const fetchedRef = useRef(false);
 
   useEffect(() => {
-    if (\!userId || fetchedRef.current) return;
+    if (!userId || fetchedRef.current) return;
     fetchedRef.current = true;
 
     setLoading(true);
@@ -58,20 +63,19 @@ export function useDailyBriefing(userId: string | undefined): UseDailyBriefingRe
         }
       })
       .catch(() => {
-        // Silently fail — briefing is a nice-to-have
+        // Silently fail — briefing is a nice-to-have enhancement
       })
       .finally(() => setLoading(false));
   }, [userId]);
 
-  const today = getTodayKey();
   const isToday =
-    briefing \!== null &&
+    briefing !== null &&
     briefing.generatedAt.toDateString() === new Date().toDateString();
 
   return {
     briefing,
     loading,
-    hasBriefing: briefing \!== null,
+    hasBriefing: briefing !== null,
     isToday,
   };
 }
