@@ -24,6 +24,7 @@ import {
 import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useMyOrganization } from "@/hooks/useMyOrganization";
 import { useTasks } from "@/hooks/useTasks";
 import type { Task, TaskPriority, TaskStatus } from "@/types";
 import { getTextStyle } from "@/utils/styles";
@@ -230,11 +231,8 @@ export default function TasksScreen() {
   const { theme } = useTheme();
   const { user } = useAuth();
   const isRTL = i18n.language === "ar";
-
-  // TODO: replace with actual orgId from user's org membership
-  const orgId = (user as Record<string, unknown>)?.currentOrgId as
-    | string
-    | undefined;
+  const { org } = useMyOrganization();
+  const orgId = org?.id;
 
   const {
     tasks,

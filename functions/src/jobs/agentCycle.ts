@@ -49,6 +49,10 @@ type PatientSignals = {
   missedMedCount: number;
   vitalStaleSince: Date | null; // null if synced recently
   riskScore: number; // from patient_roster
+  /** "worsening" if primary anomalous vital trending in bad direction over last cycle */
+  vitalTrend: "worsening" | "stable" | "improving" | "insufficient_data";
+  /** true when there is already an open agent-created task for this patient/org */
+  hasOpenTasks: boolean;
 };
 
 type TriageLevel = "none" | "nudge" | "task" | "escalate";
@@ -78,7 +82,7 @@ async function sensePatient(
   );
   const vitalCutoff = new Date(Date.now() - VITAL_STALE_HOURS * 60 * 60 * 1000);
 
-  const [anomalySnap, missedMedSnap, recentVitalSnap, rosterSnap] =
+  const [anomalySnap, missedMedSnap, recentVitalSnap, rosterSnap, openTaskSnap] =
     await Promise.all([
       // New anomalies since last cycle
       db()
@@ -109,6 +113,16 @@ async function sensePatient(
         .collection("patient_roster")
         .doc(`${orgId}_${userId}`)
         .get(),
+
+      // Existing open agent-created tasks for this patient/org
+      db()
+        .collection("tasks")
+        .where("orgId", "==", orgId)
+        .where("patientId", "==", userId)
+        .where("source", "==", "agent")
+        .where("status", "in", ["open", "in_progress"])
+        .limit(1)
+        .get(),
     ]);
 
   const newAnomalies = anomalySnap.docs.map((d) => {
@@ -138,6 +152,55 @@ async function sensePatient(
 
   const riskScore = (rosterSnap.data()?.riskScore as number) ?? 0;
 
+  const hasOpenTasks = !openTaskSnap.empty;
+
+  // ── Vital trend: linear slope over last 5 readings of primary anomalous vital
+  let vitalTrend: PatientSignals["vitalTrend"] = "insufficient_data";
+  const primaryVitalType = newAnomalies[0]?.vitalType;
+  if (primaryVitalType) {
+    try {
+      const trendWindow = new Date(Date.now() - 48 * 60 * 60 * 1000); // 48h
+      const trendSnap = await db()
+        .collection("vitals")
+        .where("userId", "==", userId)
+        .where("type", "==", primaryVitalType)
+        .where("timestamp", ">=", Timestamp.fromDate(trendWindow))
+        .orderBy("timestamp", "asc")
+        .limit(5)
+        .get();
+
+      if (trendSnap.size >= 3) {
+        const vals = trendSnap.docs.map((d) => d.data().value as number);
+        const first = vals[0];
+        const last = vals[vals.length - 1];
+        const changePct = first !== 0 ? Math.abs((last - first) / first) * 100 : 0;
+
+        // Vitals where a higher value is clinically worse
+        const higherIsBad = new Set([
+          "heart_rate", "systolic_bp", "diastolic_bp",
+          "blood_glucose", "temperature", "respiratory_rate",
+        ]);
+        // Vitals where a lower value is clinically worse
+        const lowerIsBad = new Set(["blood_oxygen"]);
+
+        if (changePct >= 5) {
+          if (
+            (higherIsBad.has(primaryVitalType) && last > first) ||
+            (lowerIsBad.has(primaryVitalType) && last < first)
+          ) {
+            vitalTrend = "worsening";
+          } else {
+            vitalTrend = "improving";
+          }
+        } else {
+          vitalTrend = "stable";
+        }
+      }
+    } catch {
+      // vitalTrend stays "insufficient_data"
+    }
+  }
+
   return {
     userId,
     orgId,
@@ -145,6 +208,8 @@ async function sensePatient(
     missedMedCount,
     vitalStaleSince,
     riskScore,
+    vitalTrend,
+    hasOpenTasks,
   };
 }
 
@@ -183,7 +248,8 @@ function reasonAndDecide(signals: PatientSignals): AgentDecision {
     };
   }
 
-  // Task path: warning anomalies, missed meds, stale vitals, elevated risk
+  // Task path: warning anomalies, missed meds, stale vitals, elevated risk,
+  // or a worsening trend on an already-anomalous vital
   const taskReasons: string[] = [];
   if (warningAnomalies.length >= 2) {
     taskReasons.push(`${warningAnomalies.length} warning anomalies`);
@@ -197,12 +263,25 @@ function reasonAndDecide(signals: PatientSignals): AgentDecision {
   if (signals.riskScore >= SCORE_TASK) {
     taskReasons.push(`risk score ${signals.riskScore}`);
   }
+  if (signals.vitalTrend === "worsening" && warningAnomalies.length >= 1) {
+    taskReasons.push(`${warningAnomalies[0].vitalType} trending worse`);
+  }
 
   if (taskReasons.length > 0) {
     const priority =
-      signals.riskScore >= 60 || signals.missedMedCount >= 3
+      signals.riskScore >= 60 || signals.missedMedCount >= 3 || signals.vitalTrend === "worsening"
         ? "high"
         : "normal";
+
+    // If there is already an open task, don't create another — just nudge the patient
+    if (signals.hasOpenTasks) {
+      return {
+        level: "nudge",
+        reasoning: `${taskReasons[0]} (open task already exists)`,
+        nudgeMessage:
+          "Your health monitor has an update. Check your recent readings.",
+      };
+    }
 
     return {
       level: "task",
@@ -236,7 +315,7 @@ async function act(
   signals: PatientSignals,
   decision: AgentDecision,
   traceId: string
-): Promise<{ taskId?: string }> {
+): Promise<{ taskId?: string; newRiskScore?: number }> {
   const { userId, orgId } = signals;
   let taskId: string | undefined;
 
@@ -332,7 +411,31 @@ async function act(
     }
   }
 
-  return { taskId };
+  // ── Update patient risk score in roster ──────────────────────────────────
+  // Compute a new score: escalate → floor 80, task → floor 55, nudge → floor 30,
+  // none → decay by 5% (patient improving). Score never exceeds 100.
+  const currentScore = signals.riskScore;
+  let newRiskScore: number;
+  if (decision.level === "escalate") {
+    newRiskScore = Math.min(100, Math.max(currentScore, 80));
+  } else if (decision.level === "task") {
+    newRiskScore = Math.min(100, Math.max(currentScore, 55));
+  } else if (decision.level === "nudge") {
+    newRiskScore = Math.min(100, Math.max(currentScore, 30));
+  } else {
+    // "none" — gradually decay toward 0 (patient stable)
+    newRiskScore = Math.max(0, Math.round(currentScore * 0.95));
+  }
+
+  if (newRiskScore !== currentScore) {
+    db()
+      .collection("patient_roster")
+      .doc(`${orgId}_${userId}`)
+      .set({ riskScore: newRiskScore, updatedAt: FieldValue.serverTimestamp() }, { merge: true })
+      .catch(() => {}); // fire-and-forget
+  }
+
+  return { taskId, newRiskScore };
 }
 
 // ─── VERIFY ───────────────────────────────────────────────────────────────────
@@ -341,7 +444,7 @@ async function verify(
   orgId: string,
   userId: string,
   decision: AgentDecision,
-  outcome: { taskId?: string },
+  outcome: { taskId?: string; newRiskScore?: number },
   cycleStartedAt: Date
 ): Promise<void> {
   const stateId = `${orgId}_${userId}`;
@@ -361,6 +464,7 @@ async function verify(
     reasoning: decision.reasoning,
     outcome: "success",
     taskId: outcome.taskId ?? null,
+    newRiskScore: outcome.newRiskScore ?? null,
   };
 
   await db()

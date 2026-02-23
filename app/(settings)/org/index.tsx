@@ -9,16 +9,20 @@
 
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import {
+  Bell,
   Building2,
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  CreditCard,
   GitBranch,
   Key,
   Layers,
+  MessageSquare,
   Shield,
   Users,
   Webhook,
+  Zap,
 } from "lucide-react-native";
 import { useLayoutEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -186,8 +190,9 @@ export default function OrgSettingsHub() {
         contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Org identity card */}
-        <View
+        {/* Org identity card — tappable → profile settings */}
+        <TouchableOpacity
+          onPress={() => navigate("profile")}
           style={{
             backgroundColor: theme.colors.background.secondary,
             borderRadius: 14,
@@ -227,7 +232,8 @@ export default function OrgSettingsHub() {
               ID: {orgId}
             </Caption>
           </View>
-        </View>
+          <ChevronRight size={16} color={theme.colors.text.secondary} />
+        </TouchableOpacity>
 
         {/* — Clinical Workflows — */}
         <SectionHeader label="Clinical Workflows" theme={theme} />
@@ -294,6 +300,16 @@ export default function OrgSettingsHub() {
         <SectionHeader label="Integration" theme={theme} />
 
         <NavItem
+          icon={<Zap size={22} color="#10B981" />}
+          label="FHIR R4 / EHR"
+          description="Endpoints, LOINC codes, and Epic / Cerner connection guide"
+          onPress={() => navigate("fhir")}
+          isRTL={isRTL}
+          theme={theme}
+          iconBg="#ECFDF5"
+        />
+
+        <NavItem
           icon={<Key size={22} color="#F59E0B" />}
           label="API Keys"
           description="Manage keys for EHR and analytics integrations"
@@ -311,6 +327,36 @@ export default function OrgSettingsHub() {
           isRTL={isRTL}
           theme={theme}
           iconBg="#FDF2F8"
+        />
+
+        <NavItem
+          icon={<Bell size={22} color="#F97316" />}
+          label="Notifications"
+          description="Email digest channels, delivery logs, and alert settings"
+          onPress={() => navigate("notifications")}
+          isRTL={isRTL}
+          theme={theme}
+          iconBg="#FFF7ED"
+        />
+
+        <NavItem
+          icon={<MessageSquare size={22} color="#7C3AED" />}
+          label="Message Templates"
+          description="Customize push notification copy for each alert type"
+          onPress={() => navigate("templates")}
+          isRTL={isRTL}
+          theme={theme}
+          iconBg="#F5F3FF"
+        />
+
+        <NavItem
+          icon={<CreditCard size={22} color="#6366F1" />}
+          label="Plan & Billing"
+          description="Current plan, usage limits, and upgrade options"
+          onPress={() => navigate("billing")}
+          isRTL={isRTL}
+          theme={theme}
+          iconBg="#EEF2FF"
         />
 
         {/* — Compliance — */}

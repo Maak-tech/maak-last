@@ -436,6 +436,8 @@ export type Organization = {
     alertThresholds?: Record<string, number>;
     features: string[];
     dataRegion: "us" | "eu" | "uae";
+    /** Number of years to retain patient health data before archiving (GDPR/KSA compliance). */
+    retentionYears?: number;
   };
   billing?: {
     seatCount: number;
@@ -470,7 +472,7 @@ export type OrgCohort = {
   patientCount: number;
 };
 
-export type PatientRosterStatus = "active" | "inactive" | "discharged";
+export type PatientRosterStatus = "active" | "inactive" | "discharged" | "revoked";
 
 export type ConsentScope =
   | "vitals"
@@ -485,6 +487,7 @@ export type PatientRoster = {
   id: string;
   orgId: string;
   userId: string;
+  displayName?: string;
   enrolledAt: Date;
   enrolledBy: string;
   status: PatientRosterStatus;
@@ -771,7 +774,8 @@ export type EmailChannel =
   | "weekly_report"
   | "critical_alert"
   | "patient_digest"
-  | "org_summary";
+  | "org_summary"
+  | "consent_revocation";
 
 export type EmailTemplate = {
   id: string;

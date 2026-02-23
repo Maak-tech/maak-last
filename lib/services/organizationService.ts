@@ -82,6 +82,7 @@ function mapRoster(id: string, data: Record<string, unknown>): PatientRoster {
     id,
     orgId: data.orgId as string,
     userId: data.userId as string,
+    displayName: data.displayName as string | undefined,
     enrolledAt: toDate(data.enrolledAt),
     enrolledBy: data.enrolledBy as string,
     status: data.status as PatientRosterStatus,
@@ -269,6 +270,7 @@ class OrganizationService {
     userId: string,
     data: {
       enrolledBy: string;
+      displayName?: string;
       cohortIds?: string[];
       assignedProviders?: string[];
       consentScope: ConsentScope[];
@@ -279,6 +281,7 @@ class OrganizationService {
     await setDoc(ref, {
       orgId,
       userId,
+      ...(data.displayName ? { displayName: data.displayName } : {}),
       enrolledBy: data.enrolledBy,
       enrolledAt: serverTimestamp(),
       status: "active" as PatientRosterStatus,
@@ -374,6 +377,36 @@ class OrganizationService {
     await updateDoc(doc(this.rosterCol, this.rosterId(orgId, userId)), {
       assignedProviders: providers,
     });
+  }
+
+  // ─── Notification Settings ──────────────────────────────────────────────────
+
+  /**
+   * Load organization-level notification preferences.
+   * Stored at: organizations/{orgId}/notification_settings/email
+   */
+  async getNotificationSettings(
+    orgId: string
+  ): Promise<Record<string, unknown> | null> {
+    const snap = await getDoc(
+      doc(db, "organizations", orgId, "notification_settings", "email")
+    );
+    if (!snap.exists()) return null;
+    return snap.data() as Record<string, unknown>;
+  }
+
+  /**
+   * Save organization-level notification preferences.
+   */
+  async saveNotificationSettings(
+    orgId: string,
+    settings: Record<string, unknown>
+  ): Promise<void> {
+    await setDoc(
+      doc(db, "organizations", orgId, "notification_settings", "email"),
+      { ...settings, updatedAt: serverTimestamp() },
+      { merge: true }
+    );
   }
 }
 

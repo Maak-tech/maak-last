@@ -5,7 +5,7 @@
  * - Calls ONLY with sanitized ZeinaInput (no PHI)
  * - No storage of prompts or responses
  * - Timeout + retry with safe defaults
- * - Adapter pattern for multiple LLM providers
+ * - Provider: OpenAI (gpt-4o-mini, configurable via ZEINA_MODEL)
  *
  * FAIL CLOSED: If LLM fails, returns deterministic fallback
  */
@@ -101,39 +101,17 @@ class OpenAIProvider implements LLMProvider {
 }
 
 /**
- * Anthropic Provider (stub - can be implemented)
- */
-class AnthropicProvider implements LLMProvider {
-  name = "anthropic";
-
-  call(_prompt: string, _timeout: number): Promise<RawAIResponse | null> {
-    // TODO: Implement Anthropic API integration
-    return Promise.reject(new Error("Anthropic provider not yet implemented"));
-  }
-}
-
-/**
- * Get configured LLM provider
+ * Get configured LLM provider (OpenAI only)
  */
 function getLLMProvider(apiKey?: string): LLMProvider | null {
-  const provider = process.env.ZEINA_LLM_PROVIDER || "openai";
-
-  if (provider === "openai") {
-    // Check passed key first, then ZEINA_API_KEY, then OPENAI_API_KEY (fallback)
-    const key =
-      apiKey || process.env.ZEINA_API_KEY || process.env.OPENAI_API_KEY;
-    if (!key) {
-      return null;
-    }
-    const model = process.env.ZEINA_MODEL || "gpt-4o-mini";
-    return new OpenAIProvider(key, model);
+  // Check passed key first, then ZEINA_API_KEY, then OPENAI_API_KEY (fallback)
+  const key =
+    apiKey || process.env.ZEINA_API_KEY || process.env.OPENAI_API_KEY;
+  if (!key) {
+    return null;
   }
-
-  if (provider === "anthropic") {
-    return new AnthropicProvider();
-  }
-
-  return null;
+  const model = process.env.ZEINA_MODEL || "gpt-4o-mini";
+  return new OpenAIProvider(key, model);
 }
 
 /**

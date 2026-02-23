@@ -11,9 +11,11 @@
  *   GET  /v1/patients/:patientId/anomalies?days=&severity=
  *   GET  /v1/patients/:patientId/risk-score
  *   GET  /v1/patients/:patientId/medications?status=
+ *   GET  /v1/patients/:patientId/tasks?status=&priority=&limit=
  *   GET  /v1/cohorts/:cohortId/summary
  *   GET  /v1/org/:orgId/alerts?unacknowledged=true
  *   POST /v1/patients/:patientId/vitals
+ *   POST /v1/patients/:patientId/tasks
  */
 
 import { FieldValue, getFirestore, Timestamp } from "firebase-admin/firestore";
@@ -38,6 +40,7 @@ type ParsedRoute =
   | { route: "patient_medications"; patientId: string }
   | { route: "cohort_summary"; cohortId: string }
   | { route: "org_alerts"; orgId: string }
+  | { route: "patient_tasks"; patientId: string }
   | null;
 
 function parseRoute(path: string): ParsedRoute {
@@ -60,6 +63,8 @@ function parseRoute(path: string): ParsedRoute {
       return { route: "patient_risk_score", patientId: id };
     if (action === "medications")
       return { route: "patient_medications", patientId: id };
+    if (action === "tasks")
+      return { route: "patient_tasks", patientId: id };
   }
 
   if (resource === "cohorts" && action === "summary") {
@@ -478,6 +483,158 @@ async function handlePostVitals(
   });
 }
 
+async function handleGetTasks(
+  req: ApiRequest,
+  res: Response,
+  patientId: string
+): Promise<void> {
+  if (!assertScope(req, res, "tasks:read")) return;
+  if (!(await assertPatientAccess(res, req.apiAuth!.orgId, patientId))) return;
+
+  const {
+    status,
+    priority,
+    limit: limitStr,
+  } = req.query as Record<string, string>;
+
+  const limitNum = Math.min(
+    Math.max(Number.parseInt(limitStr ?? "50", 10) || 50, 1),
+    200
+  );
+
+  const validStatuses = ["open", "in_progress", "completed", "escalated"];
+  const validPriorities = ["urgent", "high", "normal", "low"];
+
+  let ref = db()
+    .collection("tasks")
+    .where("orgId", "==", req.apiAuth!.orgId)
+    .where("patientId", "==", patientId) as FirebaseFirestore.Query;
+
+  if (status && status !== "all" && validStatuses.includes(status)) {
+    ref = ref.where("status", "==", status);
+  } else if (!status) {
+    // Default: open + in_progress
+    ref = ref.where("status", "in", ["open", "in_progress"]);
+  }
+
+  if (priority && validPriorities.includes(priority)) {
+    ref = ref.where("priority", "==", priority);
+  }
+
+  // Order by urgency then due date; Firestore requires composite index for multi-field ordering
+  ref = ref.orderBy("createdAt", "desc").limit(limitNum);
+
+  const snap = await ref.get();
+  const tasks = snap.docs.map((d) => serializeDoc(d.id, d.data()));
+
+  // Client-side priority sort: urgent → high → normal → low
+  const priorityOrder: Record<string, number> = {
+    urgent: 0,
+    high: 1,
+    normal: 2,
+    low: 3,
+  };
+  tasks.sort((a, b) => {
+    const pa = priorityOrder[a.priority as string] ?? 4;
+    const pb = priorityOrder[b.priority as string] ?? 4;
+    return pa - pb;
+  });
+
+  res.json({ data: tasks, count: tasks.length });
+}
+
+async function handlePostTask(
+  req: ApiRequest,
+  res: Response,
+  patientId: string
+): Promise<void> {
+  if (!assertScope(req, res, "tasks:write")) return;
+  if (!(await assertPatientAccess(res, req.apiAuth!.orgId, patientId))) return;
+
+  const {
+    title,
+    description,
+    type,
+    priority,
+    dueAt,
+    assignedTo,
+    context,
+  } = req.body as Record<string, unknown>;
+
+  if (!title || typeof title !== "string" || !title.trim()) {
+    res.status(400).json({
+      error: "Missing required field: title",
+      code: "bad_request",
+    });
+    return;
+  }
+
+  const validTypes = [
+    "follow_up",
+    "medication_review",
+    "vital_check",
+    "call_patient",
+    "general",
+  ];
+  const validPriorities = ["urgent", "high", "normal", "low"];
+
+  const taskType = (type as string) ?? "general";
+  const taskPriority = (priority as string) ?? "normal";
+
+  if (!validTypes.includes(taskType)) {
+    res.status(400).json({
+      error: `Invalid type. Must be one of: ${validTypes.join(", ")}`,
+      code: "bad_request",
+    });
+    return;
+  }
+
+  if (!validPriorities.includes(taskPriority)) {
+    res.status(400).json({
+      error: `Invalid priority. Must be one of: ${validPriorities.join(", ")}`,
+      code: "bad_request",
+    });
+    return;
+  }
+
+  const orgId = req.apiAuth!.orgId;
+  const dueAtTs = dueAt
+    ? Timestamp.fromDate(new Date(dueAt as string))
+    : null;
+
+  const taskDoc: Record<string, unknown> = {
+    orgId,
+    patientId,
+    title: (title as string).trim(),
+    description: description ? String(description).trim() : null,
+    type: taskType,
+    priority: taskPriority,
+    status: "open",
+    source: "api",
+    assignedTo: assignedTo ?? null,
+    assignedBy: null, // API-created tasks have no human assignee
+    dueAt: dueAtTs,
+    completedAt: null,
+    context: context ?? null,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+
+  const ref = await db().collection("tasks").add(taskDoc);
+
+  res.status(201).json({
+    success: true,
+    taskId: ref.id,
+    orgId,
+    patientId,
+    title: taskDoc.title,
+    type: taskType,
+    priority: taskPriority,
+    status: "open",
+    dueAt: dueAtTs ? dueAtTs.toDate().toISOString() : null,
+  });
+}
+
 // ─── Main Cloud Function ──────────────────────────────────────────────────────
 
 /**
@@ -527,9 +684,11 @@ export const maakApi = functions.https.onRequest(async (rawReq, res) => {
         "GET /v1/patients/:patientId/anomalies",
         "GET /v1/patients/:patientId/risk-score",
         "GET /v1/patients/:patientId/medications",
+        "GET /v1/patients/:patientId/tasks",
         "GET /v1/cohorts/:cohortId/summary",
         "GET /v1/org/:orgId/alerts",
         "POST /v1/patients/:patientId/vitals",
+        "POST /v1/patients/:patientId/tasks",
       ],
     });
     return;
@@ -597,6 +756,18 @@ export const maakApi = functions.https.onRequest(async (rawReq, res) => {
           return;
         }
         await handleGetOrgAlerts(req, res, route.orgId);
+        break;
+
+      case "patient_tasks":
+        if (req.method === "GET") {
+          await handleGetTasks(req, res, route.patientId);
+        } else if (req.method === "POST") {
+          await handlePostTask(req, res, route.patientId);
+        } else {
+          res
+            .status(405)
+            .json({ error: "Method not allowed", code: "method_not_allowed" });
+        }
         break;
 
       default:

@@ -499,6 +499,38 @@ service cloud.firestore {
         allow create, update: if isOrgProvider(orgId);
         allow delete: if isOrgAdmin(orgId);
       }
+
+      // API Keys subcollection — admin manages; plaintext keys never stored (SHA-256 hashed)
+      match /api_keys/{keyId} {
+        allow read: if isOrgAdmin(orgId);
+        allow create, update, delete: if isOrgAdmin(orgId);
+      }
+
+      // Outbound Webhooks subcollection
+      match /webhooks/{webhookId} {
+        // Providers can view registered endpoints; admin manages them
+        allow read: if isOrgProvider(orgId);
+        allow create, update, delete: if isOrgAdmin(orgId);
+      }
+
+      // Care Pathway definitions subcollection
+      match /pathways/{pathwayId} {
+        allow read: if isOrgProvider(orgId);
+        allow create, update: if isOrgProvider(orgId);
+        allow delete: if isOrgAdmin(orgId);
+      }
+
+      // Notification push/email templates per alert type
+      match /notification_templates/{templateKey} {
+        allow read: if isOrgProvider(orgId);
+        allow write: if isOrgAdmin(orgId);
+      }
+
+      // Notification channel settings (email digest, critical alert channels)
+      match /notification_settings/{settingDoc} {
+        allow read: if isOrgProvider(orgId);
+        allow write: if isOrgAdmin(orgId);
+      }
     }
 
     // Patient Roster — org-level enrollment records (Document ID: {orgId}_{userId})
@@ -556,6 +588,89 @@ service cloud.firestore {
       );
       // Never delete — set isActive: false on revocation
       allow delete: if false;
+    }
+
+    // ─── Tasks (Care Coordinator Queue) ───────────────────────────────────────
+    // Created by: agentic loop, care pathways, coordinators, external REST API.
+    // Document shape: { orgId, patientId, assignedTo, status, priority, source }
+
+    match /tasks/{taskId} {
+      allow read: if isSignedIn() && (
+        // The patient can read tasks assigned to them
+        resource.data.patientId == request.auth.uid ||
+        // Org providers and coordinators can read all org tasks
+        isOrgProvider(resource.data.orgId)
+      );
+      // Org providers can create tasks
+      allow create: if isSignedIn() && isOrgProvider(request.resource.data.orgId);
+      // Assigned user, patient, or org provider can update (e.g., mark complete)
+      allow update: if isSignedIn() && (
+        resource.data.patientId == request.auth.uid ||
+        resource.data.assignedTo == request.auth.uid ||
+        isOrgProvider(resource.data.orgId)
+      );
+      // No deletion — use status changes instead
+      allow delete: if false;
+    }
+
+    // ─── Care Pathway Enrollments ─────────────────────────────────────────────
+    // Root collection (not per-org subcollection) for cross-org query efficiency.
+    // Document shape: { orgId, patientId, pathwayId, status, nextStepAt }
+
+    match /pathway_enrollments/{enrollmentId} {
+      allow read: if isSignedIn() && (
+        resource.data.patientId == request.auth.uid ||
+        isOrgProvider(resource.data.orgId)
+      );
+      allow create: if isSignedIn() && isOrgProvider(request.resource.data.orgId);
+      allow update: if isSignedIn() && (
+        resource.data.patientId == request.auth.uid ||
+        isOrgProvider(resource.data.orgId)
+      );
+      allow delete: if isSignedIn() && isOrgAdmin(resource.data.orgId);
+    }
+
+    // ─── Server-Side-Only Collections ─────────────────────────────────────────
+    // Written exclusively by Cloud Functions via admin SDK.
+    // Client access: none (deny all).
+
+    // Autonomous health agent state (per patient per org, 15-min cycle)
+    match /patient_agent_state/{stateId} {
+      allow read, write: if false;
+    }
+
+    // Email send queue (Cloud Function trigger → SendGrid)
+    match /email_queue/{jobId} {
+      allow read, write: if false;
+    }
+
+    // Webhook delivery log (outbound webhooks, retry tracking)
+    match /webhook_delivery_log/{logId} {
+      allow read, write: if false;
+    }
+
+    // ─── SMART on FHIR OAuth Collections ──────────────────────────────────────
+    // All written and read exclusively by the smartAuth Cloud Function.
+
+    match /oauth_clients/{clientId} {
+      allow read, write: if false;
+    }
+
+    match /oauth_auth_codes/{code} {
+      allow read, write: if false;
+    }
+
+    match /oauth_refresh_tokens/{tokenHash} {
+      allow read, write: if false;
+    }
+
+    match /oauth_access_tokens/{jti} {
+      allow read, write: if false;
+    }
+
+    // System configuration (RSA key pair for SMART JWT signing, etc.)
+    match /config/{configId} {
+      allow read, write: if false;
     }
   }
 }

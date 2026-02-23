@@ -18,10 +18,11 @@
  * Patient access enforcement: same roster + consent check as publicApi.ts.
  *
  * SMART on FHIR:
- *   The /.well-known/smart-configuration endpoint is the discovery document
- *   that EHRs use to initiate a SMART launch. Full OAuth implementation
- *   (authorization_endpoint, token_endpoint) is a Sprint 6 deliverable;
- *   this sprint ships the discovery document and resource server.
+ *   Discovery document served here at /.well-known/smart-configuration.
+ *   Full OAuth 2.0 server (authorize, token, introspect, JWKS) is implemented
+ *   in functions/src/auth/smartAuth.ts (exported as the `smartAuth` Cloud Function).
+ *   In production, configure Firebase Hosting rewrites so that /auth/* and
+ *   /.well-known/jwks.json route to the smartAuth function under the same domain.
  */
 
 import { FieldValue, getFirestore, Timestamp } from "firebase-admin/firestore";

@@ -129,11 +129,24 @@ type VitalReading = {
   userId: string;
 };
 
+// ─── Time-of-Day Baseline Cache ──────────────────────────────────────────────
+
+type TODBaseline = {
+  mean: number;
+  stddev: number;
+  sampleCount: number;
+  cachedAt: Date;
+};
+
 // ─── Service ────────────────────────────────────────────────────────────────
 
 class AnomalyDetectionService {
   private readingCounts: Map<string, number> = new Map();
   private readonly BASELINE_REFRESH_INTERVAL = 10; // refresh after every N readings
+
+  /** Time-of-day baseline cache — keyed by `userId_vitalType_timeOfDay` */
+  private todBaselineCache: Map<string, TODBaseline> = new Map();
+  private readonly TOD_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
   /**
    * Get the Firestore subcollection for anomalies
@@ -415,6 +428,79 @@ class AnomalyDetectionService {
     };
   }
 
+  // ─── Time-of-Day Baselines ────────────────────────────────────────────
+
+  /**
+   * Compute mean/stddev for a vital type restricted to a specific time-of-day
+   * bucket (morning/afternoon/evening/night), using the last 90 days of data.
+   * Results are cached in memory for 6 hours.
+   */
+  private async computeTimeOfDayBaseline(
+    userId: string,
+    vitalType: string,
+    timeOfDay: "morning" | "afternoon" | "evening" | "night"
+  ): Promise<TODBaseline | null> {
+    const cacheKey = `${userId}_${vitalType}_${timeOfDay}`;
+    const cached = this.todBaselineCache.get(cacheKey);
+    if (cached && Date.now() - cached.cachedAt.getTime() < this.TOD_CACHE_TTL_MS) {
+      return cached;
+    }
+
+    try {
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+      const q = query(
+        collection(db, "vitals"),
+        where("userId", "==", userId),
+        where("type", "==", vitalType),
+        where("timestamp", ">=", Timestamp.fromDate(ninetyDaysAgo)),
+        orderBy("timestamp", "desc"),
+        limit(500)
+      );
+
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) return null;
+
+      // Filter readings to the requested time bucket
+      const bucketValues: number[] = [];
+      for (const d of snapshot.docs) {
+        const data = d.data();
+        const ts: Date =
+          data.timestamp && typeof data.timestamp.toDate === "function"
+            ? data.timestamp.toDate()
+            : new Date(data.timestamp as string);
+        if (this.getTimeOfDay(ts) !== timeOfDay) continue;
+        const val =
+          typeof data.value === "number"
+            ? data.value
+            : Number.parseFloat(data.value);
+        if (!Number.isNaN(val)) bucketValues.push(val);
+      }
+
+      // Need at least 5 samples in this bucket to be meaningful
+      if (bucketValues.length < 5) return null;
+
+      const mean =
+        bucketValues.reduce((a, b) => a + b, 0) / bucketValues.length;
+      const variance =
+        bucketValues.reduce((s, v) => s + (v - mean) ** 2, 0) /
+        bucketValues.length;
+      const stddev = Math.sqrt(variance);
+
+      const result: TODBaseline = {
+        mean,
+        stddev,
+        sampleCount: bucketValues.length,
+        cachedAt: new Date(),
+      };
+      this.todBaselineCache.set(cacheKey, result);
+      return result;
+    } catch {
+      return null;
+    }
+  }
+
   // ─── Contextual Enrichment ────────────────────────────────────────────
 
   /**
@@ -469,9 +555,27 @@ class AnomalyDetectionService {
       // Silently fail
     }
 
+    // Determine if this reading is within the normal range for this time of day.
+    // A reading is "typical for the time" if it falls within ±1.5 stddev of
+    // the time-of-day-specific mean (requires ≥5 historical samples in that bucket).
+    let isTypicalForTime = false;
+    try {
+      const todBaseline = await this.computeTimeOfDayBaseline(
+        userId,
+        anomaly.vitalType,
+        timeOfDay
+      );
+      if (todBaseline) {
+        const deviation = Math.abs(anomaly.value - todBaseline.mean);
+        isTypicalForTime = deviation <= 1.5 * todBaseline.stddev;
+      }
+    } catch {
+      // Silently fail — default stays false
+    }
+
     return {
       timeOfDay,
-      isTypicalForTime: false, // TODO: could be enhanced with time-of-day baselines
+      isTypicalForTime,
       recentMedications,
       historicalFrequency,
     };

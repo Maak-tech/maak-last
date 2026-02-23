@@ -150,6 +150,7 @@ export default function OrgDashboardScreen() {
   // ─── Enroll Patient State ────────────────────────────────────────────────────
   const [showEnroll, setShowEnroll] = useState(false);
   const [enrollUserId, setEnrollUserId] = useState("");
+  const [enrollDisplayName, setEnrollDisplayName] = useState("");
   const [enrolling, setEnrolling] = useState(false);
 
   const handleEnroll = async () => {
@@ -158,10 +159,12 @@ export default function OrgDashboardScreen() {
     try {
       await organizationService.enrollPatient(orgId, enrollUserId.trim(), {
         enrolledBy: user.id,
+        displayName: enrollDisplayName.trim() || undefined,
         consentScope: ["vitals", "medications", "symptoms", "ai_analysis"],
       });
       setShowEnroll(false);
       setEnrollUserId("");
+      setEnrollDisplayName("");
       Alert.alert("Enrolled", "Patient has been added to your roster.", [
         { text: "OK", onPress: () => refresh() },
       ]);
@@ -569,11 +572,12 @@ export default function OrgDashboardScreen() {
                 key={p.roster.id}
                 onPress={() => {
                   router.push(
-                    `/(settings)/org/patient-detail?orgId=${encodeURIComponent(orgId ?? "")}&userId=${encodeURIComponent(p.roster.userId)}` as never
+                    `/(settings)/org/patient-detail?orgId=${encodeURIComponent(orgId ?? "")}&userId=${encodeURIComponent(p.roster.userId)}${p.roster.displayName ? `&patientName=${encodeURIComponent(p.roster.displayName)}` : ""}` as never
                   );
                 }}
                 roster={p.roster}
                 snapshot={p.snapshot}
+                patientDisplayName={p.roster.displayName}
               />
             ))
           )}
@@ -614,7 +618,7 @@ export default function OrgDashboardScreen() {
         visible={showEnroll}
         animationType="slide"
         presentationStyle="pageSheet"
-        onRequestClose={() => { setShowEnroll(false); setEnrollUserId(""); }}
+        onRequestClose={() => { setShowEnroll(false); setEnrollUserId(""); setEnrollDisplayName(""); }}
       >
         <View style={{ flex: 1, backgroundColor: theme.colors.background.primary, padding: 24, paddingTop: 48 }}>
           <TypographyText style={getTextStyle(theme, "heading", "bold", theme.colors.text.primary)}>
@@ -624,6 +628,24 @@ export default function OrgDashboardScreen() {
             Patient must already have a Maak account and will be granted
             default consent scope (vitals, meds, symptoms, AI analysis).
           </Caption>
+
+          <Caption style={{ color: theme.colors.text.secondary, marginBottom: 6 }}>
+            PATIENT DISPLAY NAME (optional)
+          </Caption>
+          <TextInput
+            style={{
+              backgroundColor: theme.colors.background.secondary,
+              borderRadius: 10,
+              padding: 14,
+              color: theme.colors.text.primary,
+              fontSize: 15,
+              marginBottom: 16,
+            }}
+            placeholder="e.g. John Smith"
+            placeholderTextColor={theme.colors.text.secondary}
+            value={enrollDisplayName}
+            onChangeText={setEnrollDisplayName}
+          />
 
           <Caption style={{ color: theme.colors.text.secondary, marginBottom: 6 }}>
             PATIENT USER ID *
@@ -665,7 +687,7 @@ export default function OrgDashboardScreen() {
             )}
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => { setShowEnroll(false); setEnrollUserId(""); }}
+            onPress={() => { setShowEnroll(false); setEnrollUserId(""); setEnrollDisplayName(""); }}
             style={{ alignItems: "center", padding: 14 }}
           >
             <Caption style={{ color: theme.colors.text.secondary }}>Cancel</Caption>

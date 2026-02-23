@@ -27,6 +27,7 @@
         "source": "/garmin/push",
         "function": "garminPushWebhook"
       },
+
       {
         "source": "/dexcom-callback",
         "destination": "/dexcom-callback.html"
@@ -50,6 +51,29 @@
       {
         "source": "/samsung-health-callback",
         "destination": "/samsung-health-callback.html"
+      },
+
+      {
+        "source": "/v1/**",
+        "function": "maakApi"
+      },
+
+      {
+        "source": "/fhir/**",
+        "function": "fhirApi"
+      },
+      {
+        "source": "/.well-known/smart-configuration",
+        "function": "fhirApi"
+      },
+
+      {
+        "source": "/auth/**",
+        "function": "smartAuth"
+      },
+      {
+        "source": "/.well-known/jwks.json",
+        "function": "smartAuth"
       }
     ]
   }

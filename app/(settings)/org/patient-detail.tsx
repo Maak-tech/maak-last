@@ -9,6 +9,8 @@
 
 import {
   collection,
+  doc,
+  getDoc,
   getDocs,
   limit,
   orderBy,
@@ -20,6 +22,7 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import {
   Activity,
   AlertTriangle,
+  Bot,
   CheckCircle2,
   ChevronLeft,
   Clock,
@@ -79,6 +82,22 @@ type MedRow = {
   name: string;
   dosage?: string;
   frequency?: string;
+};
+
+type AgentActionEntry = {
+  type: string;
+  timestamp: Date;
+  reasoning: string;
+  outcome: string;
+  taskId?: string;
+};
+
+type AgentState = {
+  lastCycleAt: Date | null;
+  nextCycleAt: Date | null;
+  openActionsCount: number;
+  agentNotes: string;
+  actionHistory: AgentActionEntry[];
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -328,6 +347,7 @@ export default function PatientDetailScreen() {
   const [medications, setMedications] = useState<MedRow[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [pathways, setPathways] = useState<PathwayDefinition[]>([]);
+  const [agentState, setAgentState] = useState<AgentState | null>(null);
   const [enrollingPathwayId, setEnrollingPathwayId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -367,11 +387,12 @@ export default function PatientDetailScreen() {
         )),
         taskService.listOrgTasks(orgId, { patientId: userId, status: "open", maxResults: 20 }),
         carePathwayService.listPathways(orgId),
+        getDoc(doc(db, "patient_agent_state", `${orgId}_${userId}`)),
       ] as const);
 
       if (!isMountedRef.current) return;
 
-      const [snap, anomalySnap, medSnap, taskList, pathwayList] = results;
+      const [snap, anomalySnap, medSnap, taskList, pathwayList, agentSnap] = results;
 
       if (snap.status === "fulfilled") setSnapshot(snap.value);
 
@@ -407,6 +428,29 @@ export default function PatientDetailScreen() {
       if (taskList.status === "fulfilled") setTasks(taskList.value);
       if (pathwayList.status === "fulfilled") {
         setPathways(pathwayList.value.filter((p) => p.isActive));
+      }
+      if (agentSnap.status === "fulfilled" && agentSnap.value.exists()) {
+        const d = agentSnap.value.data()!;
+        const rawHistory = (d.actionHistory as unknown[]) ?? [];
+        setAgentState({
+          lastCycleAt: d.lastCycleAt ? toDate(d.lastCycleAt) : null,
+          nextCycleAt: d.nextCycleAt ? toDate(d.nextCycleAt) : null,
+          openActionsCount: (d.openActionsCount as number) ?? 0,
+          agentNotes: (d.agentNotes as string) ?? "",
+          actionHistory: rawHistory
+            .slice(-5) // show last 5 actions
+            .reverse()
+            .map((entry) => {
+              const e = entry as Record<string, unknown>;
+              return {
+                type: (e.type as string) ?? "unknown",
+                timestamp: toDate(e.timestamp),
+                reasoning: (e.reasoning as string) ?? "",
+                outcome: (e.outcome as string) ?? "success",
+                taskId: e.taskId as string | undefined,
+              };
+            }),
+        });
       }
     } catch {
       // partial failures handled by Promise.allSettled above
@@ -665,6 +709,106 @@ export default function PatientDetailScreen() {
                   </View>
                 </View>
               ))
+            )}
+
+            {/* AI Agent Activity */}
+            {agentState && (
+              <>
+                <SectionHeader label="AI Agent Activity" theme={theme} />
+                {/* Last cycle summary */}
+                <View
+                  style={{
+                    backgroundColor: "#F5F3FF",
+                    borderRadius: 12,
+                    padding: 14,
+                    marginBottom: 8,
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <Bot size={16} color="#6366F1" />
+                    <TypographyText style={{ color: "#4F46E5", fontSize: 13, fontWeight: "700" }}>
+                      Autonomous Monitor
+                    </TypographyText>
+                    <View style={{ flex: 1 }} />
+                    <View
+                      style={{
+                        backgroundColor: "#E0E7FF",
+                        borderRadius: 8,
+                        paddingHorizontal: 8,
+                        paddingVertical: 3,
+                      }}
+                    >
+                      <Caption style={{ color: "#4F46E5", fontWeight: "600" }}>
+                        {agentState.openActionsCount} open
+                      </Caption>
+                    </View>
+                  </View>
+                  <View style={{ flexDirection: "row", gap: 16 }}>
+                    {agentState.lastCycleAt && (
+                      <View>
+                        <Caption style={{ color: "#6B7280" }}>Last cycle</Caption>
+                        <Caption style={{ color: "#374151", fontWeight: "600" }}>
+                          {relativeTime(agentState.lastCycleAt)}
+                        </Caption>
+                      </View>
+                    )}
+                    {agentState.nextCycleAt && (
+                      <View>
+                        <Caption style={{ color: "#6B7280" }}>Next cycle</Caption>
+                        <Caption style={{ color: "#374151", fontWeight: "600" }}>
+                          {relativeTime(agentState.nextCycleAt)}
+                        </Caption>
+                      </View>
+                    )}
+                  </View>
+                </View>
+
+                {/* Action history */}
+                {agentState.actionHistory.map((entry, i) => {
+                  const actionColors: Record<string, string> = {
+                    escalation_triggered: "#EF4444",
+                    task_created: "#F97316",
+                    patient_nudge: "#6366F1",
+                    no_action: "#10B981",
+                  };
+                  const actionLabels: Record<string, string> = {
+                    escalation_triggered: "Escalated",
+                    task_created: "Task Created",
+                    patient_nudge: "Nudged Patient",
+                    no_action: "No Action",
+                  };
+                  const color = actionColors[entry.type] ?? "#6B7280";
+                  const label = actionLabels[entry.type] ?? entry.type.replace(/_/g, " ");
+
+                  return (
+                    <View
+                      key={i}
+                      style={{
+                        backgroundColor: theme.colors.background.secondary,
+                        borderRadius: 10,
+                        padding: 11,
+                        marginBottom: 6,
+                        borderLeftWidth: 3,
+                        borderLeftColor: color,
+                      }}
+                    >
+                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                        <Caption style={{ color, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.3 }}>
+                          {label}
+                        </Caption>
+                        <Caption style={{ color: theme.colors.text.secondary }}>
+                          {relativeTime(entry.timestamp)}
+                        </Caption>
+                      </View>
+                      {entry.reasoning ? (
+                        <Caption style={{ color: theme.colors.text.secondary, marginTop: 3 }}>
+                          {entry.reasoning}
+                        </Caption>
+                      ) : null}
+                    </View>
+                  );
+                })}
+              </>
             )}
 
             {/* Care Pathways */}

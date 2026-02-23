@@ -1073,6 +1073,10 @@ export { checkMedicalHistoryBenchmarks } from "./triggers/medicalHistory";
 export { checkSymptomBenchmarks } from "./triggers/symptoms";
 // Re-export vitals trigger
 export { checkVitalBenchmarks } from "./triggers/vitals";
+// Critical alert → email fallback for org providers
+export { criticalAlertEmail } from "./triggers/criticalAlertEmail";
+// Consent revocation → archive roster + audit trail + patient confirmation email
+export { onConsentRevoked } from "./triggers/consentRevocation";
 
 // ─── Sprint 3: Integration Surface ────────────────────────────────────────────
 
@@ -1089,8 +1093,12 @@ export { agentCycle } from "./jobs/agentCycle";
 
 // ─── Sprint 5: FHIR R4 + SMART on FHIR ───────────────────────────────────────
 
-// FHIR R4 resource server + SMART on FHIR discovery
+// FHIR R4 resource server + SMART on FHIR discovery document
 export { fhirApi } from "./api/fhirApi";
+
+// SMART on FHIR OAuth 2.0 authorization server
+// Routes: /auth/register, /auth/authorize, /auth/token, /auth/token/introspect, /.well-known/jwks.json
+export { smartAuth } from "./auth/smartAuth";
 
 // ─── Sprint 6: Care Pathways + Email ──────────────────────────────────────────
 
@@ -1102,6 +1110,18 @@ export {
   processEmailQueue,
   retryFailedEmails,
 } from "./triggers/emailQueue";
+
+// Weekly provider digest (every Monday 07:00 UTC)
+export { weeklyProviderDigest } from "./jobs/weeklyDigest";
+
+// Weekly patient digest (every Sunday 08:00 UTC)
+export { weeklyPatientDigest } from "./jobs/patientDigest";
+
+// Weekly org admin ops summary (every Friday 06:00 UTC)
+export { weeklyOrgSummary } from "./jobs/orgSummaryDigest";
+
+// Data retention archival job (every Saturday 02:00 UTC)
+export { dataRetentionJob } from "./jobs/dataRetention";
 
 /**
  * Fitbit Webhook Handler
