@@ -38,6 +38,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import GradientScreen from "@/components/figma/GradientScreen";
 import WavyBackground from "@/components/figma/WavyBackground";
+import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import aiConsentService from "@/lib/services/aiConsentService";
 import { correlationDiscoveryService } from "@/lib/services/correlationDiscoveryService";
@@ -54,6 +55,7 @@ import CoachMark from "../components/CoachMark";
 /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Screen orchestrates chat, voice IO, onboarding tips, and settings in one component. */
 export default function ZeinaScreen() {
   const { t, i18n } = useTranslation();
+  const { user } = useAuth();
   const { theme } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{ tour?: string }>();

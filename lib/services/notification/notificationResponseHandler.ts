@@ -370,7 +370,7 @@ export class NotificationResponseHandler {
     intensity: number
   ): Promise<void> {
     try {
-      const { moodService } = await import("./moodService");
+      const { moodService } = await import("../moodService");
       await moodService.addMood({
         userId,
         mood: mood as "happy" | "content" | "neutral",
@@ -386,7 +386,7 @@ export class NotificationResponseHandler {
   private static async handleEmergency(userId: string): Promise<void> {
     try {
       // Trigger emergency alert
-      const { alertService } = await import("./alertService");
+      const { alertService } = await import("../alertService");
       await alertService.createAlert({
         userId,
         type: "emergency",
@@ -405,7 +405,7 @@ export class NotificationResponseHandler {
     status: string
   ): Promise<void> {
     try {
-      const { moodService } = await import("./moodService");
+      const { moodService } = await import("../moodService");
       await moodService.addMood({
         userId,
         mood: status === "good" ? "content" : "neutral",
@@ -441,7 +441,7 @@ export class NotificationResponseHandler {
         return;
       }
 
-      const { medicationService } = await import("./medicationService");
+      const { medicationService } = await import("../medicationService");
       await medicationService.markMedicationTaken(medicationId, reminderId);
     } catch (_error) {
       /* no-op */
@@ -495,7 +495,7 @@ export class NotificationResponseHandler {
 
   private static async quickHealthLog(userId: string): Promise<void> {
     try {
-      const { symptomService } = await import("./symptomService");
+      const { symptomService } = await import("../symptomService");
       await symptomService.addSymptom({
         userId,
         type: "General",

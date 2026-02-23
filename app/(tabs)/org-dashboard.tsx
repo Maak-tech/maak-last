@@ -96,7 +96,7 @@ function StatCard({
     >
       <TypographyText
         style={[
-          getTextStyle(theme, "title", "bold", color),
+          getTextStyle(theme, "heading", "bold", color),
           { fontSize: 22, lineHeight: 28 },
         ]}
       >

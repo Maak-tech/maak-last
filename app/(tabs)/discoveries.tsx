@@ -84,7 +84,7 @@ export default function DiscoveriesScreen() {
       justifyContent: "center" as const,
       alignItems: "center" as const,
     } as ViewStyle,
-    headerTitle: getTextStyle(t, "title", "bold", "#fff"),
+    headerTitle: getTextStyle(t, "heading", "bold", "#fff"),
     headerSubtitle: getTextStyle(t, "body", "regular", "rgba(255,255,255,0.8)"),
     content: {
       flex: 1,
