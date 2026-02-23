@@ -9,9 +9,13 @@ type WavyBackgroundCurve = "default" | "home";
 type WavyBackgroundProps = {
   children: React.ReactNode;
   variant?: WavyBackgroundVariant;
+  /**
+   * When provided, the component renders as a fixed-height header.
+   * When omitted, it renders as a full-screen wrapper with a wave header area.
+   */
   height?: number;
   curve?: WavyBackgroundCurve;
-  /** Position of content: "top" keeps title at top when wave extends down, "bottom" (default) aligns to bottom */
+  /** Position of content: "top" keeps header content at top, "bottom" aligns to bottom */
   contentPosition?: "top" | "bottom";
 };
 
@@ -71,14 +75,20 @@ const DEFAULT_HEIGHT = 240;
 export default function WavyBackground({
   children,
   variant = "teal",
-  height = DEFAULT_HEIGHT,
+  height,
   curve = "default",
-  contentPosition = "bottom",
+  contentPosition,
 }: WavyBackgroundProps) {
   const svgWidth = Dimensions.get("window").width;
+  const waveHeight = height ?? DEFAULT_HEIGHT;
+  const isFixedHeight = typeof height === "number";
+  const resolvedContentPosition =
+    contentPosition ?? (isFixedHeight ? "bottom" : "top");
   const contentStyle = [
     styles.content,
-    contentPosition === "top" && { justifyContent: "flex-start" as const },
+    resolvedContentPosition === "top" && {
+      justifyContent: "flex-start" as const,
+    },
   ];
 
   if (curve === "home") {
@@ -87,44 +97,55 @@ export default function WavyBackground({
     const grad2Id = `wavy-home-${variant}-2`;
 
     return (
-      <View style={[styles.container, { height }]}>
-        <Svg
-          height={height}
-          preserveAspectRatio="none"
-          style={StyleSheet.absoluteFill}
-          viewBox="0 0 1440 320"
-          width={svgWidth}
-        >
-          <Defs>
-            {/* Main wave gradient: primary → secondary → accent (diagonal) */}
-            <LinearGradient id={grad1Id} x1="0%" x2="100%" y1="0%" y2="100%">
-              <Stop offset="0%" stopColor={colors.primary} stopOpacity={1} />
-              <Stop offset="50%" stopColor={colors.secondary} stopOpacity={1} />
-              <Stop offset="100%" stopColor={colors.accent} stopOpacity={1} />
-            </LinearGradient>
-            {/* Secondary wave gradient: accent 30% → primary 30% (horizontal) */}
-            <LinearGradient id={grad2Id} x1="0%" x2="100%" y1="0%" y2="0%">
-              <Stop offset="0%" stopColor={colors.accent} stopOpacity={0.3} />
-              <Stop
-                offset="100%"
-                stopColor={colors.primary}
-                stopOpacity={0.3}
-              />
-            </LinearGradient>
-          </Defs>
-          {/* Main wave */}
-          <Path
-            d={HOME_WAVE_PATHS.main}
-            fill={`url(#${grad1Id})`}
-            fillOpacity={1}
-          />
-          {/* Secondary wave for depth */}
-          <Path
-            d={HOME_WAVE_PATHS.secondary}
-            fill={`url(#${grad2Id})`}
-            fillOpacity={1}
-          />
-        </Svg>
+      <View
+        style={[
+          styles.container,
+          isFixedHeight ? { height: waveHeight } : styles.fullScreen,
+        ]}
+      >
+        <View style={[styles.waveLayer, { height: waveHeight }]}>
+          <Svg
+            height={waveHeight}
+            preserveAspectRatio="none"
+            style={StyleSheet.absoluteFill}
+            viewBox="0 0 1440 320"
+            width={svgWidth}
+          >
+            <Defs>
+              {/* Main wave gradient: primary → secondary → accent (diagonal) */}
+              <LinearGradient id={grad1Id} x1="0%" x2="100%" y1="0%" y2="100%">
+                <Stop offset="0%" stopColor={colors.primary} stopOpacity={1} />
+                <Stop
+                  offset="50%"
+                  stopColor={colors.secondary}
+                  stopOpacity={1}
+                />
+                <Stop offset="100%" stopColor={colors.accent} stopOpacity={1} />
+              </LinearGradient>
+              {/* Secondary wave gradient: accent 30% → primary 30% (horizontal) */}
+              <LinearGradient id={grad2Id} x1="0%" x2="100%" y1="0%" y2="0%">
+                <Stop offset="0%" stopColor={colors.accent} stopOpacity={0.3} />
+                <Stop
+                  offset="100%"
+                  stopColor={colors.primary}
+                  stopOpacity={0.3}
+                />
+              </LinearGradient>
+            </Defs>
+            {/* Main wave */}
+            <Path
+              d={HOME_WAVE_PATHS.main}
+              fill={`url(#${grad1Id})`}
+              fillOpacity={1}
+            />
+            {/* Secondary wave for depth */}
+            <Path
+              d={HOME_WAVE_PATHS.secondary}
+              fill={`url(#${grad2Id})`}
+              fillOpacity={1}
+            />
+          </Svg>
+        </View>
         <View style={contentStyle}>{children}</View>
       </View>
     );
@@ -140,23 +161,30 @@ export default function WavyBackground({
   };
 
   return (
-    <View style={[styles.container, { height }]}>
-      <ExpoLinearGradient
-        colors={colors.gradient as [string, string, ...string[]]}
-        end={{ x: 1, y: 1 }}
-        start={{ x: 0, y: 0 }}
-        style={StyleSheet.absoluteFill}
-      />
-      <Svg
-        height={height}
-        preserveAspectRatio="none"
-        style={StyleSheet.absoluteFill}
-        viewBox="0 0 1440 320"
-        width={svgWidth}
-      >
-        <Path d={paths.waveLight} fill={colors.waveLight} fillOpacity={1} />
-        <Path d={paths.waveMid} fill={colors.waveMid} fillOpacity={1} />
-      </Svg>
+    <View
+      style={[
+        styles.container,
+        isFixedHeight ? { height: waveHeight } : styles.fullScreen,
+      ]}
+    >
+      <View style={[styles.waveLayer, { height: waveHeight }]}>
+        <ExpoLinearGradient
+          colors={colors.gradient as [string, string, ...string[]]}
+          end={{ x: 1, y: 1 }}
+          start={{ x: 0, y: 0 }}
+          style={StyleSheet.absoluteFill}
+        />
+        <Svg
+          height={waveHeight}
+          preserveAspectRatio="none"
+          style={StyleSheet.absoluteFill}
+          viewBox="0 0 1440 320"
+          width={svgWidth}
+        >
+          <Path d={paths.waveLight} fill={colors.waveLight} fillOpacity={1} />
+          <Path d={paths.waveMid} fill={colors.waveMid} fillOpacity={1} />
+        </Svg>
+      </View>
       <View style={contentStyle}>{children}</View>
     </View>
   );
@@ -164,9 +192,18 @@ export default function WavyBackground({
 
 const styles = StyleSheet.create({
   container: {
-    overflow: "hidden",
     position: "relative",
     width: "100%",
+  },
+  fullScreen: {
+    flex: 1,
+  },
+  waveLayer: {
+    left: 0,
+    overflow: "hidden",
+    position: "absolute",
+    right: 0,
+    top: 0,
   },
   content: {
     flex: 1,
