@@ -1,4 +1,5 @@
-import { router } from "expo-router";
+import { useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
 import {
   AlertTriangle,
   Building2,
@@ -7,11 +8,14 @@ import {
   RefreshCw,
   Search,
   Shield,
+  UserPlus,
   Users,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
+  Alert,
+  Modal,
   RefreshControl,
   ScrollView,
   TextInput,
@@ -31,6 +35,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useMyOrganization } from "@/hooks/useMyOrganization";
 import { useOrganizationDashboard } from "@/hooks/useOrganizationDashboard";
 import type { SortField } from "@/lib/services/cohortRiskService";
+import { organizationService } from "@/lib/services/organizationService";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 // ─── Filter / Sort Options ────────────────────────────────────────────────────
@@ -113,9 +118,11 @@ export default function OrgDashboardScreen() {
   const { user } = useAuth();
   const isRTL = i18n.language === "ar";
 
-  // Derive orgId from the signed-in user's active organization membership.
+  // Prefer orgId from route params (when navigated from org hub),
+  // fall back to the user's first active org membership.
+  const params = useLocalSearchParams<{ orgId?: string }>();
   const { org: myOrg } = useMyOrganization();
-  const orgId: string | undefined = myOrg?.id;
+  const orgId: string | undefined = params.orgId || myOrg?.id;
 
   const {
     org,
@@ -135,6 +142,31 @@ export default function OrgDashboardScreen() {
     autoLoad: true,
     refreshIntervalMs: 5 * 60 * 1000, // refresh every 5 minutes
   });
+
+  // ─── Enroll Patient State ────────────────────────────────────────────────────
+  const [showEnroll, setShowEnroll] = useState(false);
+  const [enrollUserId, setEnrollUserId] = useState("");
+  const [enrolling, setEnrolling] = useState(false);
+
+  const handleEnroll = async () => {
+    if (!orgId || !enrollUserId.trim() || !user?.id) return;
+    setEnrolling(true);
+    try {
+      await organizationService.enrollPatient(orgId, enrollUserId.trim(), {
+        enrolledBy: user.id,
+        consentScope: ["vitals", "medications", "symptoms", "ai_analysis"],
+      });
+      setShowEnroll(false);
+      setEnrollUserId("");
+      Alert.alert("Enrolled", "Patient has been added to your roster.", [
+        { text: "OK", onPress: () => refresh() },
+      ]);
+    } catch (err) {
+      Alert.alert("Error", err instanceof Error ? err.message : "Failed to enroll patient.");
+    } finally {
+      setEnrolling(false);
+    }
+  };
 
   const styles = createThemedStyles((t) => ({
     container: {
@@ -505,9 +537,8 @@ export default function OrgDashboardScreen() {
               <PatientRosterCard
                 key={p.roster.id}
                 onPress={() => {
-                  // Navigate to patient detail view
                   router.push(
-                    `/(tabs)/vitals?userId=${p.roster.userId}` as never
+                    `/(settings)/org/patient-detail?orgId=${encodeURIComponent(orgId ?? "")}&userId=${encodeURIComponent(p.roster.userId)}` as never
                   );
                 }}
                 roster={p.roster}
@@ -517,6 +548,99 @@ export default function OrgDashboardScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Enroll Patient FAB */}
+      {!loading && orgId && (
+        <TouchableOpacity
+          onPress={() => setShowEnroll(true)}
+          style={{
+            position: "absolute",
+            right: 20,
+            bottom: 24,
+            backgroundColor: "#6366F1",
+            borderRadius: 28,
+            paddingHorizontal: 18,
+            paddingVertical: 13,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+            shadowColor: "#6366F1",
+            shadowOpacity: 0.35,
+            shadowRadius: 10,
+            shadowOffset: { width: 0, height: 4 },
+            elevation: 8,
+          }}
+        >
+          <UserPlus size={17} color="#FFF" />
+          <TypographyText style={{ color: "#FFF", fontWeight: "600", fontSize: 14 }}>
+            Enroll Patient
+          </TypographyText>
+        </TouchableOpacity>
+      )}
+
+      {/* Enroll Modal */}
+      <Modal
+        visible={showEnroll}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => { setShowEnroll(false); setEnrollUserId(""); }}
+      >
+        <View style={{ flex: 1, backgroundColor: theme.colors.background.primary, padding: 24, paddingTop: 48 }}>
+          <TypographyText style={getTextStyle(theme, "heading", "bold", theme.colors.text.primary)}>
+            Enroll Patient
+          </TypographyText>
+          <Caption style={{ color: theme.colors.text.secondary, marginTop: 4, marginBottom: 24 }}>
+            Patient must already have a Maak account and will be granted
+            default consent scope (vitals, meds, symptoms, AI analysis).
+          </Caption>
+
+          <Caption style={{ color: theme.colors.text.secondary, marginBottom: 6 }}>
+            PATIENT USER ID *
+          </Caption>
+          <TextInput
+            style={{
+              backgroundColor: theme.colors.background.secondary,
+              borderRadius: 10,
+              padding: 14,
+              color: theme.colors.text.primary,
+              fontSize: 15,
+              marginBottom: 24,
+            }}
+            placeholder="Firebase UID"
+            placeholderTextColor={theme.colors.text.secondary}
+            value={enrollUserId}
+            onChangeText={setEnrollUserId}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+
+          <TouchableOpacity
+            onPress={handleEnroll}
+            disabled={enrolling || !enrollUserId.trim()}
+            style={{
+              backgroundColor: "#6366F1",
+              borderRadius: 12,
+              padding: 16,
+              alignItems: "center",
+              opacity: (enrolling || !enrollUserId.trim()) ? 0.5 : 1,
+            }}
+          >
+            {enrolling ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <TypographyText style={{ color: "#FFF", fontWeight: "600", fontSize: 16 }}>
+                Enroll
+              </TypographyText>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => { setShowEnroll(false); setEnrollUserId(""); }}
+            style={{ alignItems: "center", padding: 14 }}
+          >
+            <Caption style={{ color: theme.colors.text.secondary }}>Cancel</Caption>
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </View>
   );
 }

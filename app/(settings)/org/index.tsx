@@ -254,6 +254,16 @@ export default function OrgSettingsHub() {
           iconBg="#ECFDF5"
         />
 
+        <NavItem
+          icon={<Users size={22} color="#8B5CF6" />}
+          label="Team Members"
+          description="Manage providers, coordinators, and access roles"
+          onPress={() => navigate("members")}
+          isRTL={isRTL}
+          theme={theme}
+          iconBg="#F5F3FF"
+        />
+
         {/* — Integration — */}
         <SectionHeader label="Integration" theme={theme} />
 

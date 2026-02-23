@@ -1649,6 +1649,11 @@ export default function ProfileScreen() {
           onPress: () => router.push("/profile/fall-detection" as any),
         },
         {
+          label: "Data Access & Consents",
+          icon: Shield,
+          onPress: () => router.push("/(settings)/my-consents" as never),
+        },
+        {
           label: t("language", "Language"),
           icon: Globe,
           onPress: () => setLanguagePickerVisible(true),
