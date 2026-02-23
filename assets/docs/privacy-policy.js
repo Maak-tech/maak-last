@@ -187,9 +187,9 @@ Your continued use of the App after changes become effective constitutes accepta
 
 If you have questions about this Privacy Policy or our privacy practices, please contact us:
 
-**Email**: privacy@maak.app
-**Phone**: +966 12 345 6789
-**Address**: Maak Health Technologies, Riyadh, Saudi Arabia
+**Email**: info@maaktech.net
+**Phone**: +19477777645
+**Address**: Masayef , Ramallah, Palestine
 
 ## Compliance
 
