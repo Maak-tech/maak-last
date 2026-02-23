@@ -175,6 +175,13 @@ export default function TabLayout() {
           headerShown: false,
         }}
       />
+      <Tabs.Screen
+        name="tasks"
+        options={{
+          href: null, // Access via org dashboard
+          headerShown: false,
+        }}
+      />
     </Tabs>
   );
 }

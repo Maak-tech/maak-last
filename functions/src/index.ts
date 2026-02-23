@@ -1082,6 +1082,16 @@ export { maakApi } from "./api/publicApi";
 // Outbound webhook delivery + retry scheduler
 export { retryFailedWebhooks } from "./api/webhookDelivery";
 
+// ─── Sprint 4: Agentic AI Pipeline ────────────────────────────────────────────
+
+// Autonomous health agent (sense → reason → decide → act → verify)
+export { agentCycle } from "./jobs/agentCycle";
+
+// ─── Sprint 5: FHIR R4 + SMART on FHIR ───────────────────────────────────────
+
+// FHIR R4 resource server + SMART on FHIR discovery
+export { fhirApi } from "./api/fhirApi";
+
 /**
  * Fitbit Webhook Handler
  * Handles Fitbit subscriber notifications for real-time data updates
