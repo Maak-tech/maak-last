@@ -322,6 +322,36 @@ export default function ZeinaScreen() {
         timestamp: new Date(),
       };
 
+      // Inject today's daily briefing as first Zeina message (Premium Individual+)
+      let briefingMessage: AIMessage | undefined;
+      try {
+        const userId = user?.id;
+        if (userId) {
+          const d = new Date();
+          const todayKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+          const briefingRef = doc(db, "users", userId, "briefings", todayKey);
+          const briefingSnap = await getDoc(briefingRef);
+          if (briefingSnap.exists()) {
+            const data = briefingSnap.data();
+            const summary = data.summary as string;
+            const highlights: string[] = (data.highlights as string[]) ?? [];
+            const highlightsAr: string[] = (data.highlightsAr as string[]) ?? [];
+            const displayHighlights = isRTL && highlightsAr.length ? highlightsAr : highlights;
+            const bulletPoints = displayHighlights.map((h) => `• ${h}`).join("\n");
+            briefingMessage = {
+              id: (Date.now() + 2).toString(),
+              role: "assistant",
+              content: isRTL
+                ? `🌅 **إحاطتك الصحية اليومية**\n\n${summary}${bulletPoints ? `\n\n${bulletPoints}` : ""}\n\n_كيف يمكنني مساعدتك اليوم؟_`
+                : `🌅 **Your Daily Health Briefing**\n\n${summary}${bulletPoints ? `\n\n${bulletPoints}` : ""}\n\n_How can I help you today?_`,
+              timestamp: new Date(),
+            };
+          }
+        }
+      } catch {
+        // Silently fail — briefing is optional
+      }
+
       // Check for new health discoveries to proactively surface
       let proactiveMessage: AIMessage | undefined;
       try {
@@ -346,7 +376,7 @@ export default function ZeinaScreen() {
               : topDiscovery.description;
 
             proactiveMessage = {
-              id: (Date.now() + 2).toString(),
+              id: (Date.now() + 3).toString(),
               role: "assistant",
               content: isRTL
                 ? `لاحظت شيئاً مثيراً للاهتمام في بياناتك الصحية — ${desc}. هل تريد مناقشة هذا؟`
@@ -364,6 +394,7 @@ export default function ZeinaScreen() {
       setMessages([
         systemMessage,
         welcomeMessage,
+        ...(briefingMessage ? [briefingMessage] : []),
         ...(proactiveMessage ? [proactiveMessage] : []),
       ]);
 
