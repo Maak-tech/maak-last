@@ -166,7 +166,7 @@ function CreateTaskModal({
   const handleClose = () => { reset(); onClose(); };
 
   const handleCreate = async () => {
-    const taskTitle = title.trim() || TASK_TYPES.find((t) => t.key === type)?.label ?? type;
+    const taskTitle = title.trim() || (TASK_TYPES.find((t) => t.key === type)?.label ?? type);
     setSaving(true);
     try {
       const task = await taskService.createTask({
@@ -424,7 +424,7 @@ export default function PatientDetailScreen() {
         text: "Complete",
         onPress: async () => {
           try {
-            await taskService.updateTaskStatus(task.id, "completed", user.id);
+            await taskService.updateStatus(task.id, "completed", user.id);
             setTasks((prev) => prev.filter((t) => t.id !== task.id));
           } catch {
             Alert.alert("Error", "Failed to complete task.");
