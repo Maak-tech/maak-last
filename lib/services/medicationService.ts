@@ -297,11 +297,13 @@ export const medicationService = {
 
     try {
       if (isOnline) {
-        // Query without orderBy to avoid index requirement, then sort in memory
+        // Query by userId only — avoid filtering isActive in Firestore so that
+        // older medications missing the field are still returned.  Filter
+        // out deleted ones (isActive === false) in-memory to stay consistent
+        // with the offline-cache path which uses `m.isActive !== false`.
         const q = query(
           collection(db, "medications"),
           where("userId", "==", userId),
-          where("isActive", "==", true),
           limit(200)
         );
 
@@ -325,14 +327,17 @@ export const medicationService = {
           } as Medication);
         }
 
-        // Sort by startDate descending in memory
-        medications.sort(
+        // Filter out explicitly-deleted medications then sort by startDate desc
+        const activeMedications = medications.filter(
+          (m) => m.isActive !== false
+        );
+        activeMedications.sort(
           (a, b) => b.startDate.getTime() - a.startDate.getTime()
         );
 
         // Cache for offline access
-        await offlineService.storeOfflineData("medications", medications);
-        return medications;
+        await offlineService.storeOfflineData("medications", activeMedications);
+        return activeMedications;
       }
       // Offline - use cached data filtered by userId
       const cachedMedications =

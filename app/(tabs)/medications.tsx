@@ -2108,22 +2108,15 @@ export default function MedicationsScreen() {
                           // Remove all non-digits first
                           const digitsOnly = text.replace(/\D/g, "");
 
-                          // Auto-format as HH:MM
+                          // Auto-format as HH:MM - only insert colon once 3+ digits are entered
+                          // This prevents a trailing-colon loop where backspacing is impossible
                           let formatted = "";
-                          if (digitsOnly.length > 0) {
-                            // Add first digit
-                            formatted = digitsOnly.substring(0, 1);
-                            if (digitsOnly.length > 1) {
-                              // Add second digit and colon
-                              formatted = `${digitsOnly.substring(0, 2)}:`;
-                              if (digitsOnly.length > 2) {
-                                // Add minutes
-                                formatted =
-                                  digitsOnly.substring(0, 2) +
-                                  ":" +
-                                  digitsOnly.substring(2, 4);
-                              }
-                            }
+                          if (digitsOnly.length >= 3) {
+                            // Enough digits for both hours and at least one minute digit
+                            formatted = `${digitsOnly.substring(0, 2)}:${digitsOnly.substring(2, 4)}`;
+                          } else if (digitsOnly.length > 0) {
+                            // Just the hour digits (1-2 digits), no colon yet
+                            formatted = digitsOnly.substring(0, 2);
                           }
 
                           // Limit to HH:MM format (max 5 characters: "12:34")
