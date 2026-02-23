@@ -3,6 +3,7 @@ import type React from "react";
 import {
   createContext,
   type ReactNode,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -98,32 +99,29 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   }, []);
 
   // Save theme preference
-  const setThemeMode = async (_mode: ThemeMode) => {
+  const setThemeMode = useCallback(async (_mode: ThemeMode) => {
     try {
       setThemeModeState("light");
       await AsyncStorage.setItem(THEME_STORAGE_KEY, "light");
     } catch (_error) {
       // Silently handle error
     }
-  };
+  }, []);
 
   // Toggle between light and dark (ignoring system)
-  const toggleTheme = () => {
+  const toggleTheme = useCallback(() => {
     setThemeMode("light");
-  };
+  }, [setThemeMode]);
 
   // Don't render until theme is loaded
   if (!isLoaded) {
     return null;
   }
 
-  const value: ThemeContextType = {
-    theme,
-    themeMode,
-    isDark,
-    setThemeMode,
-    toggleTheme,
-  };
+  const value = useMemo<ThemeContextType>(
+    () => ({ theme, themeMode, isDark, setThemeMode, toggleTheme }),
+    [theme, themeMode, isDark, setThemeMode, toggleTheme]
+  );
 
   return (
     <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>

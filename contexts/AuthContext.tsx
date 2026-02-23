@@ -15,7 +15,7 @@ import {
 } from "firebase/auth";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import type React from "react";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Alert } from "react-native";
 import { auth, db, isFirebaseReady } from "@/lib/firebase";
 import { familyInviteService } from "@/lib/services/familyInviteService";
@@ -551,7 +551,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(
@@ -593,10 +593,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       throw new Error(errorMessage);
     }
-  };
+  }, []);
 
   // biome-ignore lint/nursery/useMaxParams: Explicit auth args retained for compatibility with existing call sites.
-  const signUp = async (
+  const signUp = useCallback(async (
     email: string,
     password: string,
     firstName: string,
@@ -665,9 +665,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       throw new Error(errorMessage);
     }
     // Don't set loading to false here - onAuthStateChanged will handle it
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -700,9 +700,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setUser(null);
       setLoading(false);
     }
-  };
+  }, []);
 
-  const updateUser = async (userData: Partial<User>) => {
+  const updateUser = useCallback(async (userData: Partial<User>) => {
     if (!user) return;
 
     try {
@@ -714,9 +714,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (_error) {
       throw new Error("Failed to update user. Please try again.");
     }
-  };
+  }, [user]);
 
-  const changePassword = async (
+  const changePassword = useCallback(async (
     currentPassword: string,
     newPassword: string
   ) => {
@@ -798,9 +798,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       throw new Error(errorMessage);
     }
-  };
+  }, []);
 
-  const resetPassword = async (email: string) => {
+  const resetPassword = useCallback(async (email: string) => {
     try {
       await sendPasswordResetEmail(auth, email);
     } catch (_error: any) {
@@ -823,18 +823,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       throw new Error(errorMessage);
     }
-  };
+  }, []);
 
-  const value = {
-    user,
-    loading,
-    signIn,
-    signUp,
-    logout,
-    updateUser,
-    changePassword,
-    resetPassword,
-  };
+  const value = useMemo(
+    () => ({
+      user,
+      loading,
+      signIn,
+      signUp,
+      logout,
+      updateUser,
+      changePassword,
+      resetPassword,
+    }),
+    [user, loading, signIn, signUp, logout, updateUser, changePassword, resetPassword]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

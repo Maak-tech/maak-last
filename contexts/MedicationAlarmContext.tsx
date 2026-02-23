@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useState } from "react";
 
 export type MedicationAlarm = {
   medicationId?: string;
@@ -34,10 +34,13 @@ export function MedicationAlarmProvider({
     setActiveAlarm(null);
   }, []);
 
+  const value = useMemo(
+    () => ({ activeAlarm, showAlarm, dismissAlarm }),
+    [activeAlarm, showAlarm, dismissAlarm]
+  );
+
   return (
-    <MedicationAlarmContext.Provider
-      value={{ activeAlarm, showAlarm, dismissAlarm }}
-    >
+    <MedicationAlarmContext.Provider value={value}>
       {children}
     </MedicationAlarmContext.Provider>
   );

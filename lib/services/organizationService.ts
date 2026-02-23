@@ -6,6 +6,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
   query,
   serverTimestamp,
   setDoc,
@@ -338,14 +339,10 @@ class OrganizationService {
       constraints.push(where("cohortIds", "array-contains", options.cohortId));
     }
 
-    const q = query(this.rosterCol, ...constraints);
+    const cap = options?.maxResults ?? 500;
+    const q = query(this.rosterCol, ...constraints, limit(cap));
     const snap = await getDocs(q);
-    const all = snap.docs.map((d) => mapRoster(d.id, d.data()));
-
-    if (options?.maxResults) {
-      return all.slice(0, options.maxResults);
-    }
-    return all;
+    return snap.docs.map((d) => mapRoster(d.id, d.data()));
   }
 
   async updateRiskScore(

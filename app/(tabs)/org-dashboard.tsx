@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import {
   AlertTriangle,
@@ -111,6 +111,8 @@ function StatCard({
   );
 }
 
+const PAGE_SIZE = 20;
+
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function OrgDashboardScreen() {
@@ -146,6 +148,17 @@ export default function OrgDashboardScreen() {
     refreshIntervalMs: 5 * 60 * 1000, // refresh every 5 minutes
     cohortId,
   });
+
+  // ─── Pagination ──────────────────────────────────────────────────────────────
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  // Reset to first page whenever the filtered list changes (filter / sort / search).
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [riskFilter, sortBy, searchQuery]);
+
+  const visiblePatients = filteredPatients.slice(0, visibleCount);
+  const hasMorePatients = visibleCount < filteredPatients.length;
 
   // ─── Enroll Patient State ────────────────────────────────────────────────────
   const [showEnroll, setShowEnroll] = useState(false);
@@ -490,8 +503,8 @@ export default function OrgDashboardScreen() {
             <Users color={theme.colors.text.secondary} size={14} />
             <Caption style={{ color: theme.colors.text.secondary }}>
               {isRTL
-                ? `${filteredPatients.length} مريض`
-                : `${filteredPatients.length} patient${filteredPatients.length !== 1 ? "s" : ""}`}
+                ? `${Math.min(visibleCount, filteredPatients.length)} من ${filteredPatients.length} مريض`
+                : `${Math.min(visibleCount, filteredPatients.length)} of ${filteredPatients.length} patient${filteredPatients.length !== 1 ? "s" : ""}`}
             </Caption>
           </View>
         )}
@@ -567,19 +580,42 @@ export default function OrgDashboardScreen() {
               </Caption>
             </View>
           ) : (
-            filteredPatients.map((p) => (
-              <PatientRosterCard
-                key={p.roster.id}
-                onPress={() => {
-                  router.push(
-                    `/(settings)/org/patient-detail?orgId=${encodeURIComponent(orgId ?? "")}&userId=${encodeURIComponent(p.roster.userId)}${p.roster.displayName ? `&patientName=${encodeURIComponent(p.roster.displayName)}` : ""}` as never
-                  );
-                }}
-                roster={p.roster}
-                snapshot={p.snapshot}
-                patientDisplayName={p.roster.displayName}
-              />
-            ))
+            <>
+              {visiblePatients.map((p) => (
+                <PatientRosterCard
+                  key={p.roster.id}
+                  onPress={() => {
+                    router.push(
+                      `/(settings)/org/patient-detail?orgId=${encodeURIComponent(orgId ?? "")}&userId=${encodeURIComponent(p.roster.userId)}${p.roster.displayName ? `&patientName=${encodeURIComponent(p.roster.displayName)}` : ""}` as never
+                    );
+                  }}
+                  roster={p.roster}
+                  snapshot={p.snapshot}
+                  patientDisplayName={p.roster.displayName}
+                />
+              ))}
+              {hasMorePatients && (
+                <TouchableOpacity
+                  onPress={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                  style={{
+                    alignItems: "center",
+                    paddingVertical: 14,
+                    marginTop: 4,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border.light,
+                  }}
+                >
+                  <TypographyText
+                    style={getTextStyle(theme, "body", "semibold", theme.colors.primary.main)}
+                  >
+                    {isRTL
+                      ? `تحميل المزيد (${filteredPatients.length - visibleCount})`
+                      : `Load more (${filteredPatients.length - visibleCount} remaining)`}
+                  </TypographyText>
+                </TouchableOpacity>
+              )}
+            </>
           )}
         </View>
       </ScrollView>
