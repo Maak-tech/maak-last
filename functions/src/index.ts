@@ -1092,6 +1092,17 @@ export { agentCycle } from "./jobs/agentCycle";
 // FHIR R4 resource server + SMART on FHIR discovery
 export { fhirApi } from "./api/fhirApi";
 
+// ─── Sprint 6: Care Pathways + Email ──────────────────────────────────────────
+
+// Care pathway step executor (every 10 minutes)
+export { pathwayEngine } from "./jobs/pathwayEngine";
+
+// Email queue processor (Firestore trigger → SendGrid) + hourly retry scheduler
+export {
+  processEmailQueue,
+  retryFailedEmails,
+} from "./triggers/emailQueue";
+
 /**
  * Fitbit Webhook Handler
  * Handles Fitbit subscriber notifications for real-time data updates

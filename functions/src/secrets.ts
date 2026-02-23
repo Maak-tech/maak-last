@@ -42,6 +42,10 @@ export const GARMIN_OAUTH_TOKEN_URL = defineSecret("GARMIN_OAUTH_TOKEN_URL");
 export const GARMIN_OAUTH_SCOPE = defineSecret("GARMIN_OAUTH_SCOPE");
 export const GARMIN_REDIRECT_URI = defineSecret("GARMIN_REDIRECT_URI");
 
+// Email (SendGrid)
+export const SENDGRID_API_KEY = defineSecret("SENDGRID_API_KEY");
+export const SENDGRID_FROM_EMAIL = defineSecret("SENDGRID_FROM_EMAIL");
+
 // RevenueCat
 export const REVENUECAT_PROJECT_ID = defineSecret("REVENUECAT_PROJECT_ID");
 // RevenueCat Secret API key (REST API) - server-only

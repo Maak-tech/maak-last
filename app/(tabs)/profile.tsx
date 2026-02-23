@@ -27,6 +27,7 @@ import {
   Bell,
   BookOpen,
   Brain,
+  Building2,
   Calendar,
   Calendar as CalendarIcon,
   Check,
@@ -95,6 +96,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
 import { useRealtimeHealthContext } from "@/contexts/RealtimeHealthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useMyOrganization } from "@/hooks/useMyOrganization";
 import { db } from "@/lib/firebase";
 import { calendarService } from "@/lib/services/calendarService";
 import {
@@ -240,6 +242,15 @@ export default function ProfileScreen() {
 
   const isRTL = i18n.language.toLowerCase().startsWith("ar");
   const isAdmin = user?.role === "admin";
+
+  // Org membership — available for org_admin, provider, care_coordinator roles
+  const { org: myOrg, member: myMember } = useMyOrganization();
+  const isOrgMember =
+    myOrg != null &&
+    myMember != null &&
+    ["org_admin", "provider", "care_coordinator", "viewer"].includes(
+      myMember.role
+    );
 
   const checkSyncStatus = useCallback(async () => {
     try {
@@ -1232,6 +1243,24 @@ export default function ProfileScreen() {
                 icon: CreditCard,
                 label: t("subscriptionAndMembers"),
                 onPress: () => router.push("/profile/admin-settings"),
+              },
+            ],
+          },
+        ]
+      : []),
+    // Organization section — for org_admin, provider, care_coordinator, viewer
+    ...(isOrgMember && myOrg
+      ? [
+          {
+            title: "Organization",
+            items: [
+              {
+                icon: Building2,
+                label: myOrg.name,
+                onPress: () =>
+                  router.push(
+                    `/(settings)/org?orgId=${encodeURIComponent(myOrg.id)}&orgName=${encodeURIComponent(myOrg.name)}` as never
+                  ),
               },
             ],
           },

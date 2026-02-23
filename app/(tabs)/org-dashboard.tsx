@@ -28,6 +28,7 @@ import {
 import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useMyOrganization } from "@/hooks/useMyOrganization";
 import { useOrganizationDashboard } from "@/hooks/useOrganizationDashboard";
 import type { SortField } from "@/lib/services/cohortRiskService";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
@@ -112,12 +113,9 @@ export default function OrgDashboardScreen() {
   const { user } = useAuth();
   const isRTL = i18n.language === "ar";
 
-  // In a real org context, orgId comes from the user's org membership.
-  // For now we read it from the user's metadata or a route param.
-  // This screen expects navigation param `orgId` passed via router.push.
-  // We derive it from router.params when expo-router exposes it,
-  // but as a tab screen we use a simple approach here:
-  const orgId: string | undefined = undefined; // TODO: derive from router params
+  // Derive orgId from the signed-in user's active organization membership.
+  const { org: myOrg } = useMyOrganization();
+  const orgId: string | undefined = myOrg?.id;
 
   const {
     org,
