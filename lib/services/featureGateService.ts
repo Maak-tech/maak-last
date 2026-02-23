@@ -135,6 +135,32 @@ export const FEATURES = {
     accessLevel: FeatureAccessLevel.PREMIUM_ANY,
     description: "Priority customer support",
   },
+
+  // New Monetization Features
+  DAILY_BRIEFING: {
+    id: "daily_briefing",
+    name: "Daily Health Briefing",
+    accessLevel: FeatureAccessLevel.PREMIUM_INDIVIDUAL,
+    description: "Personalized AI-generated morning health summary",
+  },
+  LAB_INSIGHTS: {
+    id: "lab_insights",
+    name: "Lab Results Intelligence",
+    accessLevel: FeatureAccessLevel.PREMIUM_INDIVIDUAL,
+    description: "AI analysis of lab results with trend tracking",
+  },
+  PREDICTIVE_SCORE: {
+    id: "predictive_score",
+    name: "Predictive Health Score",
+    accessLevel: FeatureAccessLevel.PREMIUM_INDIVIDUAL,
+    description: "7-day health score forecast based on your patterns",
+  },
+  MEDICATION_INTELLIGENCE: {
+    id: "medication_intelligence",
+    name: "Medication Intelligence",
+    accessLevel: FeatureAccessLevel.PREMIUM_INDIVIDUAL,
+    description: "Drug interaction warnings, refill predictions, and effectiveness insights",
+  },
 } as const;
 
 export type FeatureId = keyof typeof FEATURES;
