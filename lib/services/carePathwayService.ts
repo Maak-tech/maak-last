@@ -18,12 +18,12 @@ import {
   collection,
   doc,
   getDocs,
+  limit,
   orderBy,
   query,
   serverTimestamp,
   updateDoc,
   where,
-  limit,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type {
@@ -44,7 +44,10 @@ function toDate(v: unknown): Date {
   return new Date();
 }
 
-function mapDefinition(id: string, data: Record<string, unknown>): PathwayDefinition {
+function mapDefinition(
+  id: string,
+  data: Record<string, unknown>
+): PathwayDefinition {
   return {
     id,
     orgId: data.orgId as string,
@@ -58,7 +61,10 @@ function mapDefinition(id: string, data: Record<string, unknown>): PathwayDefini
   };
 }
 
-function mapEnrollment(id: string, data: Record<string, unknown>): PathwayEnrollment {
+function mapEnrollment(
+  id: string,
+  data: Record<string, unknown>
+): PathwayEnrollment {
   return {
     id,
     orgId: data.orgId as string,
@@ -77,13 +83,18 @@ function mapEnrollment(id: string, data: Record<string, unknown>): PathwayEnroll
 export function parseDelayMs(delay: string): number {
   const match = delay.match(/^(\d+)(m|h|d|w)$/);
   if (!match) return 0;
-  const n = parseInt(match[1], 10);
+  const n = Number.parseInt(match[1], 10);
   switch (match[2]) {
-    case "m": return n * 60 * 1000;
-    case "h": return n * 60 * 60 * 1000;
-    case "d": return n * 24 * 60 * 60 * 1000;
-    case "w": return n * 7 * 24 * 60 * 60 * 1000;
-    default: return 0;
+    case "m":
+      return n * 60 * 1000;
+    case "h":
+      return n * 60 * 60 * 1000;
+    case "d":
+      return n * 24 * 60 * 60 * 1000;
+    case "w":
+      return n * 7 * 24 * 60 * 60 * 1000;
+    default:
+      return 0;
   }
 }
 
@@ -284,10 +295,7 @@ class CarePathwayService {
   /**
    * Cancel an enrollment with a reason.
    */
-  async cancelEnrollment(
-    enrollmentId: string,
-    reason: string
-  ): Promise<void> {
+  async cancelEnrollment(enrollmentId: string, reason: string): Promise<void> {
     await updateDoc(doc(this.enrollmentsCol(), enrollmentId), {
       status: "cancelled",
       cancelledReason: reason,
@@ -317,10 +325,32 @@ class CarePathwayService {
           "30-day monitoring protocol for recently discharged patients",
         triggerCondition: "discharge",
         steps: [
-          { delay: "0m", action: "push_patient", actionParams: { message: "Welcome home! Please check in daily with your health readings." } },
-          { delay: "1d", action: "create_task", actionParams: { title: "Day 1 vital check-in", priority: "high" } },
-          { delay: "7d", action: "notify_provider", actionParams: { message: "1-week post-discharge follow-up due" } },
-          { delay: "30d", action: "create_task", actionParams: { title: "30-day outcome assessment", priority: "normal" } },
+          {
+            delay: "0m",
+            action: "push_patient",
+            actionParams: {
+              message:
+                "Welcome home! Please check in daily with your health readings.",
+            },
+          },
+          {
+            delay: "1d",
+            action: "create_task",
+            actionParams: { title: "Day 1 vital check-in", priority: "high" },
+          },
+          {
+            delay: "7d",
+            action: "notify_provider",
+            actionParams: { message: "1-week post-discharge follow-up due" },
+          },
+          {
+            delay: "30d",
+            action: "create_task",
+            actionParams: {
+              title: "30-day outcome assessment",
+              priority: "normal",
+            },
+          },
         ],
       },
       {
@@ -328,21 +358,73 @@ class CarePathwayService {
         description: "Escalating response to missed medications",
         triggerCondition: "medication_missed",
         steps: [
-          { delay: "0m", action: "push_patient", actionParams: { message: "Reminder: You have a medication due. Please take it now." } },
-          { delay: "2h", action: "push_patient", actionParams: { message: "Gentle reminder about your missed medication." } },
-          { delay: "24h", action: "create_task", actionParams: { title: "Follow up on missed medication", priority: "high" } },
-          { delay: "48h", action: "notify_provider", actionParams: { message: "Patient has missed medication for 2+ days" } },
+          {
+            delay: "0m",
+            action: "push_patient",
+            actionParams: {
+              message:
+                "Reminder: You have a medication due. Please take it now.",
+            },
+          },
+          {
+            delay: "2h",
+            action: "push_patient",
+            actionParams: {
+              message: "Gentle reminder about your missed medication.",
+            },
+          },
+          {
+            delay: "24h",
+            action: "create_task",
+            actionParams: {
+              title: "Follow up on missed medication",
+              priority: "high",
+            },
+          },
+          {
+            delay: "48h",
+            action: "notify_provider",
+            actionParams: {
+              message: "Patient has missed medication for 2+ days",
+            },
+          },
         ],
       },
       {
         name: "High Risk Engagement",
-        description: "Proactive outreach for patients with elevated risk scores",
+        description:
+          "Proactive outreach for patients with elevated risk scores",
         triggerCondition: "risk_escalated",
         steps: [
-          { delay: "0m", action: "create_task", actionParams: { title: "Risk escalation review", priority: "urgent" } },
-          { delay: "1h", action: "push_patient", actionParams: { message: "Your care team has been notified and will reach out soon." } },
-          { delay: "24h", action: "notify_provider", actionParams: { message: "24h check: risk status still elevated" } },
-          { delay: "7d", action: "create_task", actionParams: { title: "Weekly risk reassessment", priority: "high" } },
+          {
+            delay: "0m",
+            action: "create_task",
+            actionParams: {
+              title: "Risk escalation review",
+              priority: "urgent",
+            },
+          },
+          {
+            delay: "1h",
+            action: "push_patient",
+            actionParams: {
+              message:
+                "Your care team has been notified and will reach out soon.",
+            },
+          },
+          {
+            delay: "24h",
+            action: "notify_provider",
+            actionParams: { message: "24h check: risk status still elevated" },
+          },
+          {
+            delay: "7d",
+            action: "create_task",
+            actionParams: {
+              title: "Weekly risk reassessment",
+              priority: "high",
+            },
+          },
         ],
       },
     ];

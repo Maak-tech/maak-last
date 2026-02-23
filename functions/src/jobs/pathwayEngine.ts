@@ -23,16 +23,12 @@
  *   If condition is false, step is skipped and engine advances to onSuccess.
  */
 
-import {
-  FieldValue,
-  getFirestore,
-  Timestamp,
-} from "firebase-admin/firestore";
+import { FieldValue, getFirestore, Timestamp } from "firebase-admin/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { deliverWebhookEvent } from "../api/webhookDelivery";
 import { createTraceId } from "../observability/correlation";
 import { logger } from "../observability/logger";
 import { sendPushNotificationInternal } from "../services/notifications";
-import { deliverWebhookEvent } from "../api/webhookDelivery";
 
 const db = () => getFirestore();
 
@@ -73,9 +69,7 @@ type PatientContext = {
 
 // ─── Context Fetch ────────────────────────────────────────────────────────────
 
-async function getPatientContext(
-  userId: string
-): Promise<PatientContext> {
+async function getPatientContext(userId: string): Promise<PatientContext> {
   const vitalCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
   const [recentVital, missedMeds] = await Promise.all([
@@ -89,20 +83,28 @@ async function getPatientContext(
       .collection("medications")
       .where("userId", "==", userId)
       .where("status", "==", "active")
-      .where("lastMissedAt", ">=", Timestamp.fromDate(new Date(Date.now() - 8 * 60 * 60 * 1000)))
+      .where(
+        "lastMissedAt",
+        ">=",
+        Timestamp.fromDate(new Date(Date.now() - 8 * 60 * 60 * 1000))
+      )
       .get(),
   ]);
 
   let vitalsMissing = 0;
-  if (!recentVital.empty) {
+  if (recentVital.empty) {
+    vitalsMissing = 99; // never synced
+  } else {
     const lastTs = recentVital.docs[0].data().timestamp;
     const lastDate: Date =
-      lastTs && typeof lastTs.toDate === "function" ? lastTs.toDate() : new Date(lastTs);
+      lastTs && typeof lastTs.toDate === "function"
+        ? lastTs.toDate()
+        : new Date(lastTs);
     if (lastDate < vitalCutoff) {
-      vitalsMissing = Math.floor((Date.now() - lastDate.getTime()) / 86400000);
+      vitalsMissing = Math.floor(
+        (Date.now() - lastDate.getTime()) / 86_400_000
+      );
     }
-  } else {
-    vitalsMissing = 99; // never synced
   }
 
   return {
@@ -154,7 +156,9 @@ async function executeStep(
   try {
     switch (step.action) {
       case "push_patient": {
-        const message = (step.actionParams.message as string) ?? "A health check-in is needed.";
+        const message =
+          (step.actionParams.message as string) ??
+          "A health check-in is needed.";
         await sendPushNotificationInternal({
           traceId,
           userIds: [patientId],
@@ -171,26 +175,31 @@ async function executeStep(
       }
 
       case "create_task": {
-        const title = (step.actionParams.title as string) ?? "Pathway follow-up";
+        const title =
+          (step.actionParams.title as string) ?? "Pathway follow-up";
         const priority = (step.actionParams.priority as string) ?? "normal";
-        await db().collection("tasks").add({
-          orgId,
-          patientId,
-          assignedBy: "pathway",
-          assignedTo: null,
-          type: "follow_up",
-          priority,
-          source: "pathway",
-          status: "open",
-          title,
-          description: step.actionParams.description ?? null,
-          context: { reasonForTask: `Auto-created by care pathway step ${step.id}` },
-          dueAt: null,
-          completedAt: null,
-          completedBy: null,
-          createdAt: FieldValue.serverTimestamp(),
-          updatedAt: FieldValue.serverTimestamp(),
-        });
+        await db()
+          .collection("tasks")
+          .add({
+            orgId,
+            patientId,
+            assignedBy: "pathway",
+            assignedTo: null,
+            type: "follow_up",
+            priority,
+            source: "pathway",
+            status: "open",
+            title,
+            description: step.actionParams.description ?? null,
+            context: {
+              reasonForTask: `Auto-created by care pathway step ${step.id}`,
+            },
+            dueAt: null,
+            completedAt: null,
+            completedBy: null,
+            createdAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
         break;
       }
 
@@ -206,7 +215,8 @@ async function executeStep(
 
         if (providers.length > 0) {
           const message =
-            (step.actionParams.message as string) ?? "Patient requires attention.";
+            (step.actionParams.message as string) ??
+            "Patient requires attention.";
           await sendPushNotificationInternal({
             traceId,
             userIds: providers,
@@ -224,7 +234,8 @@ async function executeStep(
       }
 
       case "webhook": {
-        const event = (step.actionParams.event as string) ?? "patient.risk_escalated";
+        const event =
+          (step.actionParams.event as string) ?? "patient.risk_escalated";
         await deliverWebhookEvent(orgId, event as never, {
           patientId,
           enrollmentId: enrollment.id,
@@ -239,19 +250,25 @@ async function executeStep(
         const userSnap = await db().collection("users").doc(patientId).get();
         const email = userSnap.data()?.email as string | undefined;
         if (email) {
-          await db().collection("email_queue").add({
-            to: [email],
-            subject: (step.actionParams.subject as string) ?? "Health update from your care team",
-            bodyHtml: (step.actionParams.bodyHtml as string) ?? "<p>Your care team wanted to check in.</p>",
-            channel: "patient_digest",
-            orgId,
-            patientId,
-            status: "pending",
-            attempts: 0,
-            sentAt: null,
-            error: null,
-            createdAt: FieldValue.serverTimestamp(),
-          });
+          await db()
+            .collection("email_queue")
+            .add({
+              to: [email],
+              subject:
+                (step.actionParams.subject as string) ??
+                "Health update from your care team",
+              bodyHtml:
+                (step.actionParams.bodyHtml as string) ??
+                "<p>Your care team wanted to check in.</p>",
+              channel: "patient_digest",
+              orgId,
+              patientId,
+              status: "pending",
+              attempts: 0,
+              sentAt: null,
+              error: null,
+              createdAt: FieldValue.serverTimestamp(),
+            });
         }
         break;
       }
@@ -287,13 +304,18 @@ async function executeStep(
 function parseDelayMs(delay: string): number {
   const match = delay.match(/^(\d+)(m|h|d|w)$/);
   if (!match) return 0;
-  const n = parseInt(match[1], 10);
+  const n = Number.parseInt(match[1], 10);
   switch (match[2]) {
-    case "m": return n * 60 * 1000;
-    case "h": return n * 60 * 60 * 1000;
-    case "d": return n * 24 * 60 * 60 * 1000;
-    case "w": return n * 7 * 24 * 60 * 60 * 1000;
-    default: return 0;
+    case "m":
+      return n * 60 * 1000;
+    case "h":
+      return n * 60 * 60 * 1000;
+    case "d":
+      return n * 24 * 60 * 60 * 1000;
+    case "w":
+      return n * 7 * 24 * 60 * 60 * 1000;
+    default:
+      return 0;
   }
 }
 
@@ -313,7 +335,10 @@ export const pathwayEngine = onSchedule(
     const traceId = createTraceId();
     const now = new Date();
 
-    logger.info("Pathway engine cycle started", { traceId, fn: "pathwayEngine" });
+    logger.info("Pathway engine cycle started", {
+      traceId,
+      fn: "pathwayEngine",
+    });
 
     try {
       // Fetch all active enrollments due for processing
@@ -399,9 +424,10 @@ export const pathwayEngine = onSchedule(
           }
 
           // Determine next step id
-          const nextStepId = outcome === "success"
-            ? currentStep.onSuccess
-            : (currentStep.onFailure ?? currentStep.onSuccess);
+          const nextStepId =
+            outcome === "success"
+              ? currentStep.onSuccess
+              : (currentStep.onFailure ?? currentStep.onSuccess);
 
           if (!nextStepId) {
             // No next step — enrollment complete
@@ -422,7 +448,9 @@ export const pathwayEngine = onSchedule(
           }
 
           // Advance to next step
-          const nextStepAt = new Date(Date.now() + parseDelayMs(nextStep.delay));
+          const nextStepAt = new Date(
+            Date.now() + parseDelayMs(nextStep.delay)
+          );
           await enrollDoc.ref.update({
             currentStepId: nextStep.id,
             nextStepAt,

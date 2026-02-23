@@ -3,12 +3,12 @@ import {
   collection,
   doc,
   getDocs,
+  limit,
   orderBy,
   query,
   serverTimestamp,
   updateDoc,
   where,
-  limit,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type {
@@ -130,8 +130,13 @@ class TaskService {
       maxResults?: number;
     } = {}
   ): Promise<Task[]> {
-    const { status = "all", assignedTo, priority, patientId, maxResults = 50 } =
-      filters;
+    const {
+      status = "all",
+      assignedTo,
+      priority,
+      patientId,
+      maxResults = 50,
+    } = filters;
 
     let q = query(this.tasksCol(), where("orgId", "==", orgId));
 

@@ -81,9 +81,17 @@ class OfflineService {
   private networkCheckInterval: ReturnType<typeof setInterval> | null = null;
   private autoSyncInterval: ReturnType<typeof setInterval> | null = null;
   private isSyncing = false;
+  private isInitialized = false;
+  private initializationPromise: Promise<void> | null = null;
 
   constructor() {
-    this.initializeNetworkListener();
+    // Defer initialization to avoid blocking main thread during module load
+    // Use setTimeout to ensure this runs after the current call stack clears
+    setTimeout(() => {
+      this.initializeLazy().catch(() => {
+        // Silently handle initialization errors to prevent blocking app startup
+      });
+    }, 0);
   }
 
   /**
@@ -108,11 +116,47 @@ class OfflineService {
   }
 
   /**
-   * Initialize network status listener
+   * Lazy initialization - ensures initialization happens asynchronously
+   * and only once, even if called multiple times
    */
-  private async initializeNetworkListener() {
-    // Check initial network status
-    this.isOnline = await this.checkNetworkStatus();
+  private async initializeLazy(): Promise<void> {
+    if (this.isInitialized) {
+      return;
+    }
+
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
+    this.initializationPromise = this.initializeNetworkListener();
+    await this.initializationPromise;
+    this.isInitialized = true;
+  }
+
+  /**
+   * Ensure service is initialized before use
+   * This is called lazily when methods are invoked
+   */
+  private async ensureInitialized(): Promise<void> {
+    if (!this.isInitialized) {
+      await this.initializeLazy();
+    }
+  }
+
+  /**
+   * Initialize network status listener
+   * This now runs asynchronously after app startup to avoid blocking main thread
+   */
+  private async initializeNetworkListener(): Promise<void> {
+    // Defer the initial network check to avoid blocking during startup
+    // Use a small delay to allow Firestore listeners and other initialization to complete first
+    await new Promise<void>((resolve) => {
+      setTimeout(async () => {
+        // Check initial network status asynchronously
+        this.isOnline = await this.checkNetworkStatus();
+        resolve();
+      }, 100); // Small delay to let other initialization complete
+    });
 
     // Poll network status periodically
     this.networkCheckInterval = setInterval(async () => {
@@ -193,6 +237,11 @@ class OfflineService {
    * Subscribe to network status changes
    */
   onNetworkStatusChange(listener: (isOnline: boolean) => void): () => void {
+    // Trigger lazy initialization when someone subscribes
+    this.ensureInitialized().catch(() => {
+      // Silently handle initialization errors
+    });
+    
     if (!this.syncListeners) {
       this.syncListeners = [];
     }
@@ -210,6 +259,8 @@ class OfflineService {
   async queueOperation(
     operation: Omit<OfflineOperation, "id" | "timestamp" | "retries">
   ): Promise<string> {
+    // Ensure initialization is complete before using the service
+    await this.ensureInitialized();
     const queue = await this.getOfflineQueue();
     const newOperation: OfflineOperation = {
       ...operation,
@@ -649,6 +700,8 @@ class OfflineService {
    * Sync all queued operations
    */
   async syncAll(): Promise<{ success: number; failed: number }> {
+    // Ensure initialization is complete before syncing
+    await this.ensureInitialized();
     if (!this.isOnline) {
       return { success: 0, failed: 0 };
     }
@@ -699,6 +752,8 @@ class OfflineService {
     queueLength: number;
     lastSync: Date | null;
   }> {
+    // Ensure initialization is complete before getting status
+    await this.ensureInitialized();
     const queue = await this.getOfflineQueue();
     const offlineData = await this.getOfflineData();
 

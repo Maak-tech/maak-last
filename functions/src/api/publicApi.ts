@@ -20,9 +20,9 @@ import { FieldValue, getFirestore, Timestamp } from "firebase-admin/firestore";
 import * as functions from "firebase-functions";
 import type { Response } from "firebase-functions/v1";
 import {
-  authenticateApiKey,
-  assertScope,
   type ApiRequest,
+  assertScope,
+  authenticateApiKey,
 } from "../middleware/apiAuth";
 import { createTraceId } from "../observability/correlation";
 import { logger } from "../observability/logger";
@@ -50,13 +50,16 @@ function parseRoute(path: string): ParsedRoute {
   const id = parts[2];
   const action = parts[3];
 
-  if (!resource || !id || !action) return null;
+  if (!(resource && id && action)) return null;
 
   if (resource === "patients") {
     if (action === "vitals") return { route: "patient_vitals", patientId: id };
-    if (action === "anomalies") return { route: "patient_anomalies", patientId: id };
-    if (action === "risk-score") return { route: "patient_risk_score", patientId: id };
-    if (action === "medications") return { route: "patient_medications", patientId: id };
+    if (action === "anomalies")
+      return { route: "patient_anomalies", patientId: id };
+    if (action === "risk-score")
+      return { route: "patient_risk_score", patientId: id };
+    if (action === "medications")
+      return { route: "patient_medications", patientId: id };
   }
 
   if (resource === "cohorts" && action === "summary") {
@@ -101,7 +104,7 @@ async function assertPatientAccess(
     return false;
   }
 
-  if (!consentSnap.exists || !consentSnap.data()?.isActive) {
+  if (!(consentSnap.exists && consentSnap.data()?.isActive)) {
     res.status(403).json({
       error: "Patient has not consented to data access by this organization",
       code: "forbidden",
@@ -116,7 +119,10 @@ async function assertPatientAccess(
 
 /** Convert a Firestore timestamp-like value to an ISO string. */
 function toIso(value: unknown): string {
-  if (value && typeof (value as { toDate?: () => Date }).toDate === "function") {
+  if (
+    value &&
+    typeof (value as { toDate?: () => Date }).toDate === "function"
+  ) {
     return (value as { toDate: () => Date }).toDate().toISOString();
   }
   if (value instanceof Date) return value.toISOString();
@@ -185,14 +191,18 @@ async function handleGetAnomalies(
   if (!(await assertPatientAccess(res, req.apiAuth!.orgId, patientId))) return;
 
   const { days = "7", severity } = req.query as Record<string, string>;
-  const daysNum = Math.min(Math.max(parseInt(days, 10) || 7, 1), 90);
+  const daysNum = Math.min(Math.max(Number.parseInt(days, 10) || 7, 1), 90);
   const since = new Date(Date.now() - daysNum * 24 * 60 * 60 * 1000);
 
   let ref = db()
     .collection("users")
     .doc(patientId)
     .collection("anomalies")
-    .where("detectedAt", ">=", Timestamp.fromDate(since)) as FirebaseFirestore.Query;
+    .where(
+      "detectedAt",
+      ">=",
+      Timestamp.fromDate(since)
+    ) as FirebaseFirestore.Query;
 
   if (severity) {
     ref = ref.where("severity", "==", severity);
@@ -217,7 +227,10 @@ async function handleGetRiskScore(
   const rosterId = `${req.apiAuth!.orgId}_${patientId}`;
 
   // Get risk score from patient roster (set by our population health service)
-  const rosterSnap = await db().collection("patient_roster").doc(rosterId).get();
+  const rosterSnap = await db()
+    .collection("patient_roster")
+    .doc(rosterId)
+    .get();
   const rosterData = rosterSnap.data() ?? {};
 
   // Also fetch recent anomaly count for context
@@ -406,8 +419,16 @@ async function handlePostVitals(
   if (!assertScope(req, res, "vitals:write")) return;
   if (!(await assertPatientAccess(res, req.apiAuth!.orgId, patientId))) return;
 
-  const { type, value, unit, systolic, diastolic, source, deviceId, timestamp } =
-    req.body as Record<string, unknown>;
+  const {
+    type,
+    value,
+    unit,
+    systolic,
+    diastolic,
+    source,
+    deviceId,
+    timestamp,
+  } = req.body as Record<string, unknown>;
 
   // Basic validation
   if (!type || value === undefined || value === null || !unit) {
@@ -522,13 +543,17 @@ export const maakApi = functions.https.onRequest(async (rawReq, res) => {
         } else if (req.method === "POST") {
           await handlePostVitals(req, res, route.patientId);
         } else {
-          res.status(405).json({ error: "Method not allowed", code: "method_not_allowed" });
+          res
+            .status(405)
+            .json({ error: "Method not allowed", code: "method_not_allowed" });
         }
         break;
 
       case "patient_anomalies":
         if (req.method !== "GET") {
-          res.status(405).json({ error: "Method not allowed", code: "method_not_allowed" });
+          res
+            .status(405)
+            .json({ error: "Method not allowed", code: "method_not_allowed" });
           return;
         }
         await handleGetAnomalies(req, res, route.patientId);
@@ -536,7 +561,9 @@ export const maakApi = functions.https.onRequest(async (rawReq, res) => {
 
       case "patient_risk_score":
         if (req.method !== "GET") {
-          res.status(405).json({ error: "Method not allowed", code: "method_not_allowed" });
+          res
+            .status(405)
+            .json({ error: "Method not allowed", code: "method_not_allowed" });
           return;
         }
         await handleGetRiskScore(req, res, route.patientId);
@@ -544,7 +571,9 @@ export const maakApi = functions.https.onRequest(async (rawReq, res) => {
 
       case "patient_medications":
         if (req.method !== "GET") {
-          res.status(405).json({ error: "Method not allowed", code: "method_not_allowed" });
+          res
+            .status(405)
+            .json({ error: "Method not allowed", code: "method_not_allowed" });
           return;
         }
         await handleGetMedications(req, res, route.patientId);
@@ -552,7 +581,9 @@ export const maakApi = functions.https.onRequest(async (rawReq, res) => {
 
       case "cohort_summary":
         if (req.method !== "GET") {
-          res.status(405).json({ error: "Method not allowed", code: "method_not_allowed" });
+          res
+            .status(405)
+            .json({ error: "Method not allowed", code: "method_not_allowed" });
           return;
         }
         await handleGetCohortSummary(req, res, route.cohortId);
@@ -560,7 +591,9 @@ export const maakApi = functions.https.onRequest(async (rawReq, res) => {
 
       case "org_alerts":
         if (req.method !== "GET") {
-          res.status(405).json({ error: "Method not allowed", code: "method_not_allowed" });
+          res
+            .status(405)
+            .json({ error: "Method not allowed", code: "method_not_allowed" });
           return;
         }
         await handleGetOrgAlerts(req, res, route.orgId);

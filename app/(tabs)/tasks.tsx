@@ -70,7 +70,7 @@ function TaskCard({
 
   const formattedDate = (() => {
     const d = task.dueAt ?? task.createdAt;
-    const diff = Math.floor((Date.now() - d.getTime()) / 60000);
+    const diff = Math.floor((Date.now() - d.getTime()) / 60_000);
     if (diff < 60) return `${diff}m ago`;
     if (diff < 1440) return `${Math.floor(diff / 60)}h ago`;
     return d.toLocaleDateString();
@@ -113,13 +113,13 @@ function TaskCard({
         }}
       >
         {isCompleted ? (
-          <CheckCircle2 size={18} color="#10B981" />
+          <CheckCircle2 color="#10B981" size={18} />
         ) : isEscalated ? (
-          <AlertTriangle size={18} color="#EF4444" />
+          <AlertTriangle color="#EF4444" size={18} />
         ) : task.source === "agent" ? (
-          <Zap size={18} color="#3B82F6" />
+          <Zap color="#3B82F6" size={18} />
         ) : (
-          <Stethoscope size={18} color="#6B7280" />
+          <Stethoscope color="#6B7280" size={18} />
         )}
       </View>
 
@@ -185,7 +185,7 @@ function TaskCard({
 
           {/* Time chip */}
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-            <Clock size={10} color={theme.colors.text.secondary} />
+            <Clock color={theme.colors.text.secondary} size={10} />
             <Caption>{formattedDate}</Caption>
           </View>
 
@@ -208,7 +208,7 @@ function TaskCard({
       </View>
 
       {/* Complete button */}
-      {!isCompleted && !isEscalated ? (
+      {isCompleted || isEscalated ? null : (
         <TouchableOpacity
           onPress={(e) => {
             e.stopPropagation();
@@ -216,9 +216,9 @@ function TaskCard({
           }}
           style={{ padding: 6 }}
         >
-          <CheckCircle2 size={20} color={theme.colors.text.tertiary} />
+          <CheckCircle2 color={theme.colors.text.tertiary} size={20} />
         </TouchableOpacity>
-      ) : null}
+      )}
     </TouchableOpacity>
   );
 }
@@ -266,7 +266,7 @@ export default function TasksScreen() {
             gap: 12,
           }}
         >
-          <ClipboardList size={48} color={theme.colors.text.tertiary} />
+          <ClipboardList color={theme.colors.text.tertiary} size={48} />
           <TypographyText
             style={{
               color: theme.colors.text.secondary,
@@ -274,7 +274,9 @@ export default function TasksScreen() {
               fontSize: 15,
             }}
           >
-            {isRTL ? "مطلوب عضوية في منظمة" : "Organization membership required"}
+            {isRTL
+              ? "مطلوب عضوية في منظمة"
+              : "Organization membership required"}
           </TypographyText>
         </View>
       </WavyBackground>
@@ -297,7 +299,7 @@ export default function TasksScreen() {
         }}
       >
         <TouchableOpacity onPress={() => router.back()}>
-          <ChevronLeft size={24} color={theme.colors.text.primary} />
+          <ChevronLeft color={theme.colors.text.primary} size={24} />
         </TouchableOpacity>
 
         <View
@@ -308,7 +310,12 @@ export default function TasksScreen() {
           }}
         >
           <TypographyText
-            style={getTextStyle(theme, "heading", "bold", theme.colors.text.primary)}
+            style={getTextStyle(
+              theme,
+              "heading",
+              "bold",
+              theme.colors.text.primary
+            )}
           >
             {isRTL ? "قائمة المهام" : "Task Queue"}
           </TypographyText>
@@ -328,10 +335,10 @@ export default function TasksScreen() {
           ) : null}
         </View>
 
-        <TouchableOpacity onPress={refresh} disabled={refreshing}>
+        <TouchableOpacity disabled={refreshing} onPress={refresh}>
           <RefreshCw
-            size={20}
             color={theme.colors.text.secondary}
+            size={20}
             style={{ opacity: refreshing ? 0.5 : 1 }}
           />
         </TouchableOpacity>
@@ -352,8 +359,16 @@ export default function TasksScreen() {
             value: tasks.length,
             color: theme.colors.text.secondary,
           },
-          { label: isRTL ? "عاجل" : "Urgent", value: urgentCount, color: "#EF4444" },
-          { label: isRTL ? "مكتمل" : "Done", value: completedCount, color: "#10B981" },
+          {
+            label: isRTL ? "عاجل" : "Urgent",
+            value: urgentCount,
+            color: "#EF4444",
+          },
+          {
+            label: isRTL ? "مكتمل" : "Done",
+            value: completedCount,
+            color: "#10B981",
+          },
         ].map((stat) => (
           <View
             key={stat.label}
@@ -377,13 +392,13 @@ export default function TasksScreen() {
 
       {/* ── Status filter chips ── */}
       <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: 20,
           gap: 8,
           paddingBottom: 12,
         }}
+        horizontal
+        showsHorizontalScrollIndicator={false}
       >
         {STATUS_FILTERS.map((f) => {
           const active = statusFilter === f.key;
@@ -417,24 +432,27 @@ export default function TasksScreen() {
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={refresh} />
+          <RefreshControl onRefresh={refresh} refreshing={refreshing} />
         }
       >
         {loading ? (
           <ActivityIndicator
-            style={{ marginTop: 40 }}
             color={theme.colors.primary.main}
+            style={{ marginTop: 40 }}
           />
         ) : error ? (
           <View style={{ alignItems: "center", paddingTop: 40, gap: 8 }}>
-            <AlertTriangle size={32} color="#F97316" />
+            <AlertTriangle color="#F97316" size={32} />
             <Caption style={{ textAlign: "center" }}>{error}</Caption>
           </View>
         ) : tasks.length === 0 ? (
           <View style={{ alignItems: "center", paddingTop: 60, gap: 12 }}>
-            <ClipboardList size={48} color={theme.colors.text.tertiary} />
+            <ClipboardList color={theme.colors.text.tertiary} size={48} />
             <TypographyText
-              style={{ color: theme.colors.text.secondary, textAlign: "center" }}
+              style={{
+                color: theme.colors.text.secondary,
+                textAlign: "center",
+              }}
             >
               {isRTL ? "لا توجد مهام" : "No tasks"}
             </TypographyText>
@@ -447,14 +465,14 @@ export default function TasksScreen() {
         ) : (
           tasks.map((task) => (
             <TaskCard
-              key={task.id}
-              task={task}
               isRTL={isRTL}
-              theme={theme}
+              key={task.id}
               onComplete={() => completeTask(task.id, user?.id ?? "")}
               onPress={() => {
                 // Detail view — future Sprint
               }}
+              task={task}
+              theme={theme}
             />
           ))
         )}

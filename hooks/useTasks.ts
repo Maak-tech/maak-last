@@ -105,7 +105,12 @@ export function useTasks(options: UseTasksOptions): UseTasksReturn {
         setTasks((prev) =>
           prev.map((t) =>
             t.id === taskId
-              ? { ...t, status: "completed", completedAt: new Date(), completedBy }
+              ? {
+                  ...t,
+                  status: "completed",
+                  completedAt: new Date(),
+                  completedBy,
+                }
               : t
           )
         );
@@ -119,34 +124,32 @@ export function useTasks(options: UseTasksOptions): UseTasksReturn {
     if (isMountedRef.current) {
       setTasks((prev) =>
         prev.map((t) =>
+          t.id === taskId ? { ...t, assignedTo, status: "in_progress" } : t
+        )
+      );
+    }
+  }, []);
+
+  const escalateTask = useCallback(async (taskId: string, reason: string) => {
+    await taskService.escalateTask(taskId, reason);
+    if (isMountedRef.current) {
+      setTasks((prev) =>
+        prev.map((t) =>
           t.id === taskId
-            ? { ...t, assignedTo, status: "in_progress" }
+            ? { ...t, status: "escalated", priority: "urgent" as TaskPriority }
             : t
         )
       );
     }
   }, []);
 
-  const escalateTask = useCallback(
-    async (taskId: string, reason: string) => {
-      await taskService.escalateTask(taskId, reason);
-      if (isMountedRef.current) {
-        setTasks((prev) =>
-          prev.map((t) =>
-            t.id === taskId
-              ? { ...t, status: "escalated", priority: "urgent" as TaskPriority }
-              : t
-          )
-        );
-      }
-    },
-    []
-  );
-
   // ─── Derived ────────────────────────────────────────────────────────────────
 
   const urgentCount = tasks.filter(
-    (t) => t.priority === "urgent" && t.status !== "completed" && t.status !== "cancelled"
+    (t) =>
+      t.priority === "urgent" &&
+      t.status !== "completed" &&
+      t.status !== "cancelled"
   ).length;
 
   return {

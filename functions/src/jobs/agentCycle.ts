@@ -18,11 +18,7 @@
  * coordinator task queue in the org dashboard.
  */
 
-import {
-  FieldValue,
-  getFirestore,
-  Timestamp,
-} from "firebase-admin/firestore";
+import { FieldValue, getFirestore, Timestamp } from "firebase-admin/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { createTraceId } from "../observability/correlation";
 import { logger } from "../observability/logger";
@@ -72,11 +68,14 @@ async function sensePatient(
   userId: string,
   lastCycleAt: Date
 ): Promise<PatientSignals> {
-  const sinceNew = lastCycleAt.getTime() < Date.now() - ANOMALY_LOOKBACK_MS
-    ? lastCycleAt
-    : new Date(Date.now() - ANOMALY_LOOKBACK_MS);
+  const sinceNew =
+    lastCycleAt.getTime() < Date.now() - ANOMALY_LOOKBACK_MS
+      ? lastCycleAt
+      : new Date(Date.now() - ANOMALY_LOOKBACK_MS);
 
-  const medLookback = new Date(Date.now() - MED_LOOKBACK_HOURS * 60 * 60 * 1000);
+  const medLookback = new Date(
+    Date.now() - MED_LOOKBACK_HOURS * 60 * 60 * 1000
+  );
   const vitalCutoff = new Date(Date.now() - VITAL_STALE_HOURS * 60 * 60 * 1000);
 
   const [anomalySnap, missedMedSnap, recentVitalSnap, rosterSnap] =
@@ -139,7 +138,14 @@ async function sensePatient(
 
   const riskScore = (rosterSnap.data()?.riskScore as number) ?? 0;
 
-  return { userId, orgId, newAnomalies, missedMedCount, vitalStaleSince, riskScore };
+  return {
+    userId,
+    orgId,
+    newAnomalies,
+    missedMedCount,
+    vitalStaleSince,
+    riskScore,
+  };
 }
 
 // ─── REASON ───────────────────────────────────────────────────────────────────
@@ -164,7 +170,9 @@ function reasonAndDecide(signals: PatientSignals): AgentDecision {
       reasons.push(`risk score ${signals.riskScore}`);
     }
     if (signals.missedMedCount > 0) {
-      reasons.push(`${signals.missedMedCount} missed medication${signals.missedMedCount > 1 ? "s" : ""}`);
+      reasons.push(
+        `${signals.missedMedCount} missed medication${signals.missedMedCount > 1 ? "s" : ""}`
+      );
     }
 
     return {
@@ -191,9 +199,10 @@ function reasonAndDecide(signals: PatientSignals): AgentDecision {
   }
 
   if (taskReasons.length > 0) {
-    const priority = signals.riskScore >= 60 || signals.missedMedCount >= 3
-      ? "high"
-      : "normal";
+    const priority =
+      signals.riskScore >= 60 || signals.missedMedCount >= 3
+        ? "high"
+        : "normal";
 
     return {
       level: "task",
@@ -205,14 +214,16 @@ function reasonAndDecide(signals: PatientSignals): AgentDecision {
 
   // Nudge path: mild single warning or first missed med
   if (warningAnomalies.length === 1 || signals.missedMedCount === 1) {
-    const reason = warningAnomalies.length === 1
-      ? `${warningAnomalies[0].vitalType} anomaly detected`
-      : "medication was missed";
+    const reason =
+      warningAnomalies.length === 1
+        ? `${warningAnomalies[0].vitalType} anomaly detected`
+        : "medication was missed";
 
     return {
       level: "nudge",
       reasoning: reason,
-      nudgeMessage: `Your health monitor noticed something. Tap to review your recent readings.`,
+      nudgeMessage:
+        "Your health monitor noticed something. Tap to review your recent readings.",
     };
   }
 
@@ -338,11 +349,14 @@ async function verify(
   const nextCycleAt = new Date(now.getTime() + CYCLE_INTERVAL_MS);
 
   const actionEntry = {
-    type: decision.level === "none" ? "no_action" : decision.level === "nudge"
-      ? "patient_nudge"
-      : decision.level === "task"
-        ? "task_created"
-        : "escalation_triggered",
+    type:
+      decision.level === "none"
+        ? "no_action"
+        : decision.level === "nudge"
+          ? "patient_nudge"
+          : decision.level === "task"
+            ? "task_created"
+            : "escalation_triggered",
     timestamp: Timestamp.fromDate(cycleStartedAt),
     reasoning: decision.reasoning,
     outcome: "success",
@@ -448,7 +462,7 @@ export const agentCycle = onSchedule(
               .doc(orgId)
               .get();
 
-            if (!consentSnap.exists || !consentSnap.data()?.isActive) return;
+            if (!(consentSnap.exists && consentSnap.data()?.isActive)) return;
 
             const lastCycleAt = state?.lastCycleAt
               ? typeof state.lastCycleAt.toDate === "function"

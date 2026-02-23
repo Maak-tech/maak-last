@@ -644,7 +644,12 @@ export type TaskType =
 
 export type TaskPriority = "urgent" | "high" | "normal" | "low";
 
-export type TaskStatus = "open" | "in_progress" | "completed" | "escalated" | "cancelled";
+export type TaskStatus =
+  | "open"
+  | "in_progress"
+  | "completed"
+  | "escalated"
+  | "cancelled";
 
 export type TaskSource = "agent" | "manual" | "pathway" | "alert";
 
@@ -762,7 +767,11 @@ export type PathwayEnrollment = {
 
 // ─── Email Notifications (Sprint 6) ──────────────────────────────────────────
 
-export type EmailChannel = "weekly_report" | "critical_alert" | "patient_digest" | "org_summary";
+export type EmailChannel =
+  | "weekly_report"
+  | "critical_alert"
+  | "patient_digest"
+  | "org_summary";
 
 export type EmailTemplate = {
   id: string;

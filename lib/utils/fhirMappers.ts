@@ -111,7 +111,8 @@ export type FhirBundle = {
 
 const LOINC = "http://loinc.org";
 const UCUM = "http://unitsofmeasure.org";
-const OBS_CATEGORY = "http://terminology.hl7.org/CodeSystem/observation-category";
+const OBS_CATEGORY =
+  "http://terminology.hl7.org/CodeSystem/observation-category";
 
 type VitalLoinc = {
   code: string;
@@ -122,19 +123,79 @@ type VitalLoinc = {
 
 // Keyed by Firestore camelCase vital type
 const VITAL_LOINC: Record<string, VitalLoinc> = {
-  heartRate: { code: "8867-4", display: "Heart rate", ucum: "/min", displayUnit: "bpm" },
-  oxygenSaturation: { code: "59408-5", display: "Oxygen saturation by pulse oximetry", ucum: "%", displayUnit: "%" },
-  bodyTemperature: { code: "8310-5", display: "Body temperature", ucum: "Cel", displayUnit: "°C" },
-  respiratoryRate: { code: "9279-1", display: "Respiratory rate", ucum: "/min", displayUnit: "breaths/min" },
-  bloodGlucose: { code: "2339-0", display: "Glucose [Mass/volume] in Blood", ucum: "mg/dL", displayUnit: "mg/dL" },
-  weight: { code: "29463-7", display: "Body weight", ucum: "kg", displayUnit: "kg" },
-  height: { code: "8302-2", display: "Body height", ucum: "cm", displayUnit: "cm" },
-  bmi: { code: "39156-5", display: "Body mass index (BMI) [Ratio]", ucum: "kg/m2", displayUnit: "kg/m²" },
+  heartRate: {
+    code: "8867-4",
+    display: "Heart rate",
+    ucum: "/min",
+    displayUnit: "bpm",
+  },
+  oxygenSaturation: {
+    code: "59408-5",
+    display: "Oxygen saturation by pulse oximetry",
+    ucum: "%",
+    displayUnit: "%",
+  },
+  bodyTemperature: {
+    code: "8310-5",
+    display: "Body temperature",
+    ucum: "Cel",
+    displayUnit: "°C",
+  },
+  respiratoryRate: {
+    code: "9279-1",
+    display: "Respiratory rate",
+    ucum: "/min",
+    displayUnit: "breaths/min",
+  },
+  bloodGlucose: {
+    code: "2339-0",
+    display: "Glucose [Mass/volume] in Blood",
+    ucum: "mg/dL",
+    displayUnit: "mg/dL",
+  },
+  weight: {
+    code: "29463-7",
+    display: "Body weight",
+    ucum: "kg",
+    displayUnit: "kg",
+  },
+  height: {
+    code: "8302-2",
+    display: "Body height",
+    ucum: "cm",
+    displayUnit: "cm",
+  },
+  bmi: {
+    code: "39156-5",
+    display: "Body mass index (BMI) [Ratio]",
+    ucum: "kg/m2",
+    displayUnit: "kg/m²",
+  },
   // snake_case aliases (rules engine format — same LOINC)
-  heart_rate: { code: "8867-4", display: "Heart rate", ucum: "/min", displayUnit: "bpm" },
-  blood_oxygen: { code: "59408-5", display: "Oxygen saturation by pulse oximetry", ucum: "%", displayUnit: "%" },
-  temperature: { code: "8310-5", display: "Body temperature", ucum: "Cel", displayUnit: "°C" },
-  blood_glucose: { code: "2339-0", display: "Glucose [Mass/volume] in Blood", ucum: "mg/dL", displayUnit: "mg/dL" },
+  heart_rate: {
+    code: "8867-4",
+    display: "Heart rate",
+    ucum: "/min",
+    displayUnit: "bpm",
+  },
+  blood_oxygen: {
+    code: "59408-5",
+    display: "Oxygen saturation by pulse oximetry",
+    ucum: "%",
+    displayUnit: "%",
+  },
+  temperature: {
+    code: "8310-5",
+    display: "Body temperature",
+    ucum: "Cel",
+    displayUnit: "°C",
+  },
+  blood_glucose: {
+    code: "2339-0",
+    display: "Glucose [Mass/volume] in Blood",
+    ucum: "mg/dL",
+    displayUnit: "mg/dL",
+  },
 };
 
 const BP_PANEL: VitalLoinc = {
@@ -161,7 +222,10 @@ const DIASTOLIC_BP: VitalLoinc = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function toIso(value: unknown): string {
-  if (value && typeof (value as { toDate?: () => Date }).toDate === "function") {
+  if (
+    value &&
+    typeof (value as { toDate?: () => Date }).toDate === "function"
+  ) {
     return (value as { toDate: () => Date }).toDate().toISOString();
   }
   if (value instanceof Date) return value.toISOString();
@@ -170,7 +234,9 @@ function toIso(value: unknown): string {
 
 function vitalSignCategory(): FhirCodeableConcept {
   return {
-    coding: [{ system: OBS_CATEGORY, code: "vital-signs", display: "Vital Signs" }],
+    coding: [
+      { system: OBS_CATEGORY, code: "vital-signs", display: "Vital Signs" },
+    ],
   };
 }
 
@@ -210,7 +276,8 @@ export function vitalToObservation(
 
   // Blood pressure — compound observation
   if (isBP(type)) {
-    const systolicVal = (data.systolic as number) ?? (data.value as number) ?? 0;
+    const systolicVal =
+      (data.systolic as number) ?? (data.value as number) ?? 0;
     const diastolicVal = data.diastolic as number | undefined;
 
     const components: FhirObservationComponent[] = [
@@ -249,14 +316,10 @@ export function vitalToObservation(
     id,
     status: "final",
     category: [vitalSignCategory()],
-    code: loinc
-      ? loincCoding(loinc)
-      : { text: type },
+    code: loinc ? loincCoding(loinc) : { text: type },
     subject,
     effectiveDateTime,
-    valueQuantity: loinc
-      ? quantity(value, loinc)
-      : { value, unit },
+    valueQuantity: loinc ? quantity(value, loinc) : { value, unit },
   };
 }
 
@@ -272,9 +335,12 @@ export function medicationToMedicationRequest(
 ): FhirMedicationRequest {
   const rawStatus = (data.status as string) ?? "active";
   const status: FhirMedicationRequest["status"] =
-    rawStatus === "active" ? "active"
-      : rawStatus === "completed" ? "completed"
-        : rawStatus === "stopped" || rawStatus === "discontinued" ? "stopped"
+    rawStatus === "active"
+      ? "active"
+      : rawStatus === "completed"
+        ? "completed"
+        : rawStatus === "stopped" || rawStatus === "discontinued"
+          ? "stopped"
           : "unknown";
 
   const authoredOn = data.createdAt ? toIso(data.createdAt) : undefined;
@@ -291,15 +357,19 @@ export function medicationToMedicationRequest(
     intent: "order",
     medicationCodeableConcept: {
       coding: data.rxcui
-        ? [{ system: "http://www.nlm.nih.gov/research/umls/rxnorm", code: String(data.rxcui) }]
+        ? [
+            {
+              system: "http://www.nlm.nih.gov/research/umls/rxnorm",
+              code: String(data.rxcui),
+            },
+          ]
         : [],
       text: (data.name as string) ?? "Unknown medication",
     },
     subject: { reference: `Patient/${patientId}` },
     authoredOn,
-    dosageInstruction: dosageParts.length > 0
-      ? [{ text: dosageParts.join(", ") }]
-      : undefined,
+    dosageInstruction:
+      dosageParts.length > 0 ? [{ text: dosageParts.join(", ") }] : undefined,
   };
 }
 
@@ -319,9 +389,12 @@ export function userToPatient(
 
   const rawGender = (data.gender as string | undefined)?.toLowerCase();
   const gender: FhirPatient["gender"] =
-    rawGender === "male" ? "male"
-      : rawGender === "female" ? "female"
-        : rawGender ? "other"
+    rawGender === "male"
+      ? "male"
+      : rawGender === "female"
+        ? "female"
+        : rawGender
+          ? "other"
           : "unknown";
 
   const dob = data.dateOfBirth ?? data.birthDate;
@@ -345,7 +418,7 @@ export function userToPatient(
             use: "official",
             text: fullName,
             given: given.length > 0 ? given : [fullName],
-            family: family,
+            family,
           },
         ]
       : undefined,

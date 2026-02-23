@@ -19,11 +19,11 @@ import {
   addDoc,
   collection,
   getDocs,
+  limit,
   orderBy,
   query,
   serverTimestamp,
   where,
-  limit,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { EmailChannel } from "@/types";
@@ -142,7 +142,11 @@ export function buildWeeklyProviderDigest(params: {
   } = params;
 
   const now = new Date();
-  const weekStr = now.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const weekStr = now.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 
   const patientRows = topPatients
     .map(
@@ -340,12 +344,12 @@ class EmailService {
     return snap.docs.map((d) => {
       const data = d.data();
       const toDate = (v: unknown): Date | undefined => {
-        if (!v) return undefined;
+        if (!v) return;
         if (v instanceof Date) return v;
         if (typeof (v as { toDate?: () => Date }).toDate === "function") {
           return (v as { toDate: () => Date }).toDate();
         }
-        return undefined;
+        return;
       };
       return {
         id: d.id,

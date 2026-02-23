@@ -64,11 +64,7 @@ function generateRawKey(): string {
  * Falls back to a simple deterministic hash for environments without SubtleCrypto.
  */
 async function hashKey(key: string): Promise<string> {
-  if (
-    typeof crypto !== "undefined" &&
-    crypto.subtle &&
-    crypto.subtle.digest
-  ) {
+  if (typeof crypto !== "undefined" && crypto.subtle && crypto.subtle.digest) {
     const encoder = new TextEncoder();
     const data = encoder.encode(key);
     const hashBuffer = await crypto.subtle.digest("SHA-256", data);
@@ -185,10 +181,7 @@ class ApiKeyService {
   ): Promise<{ key: ApiKey; plaintext: string }> {
     // Get the existing key
     const existing = await getDocs(
-      query(
-        this.apiKeysCol(orgId),
-        where("isActive", "==", true)
-      )
+      query(this.apiKeysCol(orgId), where("isActive", "==", true))
     );
     const existingDoc = existing.docs.find((d) => d.id === keyId);
     if (!existingDoc) {

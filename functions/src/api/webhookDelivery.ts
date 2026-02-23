@@ -16,11 +16,11 @@
  */
 
 import { createHmac } from "crypto";
-import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
+import { FieldValue, getFirestore, Timestamp } from "firebase-admin/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
-import { logger } from "../observability/logger";
-import { createTraceId } from "../observability/correlation";
 import type { WebhookEventType } from "../../../types";
+import { createTraceId } from "../observability/correlation";
+import { logger } from "../observability/logger";
 
 const db = () => getFirestore();
 
@@ -36,7 +36,11 @@ const FETCH_TIMEOUT_MS = 10_000;
  * Generate HMAC-SHA256 signature for webhook payload.
  * Header: X-Maak-Signature: sha256=<hmac>
  */
-function signPayload(secret: string, payload: string, timestamp: number): string {
+function signPayload(
+  secret: string,
+  payload: string,
+  timestamp: number
+): string {
   const message = `${timestamp}.${payload}`;
   return `sha256=${createHmac("sha256", secret).update(message).digest("hex")}`;
 }
@@ -186,10 +190,12 @@ export async function deliverWebhookEvent(
           updateData.deliveredAt = FieldValue.serverTimestamp();
 
           // Update endpoint lastTriggeredAt
-          endpointDoc.ref.update({
-            lastTriggeredAt: FieldValue.serverTimestamp(),
-            failureCount: 0,
-          }).catch(() => {});
+          endpointDoc.ref
+            .update({
+              lastTriggeredAt: FieldValue.serverTimestamp(),
+              failureCount: 0,
+            })
+            .catch(() => {});
         } else {
           updateData.status = "failed";
           updateData.error = result.error ?? `HTTP ${result.responseCode}`;
@@ -203,9 +209,11 @@ export async function deliverWebhookEvent(
           }
 
           // Increment failure count on endpoint
-          endpointDoc.ref.update({
-            failureCount: (endpoint.failureCount as number ?? 0) + 1,
-          }).catch(() => {});
+          endpointDoc.ref
+            .update({
+              failureCount: ((endpoint.failureCount as number) ?? 0) + 1,
+            })
+            .catch(() => {});
         }
 
         await deliveryRef.update(updateData);
@@ -286,14 +294,20 @@ export const retryFailedWebhooks = onSchedule(
             .get();
 
           if (!endpointSnap.exists) {
-            await deliveryDoc.ref.update({ status: "dead", error: "Webhook endpoint deleted" });
+            await deliveryDoc.ref.update({
+              status: "dead",
+              error: "Webhook endpoint deleted",
+            });
             return;
           }
 
           const endpoint = endpointSnap.data()!;
 
           if (!endpoint.isActive) {
-            await deliveryDoc.ref.update({ status: "dead", error: "Webhook endpoint disabled" });
+            await deliveryDoc.ref.update({
+              status: "dead",
+              error: "Webhook endpoint disabled",
+            });
             return;
           }
 
@@ -316,10 +330,12 @@ export const retryFailedWebhooks = onSchedule(
             updateData.status = "delivered";
             updateData.deliveredAt = FieldValue.serverTimestamp();
             updateData.nextRetryAt = null;
-            endpointSnap.ref.update({
-              lastTriggeredAt: FieldValue.serverTimestamp(),
-              failureCount: 0,
-            }).catch(() => {});
+            endpointSnap.ref
+              .update({
+                lastTriggeredAt: FieldValue.serverTimestamp(),
+                failureCount: 0,
+              })
+              .catch(() => {});
           } else if (attemptNum < MAX_ATTEMPTS) {
             updateData.status = "failed";
             updateData.error = result.error ?? `HTTP ${result.responseCode}`;
@@ -332,9 +348,11 @@ export const retryFailedWebhooks = onSchedule(
             updateData.status = "dead";
             updateData.error = result.error ?? `HTTP ${result.responseCode}`;
             updateData.nextRetryAt = null;
-            endpointSnap.ref.update({
-              failureCount: (endpoint.failureCount as number ?? 0) + 1,
-            }).catch(() => {});
+            endpointSnap.ref
+              .update({
+                failureCount: ((endpoint.failureCount as number) ?? 0) + 1,
+              })
+              .catch(() => {});
           }
 
           await deliveryDoc.ref.update(updateData);

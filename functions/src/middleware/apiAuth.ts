@@ -9,10 +9,10 @@
  */
 
 import { createHash } from "crypto";
+import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import type { Request, Response } from "firebase-functions/v1";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
-import { logger } from "../observability/logger";
 import { createTraceId } from "../observability/correlation";
+import { logger } from "../observability/logger";
 
 const db = () => getFirestore();
 
@@ -57,10 +57,7 @@ function extractOrgId(req: Request): string | null {
 
 // ─── Rate Limiting (simple in-memory, resets per function instance) ───────────
 
-const requestCounts = new Map<
-  string,
-  { count: number; windowStart: number }
->();
+const requestCounts = new Map<string, { count: number; windowStart: number }>();
 
 function checkRateLimit(keyId: string, rateLimit: number): boolean {
   const now = Date.now();
@@ -148,7 +145,8 @@ export async function authenticateApiKey(
 
     // Check expiry
     if (keyData.expiresAt) {
-      const expiresAt = keyData.expiresAt.toDate?.() ?? new Date(keyData.expiresAt);
+      const expiresAt =
+        keyData.expiresAt.toDate?.() ?? new Date(keyData.expiresAt);
       if (expiresAt < new Date()) {
         res.status(401).json({
           error: "API key expired",
@@ -217,10 +215,7 @@ export async function authenticateApiKey(
 /**
  * Check if the authenticated key has a specific scope.
  */
-export function hasScope(
-  req: ApiRequest,
-  scope: string
-): boolean {
+export function hasScope(req: ApiRequest, scope: string): boolean {
   return req.apiAuth?.scopes.includes(scope) ?? false;
 }
 

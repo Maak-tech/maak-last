@@ -46,7 +46,10 @@ function mapEndpoint(
   };
 }
 
-function mapDelivery(id: string, data: Record<string, unknown>): WebhookDelivery {
+function mapDelivery(
+  id: string,
+  data: Record<string, unknown>
+): WebhookDelivery {
   return {
     id,
     webhookId: data.webhookId as string,
@@ -210,10 +213,7 @@ class WebhookService {
    * Re-generate the signing secret for a webhook endpoint.
    * Returns the new secret — old secret is immediately invalidated.
    */
-  async rotateSigningSecret(
-    orgId: string,
-    webhookId: string
-  ): Promise<string> {
+  async rotateSigningSecret(orgId: string, webhookId: string): Promise<string> {
     const newSecret = generateSigningSecret();
     await updateDoc(doc(this.endpointsCol(orgId), webhookId), {
       signingSecret: newSecret,

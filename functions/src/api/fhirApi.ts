@@ -28,21 +28,21 @@ import { FieldValue, getFirestore, Timestamp } from "firebase-admin/firestore";
 import * as functions from "firebase-functions";
 import type { Response } from "firebase-functions/v1";
 import {
-  authenticateApiKey,
-  assertScope,
-  type ApiRequest,
-} from "../middleware/apiAuth";
-import { createTraceId } from "../observability/correlation";
-import { logger } from "../observability/logger";
-import {
   buildPatientBundle,
   buildSearchBundle,
+  type FhirMedicationRequest,
+  type FhirObservation,
   medicationToMedicationRequest,
   userToPatient,
   vitalToObservation,
-  type FhirObservation,
-  type FhirMedicationRequest,
 } from "../../../lib/utils/fhirMappers";
+import {
+  type ApiRequest,
+  assertScope,
+  authenticateApiKey,
+} from "../middleware/apiAuth";
+import { createTraceId } from "../observability/correlation";
+import { logger } from "../observability/logger";
 
 const db = () => getFirestore();
 
@@ -81,12 +81,18 @@ async function assertPatientAccess(
   ]);
 
   if (!rosterSnap.exists || rosterSnap.data()?.status !== "active") {
-    res.status(403).type(FHIR_JSON).json(operationOutcome("403", "Patient not in organization roster"));
+    res
+      .status(403)
+      .type(FHIR_JSON)
+      .json(operationOutcome("403", "Patient not in organization roster"));
     return false;
   }
 
-  if (!consentSnap.exists || !consentSnap.data()?.isActive) {
-    res.status(403).type(FHIR_JSON).json(operationOutcome("403", "Missing active patient consent"));
+  if (!(consentSnap.exists && consentSnap.data()?.isActive)) {
+    res
+      .status(403)
+      .type(FHIR_JSON)
+      .json(operationOutcome("403", "Missing active patient consent"));
     return false;
   }
 
@@ -125,7 +131,10 @@ function handleSmartConfiguration(
     jwks_uri: `${base}/.well-known/jwks.json`,
     authorization_endpoint: `${base}/auth/authorize`,
     token_endpoint: `${base}/auth/token`,
-    token_endpoint_auth_methods_supported: ["private_key_jwt", "client_secret_basic"],
+    token_endpoint_auth_methods_supported: [
+      "private_key_jwt",
+      "client_secret_basic",
+    ],
     grant_types_supported: ["authorization_code", "client_credentials"],
     registration_endpoint: `${base}/auth/register`,
     scopes_supported: [
@@ -166,11 +175,17 @@ async function handleGetPatient(
 
   const snap = await db().collection("users").doc(patientId).get();
   if (!snap.exists) {
-    res.status(404).type(FHIR_JSON).json(operationOutcome("404", "Patient not found"));
+    res
+      .status(404)
+      .type(FHIR_JSON)
+      .json(operationOutcome("404", "Patient not found"));
     return;
   }
 
-  const patient = userToPatient(patientId, snap.data() as Record<string, unknown>);
+  const patient = userToPatient(
+    patientId,
+    snap.data() as Record<string, unknown>
+  );
   res.type(FHIR_JSON).json(patient);
 }
 
@@ -182,10 +197,17 @@ async function handleGetObservation(
 ): Promise<void> {
   if (!assertScope(req, res, "vitals:read")) return;
 
-  const { patient: patientId, category, date } = req.query as Record<string, string>;
+  const {
+    patient: patientId,
+    category,
+    date,
+  } = req.query as Record<string, string>;
 
   if (!patientId) {
-    res.status(400).type(FHIR_JSON).json(operationOutcome("400", "patient parameter required"));
+    res
+      .status(400)
+      .type(FHIR_JSON)
+      .json(operationOutcome("400", "patient parameter required"));
     return;
   }
 
@@ -217,7 +239,10 @@ async function handleGetObservation(
     observations = [];
   }
 
-  const bundle = buildSearchBundle(observations, fhirBaseUrl(req as functions.https.Request));
+  const bundle = buildSearchBundle(
+    observations,
+    fhirBaseUrl(req as functions.https.Request)
+  );
   res.type(FHIR_JSON).json(bundle);
 }
 
@@ -230,33 +255,41 @@ async function handlePostObservation(
   const body = req.body as Record<string, unknown>;
 
   if (body.resourceType !== "Observation") {
-    res.status(400).type(FHIR_JSON).json(
-      operationOutcome("400", "resourceType must be Observation")
-    );
+    res
+      .status(400)
+      .type(FHIR_JSON)
+      .json(operationOutcome("400", "resourceType must be Observation"));
     return;
   }
 
   // Extract patient reference: "Patient/{id}"
-  const subjectRef = (body.subject as Record<string, string> | undefined)?.reference ?? "";
+  const subjectRef =
+    (body.subject as Record<string, string> | undefined)?.reference ?? "";
   const patientId = subjectRef.replace(/^Patient\//, "");
 
   if (!patientId) {
-    res.status(400).type(FHIR_JSON).json(
-      operationOutcome("400", "subject.reference (Patient/{id}) required")
-    );
+    res
+      .status(400)
+      .type(FHIR_JSON)
+      .json(
+        operationOutcome("400", "subject.reference (Patient/{id}) required")
+      );
     return;
   }
 
   if (!(await assertPatientAccess(res, req.apiAuth!.orgId, patientId))) return;
 
   // Extract value from FHIR Observation
-  const valueQuantity = body.valueQuantity as Record<string, unknown> | undefined;
+  const valueQuantity = body.valueQuantity as
+    | Record<string, unknown>
+    | undefined;
   const code = body.code as Record<string, unknown> | undefined;
-  const codingArr = (code?.coding as Record<string, string>[] | undefined) ?? [];
+  const codingArr =
+    (code?.coding as Record<string, string>[] | undefined) ?? [];
   const loincCode = codingArr[0]?.code ?? "unknown";
 
-  const effective = (body.effectiveDateTime as string | undefined)
-    ?? new Date().toISOString();
+  const effective =
+    (body.effectiveDateTime as string | undefined) ?? new Date().toISOString();
 
   const vitalData = {
     userId: patientId,
@@ -272,12 +305,15 @@ async function handlePostObservation(
 
   const ref = await db().collection("vitals").add(vitalData);
 
-  res.status(201).type(FHIR_JSON).json({
-    resourceType: "Observation",
-    id: ref.id,
-    status: "final",
-    ...body,
-  });
+  res
+    .status(201)
+    .type(FHIR_JSON)
+    .json({
+      resourceType: "Observation",
+      id: ref.id,
+      status: "final",
+      ...body,
+    });
 }
 
 // ─── MedicationRequest Handler ────────────────────────────────────────────────
@@ -291,7 +327,10 @@ async function handleGetMedicationRequest(
   const { patient: patientId, status } = req.query as Record<string, string>;
 
   if (!patientId) {
-    res.status(400).type(FHIR_JSON).json(operationOutcome("400", "patient parameter required"));
+    res
+      .status(400)
+      .type(FHIR_JSON)
+      .json(operationOutcome("400", "patient parameter required"));
     return;
   }
 
@@ -314,22 +353,25 @@ async function handleGetMedicationRequest(
     medicationToMedicationRequest(d.id, d.data(), patientId)
   );
 
-  const bundle = buildSearchBundle(meds, fhirBaseUrl(req as functions.https.Request));
+  const bundle = buildSearchBundle(
+    meds,
+    fhirBaseUrl(req as functions.https.Request)
+  );
   res.type(FHIR_JSON).json(bundle);
 }
 
 // ─── Bundle Handler (full patient summary) ────────────────────────────────────
 
-async function handleGetBundle(
-  req: ApiRequest,
-  res: Response
-): Promise<void> {
+async function handleGetBundle(req: ApiRequest, res: Response): Promise<void> {
   if (!assertScope(req, res, "patients:read")) return;
 
   const { patient: patientId } = req.query as Record<string, string>;
 
   if (!patientId) {
-    res.status(400).type(FHIR_JSON).json(operationOutcome("400", "patient parameter required"));
+    res
+      .status(400)
+      .type(FHIR_JSON)
+      .json(operationOutcome("400", "patient parameter required"));
     return;
   }
 
@@ -355,11 +397,17 @@ async function handleGetBundle(
   ]);
 
   if (!userSnap.exists) {
-    res.status(404).type(FHIR_JSON).json(operationOutcome("404", "Patient not found"));
+    res
+      .status(404)
+      .type(FHIR_JSON)
+      .json(operationOutcome("404", "Patient not found"));
     return;
   }
 
-  const patient = userToPatient(patientId, userSnap.data() as Record<string, unknown>);
+  const patient = userToPatient(
+    patientId,
+    userSnap.data() as Record<string, unknown>
+  );
   const observations = vitalsSnap.docs.map((d) =>
     vitalToObservation(d.id, d.data(), patientId)
   );
@@ -388,7 +436,8 @@ type FhirRoute =
   | null;
 
 function parseFhirRoute(path: string): FhirRoute {
-  if (path === "/.well-known/smart-configuration") return { route: "smart_config" };
+  if (path === "/.well-known/smart-configuration")
+    return { route: "smart_config" };
 
   const parts = path.replace(/^\//, "").split("/");
   if (parts[0] !== "fhir" || parts[1] !== "r4") return null;
@@ -421,8 +470,10 @@ export const fhirApi = functions.https.onRequest(async (rawReq, res) => {
   // CORS — allow EHR iframe launchers
   res.set("Access-Control-Allow-Origin", "*");
   res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.set("Access-Control-Allow-Headers",
-    "Content-Type, Authorization, X-API-Key, X-Org-Id, Accept");
+  res.set(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-API-Key, X-Org-Id, Accept"
+  );
 
   if (req.method === "OPTIONS") {
     res.status(204).send("");
@@ -446,9 +497,10 @@ export const fhirApi = functions.https.onRequest(async (rawReq, res) => {
   }
 
   if (!route) {
-    res.status(404).type(FHIR_JSON).json(
-      operationOutcome("404", `Route not found: ${req.path}`)
-    );
+    res
+      .status(404)
+      .type(FHIR_JSON)
+      .json(operationOutcome("404", `Route not found: ${req.path}`));
     return;
   }
 
@@ -460,7 +512,10 @@ export const fhirApi = functions.https.onRequest(async (rawReq, res) => {
     switch (route.route) {
       case "patient":
         if (req.method !== "GET") {
-          res.status(405).type(FHIR_JSON).json(operationOutcome("405", "Method not allowed"));
+          res
+            .status(405)
+            .type(FHIR_JSON)
+            .json(operationOutcome("405", "Method not allowed"));
           return;
         }
         await handleGetPatient(req, res, route.id);
@@ -472,13 +527,19 @@ export const fhirApi = functions.https.onRequest(async (rawReq, res) => {
         } else if (req.method === "POST") {
           await handlePostObservation(req, res);
         } else {
-          res.status(405).type(FHIR_JSON).json(operationOutcome("405", "Method not allowed"));
+          res
+            .status(405)
+            .type(FHIR_JSON)
+            .json(operationOutcome("405", "Method not allowed"));
         }
         break;
 
       case "medication_request":
         if (req.method !== "GET") {
-          res.status(405).type(FHIR_JSON).json(operationOutcome("405", "Method not allowed"));
+          res
+            .status(405)
+            .type(FHIR_JSON)
+            .json(operationOutcome("405", "Method not allowed"));
           return;
         }
         await handleGetMedicationRequest(req, res);
@@ -486,14 +547,20 @@ export const fhirApi = functions.https.onRequest(async (rawReq, res) => {
 
       case "bundle":
         if (req.method !== "GET") {
-          res.status(405).type(FHIR_JSON).json(operationOutcome("405", "Method not allowed"));
+          res
+            .status(405)
+            .type(FHIR_JSON)
+            .json(operationOutcome("405", "Method not allowed"));
           return;
         }
         await handleGetBundle(req, res);
         break;
 
       default:
-        res.status(404).type(FHIR_JSON).json(operationOutcome("404", "Resource type not supported"));
+        res
+          .status(404)
+          .type(FHIR_JSON)
+          .json(operationOutcome("404", "Resource type not supported"));
     }
   } catch (err) {
     logger.error("FHIR API handler error", err as Error, {
@@ -502,8 +569,9 @@ export const fhirApi = functions.https.onRequest(async (rawReq, res) => {
       path: req.path,
       fn: "fhirApi",
     });
-    res.status(500).type(FHIR_JSON).json(
-      operationOutcome("500", "Internal server error")
-    );
+    res
+      .status(500)
+      .type(FHIR_JSON)
+      .json(operationOutcome("500", "Internal server error"));
   }
 });
