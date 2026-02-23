@@ -47,6 +47,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AnomalyDashboardSection from "@/app/components/AnomalyDashboardSection";
 import DiscoveryCardsSection from "@/app/components/DiscoveryCardsSection";
 import ProactiveHealthSuggestions from "@/app/components/ProactiveHealthSuggestions";
+import DailyBriefingCard from "@/components/DailyBriefingCard";
+import HealthScoreForecastCard from "@/components/HealthScoreForecastCard";
 import { Card } from "@/components/design-system";
 import { Heading, Text } from "@/components/design-system/Typography";
 import GradientScreen from "@/components/figma/GradientScreen";
@@ -2061,6 +2063,10 @@ export default function DashboardScreen() {
       case "healthInsights":
         return (
           <View key="healthInsights" style={styles.section as ViewStyle}>
+            {/* Daily AI Briefing — Premium Individual+ */}
+            <DailyBriefingCard userId={user?.id} />
+            {/* Health Score with 7-day forecast teaser */}
+            <HealthScoreForecastCard variant="home" userId={user?.id} />
             <ProactiveHealthSuggestions maxSuggestions={5} />
           </View>
         );

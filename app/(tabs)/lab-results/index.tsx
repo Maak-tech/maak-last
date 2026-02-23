@@ -38,6 +38,7 @@ import {
   Heading,
   Text as TypographyText,
 } from "@/components/design-system/Typography";
+import LabInsightsCard from "@/components/LabInsightsCard";
 import GradientScreen from "@/components/figma/GradientScreen";
 import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
@@ -577,6 +578,9 @@ export default function LabResultsScreen() {
           </View>
         </WavyBackground>
       </View>
+      {/* Lab AI Insights banner — Premium Individual+ */}
+      <LabInsightsCard variant="banner" userId={user?.id} />
+
       {/* Results List */}
       {loading ? (
         <View style={styles.emptyContainer as StyleProp<ViewStyle>}>

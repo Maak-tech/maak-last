@@ -37,6 +37,7 @@ import FamilyDataFilter, {
 } from "@/app/components/FamilyDataFilter";
 import MedicationInteractionWarning from "@/app/components/MedicationInteractionWarning";
 import MedicationRefillCard from "@/app/components/MedicationRefillCard";
+import MedicationIntelligenceCard from "@/components/MedicationIntelligenceCard";
 import TagInput from "@/app/components/TagInput";
 // Design System Components
 import { Button, Input } from "@/components/design-system";
@@ -1760,6 +1761,10 @@ export default function MedicationsScreen() {
             <MedicationRefillCard refillSummary={refillSummary} />
           </View>
         )}
+
+        <View style={styles.figmaMedicationSection}>
+          <MedicationIntelligenceCard userId={user?.id} />
+        </View>
 
         <View style={styles.figmaMedicationSection}>
           <MedicationInteractionWarning medications={displayMedications} />

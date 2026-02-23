@@ -42,6 +42,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import aiConsentService from "@/lib/services/aiConsentService";
 import { correlationDiscoveryService } from "@/lib/services/correlationDiscoveryService";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { safeFormatTime } from "@/utils/dateFormat";
 import healthContextService from "../../lib/services/healthContextService";
 import openaiService, {

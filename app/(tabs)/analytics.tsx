@@ -23,6 +23,8 @@ import { AIInsightsDashboard } from "@/app/components/AIInsightsDashboard";
 import CorrelationChart from "@/app/components/CorrelationChart";
 import HealthChart from "@/app/components/HealthChart";
 import TrendPredictionChart from "@/app/components/TrendPredictionChart";
+import HealthScoreForecastCard from "@/components/HealthScoreForecastCard";
+import LabInsightsCard from "@/components/LabInsightsCard";
 import GradientScreen from "@/components/figma/GradientScreen";
 import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
@@ -712,6 +714,16 @@ export default function AnalyticsScreen() {
               </View>
             </View>
           )}
+
+          {/* Health Score Forecast — Premium Individual+ hero */}
+          <View style={styles.section as ViewStyle}>
+            <HealthScoreForecastCard variant="analytics" userId={user?.id} />
+          </View>
+
+          {/* Lab Insights — Premium Individual+ */}
+          <View style={styles.section as ViewStyle}>
+            <LabInsightsCard variant="analytics" userId={user?.id} />
+          </View>
 
           {/* AI Insights Section */}
           <View style={styles.section as ViewStyle}>
