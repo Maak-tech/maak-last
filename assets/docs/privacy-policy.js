@@ -19,7 +19,7 @@ By using the Maak App, you agree to the practices described in this Privacy Poli
 - Profile information
 
 ### Health Information
-- Health metrics and data from Apple Health/Google Fit
+- Health metrics and data from connected health platforms (e.g., Apple Health, Google Fit, Garmin Connect, etc.)
 - Fitness tracking data
 - Medical history (if provided)
 - Health goals and preferences
@@ -45,7 +45,7 @@ We use the information we collect for the following purposes:
 ### Primary Services
 - Providing personalized health tracking and insights
 - Delivering medication reminders and health notifications
-- Synchronizing with health platforms (Apple Health, Google Fit)
+- Synchronizing with connected health platforms (Apple Health, Google Fit, Garmin Connect, etc.)
 - Generating health reports and analytics
 
 ### App Improvement
@@ -96,6 +96,12 @@ You can control this sharing and preview the information that may be sent in the
 ### Health Platform Integration
 - Apple Health (iOS)
 - Google Fit (Android)
+- Garmin Connect
+- Fitbit
+- Oura
+- Withings
+- Dexcom
+- Samsung Health
 - Other authorized health platforms (with your consent)
 
 ### Legal Requirements
@@ -202,4 +208,4 @@ This Privacy Policy complies with:
 
 ---
 
-*This Privacy Policy is effective as of December 2024 and supersedes any previous versions.*`;
+*This Privacy Policy is effective as of February 2026 and supersedes any previous versions.*`;

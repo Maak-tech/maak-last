@@ -52,6 +52,14 @@
         "source": "/samsung-health-callback",
         "destination": "/samsung-health-callback.html"
       },
+      {
+        "source": "/privacy-policy",
+        "destination": "/privacy-policy.html"
+      },
+      {
+        "source": "/terms-conditions",
+        "destination": "/terms-conditions.html"
+      },
 
       {
         "source": "/v1/**",

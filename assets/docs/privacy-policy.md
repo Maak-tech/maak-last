@@ -1,6 +1,6 @@
 # Maak Privacy Policy
 
-*Last Updated: December 2024*
+*Last Updated: February 2026*
 
 ## Introduction
 
@@ -19,7 +19,7 @@ By using the Maak App, you agree to the practices described in this Privacy Poli
 - Profile information
 
 ### Health Information
-- Health metrics and data from Apple Health/Google Fit
+- Health metrics and data from connected health platforms (e.g., Apple Health, Google Fit, Garmin Connect, etc.)
 - Fitness tracking data
 - Medical history (if provided)
 - Health goals and preferences
@@ -45,7 +45,7 @@ We use the information we collect for the following purposes:
 ### Primary Services
 - Providing personalized health tracking and insights
 - Delivering medication reminders and health notifications
-- Synchronizing with health platforms (Apple Health, Google Fit)
+- Synchronizing with connected health platforms (Apple Health, Google Fit, Garmin Connect, etc.)
 - Generating health reports and analytics
 
 ### App Improvement
@@ -76,9 +76,32 @@ We do not sell, trade, or rent your personal information to third parties. We ma
 - Customer support platforms
 - Push notification services
 
+### AI Features (Third-Party AI Provider)
+If you enable AI features (such as Zeina or AI Insights), we may share certain information with a third-party AI provider (**OpenAI**) to power those features. This may include:
+- Your AI chat messages and requests
+- Relevant health context you’ve entered or synced (such as profile details, medications, symptoms, and health metrics/summaries) to answer your request
+- For voice input features, an audio recording may be sent for speech-to-text transcription
+
+#### AI Privacy Approach (De-identify & Minimize)
+We use a “de-identify and minimize” approach for AI features. This means:
+- By default, we do not include your name in the AI context we send to OpenAI (unless you type it in chat).
+- We do not include contact details like email/phone/emergency contact in AI context.
+- Where possible, we remove exact dates/timestamps from AI context (e.g., we use time windows or years instead of full dates).
+- We redact obvious emails and phone numbers from text where possible.
+
+**Important:** If you type identifying information in chat (or say it during voice input), that information may be included in what is sent to the AI provider.
+
+You can control this sharing and preview the information that may be sent in the App under **Profile → AI Data Sharing**.
+
 ### Health Platform Integration
 - Apple Health (iOS)
 - Google Fit (Android)
+- Garmin Connect
+- Fitbit
+- Oura
+- Withings
+- Dexcom
+- Samsung Health
 - Other authorized health platforms (with your consent)
 
 ### Legal Requirements
@@ -185,4 +208,4 @@ This Privacy Policy complies with:
 
 ---
 
-*This Privacy Policy is effective as of December 2024 and supersedes any previous versions.*
+*This Privacy Policy is effective as of February 2026 and supersedes any previous versions.*
