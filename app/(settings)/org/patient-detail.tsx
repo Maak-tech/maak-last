@@ -23,6 +23,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   Clock,
+  GitBranch,
   Pill,
   Plus,
   RefreshCw,
@@ -58,8 +59,9 @@ import {
   populationHealthService,
   type PatientHealthSnapshot,
 } from "@/lib/services/populationHealthService";
+import { carePathwayService } from "@/lib/services/carePathwayService";
 import { taskService } from "@/lib/services/taskService";
-import type { Task, TaskPriority, TaskType } from "@/types";
+import type { PathwayDefinition, Task, TaskPriority, TaskType } from "@/types";
 import { getTextStyle } from "@/utils/styles";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -325,6 +327,8 @@ export default function PatientDetailScreen() {
   const [anomalies, setAnomalies] = useState<AnomalyRow[]>([]);
   const [medications, setMedications] = useState<MedRow[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [pathways, setPathways] = useState<PathwayDefinition[]>([]);
+  const [enrollingPathwayId, setEnrollingPathwayId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateTask, setShowCreateTask] = useState(false);
@@ -347,30 +351,27 @@ export default function PatientDetailScreen() {
     const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000);
 
     try {
-      const [snap, anomalySnap, medSnap, taskList] = await Promise.allSettled([
+      const results = await Promise.allSettled([
         populationHealthService.getPatientSnapshot(userId),
-
-        // Recent anomalies (7 days)
         getDocs(query(
           collection(db, "users", userId, "anomalies"),
           where("timestamp", ">=", Timestamp.fromDate(sevenDaysAgo)),
           orderBy("timestamp", "desc"),
           limit(20)
         )),
-
-        // Active medications
         getDocs(query(
           collection(db, "medications"),
           where("userId", "==", userId),
           where("isActive", "==", true),
           limit(20)
         )),
-
-        // Open/in-progress tasks for this patient
         taskService.listOrgTasks(orgId, { patientId: userId, status: "open", maxResults: 20 }),
-      ]);
+        carePathwayService.listPathways(orgId),
+      ] as const);
 
       if (!isMountedRef.current) return;
+
+      const [snap, anomalySnap, medSnap, taskList, pathwayList] = results;
 
       if (snap.status === "fulfilled") setSnapshot(snap.value);
 
@@ -380,9 +381,9 @@ export default function PatientDetailScreen() {
             const data = d.data();
             return {
               id: d.id,
-              vitalType: data.vitalType as string ?? "vital",
+              vitalType: (data.vitalType as string) ?? "vital",
               severity: data.severity as "critical" | "warning",
-              message: data.message as string ?? "",
+              message: (data.message as string) ?? "",
               timestamp: toDate(data.timestamp),
             };
           })
@@ -395,7 +396,7 @@ export default function PatientDetailScreen() {
             const data = d.data();
             return {
               id: d.id,
-              name: data.name as string ?? "Unknown",
+              name: (data.name as string) ?? "Unknown",
               dosage: data.dosage as string | undefined,
               frequency: data.frequency as string | undefined,
             };
@@ -404,6 +405,9 @@ export default function PatientDetailScreen() {
       }
 
       if (taskList.status === "fulfilled") setTasks(taskList.value);
+      if (pathwayList.status === "fulfilled") {
+        setPathways(pathwayList.value.filter((p) => p.isActive));
+      }
     } catch {
       // partial failures handled by Promise.allSettled above
     } finally {
@@ -433,6 +437,36 @@ export default function PatientDetailScreen() {
       },
     ]);
   }, [user?.id]);
+
+  const handleEnrollPathway = useCallback(async (pathway: PathwayDefinition) => {
+    if (!user?.id) return;
+    Alert.alert(
+      "Enroll in Pathway",
+      `Enroll ${patientName} in "${pathway.name}"? The first step will begin immediately.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Enroll",
+          onPress: async () => {
+            setEnrollingPathwayId(pathway.id);
+            try {
+              await carePathwayService.enrollPatient({
+                orgId,
+                patientId: userId,
+                pathwayId: pathway.id,
+                pathway,
+              });
+              Alert.alert("Enrolled", `${patientName} is now on the "${pathway.name}" pathway.`);
+            } catch (err) {
+              Alert.alert("Error", err instanceof Error ? err.message : "Failed to enroll.");
+            } finally {
+              setEnrollingPathwayId(null);
+            }
+          },
+        },
+      ]
+    );
+  }, [orgId, userId, patientName, user?.id]);
 
   const riskColor = snapshot ? RISK_COLORS[snapshot.riskLevel] : "#6B7280";
   const riskBg = snapshot ? RISK_BG[snapshot.riskLevel] : "#F9FAFB";
@@ -631,6 +665,54 @@ export default function PatientDetailScreen() {
                   </View>
                 </View>
               ))
+            )}
+
+            {/* Care Pathways */}
+            {pathways.length > 0 && (
+              <>
+                <SectionHeader label="Enroll in Care Pathway" theme={theme} />
+                {pathways.map((p) => (
+                  <View
+                    key={p.id}
+                    style={{
+                      backgroundColor: theme.colors.background.secondary,
+                      borderRadius: 10,
+                      padding: 12,
+                      marginBottom: 8,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 10,
+                    }}
+                  >
+                    <GitBranch size={16} color="#6366F1" />
+                    <View style={{ flex: 1 }}>
+                      <TypographyText style={{ color: theme.colors.text.primary, fontSize: 14, fontWeight: "600" }}>
+                        {p.name}
+                      </TypographyText>
+                      <Caption style={{ color: theme.colors.text.secondary }}>
+                        {p.steps.length} steps · {p.triggerCondition}
+                      </Caption>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => handleEnrollPathway(p)}
+                      disabled={enrollingPathwayId === p.id}
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 8,
+                        backgroundColor: "#EEF2FF",
+                        opacity: enrollingPathwayId === p.id ? 0.5 : 1,
+                      }}
+                    >
+                      {enrollingPathwayId === p.id ? (
+                        <ActivityIndicator size="small" color="#6366F1" />
+                      ) : (
+                        <Caption style={{ color: "#6366F1", fontWeight: "600" }}>Enroll</Caption>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </>
             )}
           </>
         )}

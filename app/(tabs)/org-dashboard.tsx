@@ -5,6 +5,7 @@ import {
   Building2,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
   RefreshCw,
   Search,
   Shield,
@@ -120,9 +121,11 @@ export default function OrgDashboardScreen() {
 
   // Prefer orgId from route params (when navigated from org hub),
   // fall back to the user's first active org membership.
-  const params = useLocalSearchParams<{ orgId?: string }>();
+  const params = useLocalSearchParams<{ orgId?: string; cohortId?: string; cohortName?: string }>();
   const { org: myOrg } = useMyOrganization();
   const orgId: string | undefined = params.orgId || myOrg?.id;
+  const cohortId: string | undefined = params.cohortId || undefined;
+  const cohortName: string | undefined = params.cohortName || undefined;
 
   const {
     org,
@@ -141,6 +144,7 @@ export default function OrgDashboardScreen() {
   } = useOrganizationDashboard(orgId, {
     autoLoad: true,
     refreshIntervalMs: 5 * 60 * 1000, // refresh every 5 minutes
+    cohortId,
   });
 
   // ─── Enroll Patient State ────────────────────────────────────────────────────
@@ -290,6 +294,17 @@ export default function OrgDashboardScreen() {
             >
               {org?.name ?? txt("Population Dashboard", "لوحة صحة المرضى")}
             </TypographyText>
+            <TouchableOpacity
+              onPress={() =>
+                router.push(
+                  `/(tabs)/tasks?orgId=${encodeURIComponent(orgId ?? "")}` as never
+                )
+              }
+              style={{ marginRight: 12 }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <ClipboardList color="#fff" size={20} />
+            </TouchableOpacity>
             <TouchableOpacity disabled={refreshing} onPress={refresh}>
               <RefreshCw
                 color={refreshing ? "rgba(255,255,255,0.5)" : "#fff"}
@@ -297,17 +312,33 @@ export default function OrgDashboardScreen() {
               />
             </TouchableOpacity>
           </View>
-          <Caption
-            style={{
-              color: "rgba(255,255,255,0.8)",
-              textAlign: isRTL ? "right" : "left",
-            }}
-          >
-            {txt(
-              "Real-time patient monitoring",
-              "مراقبة المرضى في الوقت الفعلي"
-            )}
-          </Caption>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Caption
+              style={{
+                color: "rgba(255,255,255,0.8)",
+                textAlign: isRTL ? "right" : "left",
+              }}
+            >
+              {txt(
+                "Real-time patient monitoring",
+                "مراقبة المرضى في الوقت الفعلي"
+              )}
+            </Caption>
+            {cohortName ? (
+              <View
+                style={{
+                  backgroundColor: "rgba(255,255,255,0.2)",
+                  borderRadius: 10,
+                  paddingHorizontal: 8,
+                  paddingVertical: 2,
+                }}
+              >
+                <Caption style={{ color: "#fff", fontWeight: "600" }}>
+                  {cohortName}
+                </Caption>
+              </View>
+            ) : null}
+          </View>
         </View>
       </WavyBackground>
 

@@ -12,8 +12,10 @@ import {
   Building2,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
   GitBranch,
   Key,
+  Layers,
   Shield,
   Users,
   Webhook,
@@ -255,6 +257,16 @@ export default function OrgSettingsHub() {
         />
 
         <NavItem
+          icon={<Layers size={22} color="#0D9488" />}
+          label="Patient Cohorts"
+          description="Group patients by condition, program, or risk tier"
+          onPress={() => navigate("cohorts")}
+          isRTL={isRTL}
+          theme={theme}
+          iconBg="#F0FDFA"
+        />
+
+        <NavItem
           icon={<Users size={22} color="#8B5CF6" />}
           label="Team Members"
           description="Manage providers, coordinators, and access roles"
@@ -262,6 +274,20 @@ export default function OrgSettingsHub() {
           isRTL={isRTL}
           theme={theme}
           iconBg="#F5F3FF"
+        />
+
+        <NavItem
+          icon={<ClipboardList size={22} color="#0EA5E9" />}
+          label="Task Queue"
+          description="Open tasks and coordinator work queue"
+          onPress={() =>
+            router.push(
+              `/(tabs)/tasks?orgId=${encodeURIComponent(orgId)}` as never
+            )
+          }
+          isRTL={isRTL}
+          theme={theme}
+          iconBg="#F0F9FF"
         />
 
         {/* — Integration — */}

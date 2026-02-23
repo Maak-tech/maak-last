@@ -16,6 +16,7 @@ import type { Organization } from "@/types";
 type UseOrganizationDashboardOptions = {
   autoLoad?: boolean;
   refreshIntervalMs?: number; // 0 = no auto-refresh
+  cohortId?: string; // filter roster to this cohort
 };
 
 type RiskFilter = "all" | "critical" | "high" | "elevated" | "normal";
@@ -43,7 +44,7 @@ export function useOrganizationDashboard(
   orgId: string | null | undefined,
   options: UseOrganizationDashboardOptions = {}
 ): UseOrganizationDashboardReturn {
-  const { autoLoad = true, refreshIntervalMs = 0 } = options;
+  const { autoLoad = true, refreshIntervalMs = 0, cohortId } = options;
 
   const [org, setOrg] = useState<Organization | null>(null);
   const [rankedPatients, setRankedPatients] = useState<RankedPatient[]>([]);
@@ -75,7 +76,7 @@ export function useOrganizationDashboard(
       try {
         const [organization, roster] = await Promise.all([
           organizationService.getOrganization(orgId),
-          organizationService.listPatientRoster(orgId, { status: "active" }),
+          organizationService.listPatientRoster(orgId, { status: "active", cohortId }),
         ]);
 
         if (!isMountedRef.current) return;
@@ -104,7 +105,7 @@ export function useOrganizationDashboard(
         }
       }
     },
-    [orgId, sortBy]
+    [orgId, sortBy, cohortId]
   );
 
   const refresh = useCallback(async () => {
