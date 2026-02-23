@@ -1074,6 +1074,14 @@ export { checkSymptomBenchmarks } from "./triggers/symptoms";
 // Re-export vitals trigger
 export { checkVitalBenchmarks } from "./triggers/vitals";
 
+// ─── Sprint 3: Integration Surface ────────────────────────────────────────────
+
+// Public REST API (API-key authenticated)
+export { maakApi } from "./api/publicApi";
+
+// Outbound webhook delivery + retry scheduler
+export { retryFailedWebhooks } from "./api/webhookDelivery";
+
 /**
  * Fitbit Webhook Handler
  * Handles Fitbit subscriber notifications for real-time data updates

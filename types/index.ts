@@ -559,3 +559,75 @@ export type PatientConsent = {
   revokedBy?: string;
   isActive: boolean;
 };
+
+// ─── API Keys (Integration Surface) ──────────────────────────────────────────
+
+export type ApiKeyScope =
+  | "vitals:read"
+  | "vitals:write"
+  | "medications:read"
+  | "anomalies:read"
+  | "alerts:read"
+  | "risk:read"
+  | "org:read"
+  | "patients:read";
+
+export type ApiKey = {
+  id: string;
+  orgId: string;
+  name: string;
+  keyPrefix: string; // First 16 chars for display (e.g., "mk_live_a1b2c3d4")
+  keyHash: string; // SHA-256 hash stored for server-side lookup
+  scopes: ApiKeyScope[];
+  rateLimit: number; // requests per minute
+  isActive: boolean;
+  createdAt: Date;
+  createdBy: string;
+  lastUsedAt?: Date;
+  expiresAt?: Date;
+};
+
+// ─── Outbound Webhooks ────────────────────────────────────────────────────────
+
+export type WebhookEventType =
+  | "vital.anomaly"
+  | "vital.critical"
+  | "alert.created"
+  | "alert.resolved"
+  | "medication.missed"
+  | "patient.risk_escalated"
+  | "discovery.new"
+  | "wearable.synced";
+
+export type WebhookEndpoint = {
+  id: string;
+  orgId: string;
+  name: string;
+  url: string;
+  signingSecret: string; // HMAC-SHA256 signing secret
+  events: WebhookEventType[];
+  isActive: boolean;
+  createdAt: Date;
+  createdBy: string;
+  lastTriggeredAt?: Date;
+  failureCount: number;
+};
+
+export type WebhookDeliveryStatus = "pending" | "delivered" | "failed" | "dead";
+
+export type WebhookDelivery = {
+  id: string;
+  webhookId: string;
+  orgId: string;
+  event: WebhookEventType;
+  payload: Record<string, unknown>;
+  status: WebhookDeliveryStatus;
+  responseCode?: number;
+  responseBody?: string;
+  attempts: number;
+  maxAttempts: number;
+  nextRetryAt?: Date;
+  deliveredAt?: Date;
+  createdAt: Date;
+  error?: string;
+};
