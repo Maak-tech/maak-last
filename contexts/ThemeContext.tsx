@@ -113,15 +113,15 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     setThemeMode("light");
   }, [setThemeMode]);
 
+  const value = useMemo<ThemeContextType>(
+    () => ({ theme, themeMode, isDark, setThemeMode, toggleTheme }),
+    [theme, themeMode, setThemeMode, toggleTheme]
+  );
+
   // Don't render until theme is loaded
   if (!isLoaded) {
     return null;
   }
-
-  const value = useMemo<ThemeContextType>(
-    () => ({ theme, themeMode, isDark, setThemeMode, toggleTheme }),
-    [theme, themeMode, isDark, setThemeMode, toggleTheme]
-  );
 
   return (
     <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>

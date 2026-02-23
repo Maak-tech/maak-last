@@ -248,9 +248,7 @@ export default function OrgProfileScreen() {
             ...(org?.settings.branding ?? {}),
             primaryColor,
           },
-          ...(retentionYears !== null
-            ? { retentionYears }
-            : { retentionYears: null }),
+          ...(retentionYears !== null ? { retentionYears } : {}),
         },
       });
       setOrg((prev) =>
@@ -264,6 +262,7 @@ export default function OrgProfileScreen() {
                 timezone,
                 dataRegion,
                 branding: { ...prev.settings.branding, primaryColor },
+                retentionYears: retentionYears ?? undefined,
               },
             }
           : prev

@@ -382,7 +382,15 @@ export function userToPatient(
   id: string,
   data: Record<string, unknown>
 ): FhirPatient {
-  const fullName = (data.name as string | undefined)?.trim();
+  // Support current firstName/lastName schema and legacy name field.
+  const firstName = (data.firstName as string | undefined)?.trim();
+  const lastName = (data.lastName as string | undefined)?.trim();
+  const legacyName = (data.name as string | undefined)?.trim();
+  const fullName =
+    firstName || lastName
+      ? [firstName, lastName].filter(Boolean).join(" ")
+      : legacyName;
+
   const parts = fullName?.split(/\s+/) ?? [];
   const given = parts.slice(0, -1);
   const family = parts.at(-1);
@@ -404,8 +412,10 @@ export function userToPatient(
   if (data.email) {
     telecom.push({ system: "email", value: data.email as string, use: "home" });
   }
-  if (data.phone) {
-    telecom.push({ system: "phone", value: data.phone as string });
+  // Support current phoneNumber field and legacy phone field.
+  const phone = (data.phoneNumber ?? data.phone) as string | undefined;
+  if (phone) {
+    telecom.push({ system: "phone", value: phone });
   }
 
   return {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   cohortRiskService,
   type RankedPatient,
@@ -146,7 +146,7 @@ export function useOrganizationDashboard(
 
   // ─── Derived: filtered + searched list ─────────────────────────────────────
 
-  const filteredPatients = (() => {
+  const filteredPatients = useMemo(() => {
     let list = cohortRiskService.filterByRisk(rankedPatients, riskFilter);
 
     if (searchQuery.trim()) {
@@ -156,7 +156,7 @@ export function useOrganizationDashboard(
     }
 
     return list;
-  })();
+  }, [rankedPatients, riskFilter, searchQuery]);
 
   return {
     org,
