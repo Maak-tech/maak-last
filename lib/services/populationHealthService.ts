@@ -46,9 +46,7 @@ function toDate(v: unknown): Date | null {
   return null;
 }
 
-function riskLevelFromScore(
-  score: number
-): PatientHealthSnapshot["riskLevel"] {
+function riskLevelFromScore(score: number): PatientHealthSnapshot["riskLevel"] {
   if (score >= 70) return "critical";
   if (score >= 45) return "high";
   if (score >= 20) return "elevated";
@@ -101,8 +99,7 @@ class PopulationHealthService {
       vitalsResult.status === "fulfilled" ? vitalsResult.value : null;
     const alertCount =
       alertsResult.status === "fulfilled" ? alertsResult.value : 0;
-    const missedMeds =
-      medsResult.status === "fulfilled" ? medsResult.value : 0;
+    const missedMeds = medsResult.status === "fulfilled" ? medsResult.value : 0;
 
     // ─── Composite Risk Score ─────────────────────────────────────────────────
     let riskScore = 0;
@@ -116,10 +113,7 @@ class PopulationHealthService {
     // Vital sync recency (max 20 points)
     if (!lastVital) {
       riskScore += 20; // No vitals in 48h
-    } else if (
-      lastVital.getTime() <
-      now.getTime() - 24 * 60 * 60 * 1000
-    ) {
+    } else if (lastVital.getTime() < now.getTime() - 24 * 60 * 60 * 1000) {
       riskScore += 10; // No vitals in 24h
     }
 

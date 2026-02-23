@@ -10,11 +10,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type {
-  ConsentGrantMethod,
-  ConsentScope,
-  PatientConsent,
-} from "@/types";
+import type { ConsentGrantMethod, ConsentScope, PatientConsent } from "@/types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -26,10 +22,7 @@ function toDate(v: unknown): Date {
   return new Date();
 }
 
-function mapConsent(
-  id: string,
-  data: Record<string, unknown>
-): PatientConsent {
+function mapConsent(id: string, data: Record<string, unknown>): PatientConsent {
   return {
     id,
     userId: data.userId as string,
@@ -101,7 +94,7 @@ class ConsentService {
   ): Promise<void> {
     const ref = this.consentRef(userId, orgId);
     const snap = await getDoc(ref);
-    if (!snap.exists() || !snap.data().isActive) return;
+    if (!(snap.exists() && snap.data().isActive)) return;
 
     await updateDoc(ref, {
       isActive: false,
@@ -132,7 +125,7 @@ class ConsentService {
     requiredScopes?: ConsentScope[]
   ): Promise<boolean> {
     const consent = await this.getConsent(userId, orgId);
-    if (!consent || !consent.isActive) return false;
+    if (!(consent && consent.isActive)) return false;
 
     if (requiredScopes && requiredScopes.length > 0) {
       return requiredScopes.every((s) => consent.scope.includes(s));
@@ -150,7 +143,7 @@ class ConsentService {
     additionalScopes: ConsentScope[]
   ): Promise<void> {
     const consent = await this.getConsent(userId, orgId);
-    if (!consent || !consent.isActive) {
+    if (!(consent && consent.isActive)) {
       throw new Error("No active consent to update");
     }
 

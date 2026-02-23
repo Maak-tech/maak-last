@@ -2,8 +2,8 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import { I18nManager, Platform } from "react-native";
-import enTranslations from "@/locales/en.json";
 import arTranslations from "@/locales/ar.json";
+import enTranslations from "@/locales/en.json";
 
 const resources = {
   en: { translation: enTranslations },

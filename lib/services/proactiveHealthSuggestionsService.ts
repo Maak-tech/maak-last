@@ -605,10 +605,40 @@ class ProactiveHealthSuggestionsService {
         medicalHistory,
         vitals,
       ] = await Promise.all([
-        medicationService.getUserMedications(userId),
-        symptomService.getUserSymptoms(userId, 30),
-        moodService.getUserMoods(userId, 30),
-        healthContextService.getUserHealthContext(userId),
+        medicationService
+          .getUserMedications(userId)
+          .catch(() => [] as Medication[]),
+        symptomService.getUserSymptoms(userId, 30).catch(() => [] as Symptom[]),
+        moodService.getUserMoods(userId, 30).catch(() => [] as Mood[]),
+        healthContextService.getUserHealthContext(userId).catch(
+          () =>
+            ({
+              profile: {
+                name: "",
+                age: 0,
+                gender: "",
+                bloodType: "",
+                height: "",
+                weight: "",
+                emergencyContact: "",
+              },
+              medicalHistory: {
+                conditions: [],
+                allergies: [],
+                surgeries: [],
+                familyHistory: [],
+              },
+              medications: [],
+              symptoms: [],
+              familyMembers: [],
+              familyInsights: [],
+              insightsMetrics: null,
+              userDetailedInsights: [],
+              topDiscoveries: [],
+              recentAlerts: [],
+              vitalSigns: {},
+            }) as HealthContext
+        ),
         alertService
           .getUserAlerts(userId, 20)
           .catch(() => [] as EmergencyAlert[]),

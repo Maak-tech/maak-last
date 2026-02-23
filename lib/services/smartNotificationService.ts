@@ -4518,7 +4518,6 @@ class SmartNotificationService {
   }
 }
 
-
 export { NotificationResponseHandler } from "./notification/notificationResponseHandler";
 
 export const smartNotificationService = new SmartNotificationService();

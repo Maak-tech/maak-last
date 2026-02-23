@@ -1,7 +1,7 @@
 import type { PatientRoster } from "@/types";
 import {
-  populationHealthService,
   type PatientHealthSnapshot,
+  populationHealthService,
 } from "./populationHealthService";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -79,13 +79,9 @@ class CohortRiskService {
     patients: RankedPatient[],
     hoursThreshold = 24
   ): RankedPatient[] {
-    const cutoff = new Date(
-      Date.now() - hoursThreshold * 60 * 60 * 1000
-    );
+    const cutoff = new Date(Date.now() - hoursThreshold * 60 * 60 * 1000);
     return patients.filter(
-      (p) =>
-        !p.snapshot.lastVitalSyncAt ||
-        p.snapshot.lastVitalSyncAt < cutoff
+      (p) => !p.snapshot.lastVitalSyncAt || p.snapshot.lastVitalSyncAt < cutoff
     );
   }
 

@@ -28,6 +28,8 @@ const METRIC_TO_VITAL_TYPE: Record<string, string> = {
   heart_rate_variability: "heartRateVariability",
   walking_heart_rate_average: "walkingHeartRateAverage",
   blood_pressure: "bloodPressure",
+  blood_pressure_systolic: "bloodPressureSystolic",
+  blood_pressure_diastolic: "bloodPressureDiastolic",
   respiratory_rate: "respiratoryRate",
   blood_oxygen: "oxygenSaturation",
   body_temperature: "bodyTemperature",
@@ -58,6 +60,8 @@ function getVitalUnit(vitalType: string): string {
     heartRateVariability: "ms",
     walkingHeartRateAverage: "bpm",
     bloodPressure: "mmHg",
+    bloodPressureSystolic: "mmHg",
+    bloodPressureDiastolic: "mmHg",
     respiratoryRate: "bpm",
     oxygenSaturation: "%",
     bodyTemperature: "°C",
@@ -170,6 +174,8 @@ const VITAL_TYPE_TO_RULES_FORMAT: Record<string, string> = {
   restingHeartRate: "heart_rate",
   oxygenSaturation: "blood_oxygen",
   bloodPressure: "systolic_bp",
+  bloodPressureSystolic: "systolic_bp",
+  bloodPressureDiastolic: "diastolic_bp",
   bodyTemperature: "temperature",
   bloodGlucose: "blood_glucose",
   respiratoryRate: "respiratory_rate",
@@ -440,6 +446,10 @@ export async function saveIntegrationVitalsToFirestore(
 
           // Handle blood pressure separately (has systolic/diastolic)
           const sampleMetadata = getSampleMetadata(sample);
+          const timestamp = sample.startDate
+            ? new Date(sample.startDate)
+            : new Date();
+
           if (vitalType === "bloodPressure" && sampleMetadata) {
             const systolic =
               typeof sampleMetadata.systolic === "number"
@@ -451,13 +461,13 @@ export async function saveIntegrationVitalsToFirestore(
                 : undefined;
 
             if (diastolic !== undefined) {
-              // Save systolic value with metadata
+              // Save systolic as separate vital sample for anomaly detection
               await saveVitalSample(
                 userId,
-                "bloodPressure",
+                "bloodPressureSystolic",
                 systolic,
-                unit,
-                new Date(sample.startDate),
+                getVitalUnit("bloodPressureSystolic"),
+                timestamp,
                 provider,
                 {
                   systolic,
@@ -466,13 +476,64 @@ export async function saveIntegrationVitalsToFirestore(
                 }
               );
               savedCount += 1;
+
+              // Save diastolic as separate vital sample for anomaly detection
+              await saveVitalSample(
+                userId,
+                "bloodPressureDiastolic",
+                diastolic,
+                getVitalUnit("bloodPressureDiastolic"),
+                timestamp,
+                provider,
+                {
+                  systolic,
+                  diastolic,
+                  ...sampleMetadata,
+                }
+              );
+              savedCount += 1;
+            } else {
+              // Only systolic available, save as systolic
+              await saveVitalSample(
+                userId,
+                "bloodPressureSystolic",
+                systolic,
+                getVitalUnit("bloodPressureSystolic"),
+                timestamp,
+                provider,
+                {
+                  systolic,
+                  ...sampleMetadata,
+                }
+              );
+              savedCount += 1;
             }
+          } else if (vitalType === "bloodPressureSystolic") {
+            // Handle systolic-only metric
+            await saveVitalSample(
+              userId,
+              "bloodPressureSystolic",
+              value,
+              unit,
+              timestamp,
+              provider,
+              sampleMetadata
+            );
+            savedCount += 1;
+          } else if (vitalType === "bloodPressureDiastolic") {
+            // Handle diastolic-only metric
+            await saveVitalSample(
+              userId,
+              "bloodPressureDiastolic",
+              value,
+              unit,
+              timestamp,
+              provider,
+              sampleMetadata
+            );
+            savedCount += 1;
           } else {
             // Regular vital sign
-            const timestamp = sample.startDate
-              ? new Date(sample.startDate)
-              : new Date();
-
             await saveVitalSample(
               userId,
               vitalType,

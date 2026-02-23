@@ -14,22 +14,21 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Medication, Mood, Symptom } from "@/types";
-import { medicationService } from "./medicationService";
-import { symptomService } from "./symptomService";
-
-import {
-  detectTemporalPatterns,
-  detectMedicationCorrelations,
-  detectTrends,
-  detectVitalTrends,
-  detectVitalRanges,
-  detectIntegrationSpecificInsights,
-} from "./healthPatternDetectionService";
 import {
   calculateMedicationCompliance,
   generatePredictiveInsights,
   rankInsights,
 } from "./healthInsightScoringService";
+import {
+  detectIntegrationSpecificInsights,
+  detectMedicationCorrelations,
+  detectTemporalPatterns,
+  detectTrends,
+  detectVitalRanges,
+  detectVitalTrends,
+} from "./healthPatternDetectionService";
+import { medicationService } from "./medicationService";
+import { symptomService } from "./symptomService";
 
 export type PatternInsight = {
   type: "temporal" | "correlation" | "trend" | "recommendation" | "ml";

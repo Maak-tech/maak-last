@@ -2,9 +2,11 @@
 /* biome-ignore-all lint/style/noNestedTernary: Risk-level branching uses compact conditionals. */
 import type { Medication, Mood, Symptom } from "@/types";
 import { coerceToDate } from "@/utils/dateCoercion";
-import type { VitalSample } from "./healthPatternDetectionService";
+import type {
+  PatternInsight,
+  VitalSample,
+} from "./healthPatternDetectionService";
 import { getVitalDisplayName } from "./healthPatternDetectionService";
-import type { PatternInsight } from "./healthPatternDetectionService";
 
 // ─── Math helpers ─────────────────────────────────────────────────────────────
 
@@ -101,11 +103,7 @@ export function scoreSymptomBurden(
   return Math.round(clamp(frequencyScore + severityScore, 0, 100));
 }
 
-export function scoreMoodRisk(
-  moods: Mood[],
-  start: Date,
-  end: Date
-): number {
+export function scoreMoodRisk(moods: Mood[], start: Date, end: Date): number {
   const inWindow = moods.filter(
     (mood) => mood.timestamp >= start && mood.timestamp < end
   );
@@ -181,7 +179,13 @@ export function getVitalAnomalySignals(vitals: VitalSample[]): Array<{
     const zScore = Math.abs((latest.value - baseline) / stdDev);
     if (zScore < 1.8) continue;
 
-    anomalies.push({ type, zScore, latest: latest.value, baseline, unit: latest.unit });
+    anomalies.push({
+      type,
+      zScore,
+      latest: latest.value,
+      baseline,
+      unit: latest.unit,
+    });
   }
 
   return anomalies.sort((a, b) => b.zScore - a.zScore);
@@ -203,7 +207,11 @@ export function generatePredictiveInsights(
   const symptomRisk = scoreSymptomBurden(symptoms, start, end);
   const moodRisk = scoreMoodRisk(moods, start, end);
   const sleepRisk = scoreSleepRisk(vitals);
-  const { compliance, missedDoses } = calculateMedicationCompliance(medications, start, end);
+  const { compliance, missedDoses } = calculateMedicationCompliance(
+    medications,
+    start,
+    end
+  );
   const medicationRisk = clamp(
     100 - compliance + Math.min(20, missedDoses * 2),
     0,
@@ -237,7 +245,9 @@ export function generatePredictiveInsights(
     moods.filter((m) => m.timestamp >= start && m.timestamp < end).length +
     vitals.length +
     medications.length * 2;
-  const confidence = Math.round(clamp(55 + Math.min(35, evidencePoints / 3), 55, 92));
+  const confidence = Math.round(
+    clamp(55 + Math.min(35, evidencePoints / 3), 55, 92)
+  );
 
   const riskLevel =
     riskScore >= 67 ? "high" : riskScore >= 40 ? "moderate" : "low";
@@ -303,7 +313,13 @@ export function generatePredictiveInsights(
       data: {
         riskScore,
         riskLevel,
-        features: { symptomRisk, medicationRisk, moodRisk, anomalyRisk, sleepRisk },
+        features: {
+          symptomRisk,
+          medicationRisk,
+          moodRisk,
+          anomalyRisk,
+          sleepRisk,
+        },
         topDrivers: drivers,
       },
     });

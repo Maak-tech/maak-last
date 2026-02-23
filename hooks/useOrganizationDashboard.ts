@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { organizationService } from "@/lib/services/organizationService";
-import {
-  populationHealthService,
-  type PopulationSummary,
-} from "@/lib/services/populationHealthService";
 import {
   cohortRiskService,
   type RankedPatient,
   type SortField,
 } from "@/lib/services/cohortRiskService";
-import type { Organization, PatientRoster } from "@/types";
+import { organizationService } from "@/lib/services/organizationService";
+import {
+  type PopulationSummary,
+  populationHealthService,
+} from "@/lib/services/populationHealthService";
+import type { Organization } from "@/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -82,10 +82,7 @@ export function useOrganizationDashboard(
 
         setOrg(organization);
 
-        const ranked = await cohortRiskService.rankPatients(
-          roster,
-          sortBy
-        );
+        const ranked = await cohortRiskService.rankPatients(roster, sortBy);
 
         if (!isMountedRef.current) return;
 
@@ -96,7 +93,9 @@ export function useOrganizationDashboard(
         setSummary(pop);
       } catch (err) {
         if (isMountedRef.current) {
-          setError(err instanceof Error ? err.message : "Failed to load dashboard");
+          setError(
+            err instanceof Error ? err.message : "Failed to load dashboard"
+          );
         }
       } finally {
         if (isMountedRef.current) {
@@ -152,9 +151,7 @@ export function useOrganizationDashboard(
     if (searchQuery.trim()) {
       // Filtering by userId here; the PatientRosterCard resolves names from context
       const q = searchQuery.toLowerCase();
-      list = list.filter((p) =>
-        p.roster.userId.toLowerCase().includes(q)
-      );
+      list = list.filter((p) => p.roster.userId.toLowerCase().includes(q));
     }
 
     return list;

@@ -292,7 +292,9 @@ export default function ProactiveHealthSuggestions({
         </View>
         <View style={styles.emptyContainer}>
           <Lightbulb color={theme.colors.text.secondary} size={24} />
-          <TypographyText style={[styles.emptyText, { marginTop: theme.spacing.sm }]}>
+          <TypographyText
+            style={[styles.emptyText, { marginTop: theme.spacing.sm }]}
+          >
             {isRTL
               ? "لا توجد اقتراحات حالياً. استمر في تتبع صحتك للحصول على رؤى مخصصة!"
               : "No suggestions right now. Keep tracking your health for personalized insights!"}

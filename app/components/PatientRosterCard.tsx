@@ -136,13 +136,11 @@ export default function PatientRosterCard({
   })();
 
   return (
-    <TouchableOpacity onPress={onPress} disabled={!onPress} activeOpacity={0.7}>
+    <TouchableOpacity activeOpacity={0.7} disabled={!onPress} onPress={onPress}>
       <Card style={styles.card}>
         {/* Top row: risk dot + name + risk badge */}
         <View style={styles.row}>
-          <View
-            style={[styles.riskDot, { backgroundColor: riskColor }]}
-          />
+          <View style={[styles.riskDot, { backgroundColor: riskColor }]} />
           <View style={styles.nameColumn}>
             <TypographyText
               style={[
@@ -158,12 +156,7 @@ export default function PatientRosterCard({
               {displayName}
             </TypographyText>
           </View>
-          <View
-            style={[
-              styles.riskBadge,
-              { backgroundColor: riskBgColor },
-            ]}
-          >
+          <View style={[styles.riskBadge, { backgroundColor: riskBgColor }]}>
             <Caption
               style={{
                 color: riskColor,
@@ -181,7 +174,7 @@ export default function PatientRosterCard({
         <View style={styles.metricsRow}>
           {/* Last sync */}
           <View style={styles.metricChip}>
-            <Clock size={12} color={theme.colors.text.secondary} />
+            <Clock color={theme.colors.text.secondary} size={12} />
             <Caption style={{ color: theme.colors.text.secondary }}>
               {lastSyncText}
             </Caption>
@@ -191,12 +184,12 @@ export default function PatientRosterCard({
           {snapshot.recentAnomalies.total > 0 && (
             <View style={styles.metricChip}>
               <AlertTriangle
-                size={12}
                 color={
                   snapshot.recentAnomalies.critical > 0
                     ? RISK_COLORS.critical
                     : RISK_COLORS.elevated
                 }
+                size={12}
               />
               <Caption
                 style={{
@@ -216,7 +209,7 @@ export default function PatientRosterCard({
           {/* Missed medications */}
           {snapshot.missedMedicationsToday > 0 && (
             <View style={styles.metricChip}>
-              <Pill size={12} color={RISK_COLORS.high} />
+              <Pill color={RISK_COLORS.high} size={12} />
               <Caption style={{ color: RISK_COLORS.high }}>
                 {isRTL
                   ? `${snapshot.missedMedicationsToday} جرعة فائتة`
@@ -228,7 +221,7 @@ export default function PatientRosterCard({
           {/* Active alerts */}
           {snapshot.activeAlerts > 0 && (
             <View style={styles.metricChip}>
-              <Activity size={12} color={theme.colors.text.secondary} />
+              <Activity color={theme.colors.text.secondary} size={12} />
               <Caption style={{ color: theme.colors.text.secondary }}>
                 {isRTL
                   ? `${snapshot.activeAlerts} تنبيه`
@@ -242,7 +235,7 @@ export default function PatientRosterCard({
             snapshot.missedMedicationsToday === 0 &&
             snapshot.activeAlerts === 0 && (
               <View style={styles.metricChip}>
-                <User size={12} color={RISK_COLORS.normal} />
+                <User color={RISK_COLORS.normal} size={12} />
                 <Caption style={{ color: RISK_COLORS.normal }}>
                   {isRTL ? "وضع جيد" : "All clear"}
                 </Caption>

@@ -12,11 +12,11 @@
  * the client SDK path.
  */
 
+import { FieldValue, getFirestore } from "firebase-admin/firestore";
 /* biome-ignore-all lint/performance/noNamespaceImport: firebase-functions v1 https.HttpsError is consumed through namespace API here. */
 import * as functions from "firebase-functions";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import type { ConsentScope, OrgRole } from "../../../types";
 import type { AuthContext } from "./authContext";
-import type { OrgRole, ConsentScope } from "../../../types";
 
 const db = () => getFirestore();
 
@@ -70,7 +70,7 @@ export async function getOrgRole(
   userId: string
 ): Promise<OrgRole | null> {
   const member = await getOrgMember(orgId, userId);
-  if (!member || !member.isActive) return null;
+  if (!(member && member.isActive)) return null;
   return member.role;
 }
 
@@ -88,9 +88,7 @@ export async function isOrgProvider(
 ): Promise<boolean> {
   const role = await getOrgRole(orgId, userId);
   return (
-    role === "org_admin" ||
-    role === "provider" ||
-    role === "care_coordinator"
+    role === "org_admin" || role === "provider" || role === "care_coordinator"
   );
 }
 
@@ -196,7 +194,9 @@ export async function assertCanReadPatientInOrg(
   patientUserId: string,
   requiredScopes?: ConsentScope[]
 ): Promise<void> {
-  if (!(await canReadPatientInOrg(orgId, actor, patientUserId, requiredScopes))) {
+  if (
+    !(await canReadPatientInOrg(orgId, actor, patientUserId, requiredScopes))
+  ) {
     throw new functions.https.HttpsError(
       "permission-denied",
       "Access denied: insufficient role or missing patient consent"
@@ -240,10 +240,12 @@ export async function recordOrgAudit(params: {
   denialReason?: string;
 }): Promise<void> {
   try {
-    await db().collection("audit_trail").add({
-      ...params,
-      timestamp: FieldValue.serverTimestamp(),
-    });
+    await db()
+      .collection("audit_trail")
+      .add({
+        ...params,
+        timestamp: FieldValue.serverTimestamp(),
+      });
   } catch {
     // Audit logging must never throw
   }

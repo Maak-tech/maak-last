@@ -632,16 +632,12 @@ export function detectTrends(
     const olderMoods = moods.slice(Math.floor(moods.length / 2));
 
     const recentAvg =
-      recentMoods.reduce((sum, m) => sum + m.intensity, 0) /
-      recentMoods.length;
+      recentMoods.reduce((sum, m) => sum + m.intensity, 0) / recentMoods.length;
     const olderAvg =
       olderMoods.reduce((sum, m) => sum + m.intensity, 0) / olderMoods.length;
 
     if (recentAvg > olderAvg + 0.5) {
-      const localizedText = getLocalizedInsightText(
-        "improvingMood",
-        isArabic
-      );
+      const localizedText = getLocalizedInsightText("improvingMood", isArabic);
       insights.push({
         type: "trend",
         title: localizedText.title,
@@ -650,10 +646,7 @@ export function detectTrends(
         actionable: false,
       });
     } else if (recentAvg < olderAvg - 0.5) {
-      const localizedText = getLocalizedInsightText(
-        "decliningMood",
-        isArabic
-      );
+      const localizedText = getLocalizedInsightText("decliningMood", isArabic);
       insights.push({
         type: "trend",
         title: localizedText.title,
@@ -886,8 +879,7 @@ export function detectIntegrationSpecificInsights(
     if (readings.length < 3) {
       return null;
     }
-    const avg =
-      readings.reduce((sum, r) => sum + r.value, 0) / readings.length;
+    const avg = readings.reduce((sum, r) => sum + r.value, 0) / readings.length;
     const unit = readings[0]?.unit;
     return { avg, unit };
   };
@@ -1029,11 +1021,7 @@ export function detectIntegrationSpecificInsights(
     }
 
     if (hrvProviders.includes(provider)) {
-      const hrv = getAverageForType(
-        providerVitals,
-        "heartRateVariability",
-        7
-      );
+      const hrv = getAverageForType(providerVitals, "heartRateVariability", 7);
       if (hrv && hrv.avg < 30) {
         const localizedText = getLocalizedInsightText(
           "integrationLowHrv",

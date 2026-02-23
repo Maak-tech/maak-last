@@ -15,17 +15,17 @@ import {
   RefreshControl,
   ScrollView,
   TextInput,
+  type TextStyle,
   TouchableOpacity,
   View,
-  type TextStyle,
   type ViewStyle,
 } from "react-native";
-import WavyBackground from "@/components/figma/WavyBackground";
+import PatientRosterCard from "@/app/components/PatientRosterCard";
 import {
   Caption,
   Text as TypographyText,
 } from "@/components/design-system/Typography";
-import PatientRosterCard from "@/app/components/PatientRosterCard";
+import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useOrganizationDashboard } from "@/hooks/useOrganizationDashboard";
@@ -95,7 +95,9 @@ function StatCard({
       >
         {value}
       </TypographyText>
-      <Caption style={{ color: theme.colors.text.secondary, textAlign: "center" }}>
+      <Caption
+        style={{ color: theme.colors.text.secondary, textAlign: "center" }}
+      >
         {label}
       </Caption>
     </View>
@@ -240,12 +242,16 @@ export default function OrgDashboardScreen() {
         <View style={styles.header}>
           <View style={styles.headerRow}>
             <TouchableOpacity
-              style={styles.backBtn}
               onPress={() => router.back()}
+              style={styles.backBtn}
             >
-              <ChevronIcon size={24} color="#fff" />
+              <ChevronIcon color="#fff" size={24} />
             </TouchableOpacity>
-            <Building2 size={22} color="#fff" style={{ marginRight: isRTL ? 0 : 8, marginLeft: isRTL ? 8 : 0 }} />
+            <Building2
+              color="#fff"
+              size={22}
+              style={{ marginRight: isRTL ? 0 : 8, marginLeft: isRTL ? 8 : 0 }}
+            />
             <TypographyText
               style={[
                 getTextStyle(theme, "subheading", "bold", "#fff"),
@@ -254,14 +260,19 @@ export default function OrgDashboardScreen() {
             >
               {org?.name ?? txt("Population Dashboard", "لوحة صحة المرضى")}
             </TypographyText>
-            <TouchableOpacity onPress={refresh} disabled={refreshing}>
+            <TouchableOpacity disabled={refreshing} onPress={refresh}>
               <RefreshCw
-                size={20}
                 color={refreshing ? "rgba(255,255,255,0.5)" : "#fff"}
+                size={20}
               />
             </TouchableOpacity>
           </View>
-          <Caption style={{ color: "rgba(255,255,255,0.8)", textAlign: isRTL ? "right" : "left" }}>
+          <Caption
+            style={{
+              color: "rgba(255,255,255,0.8)",
+              textAlign: isRTL ? "right" : "left",
+            }}
+          >
             {txt(
               "Real-time patient monitoring",
               "مراقبة المرضى في الوقت الفعلي"
@@ -274,60 +285,68 @@ export default function OrgDashboardScreen() {
       {summary && (
         <View style={styles.summaryRow}>
           <StatCard
-            label={txt("Total", "الإجمالي")}
-            value={summary.total}
             color={theme.colors.primary.main}
+            label={txt("Total", "الإجمالي")}
             theme={theme}
+            value={summary.total}
           />
           <StatCard
-            label={txt("Critical", "حرج")}
-            value={summary.criticalCount}
             color={RISK_COLORS.critical}
+            label={txt("Critical", "حرج")}
             theme={theme}
+            value={summary.criticalCount}
           />
           <StatCard
-            label={txt("Alerts", "تنبيهات")}
-            value={summary.unacknowledgedAnomalies}
             color={RISK_COLORS.elevated}
+            label={txt("Alerts", "تنبيهات")}
             theme={theme}
+            value={summary.unacknowledgedAnomalies}
           />
           <StatCard
-            label={txt("Normal", "طبيعي")}
-            value={summary.normalCount}
             color={RISK_COLORS.normal}
+            label={txt("Normal", "طبيعي")}
             theme={theme}
+            value={summary.normalCount}
           />
         </View>
       )}
 
       {/* Search */}
       <View style={styles.searchContainer}>
-        <Search size={16} color={theme.colors.text.secondary} />
+        <Search color={theme.colors.text.secondary} size={16} />
         <TextInput
-          style={styles.searchInput}
+          autoCorrect={false}
+          onChangeText={setSearchQuery}
           placeholder={txt("Search patients...", "بحث في المرضى...")}
           placeholderTextColor={theme.colors.text.secondary}
+          style={styles.searchInput}
           value={searchQuery}
-          onChangeText={setSearchQuery}
-          autoCorrect={false}
         />
       </View>
 
       {/* Risk filters */}
       <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
         contentContainerStyle={[
           styles.filterRow,
-          { flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse" },
+          {
+            flexDirection: (isRTL ? "row-reverse" : "row") as
+              | "row"
+              | "row-reverse",
+          },
         ]}
+        horizontal
+        showsHorizontalScrollIndicator={false}
       >
         {RISK_FILTERS.map((f) => {
           const isActive = riskFilter === f.key;
-          const color = f.key === "all" ? theme.colors.primary.main : RISK_COLORS[f.key] ?? theme.colors.primary.main;
+          const color =
+            f.key === "all"
+              ? theme.colors.primary.main
+              : (RISK_COLORS[f.key] ?? theme.colors.primary.main);
           return (
             <TouchableOpacity
               key={f.key}
+              onPress={() => setRiskFilter(f.key as RiskFilter)}
               style={[
                 styles.filterChip,
                 {
@@ -335,7 +354,6 @@ export default function OrgDashboardScreen() {
                   borderColor: isActive ? color : theme.colors.border.light,
                 },
               ]}
-              onPress={() => setRiskFilter(f.key as RiskFilter)}
             >
               <Caption
                 style={{
@@ -352,7 +370,13 @@ export default function OrgDashboardScreen() {
 
       {/* Sort row */}
       <View style={styles.sortRow}>
-        <Caption style={{ color: theme.colors.text.secondary, marginRight: isRTL ? 0 : 4, marginLeft: isRTL ? 4 : 0 }}>
+        <Caption
+          style={{
+            color: theme.colors.text.secondary,
+            marginRight: isRTL ? 0 : 4,
+            marginLeft: isRTL ? 4 : 0,
+          }}
+        >
           {txt("Sort:", "ترتيب:")}
         </Caption>
         {SORT_OPTIONS.map((opt) => {
@@ -360,6 +384,7 @@ export default function OrgDashboardScreen() {
           return (
             <TouchableOpacity
               key={opt.key}
+              onPress={() => setSortBy(opt.key)}
               style={[
                 styles.sortChip,
                 {
@@ -371,7 +396,6 @@ export default function OrgDashboardScreen() {
                     : theme.colors.border.light,
                 },
               ]}
-              onPress={() => setSortBy(opt.key)}
             >
               <Caption
                 style={{
@@ -390,8 +414,8 @@ export default function OrgDashboardScreen() {
       <ScrollView
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
             onRefresh={refresh}
+            refreshing={refreshing}
             tintColor={theme.colors.primary.main}
           />
         }
@@ -399,7 +423,7 @@ export default function OrgDashboardScreen() {
         {/* Count label */}
         {!loading && (
           <View style={styles.sectionLabel}>
-            <Users size={14} color={theme.colors.text.secondary} />
+            <Users color={theme.colors.text.secondary} size={14} />
             <Caption style={{ color: theme.colors.text.secondary }}>
               {isRTL
                 ? `${filteredPatients.length} مريض`
@@ -412,17 +436,14 @@ export default function OrgDashboardScreen() {
           {loading ? (
             <View style={styles.centered}>
               <ActivityIndicator
-                size="large"
                 color={theme.colors.primary.main}
+                size="large"
               />
             </View>
           ) : error ? (
             <View style={styles.centered}>
               <View style={styles.emptyIcon}>
-                <AlertTriangle
-                  size={24}
-                  color={theme.colors.text.secondary}
-                />
+                <AlertTriangle color={theme.colors.text.secondary} size={24} />
               </View>
               <TypographyText
                 style={[
@@ -449,7 +470,7 @@ export default function OrgDashboardScreen() {
           ) : filteredPatients.length === 0 ? (
             <View style={styles.centered}>
               <View style={styles.emptyIcon}>
-                <Shield size={24} color={theme.colors.text.secondary} />
+                <Shield color={theme.colors.text.secondary} size={24} />
               </View>
               <TypographyText
                 style={[
@@ -485,12 +506,14 @@ export default function OrgDashboardScreen() {
             filteredPatients.map((p) => (
               <PatientRosterCard
                 key={p.roster.id}
-                roster={p.roster}
-                snapshot={p.snapshot}
                 onPress={() => {
                   // Navigate to patient detail view
-                  router.push(`/(tabs)/vitals?userId=${p.roster.userId}` as never);
+                  router.push(
+                    `/(tabs)/vitals?userId=${p.roster.userId}` as never
+                  );
                 }}
+                roster={p.roster}
+                snapshot={p.snapshot}
               />
             ))
           )}
