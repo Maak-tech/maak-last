@@ -59,6 +59,18 @@ export function useRealtimeHealth(
   const isConnectedRef = useRef(false);
   const unsubscribeRefs = useRef<Array<() => void>>([]);
 
+  // Keep latest callbacks in a ref so subscribe/unsubscribe don't need to
+  // re-run when only a callback identity changes (avoids listener churn).
+  const handlersRef = useRef<RealtimeHealthEventHandlers>({});
+  handlersRef.current = {
+    onTrendAlert,
+    onFamilyMemberUpdate,
+    onAlertCreated,
+    onAlertResolved,
+    onVitalAdded,
+    onError,
+  };
+
   const subscribe = useCallback(() => {
     if (!enabled || isConnectedRef.current) {
       return;
@@ -66,35 +78,36 @@ export function useRealtimeHealth(
 
     const unsubscribes: Array<() => void> = [];
 
-    // Set up event handlers
-    const handlers: RealtimeHealthEventHandlers = {
-      onTrendAlert,
-      onFamilyMemberUpdate,
-      onAlertCreated,
-      onAlertResolved,
-      onVitalAdded,
-      onError,
+    // Route all events through the stable ref so the service always calls
+    // the latest handler without needing to re-subscribe.
+    const stableHandlers: RealtimeHealthEventHandlers = {
+      onTrendAlert: (...args) => handlersRef.current.onTrendAlert?.(...args),
+      onFamilyMemberUpdate: (...args) => handlersRef.current.onFamilyMemberUpdate?.(...args),
+      onAlertCreated: (...args) => handlersRef.current.onAlertCreated?.(...args),
+      onAlertResolved: (...args) => handlersRef.current.onAlertResolved?.(...args),
+      onVitalAdded: (...args) => handlersRef.current.onVitalAdded?.(...args),
+      onError: (...args) => handlersRef.current.onError?.(...args),
     };
-    realtimeHealthService.setEventHandlers(handlers);
+    realtimeHealthService.setEventHandlers(stableHandlers);
 
     // Subscribe to trend alerts for the user
     if (userId) {
       const unsubscribeTrendAlerts =
-        realtimeHealthService.subscribeToTrendAlerts(userId, onTrendAlert);
+        realtimeHealthService.subscribeToTrendAlerts(userId, stableHandlers.onTrendAlert);
       unsubscribes.push(unsubscribeTrendAlerts);
 
       // Subscribe to user alerts
       const unsubscribeUserAlerts = realtimeHealthService.subscribeToUserAlerts(
         userId,
-        onAlertCreated,
-        onAlertResolved
+        stableHandlers.onAlertCreated,
+        stableHandlers.onAlertResolved
       );
       unsubscribes.push(unsubscribeUserAlerts);
 
       // Subscribe to user vitals
       const unsubscribeUserVitals = realtimeHealthService.subscribeToUserVitals(
         userId,
-        onVitalAdded
+        stableHandlers.onVitalAdded
       );
       unsubscribes.push(unsubscribeUserVitals);
     }
@@ -105,7 +118,7 @@ export function useRealtimeHealth(
         realtimeHealthService.subscribeToFamilyMemberUpdates(
           familyId,
           familyMemberIds,
-          onFamilyMemberUpdate
+          stableHandlers.onFamilyMemberUpdate
         );
       unsubscribes.push(unsubscribeFamilyUpdates);
     }
@@ -117,12 +130,8 @@ export function useRealtimeHealth(
     userId,
     familyId,
     familyMemberIds,
-    onTrendAlert,
-    onFamilyMemberUpdate,
-    onAlertCreated,
-    onAlertResolved,
-    onVitalAdded,
-    onError,
+    // Callbacks intentionally excluded — accessed via handlersRef to prevent
+    // listener churn when callback identities change without semantic change.
   ]);
 
   const unsubscribe = useCallback(() => {

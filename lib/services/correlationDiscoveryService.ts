@@ -10,6 +10,7 @@ import {
   collection,
   doc,
   getDocs,
+  limit,
   orderBy,
   query,
   setDoc,
@@ -372,7 +373,8 @@ class CorrelationDiscoveryService {
     try {
       const q = query(
         this.getCollectionRef(userId),
-        orderBy("lastUpdatedAt", "desc")
+        orderBy("lastUpdatedAt", "desc"),
+        limit(100)
       );
       const snapshot = await getDocs(q);
 

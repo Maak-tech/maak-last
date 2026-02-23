@@ -4,6 +4,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
   orderBy,
   query,
   Timestamp,
@@ -51,16 +52,21 @@ const getFamilyMemberIds = async (familyId: string): Promise<string[]> => {
   return familyMembersSnapshot.docs.map((memberDoc) => memberDoc.id);
 };
 
+// Firestore "in" operator accepts at most 10 values per clause.
+// For families > 10 members, chunk into batches of 10 and run in parallel.
 const fetchFamilyMedicationsByMembers = async (
   memberIds: string[]
 ): Promise<Medication[]> => {
-  const medicationPromises = memberIds.map((memberId) =>
-    medicationService
-      .getUserMedications(memberId)
-      .catch(() => [] as Medication[])
+  const batches: string[][] = [];
+  for (let i = 0; i < memberIds.length; i += 10) {
+    batches.push(memberIds.slice(i, i + 10));
+  }
+  const batchResults = await Promise.all(
+    batches.map((batch) =>
+      fetchFamilyMedicationsByInQuery(batch).catch(() => [] as Medication[])
+    )
   );
-  const allMedicationsArrays = await Promise.all(medicationPromises);
-  return allMedicationsArrays
+  return batchResults
     .flat()
     .sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
 };
@@ -295,7 +301,8 @@ export const medicationService = {
         const q = query(
           collection(db, "medications"),
           where("userId", "==", userId),
-          where("isActive", "==", true)
+          where("isActive", "==", true),
+          limit(200)
         );
 
         const querySnapshot = await getDocs(q);

@@ -981,51 +981,43 @@ export default function DashboardScreen() {
       setTodaysMedications(medications);
       setAlertsCount(alertsCountData);
 
-      // Schedule medication reminders for all active medications
-      // This ensures reminders are scheduled even if they weren't scheduled when medication was added
+      // Schedule medication reminders for all active medications.
+      // Deferred with InteractionManager so the dashboard renders first.
       if (notificationsEnabled && scheduleRecurringMedicationReminder) {
-        try {
-          const todayKey = `${user.id}:${new Date().toDateString()}`;
-          const shouldSyncReminders =
-            medicationReminderSyncKeyRef.current !== todayKey;
+        const todayKey = `${user.id}:${new Date().toDateString()}`;
+        if (medicationReminderSyncKeyRef.current !== todayKey) {
+          // Claim the slot immediately to prevent re-entry on rapid re-renders.
+          medicationReminderSyncKeyRef.current = todayKey;
 
-          if (shouldSyncReminders) {
-            // Get all user medications (not just today's) to schedule all reminders
-            const allMedications = await medicationService.getUserMedications(
-              user.id
-            );
-
-            // Schedule reminders for each medication and reminder time
-            for (const medication of allMedications) {
-              if (
-                !(medication.isActive && Array.isArray(medication.reminders))
-              ) {
-                continue;
-              }
-
-              // Schedule each reminder time
-              for (const reminder of medication.reminders) {
-                if (reminder.time?.trim()) {
-                  // Schedule reminder (this function handles deduplication)
-                  await scheduleRecurringMedicationReminder(
-                    medication.name,
-                    medication.dosage,
-                    reminder.time,
-                    {
-                      medicationId: medication.id,
-                      reminderId: reminder.id,
-                    }
-                  ).catch(() => {
-                    // Silently handle scheduling errors - don't block dashboard load
-                  });
+          InteractionManager.runAfterInteractions(async () => {
+            try {
+              const allMedications = await medicationService.getUserMedications(
+                user.id
+              );
+              for (const medication of allMedications) {
+                if (
+                  !(medication.isActive && Array.isArray(medication.reminders))
+                ) {
+                  continue;
+                }
+                for (const reminder of medication.reminders) {
+                  if (reminder.time?.trim()) {
+                    await scheduleRecurringMedicationReminder(
+                      medication.name,
+                      medication.dosage,
+                      reminder.time,
+                      {
+                        medicationId: medication.id,
+                        reminderId: reminder.id,
+                      }
+                    ).catch(() => {});
+                  }
                 }
               }
+            } catch {
+              // Silently handle reminder scheduling errors
             }
-
-            medicationReminderSyncKeyRef.current = todayKey;
-          }
-        } catch (_error) {
-          // Silently handle reminder scheduling errors - don't block dashboard load
+          });
         }
       }
 

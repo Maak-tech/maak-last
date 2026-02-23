@@ -673,7 +673,8 @@ export const symptomService = {
       const q = query(
         collection(db, "symptoms"),
         where("userId", "==", userId),
-        where("timestamp", ">=", Timestamp.fromDate(startDate))
+        where("timestamp", ">=", Timestamp.fromDate(startDate)),
+        limit(500)
       );
 
       const querySnapshot = await getDocs(q);
@@ -806,7 +807,8 @@ export const symptomService = {
       const q = query(
         collection(db, "symptoms"),
         where("userId", "==", memberId),
-        where("timestamp", ">=", Timestamp.fromDate(startDate))
+        where("timestamp", ">=", Timestamp.fromDate(startDate)),
+        limit(500)
       );
 
       const querySnapshot = await getDocs(q);
