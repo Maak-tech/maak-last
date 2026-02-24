@@ -383,9 +383,9 @@ class CorrelationDiscoveryService {
         return {
           ...data,
           id: docSnap.id,
-          discoveredAt: data.discoveredAt?.toDate?.() ?? new Date(),
-          lastUpdatedAt: data.lastUpdatedAt?.toDate?.() ?? new Date(),
-          notifiedAt: data.notifiedAt?.toDate?.() ?? undefined,
+          discoveredAt: data.discoveredAt?.toDate() ?? new Date(),
+          lastUpdatedAt: data.lastUpdatedAt?.toDate() ?? new Date(),
+          notifiedAt: data.notifiedAt?.toDate() ?? undefined,
         } as HealthDiscovery;
       });
     } catch (error) {

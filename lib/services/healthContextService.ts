@@ -529,12 +529,12 @@ class HealthContextService {
             name: data.name || "Unknown medication",
             dosage: data.dosage || "",
             frequency: data.frequency || "",
-            startDate: safeFormatDate(data.startDate?.toDate?.()) || "",
-            endDate: safeFormatDate(data.endDate?.toDate?.()) || "",
+            startDate: safeFormatDate(data.startDate?.toDate()) || "",
+            endDate: safeFormatDate(data.endDate?.toDate()) || "",
             notes: data.notes || "",
             isActive: data.isActive !== false,
             reminders: data.reminders || [],
-            _startDate: data.startDate?.toDate?.() || new Date(0),
+            _startDate: data.startDate?.toDate() || new Date(0),
           };
         }
       );
@@ -553,7 +553,7 @@ class HealthContextService {
           id: symptomDoc.id,
           name: data.name || data.symptom || "Unknown symptom",
           severity: data.severity || "moderate",
-          date: safeFormatDate(data.timestamp?.toDate?.()) || data.date || "",
+          date: safeFormatDate(data.timestamp?.toDate()) || data.date || "",
           bodyPart: data.bodyPart || data.location || "",
           duration: data.duration || "",
           notes: data.notes || data.description || "",
@@ -571,7 +571,7 @@ class HealthContextService {
         const data = historyDoc.data();
         const entry = {
           condition: data.condition || data.name || "",
-          diagnosedDate: safeFormatDate(data.diagnosedDate?.toDate?.()) || "",
+          diagnosedDate: safeFormatDate(data.diagnosedDate?.toDate()) || "",
           status: data.status || "ongoing",
           notes: data.notes || "",
           relationship: data.relationship || "",
@@ -912,7 +912,7 @@ class HealthContextService {
       for (const vitalDoc of vitalsSnapshot.value.docs) {
         const data = vitalDoc.data();
         const vitalType = data.type;
-        const timestamp = data.timestamp?.toDate?.() || new Date();
+        const timestamp = data.timestamp?.toDate() || new Date();
 
         if (!vitalsByType[vitalType]) {
           vitalsByType[vitalType] = [];

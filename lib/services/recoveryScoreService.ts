@@ -62,6 +62,8 @@ export type RecoveryScoreResult = {
   suggestions: RecoverySuggestion[];
   dataConfidence: number; // 55-95
   insufficientData: boolean;
+  /** How many of the 5 factors had real data (not neutral fallbacks) */
+  validFactorCount: number;
   /** Set when SpO2 averaged < 94% — shown as override banner independent of score */
   spO2AnomalyFlag: boolean;
   computedAt: Date;
@@ -341,7 +343,7 @@ class RecoveryScoreService {
         trendBonus = clamp(improvementDelta * 10, -15, 15);
       }
 
-      const score = clamp(Math.round(durationScore * 0.8 + trendBonus * 0.2 + trendBonus), 0, 100);
+      const score = clamp(Math.round(durationScore * 0.8 + trendBonus * 0.2), 0, 100);
 
       return {
         label,
@@ -638,22 +640,38 @@ class RecoveryScoreService {
         bodyTemperature,
       };
 
-      // Weighted composite score
-      const rawScore =
-        hrv.score * WEIGHTS.hrv +
-        sleep.score * WEIGHTS.sleep +
-        rhr.score * WEIGHTS.rhr +
-        respiratoryRate.score * WEIGHTS.respiratoryRate +
-        bodyTemperature.score * WEIGHTS.bodyTemperature;
-      const score = Math.round(clamp(rawScore, 0, 100));
+      // Data confidence: # of factors with real data (not neutral fallbacks)
+      const validFactors = Object.values(factors).filter(
+        (f) => f.dataPoints > 0
+      ).length;
 
-      // Weakest factor (lowest score)
-      const weakestFactor = (
-        Object.entries(factors) as [
-          keyof RecoveryScoreBreakdown["factors"],
-          RecoveryFactor,
-        ][]
-      ).sort(([, a], [, b]) => a.score - b.score)[0][0];
+      // Weighted composite score — only include factors that have real data.
+      // Re-normalise weights so they always sum to 1.0 over the available factors.
+      const factorEntries = Object.entries(factors) as [
+        keyof RecoveryScoreBreakdown["factors"],
+        RecoveryFactor,
+      ][];
+      const realFactorEntries = factorEntries.filter(([, f]) => f.dataPoints > 0);
+
+      let score: number;
+      if (realFactorEntries.length === 0) {
+        // No data at all — neutral default
+        score = 50;
+      } else {
+        const totalWeight = realFactorEntries.reduce(
+          (sum, [key]) => sum + WEIGHTS[key],
+          0
+        );
+        const weightedSum = realFactorEntries.reduce(
+          (sum, [key, f]) => sum + f.score * (WEIGHTS[key] / totalWeight),
+          0
+        );
+        score = Math.round(clamp(weightedSum, 0, 100));
+      }
+
+      // Weakest factor — only consider factors with real data; fall back to all
+      const factorsForWeakest = realFactorEntries.length > 0 ? realFactorEntries : factorEntries;
+      const weakestFactor = factorsForWeakest.sort(([, a], [, b]) => a.score - b.score)[0][0];
 
       const state = scoreToState(score);
       const primaryInsight = this.buildPrimaryInsight(factors, score);
@@ -661,12 +679,9 @@ class RecoveryScoreService {
       // Suggestions for the weakest factor
       const suggestions: RecoverySuggestion[] = [SUGGESTIONS[weakestFactor]];
 
-      // Data confidence: # of factors with real data (not neutral fallbacks)
-      const validFactors = Object.values(factors).filter(
-        (f) => f.dataPoints > 0
-      ).length;
       const dataConfidence = clamp(55 + validFactors * 8, 55, 95);
-      const insufficientData = dataConfidence < 65 || validFactors < 2;
+      // Raise insufficientData threshold: need at least 3 real factors
+      const insufficientData = validFactors < 3;
 
       const result: RecoveryScoreResult = {
         score,
@@ -677,6 +692,7 @@ class RecoveryScoreService {
         suggestions,
         dataConfidence,
         insufficientData,
+        validFactorCount: validFactors,
         spO2AnomalyFlag,
         computedAt: new Date(),
       };
@@ -706,6 +722,7 @@ class RecoveryScoreService {
         suggestions: [SUGGESTIONS.hrv],
         dataConfidence: 55,
         insufficientData: true,
+        validFactorCount: 0,
         spO2AnomalyFlag: false,
         computedAt: new Date(),
       };

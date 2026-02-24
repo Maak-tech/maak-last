@@ -52,6 +52,137 @@ function isCacheValid(userId: string): boolean {
   return Date.now() - entry.at < CACHE_TTL_MS;
 }
 
+// ─── Biomarker name normalisation ─────────────────────────────────────────────
+// Maps common variant spellings / abbreviations → canonical display name.
+// All keys must be lowercase.
+const BIOMARKER_ALIASES: Record<string, string> = {
+  // Haemoglobin A1c
+  "hba1c": "HbA1c",
+  "hba1 c": "HbA1c",
+  "a1c": "HbA1c",
+  "glycated hemoglobin": "HbA1c",
+  "glycated haemoglobin": "HbA1c",
+  "hemoglobin a1c": "HbA1c",
+  "haemoglobin a1c": "HbA1c",
+  // Glucose
+  "glucose": "Blood Glucose",
+  "blood glucose": "Blood Glucose",
+  "fasting glucose": "Fasting Glucose",
+  "fasting blood glucose": "Fasting Glucose",
+  "blood sugar": "Blood Glucose",
+  // Cholesterol family
+  "cholesterol": "Total Cholesterol",
+  "total cholesterol": "Total Cholesterol",
+  "ldl": "LDL Cholesterol",
+  "ldl-c": "LDL Cholesterol",
+  "ldl cholesterol": "LDL Cholesterol",
+  "low-density lipoprotein": "LDL Cholesterol",
+  "hdl": "HDL Cholesterol",
+  "hdl-c": "HDL Cholesterol",
+  "hdl cholesterol": "HDL Cholesterol",
+  "high-density lipoprotein": "HDL Cholesterol",
+  "triglycerides": "Triglycerides",
+  "triglyceride": "Triglycerides",
+  "tg": "Triglycerides",
+  // Kidney markers
+  "creatinine": "Creatinine",
+  "serum creatinine": "Creatinine",
+  "egfr": "eGFR",
+  "estimated gfr": "eGFR",
+  "gfr": "eGFR",
+  "bun": "BUN",
+  "blood urea nitrogen": "BUN",
+  "urea": "BUN",
+  // Liver markers
+  "alt": "ALT",
+  "alanine aminotransferase": "ALT",
+  "sgpt": "ALT",
+  "ast": "AST",
+  "aspartate aminotransferase": "AST",
+  "sgot": "AST",
+  "alp": "ALP",
+  "alkaline phosphatase": "ALP",
+  "ggt": "GGT",
+  "gamma-glutamyl transferase": "GGT",
+  "bilirubin": "Bilirubin",
+  "total bilirubin": "Bilirubin",
+  // Blood count
+  "hemoglobin": "Hemoglobin",
+  "haemoglobin": "Hemoglobin",
+  "hgb": "Hemoglobin",
+  "hb": "Hemoglobin",
+  "wbc": "WBC",
+  "white blood cell": "WBC",
+  "white blood cells": "WBC",
+  "leukocytes": "WBC",
+  "rbc": "RBC",
+  "red blood cell": "RBC",
+  "red blood cells": "RBC",
+  "erythrocytes": "RBC",
+  "platelets": "Platelets",
+  "platelet count": "Platelets",
+  "plt": "Platelets",
+  "hematocrit": "Hematocrit",
+  "haematocrit": "Hematocrit",
+  "hct": "Hematocrit",
+  "mcv": "MCV",
+  // Thyroid
+  "tsh": "TSH",
+  "thyroid-stimulating hormone": "TSH",
+  "thyroid stimulating hormone": "TSH",
+  "t3": "T3",
+  "t4": "T4",
+  "free t3": "Free T3",
+  "free t4": "Free T4",
+  "ft3": "Free T3",
+  "ft4": "Free T4",
+  // Iron
+  "iron": "Iron",
+  "serum iron": "Iron",
+  "ferritin": "Ferritin",
+  "transferrin": "Transferrin",
+  "tibc": "TIBC",
+  // Electrolytes
+  "sodium": "Sodium",
+  "potassium": "Potassium",
+  "chloride": "Chloride",
+  "calcium": "Calcium",
+  "magnesium": "Magnesium",
+  "phosphorus": "Phosphorus",
+  "phosphate": "Phosphorus",
+  // Other common
+  "vitamin d": "Vitamin D",
+  "25-oh vitamin d": "Vitamin D",
+  "25-hydroxyvitamin d": "Vitamin D",
+  "vitamin b12": "Vitamin B12",
+  "cobalamin": "Vitamin B12",
+  "folate": "Folate",
+  "folic acid": "Folate",
+  "uric acid": "Uric Acid",
+  "crp": "CRP",
+  "c-reactive protein": "CRP",
+  "esr": "ESR",
+  "psa": "PSA",
+  "prostate-specific antigen": "PSA",
+  "inr": "INR",
+  "pt": "Prothrombin Time",
+  "prothrombin time": "Prothrombin Time",
+  "aptt": "APTT",
+  "d-dimer": "D-Dimer",
+};
+
+/** Returns a canonical display name for a biomarker, preserving original capitalisation only as fallback */
+function normalizeBiomarkerName(raw: string): string {
+  const key = raw.toLowerCase().trim();
+  if (BIOMARKER_ALIASES[key]) return BIOMARKER_ALIASES[key];
+  // Title-case the raw name as fallback
+  return raw
+    .trim()
+    .split(" ")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
 function computeTrend(values: number[]): BiomarkerTrend["trend"] {
   if (values.length < 2) return "stable";
   const first = values[0];
@@ -123,14 +254,15 @@ export async function analyzeLabResults(
             : Number.parseFloat(String(val.value));
         if (Number.isNaN(numVal)) continue;
 
-        const key = val.name.toLowerCase().trim();
+        // Use normalized canonical name as grouping key so aliases merge correctly
+        const key = normalizeBiomarkerName(val.name);
         if (!biomarkerMap.has(key)) biomarkerMap.set(key, []);
         biomarkerMap.get(key)!.push({
           date: result.testDate,
           value: numVal,
           unit: val.unit ?? "",
           status: val.status,
-          rawName: val.name,
+          rawName: key, // store canonical name
         });
       }
     }
@@ -149,15 +281,16 @@ export async function analyzeLabResults(
       const isCritical = sorted.some((e) => e.status === "critical");
       const trend = computeTrend(sorted.map((e) => e.value));
 
-      const displayName =
-        latest.rawName.charAt(0).toUpperCase() + latest.rawName.slice(1);
+      // rawName is already canonical (set during grouping)
+      const displayName = latest.rawName;
 
-      // Find the matching LabResultValue for the latest entry
+      // Find the matching LabResultValue for the latest entry.
+      // Both sides are normalised so aliases like "A1c" correctly match "HbA1c".
       const latestLabVal = results
         .flatMap((r) => r.results ?? [])
         .find(
           (v) =>
-            v.name.toLowerCase().trim() === latest.rawName.toLowerCase().trim()
+            normalizeBiomarkerName(v.name) === latest.rawName
         ) ?? {
         name: displayName,
         value: latest.value,
@@ -198,14 +331,22 @@ export async function analyzeLabResults(
       try {
         const flaggedSummary = flaggedBiomarkers
           .slice(0, 5)
-          .map(
-            (b) =>
-              `${b.name}: ${b.latest.value} ${b.unit} (${b.latest.status ?? "flagged"})`
-          )
-          .join(", ");
+          .map((b) => {
+            const trendStr =
+              b.trend === "rising"
+                ? "trending up"
+                : b.trend === "falling"
+                  ? "trending down"
+                  : "stable";
+            const historyStr =
+              b.values.length >= 2
+                ? ` (${b.values.length} readings over time)`
+                : "";
+            return `${b.name}: ${b.latest.value} ${b.unit} — ${b.latest.status ?? "flagged"}, ${trendStr}${historyStr}`;
+          })
+          .join("\n");
 
-        const prompt = `A patient has the following flagged lab results: ${flaggedSummary}.
-Provide a brief 2-3 sentence plain-language interpretation. Focus on what these values might mean and general lifestyle recommendations. Do NOT provide specific medical diagnoses or treatment plans. Respond with JSON: {"narrative": "...", "narrativeAr": "..."}`;
+        const prompt = `A patient has the following flagged lab results:\n${flaggedSummary}\n\nProvide a concise 2-3 sentence plain-language interpretation. For each flagged marker, note whether the trend is improving or worsening. Focus on what the pattern suggests about their health and give 1-2 practical lifestyle recommendations. Do NOT provide specific medical diagnoses, drug names, or treatment plans. Respond strictly with JSON: {"narrative": "...", "narrativeAr": "..."}`;
 
         const response = await openaiService.generateHealthInsights(prompt);
         if (response?.narrative && typeof response.narrative === "string") {

@@ -339,7 +339,7 @@ export const healthDataService = {
       for (const doc of snapshot.docs) {
         const data = doc.data();
         const vitalType = data.type;
-        const timestamp = data.timestamp?.toDate?.() || new Date();
+        const timestamp = data.timestamp?.toDate() || new Date();
 
         if (!vitalsByType[vitalType]) {
           vitalsByType[vitalType] = [];

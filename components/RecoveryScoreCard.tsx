@@ -289,7 +289,7 @@ export default function RecoveryScoreCard({
 
   if (!recoveryScore) return null;
 
-  const { stateDisplay, primaryInsight, breakdown, suggestions, insufficientData, spO2AnomalyFlag } = recoveryScore;
+  const { stateDisplay, primaryInsight, breakdown, suggestions, insufficientData, validFactorCount, spO2AnomalyFlag } = recoveryScore;
   const stateColor = stateDisplay.color;
   const stateLabel = isRTL ? stateDisplay.label.ar : stateDisplay.label.en;
   const insight = isRTL ? primaryInsight.ar : primaryInsight.en;
@@ -349,6 +349,27 @@ export default function RecoveryScoreCard({
             {insight}
           </TypographyText>
         </View>
+
+        {/* Factor count */}
+        {validFactorCount !== undefined && (
+          <Caption
+            style={{
+              ...getTextStyle(
+                theme as Parameters<typeof getTextStyle>[0],
+                "caption",
+                "regular",
+                theme.colors.text.secondary
+              ),
+              marginTop: 4,
+              textAlign: (isRTL ? "right" : "left") as "left" | "right",
+              opacity: 0.75,
+            }}
+          >
+            {isRTL
+              ? `استناداً إلى ${validFactorCount} من أصل 5 عوامل`
+              : `Based on ${validFactorCount} of 5 factors`}
+          </Caption>
+        )}
 
         {/* SpO2 anomaly override banner */}
         {spO2AnomalyFlag && (
@@ -462,6 +483,25 @@ export default function RecoveryScoreCard({
         >
           {insight}
         </TypographyText>
+        {validFactorCount !== undefined && (
+          <Caption
+            style={{
+              ...getTextStyle(
+                theme as Parameters<typeof getTextStyle>[0],
+                "caption",
+                "regular",
+                theme.colors.text.secondary
+              ),
+              textAlign: "center",
+              marginTop: 4,
+              opacity: 0.75,
+            }}
+          >
+            {isRTL
+              ? `استناداً إلى ${validFactorCount} من أصل 5 عوامل`
+              : `Based on ${validFactorCount} of 5 factors`}
+          </Caption>
+        )}
       </View>
 
       {/* SpO2 anomaly banner */}

@@ -17,7 +17,6 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
-  ScrollView,
   TouchableOpacity,
   View,
   type ViewStyle,
@@ -379,11 +378,7 @@ export default function ProactiveHealthSuggestions({
         </Badge>
       </View>
 
-      <ScrollView
-        contentContainerStyle={{ paddingRight: theme.spacing.base }}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-      >
+      <View>
         {suggestions.map((suggestion) => (
           <Card
             contentStyle={{}}
@@ -392,7 +387,6 @@ export default function ProactiveHealthSuggestions({
             style={[
               styles.suggestionCard,
               {
-                width: 300,
                 borderLeftColor: getPriorityColor(suggestion.priority),
               },
             ]}
@@ -466,7 +460,7 @@ export default function ProactiveHealthSuggestions({
             ) : null}
           </Card>
         ))}
-      </ScrollView>
+      </View>
 
       {showDiscoveries && topDiscovery && (
         <View style={{ marginTop: theme.spacing.base }}>

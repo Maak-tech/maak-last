@@ -193,7 +193,7 @@ class AnomalyDetectionService {
                 ? data.value
                 : Number.parseFloat(data.value),
             unit: data.unit || "",
-            timestamp: data.timestamp?.toDate?.() ?? new Date(),
+            timestamp: data.timestamp?.toDate() ?? new Date(),
             userId,
           };
         })
@@ -627,7 +627,7 @@ class AnomalyDetectionService {
                   ? data.value
                   : Number.parseFloat(data.value),
               unit: data.unit || "",
-              timestamp: data.timestamp?.toDate?.() ?? new Date(),
+              timestamp: data.timestamp?.toDate() ?? new Date(),
               userId,
             } as VitalReading;
           })
@@ -752,7 +752,7 @@ class AnomalyDetectionService {
         return {
           ...data,
           id: d.id,
-          timestamp: data.timestamp?.toDate?.() ?? new Date(),
+          timestamp: data.timestamp?.toDate() ?? new Date(),
         } as VitalAnomaly;
       });
     } catch (error) {

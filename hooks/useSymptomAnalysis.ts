@@ -27,12 +27,13 @@ export function useSymptomAnalysis(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastLoadRef = useRef<number>(0);
+  const hasDataRef = useRef(false);
 
   const load = useCallback(
     async (force = false) => {
       if (!userId) return;
       const now = Date.now();
-      if (!force && now - lastLoadRef.current < CACHE_TTL_MS && analysis)
+      if (!force && now - lastLoadRef.current < CACHE_TTL_MS && hasDataRef.current)
         return;
 
       setLoading(true);
@@ -51,6 +52,7 @@ export function useSymptomAnalysis(
           );
         setAnalysis(result);
         lastLoadRef.current = Date.now();
+        hasDataRef.current = true;
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Failed to analyze symptoms"
@@ -59,7 +61,7 @@ export function useSymptomAnalysis(
         setLoading(false);
       }
     },
-    [userId, isArabic, analysis]
+    [userId, isArabic]
   );
 
   useEffect(() => {

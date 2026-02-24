@@ -25,12 +25,13 @@ export function useLabInsights(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastLoadRef = useRef<number>(0);
+  const hasDataRef = useRef(false);
 
   const load = useCallback(
     async (force = false) => {
       if (!userId) return;
       const now = Date.now();
-      if (!force && now - lastLoadRef.current < CACHE_TTL_MS && insights)
+      if (!force && now - lastLoadRef.current < CACHE_TTL_MS && hasDataRef.current)
         return;
 
       setLoading(true);
@@ -39,6 +40,7 @@ export function useLabInsights(
         const data = await analyzeLabResults(userId, force);
         setInsights(data);
         lastLoadRef.current = Date.now();
+        hasDataRef.current = true;
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Failed to load lab insights"
@@ -47,7 +49,7 @@ export function useLabInsights(
         setLoading(false);
       }
     },
-    [userId, insights]
+    [userId]
   );
 
   useEffect(() => {

@@ -28,12 +28,13 @@ export function useRecoveryScore(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastLoadRef = useRef<number>(0);
+  const hasDataRef = useRef(false);
 
   const load = useCallback(
     async (force = false) => {
       if (!userId) return;
       const now = Date.now();
-      if (!force && now - lastLoadRef.current < CACHE_TTL_MS && recoveryScore)
+      if (!force && now - lastLoadRef.current < CACHE_TTL_MS && hasDataRef.current)
         return;
 
       setLoading(true);
@@ -42,6 +43,7 @@ export function useRecoveryScore(
         const data = await recoveryScoreService.calculateRecoveryScore(userId);
         setRecoveryScore(data);
         lastLoadRef.current = Date.now();
+        hasDataRef.current = true;
       } catch (err) {
         setError(
           err instanceof Error
@@ -52,7 +54,7 @@ export function useRecoveryScore(
         setLoading(false);
       }
     },
-    [userId, recoveryScore]
+    [userId]
   );
 
   useEffect(() => {

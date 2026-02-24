@@ -226,7 +226,7 @@ export const RealtimeHealthProvider: React.FC<{
             payload: {
               ...data,
               id: latestChange.doc.id,
-              timestamp: data.timestamp?.toDate?.() ?? new Date(),
+              timestamp: data.timestamp?.toDate() ?? new Date(),
             } as VitalAnomaly,
             receivedAt: new Date(),
           });

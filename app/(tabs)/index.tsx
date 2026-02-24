@@ -80,6 +80,16 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [todaysMedications, setTodaysMedications] = useState<Medication[]>([]);
+  const totalReminders = useMemo(() => {
+    let count = 0;
+    for (const med of todaysMedications) {
+      const reminders = Array.isArray((med as any).reminders)
+        ? (med as any).reminders
+        : [];
+      count += reminders.length;
+    }
+    return count;
+  }, [todaysMedications]);
   const [alertsCount, setAlertsCount] = useState(0);
   const [familyMembersCount, setFamilyMembersCount] = useState(0);
   const [showAlertsModal, setShowAlertsModal] = useState(false);
@@ -1029,12 +1039,12 @@ export default function DashboardScreen() {
 
       // Calculate personal medication compliance (optimized single pass)
       const today = new Date().toDateString();
-      let totalReminders = 0;
+      let computedTotalReminders = 0;
       let takenReminders = 0;
 
       medications.forEach((med) => {
         const reminders = Array.isArray(med.reminders) ? med.reminders : [];
-        totalReminders += reminders.length;
+        computedTotalReminders += reminders.length;
 
         reminders.forEach((r) => {
           if (r.taken && r.takenAt) {
@@ -1047,7 +1057,9 @@ export default function DashboardScreen() {
       });
 
       const compliance =
-        totalReminders > 0 ? (takenReminders / totalReminders) * 100 : 100;
+        computedTotalReminders > 0
+          ? (takenReminders / computedTotalReminders) * 100
+          : 100;
 
       setStats({
         symptomsThisWeek: symptomStats.totalSymptoms,
@@ -1172,57 +1184,45 @@ export default function DashboardScreen() {
   ]);
 
   const tourSteps = useMemo(() => {
-    const tabsCopy = isAdmin
-      ? isRTL
-        ? "استخدم الشريط السفلي للتنقل بين الصفحة الرئيسية، التتبع، زينة، العائلة، والملف الشخصي."
-        : "Use the bottom tabs to switch between Home, Track, Zeina, Family, and Profile."
-      : isRTL
-        ? "استخدم الشريط السفلي للتنقل بين الصفحة الرئيسية، زينة، والملف الشخصي."
-        : "Use the bottom tabs to switch between Home, Zeina, and Profile.";
-
     return [
       {
         title: isRTL ? "مرحباً بك في لوحة التحكم" : "Welcome to your dashboard",
         body: isRTL
-          ? "هذه الصفحة تلخص أهم المعلومات الصحية لديك في لمحة واحدة."
-          : "This screen summarizes your most important health info at a glance.",
+          ? "ملخص صحتك دائماً هنا — اضغط على أي بطاقة للحصول على التفاصيل الكاملة."
+          : "Your health summary is always here — tap any card for full details.",
       },
       {
-        title: isRTL ? "زر SOS للطوارئ" : "SOS emergency button",
+        title: isRTL ? "زر الطوارئ SOS" : "SOS Emergency Button",
         body: isRTL
-          ? "اضغط SOS للاتصال بالطوارئ أو تنبيه العائلة بسرعة."
-          : "Tap SOS to call emergency services or notify family quickly.",
+          ? "اضغط SOS للاتصال بالطوارئ أو إشعار عائلتك فوراً."
+          : "Tap SOS to call emergency services or notify your family instantly.",
       },
       {
-        title: t("statsCards"),
+        title: isRTL ? "إحصائياتك الصحية" : "Your Health Stats",
         body: isRTL
-          ? "تعرض نشاطك الأسبوعي والالتزام بالأدوية ولمحة عن العائلة."
-          : "See weekly activity, medication compliance, and family overview.",
+          ? "اطلع على أعراض الأسبوع، والتزام الدواء، وأفراد العائلة دفعة واحدة."
+          : "See your weekly symptoms, medication compliance, and family members at a glance.",
       },
       {
-        title: isRTL ? "أدوية اليوم" : "Today's medications",
+        title: isRTL ? "بطاقة نبضة الصحة" : "HealthPulse Card",
         body: isRTL
-          ? "راجع الأدوية القادمة وسجل ما تم تناوله بنقرة واحدة."
-          : "Review upcoming meds and mark them as taken in one tap.",
+          ? "درجة صحتك الحية واتجاه التعافي. اضغط عليها لفتح شاشة التحليلات الكاملة."
+          : "Your live health score and recovery trend. Tap it to open the full Analytics screen.",
       },
       {
-        title: t("recentSymptomsTitle"),
+        title: isRTL ? "أدوية اليوم" : "Today's Medications",
         body: isRTL
-          ? "سجل أعراضك وتابع شدتها وتوقيتها هنا."
-          : "Log symptoms and track their timing and severity here.",
+          ? "راجع الجرعات القادمة وعلّمها كمأخوذة بضغطة واحدة."
+          : "Review upcoming doses and mark them as taken in one tap.",
       },
       {
-        title: t("quickActions"),
+        title: isRTL ? "التنقل السفلي" : "Bottom Tabs",
         body: isRTL
-          ? "اختصارات لإضافة أعراض، أدوية، العلامات الحيوية، والمزيد."
-          : "Shortcuts to log symptoms, manage meds, record vitals, and more.",
-      },
-      {
-        title: t("navigationTabs"),
-        body: tabsCopy,
+          ? "استخدم الألسنة للتنقل بين الرئيسية، وتتبع الصحة، والدردشة مع زينة، وإدارة ملفك الشخصي."
+          : "Use the tabs to navigate Home, Track your health, chat with Zeina, and manage your Profile.",
       },
     ];
-  }, [isAdmin, isRTL]);
+  }, [isRTL]);
 
   const handleTourFinish = async () => {
     setShowTour(false);
@@ -1608,7 +1608,7 @@ export default function DashboardScreen() {
   };
 
   // Default widget order
-  const enabledWidgets = ["stats", "alerts", "todaysMedications"];
+  const enabledWidgets = ["stats", "alerts", "healthPulse", "todaysMedications"];
 
   // Widget render functions
   const renderWidget = (widgetId: string) => {
@@ -1675,7 +1675,13 @@ export default function DashboardScreen() {
                   ]}
                   weight="medium"
                 >
-                  {isRTL ? "أعراض\nالأسبوع" : "Symptoms\nThis Week"}
+                  {isRTL
+                    ? stats.symptomsThisWeek === 0
+                      ? "لا أعراض\nهذا الأسبوع · سجّل"
+                      : "أعراض\nالأسبوع"
+                    : stats.symptomsThisWeek === 0
+                    ? "No Symptoms\nThis Week · Log one"
+                    : "Symptoms\nThis Week"}
                 </Text>
               </Card>
 
@@ -1717,7 +1723,7 @@ export default function DashboardScreen() {
                   ]}
                   weight="bold"
                 >
-                  {stats.medicationCompliance}%
+                  {totalReminders === 0 ? "--" : `${stats.medicationCompliance}%`}
                 </Text>
                 <Text
                   numberOfLines={2}
@@ -1727,7 +1733,13 @@ export default function DashboardScreen() {
                   ]}
                   weight="medium"
                 >
-                  {isRTL ? "التزام\nالدواء" : "Med\nCompliance"}
+                  {isRTL
+                    ? totalReminders === 0
+                      ? "أضف أدويتك\nللمتابعة"
+                      : "التزام\nالدواء"
+                    : totalReminders === 0
+                    ? "Add your\nmeds to track"
+                    : "Med\nCompliance"}
                 </Text>
               </Card>
 
@@ -1919,6 +1931,13 @@ export default function DashboardScreen() {
                 </TouchableOpacity>
               )}
             </View>
+          </View>
+        );
+
+      case "healthPulse":
+        return (
+          <View key="healthPulse" style={styles.section as ViewStyle}>
+            <HealthPulseCard isRTL={isRTL} userId={user?.id} />
           </View>
         );
 
@@ -2304,11 +2323,6 @@ export default function DashboardScreen() {
 
           {/* Render widgets dynamically */}
           {enabledWidgets.map((widgetId) => renderWidget(widgetId))}
-
-          {/* Health Pulse — unified health score + recovery entry point */}
-          <View style={styles.section as ViewStyle}>
-            <HealthPulseCard isRTL={isRTL} userId={user?.id} />
-          </View>
 
           {/* Vital anomaly monitoring — only shown when there are active alerts */}
           <View style={styles.section as ViewStyle}>
@@ -2726,6 +2740,82 @@ export default function DashboardScreen() {
                   {isRTL ? "تتبع الصحة اليومي" : "Daily Health Tracking"}
                 </Text>
               </View>
+
+              {/* First-time user banner — shown only when no data logged yet */}
+              {stats.symptomsThisWeek === 0 && (
+                <View
+                  style={{
+                    backgroundColor: theme.colors.primary.main + "12",
+                    borderRadius: 12,
+                    padding: theme.spacing.sm,
+                    marginBottom: theme.spacing.base,
+                    flexDirection: isRTL ? "row-reverse" : "row",
+                    alignItems: "center",
+                    gap: theme.spacing.sm,
+                    flexWrap: "wrap" as const,
+                  }}
+                >
+                  <Text
+                    style={{
+                      flex: 1,
+                      color: theme.colors.text.secondary,
+                      fontSize: 13,
+                      textAlign: isRTL ? "right" : "left",
+                    }}
+                  >
+                    {isRTL
+                      ? "أنت جاهز! ابدأ بتسجيل أول علامة حيوية أو عرض."
+                      : "You're all set! Start by logging your first vital or symptom."}
+                  </Text>
+                  <View
+                    style={{
+                      flexDirection: isRTL ? "row-reverse" : "row",
+                      gap: theme.spacing.xs,
+                    }}
+                  >
+                    <TouchableOpacity
+                      onPress={navigateToVitals}
+                      style={{
+                        backgroundColor: theme.colors.primary.main,
+                        borderRadius: 8,
+                        paddingHorizontal: theme.spacing.sm,
+                        paddingVertical: 6,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: theme.colors.neutral.white,
+                          fontSize: 12,
+                          fontWeight: "600",
+                        }}
+                      >
+                        {isRTL ? "علامة حيوية" : "Log a vital"}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={navigateToSymptoms}
+                      style={{
+                        backgroundColor: theme.colors.primary.main + "22",
+                        borderRadius: 8,
+                        paddingHorizontal: theme.spacing.sm,
+                        paddingVertical: 6,
+                        borderWidth: 1,
+                        borderColor: theme.colors.primary.main + "44",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: theme.colors.primary.main,
+                          fontSize: 12,
+                          fontWeight: "600",
+                        }}
+                      >
+                        {isRTL ? "عرض" : "Log a symptom"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
 
               <View style={styles.trackingOptions as ViewStyle}>
                 {trackingTabs.map((tab) => {

@@ -14,6 +14,7 @@ import {
   BarChart2,
   ChevronRight,
   Minus,
+  Plus,
   TrendingDown,
   TrendingUp,
 } from "lucide-react-native";
@@ -182,6 +183,59 @@ export default function HealthPulseCard({ userId, isRTL = false }: HealthPulseCa
       <View style={styles.loadingWrap}>
         <ActivityIndicator color={theme.colors.primary.main} size="small" />
       </View>
+    );
+  }
+
+  // First-use state: loading finished but no data at all yet
+  if (!isLoading && !forecast && !recoveryScore) {
+    return (
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={() => router.push("/(tabs)/track" as Parameters<typeof router.push>[0])}
+        style={styles.card}
+      >
+        {/* Neutral placeholder circle */}
+        <View
+          style={{
+            width: 64,
+            height: 64,
+            borderRadius: 32,
+            borderWidth: 2,
+            borderColor: theme.colors.border.medium,
+            borderStyle: "dashed",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: theme.colors.background.secondary,
+            flexShrink: 0,
+          }}
+        >
+          <Plus color={theme.colors.text.secondary} size={22} />
+        </View>
+
+        {/* Text block */}
+        <View style={styles.infoBlock}>
+          <View style={styles.titleRow}>
+            <BarChart2 color={theme.colors.text.secondary} size={14} />
+            <TypographyText style={[styles.titleText, { color: theme.colors.text.primary }]}>
+              {rtl ? "ابدأ تتبع صحتك" : "Start tracking your health"}
+            </TypographyText>
+          </View>
+          <Caption style={[styles.subtitleText, { textAlign: rtl ? "right" : "left" }]}>
+            {rtl
+              ? "سجّل أول قراءة حيوية لرؤية درجة صحتك"
+              : "Log your first vital to see your Health Score"}
+          </Caption>
+        </View>
+
+        {/* Chevron */}
+        <View style={styles.chevronWrap}>
+          <ChevronRight
+            color={theme.colors.text.secondary}
+            size={18}
+            style={{ transform: [{ scaleX: rtl ? -1 : 1 }] }}
+          />
+        </View>
+      </TouchableOpacity>
     );
   }
 

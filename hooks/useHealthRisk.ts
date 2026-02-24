@@ -28,12 +28,13 @@ export function useHealthRisk(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastLoadRef = useRef<number>(0);
+  const hasDataRef = useRef(false);
 
   const load = useCallback(
     async (force = false) => {
       if (!userId) return;
       const now = Date.now();
-      if (!force && now - lastLoadRef.current < CACHE_TTL_MS && assessment)
+      if (!force && now - lastLoadRef.current < CACHE_TTL_MS && hasDataRef.current)
         return;
 
       setLoading(true);
@@ -45,6 +46,7 @@ export function useHealthRisk(
         );
         setAssessment(data);
         lastLoadRef.current = Date.now();
+        hasDataRef.current = true;
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Failed to load risk assessment"
@@ -53,7 +55,7 @@ export function useHealthRisk(
         setLoading(false);
       }
     },
-    [userId, isArabic, assessment]
+    [userId, isArabic]
   );
 
   useEffect(() => {

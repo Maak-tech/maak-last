@@ -877,7 +877,7 @@ class HealthInsightsService {
           type: String(data.type),
           value: data.value,
           unit: data.unit,
-          timestamp: data.timestamp?.toDate?.() || new Date(),
+          timestamp: data.timestamp?.toDate() || new Date(),
           source: data.source,
         });
       });

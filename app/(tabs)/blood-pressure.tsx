@@ -169,7 +169,7 @@ export default function BloodPressureScreen() {
 
       for (const docSnap of snapshot.docs) {
         const data = docSnap.data();
-        const timestamp = data.timestamp?.toDate?.() || new Date();
+        const timestamp = data.timestamp?.toDate() || new Date();
         const fromMetadata = parseBloodPressure(data.metadata);
         const fromValue = parseBloodPressure(data.value);
         const parsed = fromMetadata || fromValue;

@@ -30,6 +30,7 @@ export function useMedicationIntelligence(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastLoadRef = useRef<number>(0);
+  const hasDataRef = useRef(false);
 
   const load = useCallback(
     async (force = false) => {
@@ -38,7 +39,7 @@ export function useMedicationIntelligence(
       if (
         !force &&
         now - lastLoadRef.current < CACHE_TTL_MS &&
-        interactions.length > 0
+        hasDataRef.current
       )
         return;
 
@@ -53,6 +54,7 @@ export function useMedicationIntelligence(
         setInteractions(interactionResults);
         setRefills(refillResults);
         lastLoadRef.current = Date.now();
+        hasDataRef.current = true;
       } catch (err) {
         setError(
           err instanceof Error
@@ -63,7 +65,7 @@ export function useMedicationIntelligence(
         setLoading(false);
       }
     },
-    [userId, interactions.length]
+    [userId]
   );
 
   useEffect(() => {

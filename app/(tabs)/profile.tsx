@@ -73,6 +73,7 @@ import {
   Switch,
   Text,
   type TextStyle,
+  type ViewStyle,
   TextInput,
   TouchableOpacity,
   View,
@@ -334,7 +335,7 @@ export default function ProfileScreen() {
       if (type !== "heartRate" && type !== "steps" && type !== "sleepHours") {
         continue;
       }
-      const timestamp = data.timestamp?.toDate?.() || new Date();
+      const timestamp = data.timestamp?.toDate() || new Date();
       const valueRaw = data.value;
       const value =
         typeof valueRaw === "number"
@@ -1541,6 +1542,7 @@ export default function ProfileScreen() {
     color: string;
     onPress: () => void;
     labelStyle?: TextStyle;
+    infoStyle?: ViewStyle;
   };
 
   const vitalsOverview: HealthOverviewCard[] = [
@@ -1605,7 +1607,7 @@ export default function ProfileScreen() {
     {
       icon: Brain,
       label: t("healthInsights", "Health Insights"),
-      labelStyle: { marginTop: 3 },
+      infoStyle: { marginTop: 4 },
       value: isRTL ? "ملخص ذكي" : "AI Summary",
       trend: isRTL ? "اضغط للعرض" : "Tap to view",
       trendDirection: "stable" as const,
@@ -1846,7 +1848,7 @@ export default function ProfileScreen() {
                     >
                       <Icon color={vital.color} size={20} />
                     </View>
-                    <View style={styles.figmaVitalInfo}>
+                    <View style={[styles.figmaVitalInfo, vital.infoStyle]}>
                       <Text style={[styles.figmaVitalLabel, vital.labelStyle]}>
                         {vital.label}
                       </Text>

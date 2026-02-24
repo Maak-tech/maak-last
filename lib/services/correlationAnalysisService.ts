@@ -959,7 +959,7 @@ class CorrelationAnalysisService {
           ({
             id: doc.id,
             ...doc.data(),
-            timestamp: doc.data().timestamp?.toDate?.() || new Date(),
+            timestamp: doc.data().timestamp?.toDate() || new Date(),
           }) as Mood
       );
     } catch (_error) {
@@ -987,7 +987,7 @@ class CorrelationAnalysisService {
           ({
             id: doc.id,
             ...doc.data(),
-            timestamp: doc.data().timestamp?.toDate?.() || new Date(),
+            timestamp: doc.data().timestamp?.toDate() || new Date(),
           }) as VitalSign
       );
     } catch (_error) {
