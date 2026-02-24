@@ -81,6 +81,10 @@ import {
   calculateRealTimeSignalQuality,
   extractRedChannelAverage,
 } from "@/lib/utils/PPGPixelExtractor";
+import {
+  ppgEmbeddingsService,
+  type EmbeddingSimilarityResult,
+} from "@/lib/services/ppgEmbeddingsService";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 interface PPGVitalMonitorProps {
@@ -156,6 +160,8 @@ export default function PPGVitalMonitorVisionCamera({
   const [fingerDetectionFailed, setFingerDetectionFailed] = useState(false);
   const [frameProcessingErrors, setFrameProcessingErrors] = useState(0);
   const [saveFailed, setSaveFailed] = useState(false);
+  const [cardiacBaseline, setCardiacBaseline] =
+    useState<EmbeddingSimilarityResult | null>(null);
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraRestartNonce, setCameraRestartNonce] = useState(0);
   const [androidPreviewViewType, setAndroidPreviewViewType] = useState<
@@ -742,6 +748,28 @@ export default function PPGVitalMonitorVisionCamera({
     return () => subscription.remove();
   }, [visible, hasPermission, requestPermission, status, originalBrightness]);
 
+  // Run cardiac baseline comparison shortly after measurement succeeds
+  // (embeddings are persisted fire-and-forget in ppgMLService, so we wait ~1s)
+  useEffect(() => {
+    if (status !== "success" || !userId) return;
+    const timer = setTimeout(async () => {
+      try {
+        const recent = await ppgEmbeddingsService.getRecentEmbeddings(userId, 1);
+        if (recent.length === 0 || recent[0].embeddings.length === 0) return;
+        const result = await ppgEmbeddingsService.compareToBaseline(
+          userId,
+          recent[0].embeddings
+        );
+        if (result !== null) {
+          setCardiacBaseline(result);
+        }
+      } catch {
+        // Non-critical — silently ignore
+      }
+    }, 1500); // Wait for persist fire-and-forget to complete
+    return () => clearTimeout(timer);
+  }, [status, userId]);
+
   const resetState = () => {
     // Reset all state variables to initial values
     // This ensures no stale data persists when the modal is closed and reopened
@@ -774,6 +802,7 @@ export default function PPGVitalMonitorVisionCamera({
     setFingerDetectionFailed(false);
     setFrameProcessingErrors(0);
     setSaveFailed(false);
+    setCardiacBaseline(null);
     setCameraReady(false);
     setCameraRestartNonce(0);
     setAndroidPreviewViewType(undefined);
@@ -2706,6 +2735,53 @@ export default function PPGVitalMonitorVisionCamera({
                     {t("vitalSignsSaved")}
                   </Text>
                 )}
+
+                {/* Cardiac baseline comparison banner */}
+                {cardiacBaseline !== null && (
+                  <View
+                    style={{
+                      marginHorizontal: theme.spacing.md,
+                      marginTop: theme.spacing.md,
+                      borderRadius: 12,
+                      paddingHorizontal: theme.spacing.md,
+                      paddingVertical: theme.spacing.sm,
+                      backgroundColor: cardiacBaseline.isAnomaly
+                        ? theme.colors.accent.warning + "20"
+                        : theme.colors.accent.success + "18",
+                      borderLeftWidth: 3,
+                      borderLeftColor: cardiacBaseline.isAnomaly
+                        ? theme.colors.accent.warning
+                        : theme.colors.accent.success,
+                    }}
+                  >
+                    <Text
+                      style={[
+                        getTextStyle(theme, "caption", "semibold",
+                          cardiacBaseline.isAnomaly
+                            ? theme.colors.accent.warning
+                            : theme.colors.accent.success),
+                        { marginBottom: 2 },
+                      ] as StyleProp<TextStyle>}
+                    >
+                      {cardiacBaseline.isAnomaly
+                        ? "⚠️  Unusual cardiac pattern detected"
+                        : "✓  Cardiac pattern within your normal range"}
+                    </Text>
+                    <Text
+                      style={getTextStyle(
+                        theme,
+                        "caption",
+                        "regular",
+                        theme.colors.text.secondary
+                      ) as StyleProp<TextStyle>}
+                    >
+                      {cardiacBaseline.isAnomaly
+                        ? `Similarity to your baseline: ${Math.round(cardiacBaseline.similarity * 100)}% (below normal). Consider logging symptoms or consulting a professional if this persists.`
+                        : `Similarity to your baseline: ${Math.round(cardiacBaseline.similarity * 100)}%`}
+                    </Text>
+                  </View>
+                )}
+
                 <TouchableOpacity
                   onPress={onClose}
                   style={styles.button as ViewStyle}

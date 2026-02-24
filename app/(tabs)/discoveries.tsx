@@ -10,7 +10,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
-import CorrelationDiscoveryCard from "@/app/components/CorrelationDiscoveryCard";
+import EnrichedDiscoveryCard from "@/components/EnrichedDiscoveryCard";
 import {
   Caption,
   Heading,
@@ -270,7 +270,7 @@ export default function DiscoveriesScreen() {
           {/* Discovery Cards */}
           {!loading &&
             filteredDiscoveries.map((discovery) => (
-              <CorrelationDiscoveryCard
+              <EnrichedDiscoveryCard
                 discovery={discovery}
                 key={discovery.id}
                 onDismiss={handleDismiss}
