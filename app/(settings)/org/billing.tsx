@@ -700,20 +700,26 @@ export default function BillingScreen() {
                   "Contact sales@maakhealth.com to discuss enterprise pricing."
                 )
               }
-              style={{
-                backgroundColor: "#6366F1",
-                borderRadius: 12,
-                padding: 16,
+           style={{
+                backgroundColor: theme.colors.primary.main,
+                borderRadius: 16,
+                paddingVertical: 16,
+                paddingHorizontal: 20,
                 flexDirection: "row",
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 8,
                 marginBottom: 16,
+                shadowColor: theme.colors.primary.main,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.2,
+                shadowRadius: 8,
+                elevation: 4,
               }}
-            >
-              <Zap color="#FFF" size={16} />
+             >
+              <Zap color="#FFF" size={18} />
               <TypographyText
-                style={{ color: "#FFF", fontWeight: "600", fontSize: 15 }}
+                style={{ color: "#FFF", fontWeight: "700", fontSize: 16 }}
               >
                 Upgrade Plan
               </TypographyText>

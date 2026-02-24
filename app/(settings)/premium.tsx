@@ -452,24 +452,35 @@ export default function PremiumScreen() {
             <TouchableOpacity
               onPress={openPaywall}
               style={{
-                backgroundColor: isPremium ? "transparent" : "#6366F1",
-                borderRadius: 12,
-                paddingVertical: 12,
-                paddingHorizontal: 18,
+                backgroundColor: isPremium
+                  ? "transparent"
+                  : theme.colors.primary.main,
+                borderRadius: 16,
+                paddingVertical: 16,
+                paddingHorizontal: 20,
                 flexDirection: isRTL ? "row-reverse" : "row",
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 8,
                 borderWidth: isPremium ? 1.5 : 0,
                 borderColor: isPremium ? meta.border : "transparent",
+                ...(isPremium
+                  ? {}
+                  : {
+                      shadowColor: theme.colors.primary.main,
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.2,
+                      shadowRadius: 8,
+                      elevation: 4,
+                    }),
               }}
             >
-              <Zap color={isPremium ? meta.color : "#FFF"} size={16} />
+              <Zap color={isPremium ? meta.color : "#FFF"} size={18} />
               <TypographyText
                 style={{
                   color: isPremium ? meta.color : "#FFF",
                   fontWeight: "700",
-                  fontSize: 15,
+                  fontSize: 16,
                 }}
               >
                 {isPremium
