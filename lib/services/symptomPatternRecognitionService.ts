@@ -51,6 +51,7 @@ const SYMPTOM_PATTERNS: Record<string, SymptomPattern> = {
   common_cold: {
     id: "common_cold",
     name: "Common Cold",
+    nameAr: "نزلة البرد",
     symptoms: [
       "sore throat",
       "runny nose",
@@ -63,21 +64,27 @@ const SYMPTOM_PATTERNS: Record<string, SymptomPattern> = {
     severity: "mild",
     duration: "acute",
     triggers: ["seasonal", "viral exposure"],
+    triggersAr: ["موسمي", "التعرض للفيروسات"],
     description: "Typical viral upper respiratory infection",
+    descriptionAr: "عدوى فيروسية نموذجية في الجهاز التنفسي العلوي",
   },
   flu_like: {
     id: "flu_like",
     name: "Flu-like Illness",
+    nameAr: "أعراض شبيهة بالإنفلونزا",
     symptoms: ["fever", "body aches", "fatigue", "headache", "cough", "chills"],
     confidence: 0,
     severity: "moderate",
     duration: "acute",
     triggers: ["viral infection", "seasonal"],
+    triggersAr: ["عدوى فيروسية", "موسمي"],
     description: "Influenza or influenza-like viral infection",
+    descriptionAr: "إنفلونزا أو عدوى فيروسية شبيهة بها",
   },
   asthma_exacerbation: {
     id: "asthma_exacerbation",
     name: "Asthma Exacerbation",
+    nameAr: "نوبة ربو حادة",
     symptoms: [
       "shortness of breath",
       "wheezing",
@@ -89,13 +96,16 @@ const SYMPTOM_PATTERNS: Record<string, SymptomPattern> = {
     severity: "moderate",
     duration: "acute",
     triggers: ["allergens", "exercise", "cold air", "stress"],
+    triggersAr: ["مسببات الحساسية", "ممارسة الرياضة", "الهواء البارد", "الإجهاد"],
     description: "Worsening of asthma symptoms requiring attention",
+    descriptionAr: "تفاقم أعراض الربو يستدعي الاهتمام",
   },
 
   // Gastrointestinal patterns
   gastrointestinal_virus: {
     id: "gastrointestinal_virus",
     name: "Gastrointestinal Viral Infection",
+    nameAr: "عدوى معوية فيروسية",
     symptoms: [
       "nausea",
       "vomiting",
@@ -108,11 +118,14 @@ const SYMPTOM_PATTERNS: Record<string, SymptomPattern> = {
     severity: "moderate",
     duration: "acute",
     triggers: ["contaminated food/water", "viral exposure"],
+    triggersAr: ["طعام أو ماء ملوث", "التعرض للفيروسات"],
     description: "Viral gastroenteritis (stomach flu)",
+    descriptionAr: "التهاب المعدة والأمعاء الفيروسي",
   },
   acid_reflux: {
     id: "acid_reflux",
     name: "Acid Reflux/GERD",
+    nameAr: "الارتجاع المريئي",
     symptoms: [
       "heartburn",
       "chest pain",
@@ -124,13 +137,16 @@ const SYMPTOM_PATTERNS: Record<string, SymptomPattern> = {
     severity: "mild",
     duration: "chronic",
     triggers: ["spicy foods", "large meals", "lying down", "stress"],
+    triggersAr: ["الأطعمة الحارة", "الوجبات الكبيرة", "الاستلقاء", "الإجهاد"],
     description: "Gastroesophageal reflux disease",
+    descriptionAr: "مرض الجزر المعدي المريئي",
   },
 
   // Cardiovascular patterns
   hypertension_symptoms: {
     id: "hypertension_symptoms",
     name: "Hypertension Symptoms",
+    nameAr: "أعراض ارتفاع ضغط الدم",
     symptoms: [
       "headache",
       "dizziness",
@@ -142,13 +158,16 @@ const SYMPTOM_PATTERNS: Record<string, SymptomPattern> = {
     severity: "moderate",
     duration: "chronic",
     triggers: ["stress", "high salt intake", "lack of exercise"],
+    triggersAr: ["الإجهاد", "الإفراط في الملح", "قلة النشاط البدني"],
     description: "Symptoms associated with high blood pressure",
+    descriptionAr: "أعراض مرتبطة بارتفاع ضغط الدم",
   },
 
   // Neurological patterns
   migraine: {
     id: "migraine",
     name: "Migraine",
+    nameAr: "الصداع النصفي",
     symptoms: [
       "severe headache",
       "nausea",
@@ -160,11 +179,14 @@ const SYMPTOM_PATTERNS: Record<string, SymptomPattern> = {
     severity: "moderate",
     duration: "recurring",
     triggers: ["stress", "certain foods", "hormonal changes", "lack of sleep"],
+    triggersAr: ["الإجهاد", "أطعمة بعينها", "التغيرات الهرمونية", "قلة النوم"],
     description: "Migraine headache episode",
+    descriptionAr: "نوبة صداع نصفي",
   },
   tension_headache: {
     id: "tension_headache",
     name: "Tension Headache",
+    nameAr: "صداع التوتر",
     symptoms: [
       "headache",
       "neck pain",
@@ -176,13 +198,16 @@ const SYMPTOM_PATTERNS: Record<string, SymptomPattern> = {
     severity: "mild",
     duration: "acute",
     triggers: ["stress", "poor posture", "lack of sleep"],
+    triggersAr: ["الإجهاد", "سوء الجلسة", "قلة النوم"],
     description: "Muscle tension-related headache",
+    descriptionAr: "صداع ناجم عن توتر عضلي",
   },
 
   // Endocrine patterns
   hypoglycemia: {
     id: "hypoglycemia",
     name: "Hypoglycemia",
+    nameAr: "انخفاض سكر الدم",
     symptoms: [
       "shaking",
       "sweating",
@@ -195,13 +220,16 @@ const SYMPTOM_PATTERNS: Record<string, SymptomPattern> = {
     severity: "moderate",
     duration: "acute",
     triggers: ["skipping meals", "excessive exercise", "diabetes medication"],
+    triggersAr: ["تخطي الوجبات", "الإفراط في التمرين", "أدوية السكري"],
     description: "Low blood sugar episode",
+    descriptionAr: "نوبة انخفاض سكر الدم",
   },
 
   // Musculoskeletal patterns
   muscle_strain: {
     id: "muscle_strain",
     name: "Muscle Strain",
+    nameAr: "إجهاد عضلي",
     symptoms: [
       "muscle pain",
       "stiffness",
@@ -213,13 +241,16 @@ const SYMPTOM_PATTERNS: Record<string, SymptomPattern> = {
     severity: "mild",
     duration: "acute",
     triggers: ["exercise", "overuse", "injury"],
+    triggersAr: ["التمرين", "الإفراط في الاستخدام", "الإصابة"],
     description: "Muscle strain or sprain",
+    descriptionAr: "شد أو التواء عضلي",
   },
 
   // Mental health patterns
   anxiety_episode: {
     id: "anxiety_episode",
     name: "Anxiety Episode",
+    nameAr: "نوبة قلق",
     symptoms: [
       "anxiety",
       "rapid heartbeat",
@@ -232,11 +263,14 @@ const SYMPTOM_PATTERNS: Record<string, SymptomPattern> = {
     severity: "moderate",
     duration: "acute",
     triggers: ["stress", "caffeine", "lack of sleep"],
+    triggersAr: ["الإجهاد", "الكافيين", "قلة النوم"],
     description: "Acute anxiety or panic attack",
+    descriptionAr: "نوبة قلق حادة أو هجوم هلع",
   },
   depression_symptoms: {
     id: "depression_symptoms",
     name: "Depressive Symptoms",
+    nameAr: "أعراض الاكتئاب",
     symptoms: [
       "sadness",
       "fatigue",
@@ -249,7 +283,9 @@ const SYMPTOM_PATTERNS: Record<string, SymptomPattern> = {
     severity: "moderate",
     duration: "chronic",
     triggers: ["stress", "life changes", "seasonal"],
+    triggersAr: ["الإجهاد", "تغيرات الحياة", "موسمي"],
     description: "Symptoms consistent with depression",
+    descriptionAr: "أعراض تتوافق مع الاكتئاب",
   },
 };
 
@@ -407,10 +443,10 @@ class SymptomPatternRecognitionService {
     recentSymptoms: Symptom[],
     medicalHistory?: MedicalHistory[],
     medications?: Medication[],
-    _isArabic = false
+    isArabic = false
   ): Promise<PatternAnalysisResult> {
     // Identify symptom patterns
-    const patterns = this.identifySymptomPatterns(recentSymptoms);
+    const patterns = this.identifySymptomPatterns(recentSymptoms, isArabic);
 
     // Generate diagnosis suggestions
     const diagnosisSuggestions = await this.generateDiagnosisSuggestions(
@@ -436,9 +472,15 @@ class SymptomPatternRecognitionService {
   }
 
   /**
-   * Identify symptom patterns in the data
+   * Identify symptom patterns in the data.
+   * When isArabic=true the returned patterns have their name, description,
+   * and triggers replaced with the Arabic variants (nameAr, descriptionAr,
+   * triggersAr) when those fields are present.
    */
-  private identifySymptomPatterns(symptoms: Symptom[]): SymptomPattern[] {
+  private identifySymptomPatterns(
+    symptoms: Symptom[],
+    isArabic = false
+  ): SymptomPattern[] {
     const patterns: SymptomPattern[] = [];
     const symptomCounts: Record<string, number> = {};
 
@@ -461,10 +503,21 @@ class SymptomPatternRecognitionService {
             (symptoms.length / 20) * 20 // Bonus for more data points
         );
 
-        patterns.push({
+        const pattern: SymptomPattern = {
           ...patternTemplate,
           confidence,
-        });
+        };
+
+        // Substitute Arabic fields when requested
+        if (isArabic) {
+          if (patternTemplate.nameAr) pattern.name = patternTemplate.nameAr;
+          if (patternTemplate.descriptionAr)
+            pattern.description = patternTemplate.descriptionAr;
+          if (patternTemplate.triggersAr)
+            pattern.triggers = patternTemplate.triggersAr;
+        }
+
+        patterns.push(pattern);
       }
     });
 

@@ -530,6 +530,20 @@ const getLocalizedSuggestionText = (
         category: "السلامة",
       },
     },
+    allergyMedicationConflict: {
+      en: {
+        title: "⚠️ Potential Allergy-Medication Conflict",
+        description: `Your active medication "${params?.medication || "a medication"}" may conflict with your documented allergy to "${params?.allergen || "a substance"}". Please review with your healthcare provider immediately.`,
+        actionLabel: "View Medications",
+        category: "Safety",
+      },
+      ar: {
+        title: "⚠️ تعارض محتمل بين حساسية ودواء",
+        description: `دواؤك الحالي "${params?.medication || "دواء"}" قد يتعارض مع حساسيتك الموثقة من "${params?.allergen || "مادة"}". يرجى مراجعة مقدم الرعاية الصحية فوراً.`,
+        actionLabel: "عرض الأدوية",
+        category: "السلامة",
+      },
+    },
     conditionManagement: {
       en: {
         title: "Condition Management",
@@ -1077,43 +1091,109 @@ class ProactiveHealthSuggestionsService {
   }
 
   /**
-   * Get allergy-aware medication suggestions
+   * Get allergy-aware medication suggestions.
+   *
+   * Two layers of detection:
+   * 1. Cross-check active medications against documented allergies by name /
+   *    drug-class synonyms — surfaces a HIGH-priority conflict card.
+   * 2. General reminder card for severe allergies that look like medication
+   *    allergies (keyword heuristic) but have no active medication conflict.
    */
   private getAllergyAwareSuggestions(
     allergies: Allergy[],
-    _medications: Medication[],
+    medications: Medication[],
     isArabic = false
   ): HealthSuggestion[] {
     const suggestions: HealthSuggestion[] = [];
 
-    // Severe allergies reminder (severity can be "severe" or "severe-life-threatening")
+    // Drug-class synonym map: allergy keyword → related medication name fragments.
+    // Catches cross-class matches (e.g. penicillin allergy + amoxicillin prescription).
+    const DRUG_CLASS_MAP: Record<string, string[]> = {
+      penicillin: ["penicillin", "amoxicillin", "ampicillin", "augmentin", "oxacillin"],
+      aspirin: ["aspirin", "acetylsalicylic"],
+      ibuprofen: ["ibuprofen", "advil", "motrin", "nurofen"],
+      sulfa: ["sulfa", "sulfamethoxazole", "trimethoprim", "bactrim"],
+      codeine: ["codeine", "dihydrocodeine"],
+      nsaid: ["ibuprofen", "naproxen", "diclofenac", "indomethacin", "celecoxib", "aspirin"],
+      cephalosporin: ["cephalosporin", "cefazolin", "cephalexin", "cefdinir", "ceftriaxone"],
+      amoxicillin: ["amoxicillin", "penicillin", "ampicillin", "augmentin"],
+      antibiotic: ["amoxicillin", "penicillin", "ampicillin", "azithromycin", "doxycycline",
+        "ciprofloxacin", "levofloxacin", "clindamycin", "metronidazole"],
+    };
+
+    const activeMedications = medications.filter((m) => m.isActive);
+
+    // ── Layer 1: Direct allergy-medication conflict detection ──────────────
+    const seenConflictPairs = new Set<string>();
+    for (const allergy of allergies) {
+      const allergyLower = allergy.name.toLowerCase();
+
+      // Collect synonym fragments to test against active medication names
+      const relatedFragments: string[] = [allergyLower]; // exact name match
+      for (const [keyword, synonyms] of Object.entries(DRUG_CLASS_MAP)) {
+        if (allergyLower.includes(keyword)) {
+          relatedFragments.push(...synonyms);
+        }
+      }
+
+      for (const med of activeMedications) {
+        const medLower = med.name.toLowerCase();
+        const conflicts = relatedFragments.some((frag) =>
+          medLower.includes(frag) || frag.includes(medLower)
+        );
+
+        if (conflicts) {
+          const pairKey = `${allergy.id}:${med.id}`;
+          if (seenConflictPairs.has(pairKey)) continue;
+          seenConflictPairs.add(pairKey);
+
+          const localizedText = getLocalizedSuggestionText(
+            "allergyMedicationConflict",
+            isArabic,
+            { allergen: allergy.name, medication: med.name }
+          );
+
+          suggestions.push({
+            id: `allergy-conflict-${allergy.id}-${med.id}`,
+            type: "medication",
+            // Conflicts are always the highest priority
+            priority: "high",
+            title: localizedText.title,
+            description: localizedText.description,
+            action: {
+              label: localizedText.actionLabel || "View Medications",
+              route: "/(tabs)/medications",
+            },
+            icon: "AlertCircle",
+            category: localizedText.category,
+            timestamp: new Date(),
+          });
+        }
+      }
+    }
+
+    // ── Layer 2: Severe allergy reminder (no active conflict found) ────────
     const severeAllergies = allergies.filter(
       (a) => a.severity === "severe" || a.severity === "severe-life-threatening"
     );
-
-    // Check if allergy name suggests medication type
-    const medicationKeywords = [
-      "penicillin",
-      "aspirin",
-      "ibuprofen",
-      "sulfa",
-      "codeine",
-      "amoxicillin",
-      "antibiotic",
-    ];
+    const medicationKeywords = Object.keys(DRUG_CLASS_MAP).concat(["antihistamine"]);
 
     for (const allergy of severeAllergies.slice(0, 2)) {
+      const allergyLower = allergy.name.toLowerCase();
       const isMedicationAllergy = medicationKeywords.some((keyword) =>
-        allergy.name.toLowerCase().includes(keyword)
+        allergyLower.includes(keyword)
       );
 
-      if (isMedicationAllergy) {
+      // Only emit reminder if no conflict card was already generated for this allergy
+      const alreadyConflicted = [...seenConflictPairs].some((k) =>
+        k.startsWith(`${allergy.id}:`)
+      );
+
+      if (isMedicationAllergy && !alreadyConflicted) {
         const localizedText = getLocalizedSuggestionText(
           "allergyMedicationWarning",
           isArabic,
-          {
-            allergen: allergy.name,
-          }
+          { allergen: allergy.name }
         );
 
         suggestions.push({

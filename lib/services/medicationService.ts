@@ -691,11 +691,13 @@ export const medicationService = {
     });
   },
 
-  // Get medication stats for a specific family member (for admins)
+  // Get medication stats for a specific family member (for admins).
+  // todaysCompliance is null when data could not be loaded (avoids false 100% signal).
   async getMemberMedicationStats(memberId: string): Promise<{
     totalMedications: number;
     activeMedications: number;
-    todaysCompliance: number;
+    /** Compliance percentage 0-100, or null when data is unavailable (do not display as 100%). */
+    todaysCompliance: number | null;
     upcomingReminders: number;
   }> {
     try {
@@ -747,11 +749,12 @@ export const medicationService = {
         upcomingReminders,
       };
     } catch (_error) {
-      // Silently handle error getting member medication stats:", error);
+      // Return null for todaysCompliance so callers can distinguish
+      // "failed to load" from "0 missed doses" — never lie with 100%.
       return {
         totalMedications: 0,
         activeMedications: 0,
-        todaysCompliance: 100,
+        todaysCompliance: null,
         upcomingReminders: 0,
       };
     }

@@ -439,7 +439,10 @@ class HealthContextService {
           if (recentSymptoms.length < 3) return null;
           return await symptomPatternRecognitionService.analyzeSymptomPatterns(
             uid,
-            recentSymptoms
+            recentSymptoms,
+            undefined,
+            undefined,
+            options?.language?.startsWith("ar") ?? false
           );
         } catch {
           return null;
