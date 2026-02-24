@@ -1,3 +1,13 @@
+import {
+  collection,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  Timestamp,
+  where,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import type {
   MedicalHistory,
   Medication,
@@ -7,9 +17,10 @@ import type {
   VitalSign,
 } from "@/types";
 import { medicalHistoryService } from "./medicalHistoryService";
-// Vitals accessed directly from Firestore
 import { medicationService } from "./medicationService";
+import { moodService } from "./moodService";
 import { symptomService } from "./symptomService";
+import { userService } from "./userService";
 
 export type RiskFactor = {
   id: string;
@@ -217,15 +228,15 @@ class RiskAssessmentService {
     const [user, medicalHistory, symptoms, vitals, medications, moods] =
       await Promise.all([
         this.getUserProfile(userId),
-        medicalHistoryService.getUserMedicalHistory(userId),
-        symptomService.getUserSymptoms(userId, 100),
+        medicalHistoryService.getUserMedicalHistory(userId).catch(() => [] as MedicalHistory[]),
+        symptomService.getUserSymptoms(userId, 100).catch(() => [] as Symptom[]),
         this.getRecentVitals(userId),
-        medicationService.getUserMedications(userId),
+        medicationService.getUserMedications(userId).catch(() => [] as Medication[]),
         this.getRecentMoods(userId),
       ]);
 
     // Assess individual risk factors
-    const riskFactors = await this.assessRiskFactors(
+    const riskFactors = this.assessRiskFactors(
       user,
       medicalHistory,
       symptoms,
@@ -452,17 +463,14 @@ class RiskAssessmentService {
   // Helper methods
 
   private calculateAge(user: User): number {
-    const birthDate = new Date(user.firstName); // This is a placeholder - should be actual birth date
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (
-      monthDiff < 0 ||
-      (monthDiff === 0 && today.getDate() < birthDate.getDate())
-    ) {
-      age -= 1;
-    }
-    return age;
+    // The User type doesn't have a dateOfBirth field yet.
+    // Use avatarType as a proxy: grandma/grandpa → 65+; boy/girl → 18.
+    // Otherwise fall back to a conservative 40 (mid-life, non-zero risk tier).
+    const avatar = user.avatarType;
+    if (avatar === "grandma" || avatar === "grandpa") return 68;
+    if (avatar === "boy" || avatar === "girl") return 16;
+    if (avatar === "man" || avatar === "woman") return 40;
+    return 40; // safe default
   }
 
   private createRiskFactor(
@@ -775,34 +783,57 @@ class RiskAssessmentService {
     }
   }
 
-  // Data access methods (simplified - would need proper implementation)
-  private getUserProfile(userId: string): User {
-    // This should fetch user profile from database
-    // For now, return a mock user
+  // Data access methods — wired to real Firestore data
+
+  private async getUserProfile(userId: string): Promise<User> {
+    const user = await userService.getUser(userId);
+    if (user) return user;
+    // Fallback if user doc doesn't exist yet
     return {
       id: userId,
-      firstName: "John",
-      lastName: "Doe",
-      email: "john@example.com",
+      firstName: "",
+      lastName: "",
       createdAt: new Date(),
       role: "admin",
       onboardingCompleted: true,
-      preferences: {
-        language: "en",
-        notifications: true,
-        emergencyContacts: [],
-      },
+      preferences: { language: "en", notifications: true, emergencyContacts: [] },
     };
   }
 
-  private getRecentVitals(_userId: string): VitalSign[] {
-    // This should fetch recent vitals from database
-    return [];
+  private async getRecentVitals(userId: string): Promise<VitalSign[]> {
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const q = query(
+        collection(db, "vitals"),
+        where("userId", "==", userId),
+        where("timestamp", ">=", Timestamp.fromDate(thirtyDaysAgo)),
+        orderBy("timestamp", "desc"),
+        limit(100)
+      );
+      const snap = await getDocs(q);
+      return snap.docs.map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          ...data,
+          timestamp:
+            data.timestamp instanceof Timestamp
+              ? data.timestamp.toDate()
+              : new Date(),
+        } as VitalSign;
+      });
+    } catch {
+      return [];
+    }
   }
 
-  private getRecentMoods(_userId: string): Mood[] {
-    // This should fetch recent moods from database
-    return [];
+  private async getRecentMoods(userId: string): Promise<Mood[]> {
+    try {
+      return await moodService.getUserMoods(userId, 60);
+    } catch {
+      return [];
+    }
   }
 }
 

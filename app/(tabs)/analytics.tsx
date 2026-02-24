@@ -23,8 +23,10 @@ import { AIInsightsDashboard } from "@/app/components/AIInsightsDashboard";
 import CorrelationChart from "@/app/components/CorrelationChart";
 import HealthChart from "@/app/components/HealthChart";
 import TrendPredictionChart from "@/app/components/TrendPredictionChart";
+import HealthRiskCard from "@/components/HealthRiskCard";
 import HealthScoreForecastCard from "@/components/HealthScoreForecastCard";
 import LabInsightsCard from "@/components/LabInsightsCard";
+import SymptomAnalysisCard from "@/components/SymptomAnalysisCard";
 import GradientScreen from "@/components/figma/GradientScreen";
 import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
@@ -723,6 +725,16 @@ export default function AnalyticsScreen() {
           {/* Lab Insights — Premium Individual+ */}
           <View style={styles.section as ViewStyle}>
             <LabInsightsCard variant="analytics" userId={user?.id} />
+          </View>
+
+          {/* Health Risk Assessment — ML-powered, Premium Individual+ */}
+          <View style={styles.section as ViewStyle}>
+            <HealthRiskCard userId={user?.id} />
+          </View>
+
+          {/* Symptom Pattern Analysis — ML-powered, Premium Individual+ */}
+          <View style={styles.section as ViewStyle}>
+            <SymptomAnalysisCard userId={user?.id} />
           </View>
 
           {/* AI Insights Section */}
