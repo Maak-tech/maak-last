@@ -6,7 +6,8 @@
       "Bash(python3:*)",
       "Bash(node -e:*)",
       "Bash(npx tsc:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(wc:*)"
     ]
   }
 }

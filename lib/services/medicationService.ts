@@ -14,14 +14,17 @@ import {
 import { Platform } from "react-native";
 import { db } from "@/lib/firebase";
 import { healthTimelineService } from "@/lib/observability";
-import type { Medication } from "@/types";
+import type { Medication, MedicationReminder } from "@/types";
 import { coerceToDate } from "@/utils/dateCoercion";
 import { offlineService } from "./offlineService";
 import { userService } from "./userService";
 
 type ReminderRecord = {
   id?: string;
+  time?: unknown;
+  taken?: unknown;
   takenAt?: unknown;
+  takenBy?: unknown;
   [key: string]: unknown;
 };
 
@@ -37,11 +40,21 @@ const normalizeReminder = (
   reminder: ReminderRecord,
   baseId: string,
   index: number
-) => ({
-  ...reminder,
-  id: reminder.id || `${baseId}_reminder_${index}_${Date.now()}`,
-  takenAt: coerceToDate(reminder.takenAt) || undefined,
-});
+): MedicationReminder => {
+  const id = reminder.id || `${baseId}_reminder_${index}_${Date.now()}`;
+  const time = typeof reminder.time === "string" ? reminder.time : "";
+  const taken = typeof reminder.taken === "boolean" ? reminder.taken : false;
+  const takenBy =
+    typeof reminder.takenBy === "string" ? reminder.takenBy : undefined;
+
+  return {
+    id,
+    time,
+    taken,
+    takenAt: coerceToDate(reminder.takenAt) || undefined,
+    takenBy,
+  };
+};
 
 const coerceMedicationStartDate = (value: unknown): Date => {
   const parsed = coerceToDate(value);

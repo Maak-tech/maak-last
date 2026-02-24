@@ -43,6 +43,14 @@ const isFirebaseFunctionsError = (
 ): error is { code?: string; message?: string } =>
   typeof error === "object" && error !== null && "message" in error;
 
+const normalizeFirebaseFunctionsErrorCode = (value: unknown): string | undefined => {
+  if (typeof value !== "string") {
+    return;
+  }
+  // Firebase callable errors may come through as "permission-denied" or "functions/permission-denied".
+  return value.startsWith("functions/") ? value.slice("functions/".length) : value;
+};
+
 const MARKDOWN_JSON_BLOCK_REGEX = /```(?:json)?\s*(\{[\s\S]*\})\s*```/;
 
 const redactOutboundText = (value: string): string => {
@@ -245,15 +253,21 @@ class OpenAIService {
         error instanceof Error ? error.message : "Unknown AI service error";
 
       if (isFirebaseFunctionsError(error)) {
-        const code = (error as { code?: string }).code;
+        const code = normalizeFirebaseFunctionsErrorCode(
+          (error as { code?: unknown }).code
+        );
         if (code === "failed-precondition") {
           throw markExpectedApiError(
             "AI service is not configured. Set Firebase Functions secret OPENAI_API_KEY and redeploy."
           );
         }
         if (code === "permission-denied") {
+          // Preserve the server message (e.g., plan requirement) but treat it as expected.
           throw markExpectedApiError(
-            "AI is available only for active Family Plan subscribers."
+            typeof (error as { message?: unknown }).message === "string" &&
+              (error as { message: string }).message.trim()
+              ? (error as { message: string }).message.trim()
+              : "This feature requires an active subscription."
           );
         }
         if (code === "unauthenticated") {
