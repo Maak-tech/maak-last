@@ -206,7 +206,23 @@ const loadFamilyMedicationsWithFallback = async (
   }
 };
 
+// In-memory cache for getUserMedications to avoid duplicate Firestore reads
+// when multiple components/services request the same user's medications simultaneously.
+const _medCache: {
+  data: Map<string, { medications: Medication[]; timestamp: number }>;
+  TTL: number;
+} = { data: new Map(), TTL: 2 * 60_000 }; // 2-minute TTL
+
 export const medicationService = {
+  /** Clear the in-memory medication cache for a user (call after mutations). */
+  invalidateCache(userId?: string) {
+    if (userId) {
+      _medCache.data.delete(userId);
+    } else {
+      _medCache.data.clear();
+    }
+  },
+
   // Add new medication (offline-first)
   async addMedication(medicationData: Omit<Medication, "id">): Promise<string> {
     const isOnline = offlineService.isDeviceOnline();
@@ -233,6 +249,7 @@ export const medicationService = {
           ...currentMedications,
           newMedication,
         ]);
+        this.invalidateCache(medicationData.userId);
         return docRef.id;
       }
       // Offline - queue the operation
@@ -291,8 +308,14 @@ export const medicationService = {
     return docRef.id;
   },
 
-  // Get user medications (offline-first)
+  // Get user medications (offline-first, with in-memory dedup cache)
   async getUserMedications(userId: string): Promise<Medication[]> {
+    // Return cached result if fresh (prevents duplicate reads across components)
+    const cached = _medCache.data.get(userId);
+    if (cached && Date.now() - cached.timestamp < _medCache.TTL) {
+      return cached.medications;
+    }
+
     const isOnline = offlineService.isDeviceOnline();
 
     try {
@@ -330,6 +353,9 @@ export const medicationService = {
           (a, b) => b.startDate.getTime() - a.startDate.getTime()
         );
 
+        // Update in-memory cache
+        _medCache.data.set(userId, { medications, timestamp: Date.now() });
+
         // Cache for offline access
         await offlineService.storeOfflineData("medications", medications);
         return medications;
@@ -366,6 +392,7 @@ export const medicationService = {
       updateData.endDate = Timestamp.fromDate(updates.endDate);
     }
     await updateDoc(doc(db, "medications", medicationId), updateData);
+    this.invalidateCache(updates.userId);
   },
 
   // Mark medication as taken
@@ -397,6 +424,7 @@ export const medicationService = {
     await updateDoc(doc(db, "medications", medicationId), {
       reminders: updatedReminders,
     });
+    this.invalidateCache(medication.userId);
 
     if (newTakenState) {
       dismissMedicationReminderNotifications({
@@ -463,6 +491,7 @@ export const medicationService = {
     await updateDoc(doc(db, "medications", medicationId), {
       isActive: false,
     });
+    this.invalidateCache(); // Clear all since we don't have userId
   },
 
   // Get today's medications
@@ -588,6 +617,8 @@ export const medicationService = {
         });
       }
     }
+    // Invalidate cache since reminders were reset
+    this.invalidateCache(userId);
   },
 
   // Check if user has permission to access family data (admin or caregiver)

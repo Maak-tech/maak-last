@@ -102,6 +102,10 @@ export type HealthDataSummary = {
 
 const HEALTH_DATA_STORAGE_KEY = "@maak_health_data";
 const PERMISSIONS_STORAGE_KEY = "@maak_health_permissions";
+
+// In-memory cache for getLatestVitalsFromFirestore
+const _vitalsFirestoreCache = new Map<string, { data: VitalSigns | null; timestamp: number }>();
+const VITALS_CACHE_TTL = 2 * 60_000; // 2 minutes
 const isDevEnvironment = (): boolean =>
   (globalThis as { __DEV__?: boolean }).__DEV__ === true;
 
@@ -306,6 +310,11 @@ export const healthDataService = {
   async getLatestVitalsFromFirestore(
     userId: string
   ): Promise<VitalSigns | null> {
+    const cached = _vitalsFirestoreCache.get(userId);
+    if (cached && Date.now() - cached.timestamp < VITALS_CACHE_TTL) {
+      return cached.data;
+    }
+
     try {
       // Get recent vitals from all sources (last 7 days)
       const sevenDaysAgo = new Date();
@@ -438,7 +447,7 @@ export const healthDataService = {
         return todaySamples.reduce((acc, s) => acc + s.value, 0);
       };
 
-      // Build VitalSigns object
+      // Build VitalSigns object — cache before returning
       const vitals: VitalSigns = {
         // Heart & Cardiovascular - use latest value
         heartRate: getLatestValue("heartRate"),
@@ -486,6 +495,7 @@ export const healthDataService = {
         timestamp: new Date(),
       };
 
+      _vitalsFirestoreCache.set(userId, { data: vitals, timestamp: Date.now() });
       return vitals;
     } catch (_error) {
       return null;

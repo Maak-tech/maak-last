@@ -1,9 +1,9 @@
-import { useRouter } from "expo-router";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -19,6 +19,9 @@ import { useRevenueCat } from "@/hooks/useRevenueCat";
 
 const IS_DEV = process.env.NODE_ENV !== "production";
 
+const TERMS_URL = "https://maak-5caad.web.app/terms-conditions";
+const PRIVACY_URL = "https://maak-5caad.web.app/privacy-policy";
+
 type RevenueCatPaywallProps = {
   onPurchaseComplete?: () => void;
   onDismiss?: () => void;
@@ -33,7 +36,6 @@ export function RevenueCatPaywall({
   onDismiss,
 }: RevenueCatPaywallProps) {
   const { t, i18n } = useTranslation();
-  const router = useRouter();
   const { isLoading, offerings, error, refreshOfferings, refreshCustomerInfo } =
     useRevenueCat();
   const isRTL = i18n.language === "ar";
@@ -111,11 +113,11 @@ export function RevenueCatPaywall({
   }
 
   const handleTermsPress = () => {
-    router.push("/profile/terms-conditions");
+    Linking.openURL(TERMS_URL);
   };
 
   const handlePrivacyPress = () => {
-    router.push("/profile/privacy-policy");
+    Linking.openURL(PRIVACY_URL);
   };
 
   return (
@@ -182,22 +184,29 @@ export function RevenueCatPaywall({
         options={{ offering: offerings }}
       />
 
-      {/* Terms and Privacy Policy Links - Required by Apple for subscriptions */}
-      <View style={[styles.linksContainer, isRTL && styles.linksContainerRTL]}>
-        <TouchableOpacity onPress={handleTermsPress} style={styles.linkButton}>
-          <Text style={[styles.linkText, isRTL && styles.linkTextRTL]}>
-            {isRTL ? "الشروط والأحكام" : "Terms of Use"}
-          </Text>
-        </TouchableOpacity>
-        <Text style={[styles.separator, isRTL && styles.separatorRTL]}>•</Text>
-        <TouchableOpacity
-          onPress={handlePrivacyPress}
-          style={styles.linkButton}
-        >
-          <Text style={[styles.linkText, isRTL && styles.linkTextRTL]}>
-            {isRTL ? "سياسة الخصوصية" : "Privacy Policy"}
-          </Text>
-        </TouchableOpacity>
+      {/* Subscription disclosure + Terms/Privacy links - Required by Apple §3.1.2 */}
+      <View style={styles.disclosureContainer}>
+        <Text style={[styles.disclosureText, isRTL && styles.disclosureTextRTL]}>
+          {isRTL
+            ? "الاشتراك يتجدد تلقائياً ما لم يتم إلغاؤه قبل 24 ساعة على الأقل من نهاية الفترة الحالية. يتم تحصيل الرسوم من حساب iTunes عند تأكيد الشراء. يمكنك إدارة اشتراكك وإلغاؤه من إعدادات حسابك في App Store."
+            : "Subscription automatically renews unless canceled at least 24 hours before the end of the current period. Payment is charged to your iTunes account at confirmation of purchase. You can manage and cancel your subscription from your App Store account settings."}
+        </Text>
+        <View style={[styles.linksContainer, isRTL && styles.linksContainerRTL]}>
+          <TouchableOpacity onPress={handleTermsPress} style={styles.linkButton}>
+            <Text style={[styles.linkText, isRTL && styles.linkTextRTL]}>
+              {isRTL ? "شروط الاستخدام" : "Terms of Use (EULA)"}
+            </Text>
+          </TouchableOpacity>
+          <Text style={[styles.separator, isRTL && styles.separatorRTL]}>•</Text>
+          <TouchableOpacity
+            onPress={handlePrivacyPress}
+            style={styles.linkButton}
+          >
+            <Text style={[styles.linkText, isRTL && styles.linkTextRTL]}>
+              {isRTL ? "سياسة الخصوصية" : "Privacy Policy"}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -251,15 +260,29 @@ const styles = StyleSheet.create({
     color: "#64748B",
     fontSize: 16,
   },
+  disclosureContainer: {
+    backgroundColor: "#F8FAFC",
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+    paddingTop: 12,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+  },
+  disclosureText: {
+    fontSize: 11,
+    color: "#94A3B8",
+    textAlign: "center",
+    lineHeight: 16,
+    marginBottom: 8,
+  },
+  disclosureTextRTL: {
+    fontFamily: "NotoSansArabic-Regular",
+    textAlign: "center",
+  },
   linksContainer: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    backgroundColor: "#F8FAFC",
-    borderTopWidth: 1,
-    borderTopColor: "#E2E8F0",
   },
   linksContainerRTL: {
     flexDirection: "row-reverse",

@@ -294,12 +294,17 @@ export default function TermsConditionsScreen() {
               <Text
                 style={[styles.contactDetails, isRTL && { textAlign: "left" }]}
               >
-                {isRTL ? "البريد الإلكتروني: " : "Email: "}legal@maak.app
+                {isRTL ? "البريد الإلكتروني: " : "Email: "}info@maaktech.net
               </Text>
               <Text
                 style={[styles.contactDetails, isRTL && { textAlign: "left" }]}
               >
-                {isRTL ? "الهاتف: " : "Phone: "}+966 12 345 6789
+                {isRTL ? "الخصوصية والشؤون القانونية: " : "Privacy & Legal: "}privacy@maaktech.net
+              </Text>
+              <Text
+                style={[styles.contactDetails, isRTL && { textAlign: "left" }]}
+              >
+                {isRTL ? "الهاتف: " : "Phone: "}+19477777645
               </Text>
             </View>
           </>

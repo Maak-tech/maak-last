@@ -339,6 +339,10 @@ export default function FamilyScreen() {
     ((members: User[]) => Promise<void>) | null
   >(null);
   const memberMetricsLoadKeyRef = useRef<string>("");
+  const lastMetricsLoadTimeRef = useRef<number>(0);
+  const METRICS_CACHE_MS = 90_000; // 90s cache before refetching metrics
+  const lastFocusLoadTimeRef = useRef<number>(0);
+  const FOCUS_CACHE_MS = 60_000; // 1 minute cache for focus reloads
   const loadingEventsRef = useRef(false);
   const familyMembersRef = useRef<User[]>([]);
   const memberMetricsRef = useRef<FamilyMemberMetrics[]>([]);
@@ -1240,7 +1244,7 @@ export default function FamilyScreen() {
   );
 
   const requestMemberMetricsLoad = useCallback(
-    (members: User[]) => {
+    (members: User[], forceRefresh = false) => {
       if (!members.length) {
         memberMetricsLoadKeyRef.current = "";
         setMemberMetrics([]);
@@ -1254,12 +1258,23 @@ export default function FamilyScreen() {
         .join(",");
       const loadKey = `${viewMode}:${memberIdsKey}`;
 
-      if (memberMetricsLoadKeyRef.current === loadKey) return;
+      // Skip if same members AND cache is still fresh (unless forced)
+      if (
+        memberMetricsLoadKeyRef.current === loadKey &&
+        !forceRefresh &&
+        Date.now() - lastMetricsLoadTimeRef.current < METRICS_CACHE_MS
+      ) {
+        return;
+      }
       memberMetricsLoadKeyRef.current = loadKey;
 
-      loadMemberMetrics(members).catch(() => {
-        // Silently handle errors.
-      });
+      loadMemberMetrics(members)
+        .then(() => {
+          lastMetricsLoadTimeRef.current = Date.now();
+        })
+        .catch(() => {
+          // Silently handle errors.
+        });
     },
     [loadMemberMetrics, viewMode]
   );
@@ -1270,6 +1285,7 @@ export default function FamilyScreen() {
     loadMemberMetricsRef.current = loadMemberMetrics;
 
     // Load member metrics when family members are available (needed for family cards)
+    // requestMemberMetricsLoad already has its own cache guard
     if (familyMembers.length > 0 && !loadingMetrics) {
       requestMemberMetricsLoad(familyMembers);
     }
@@ -2133,6 +2149,14 @@ export default function FamilyScreen() {
       // Only load if we have a user
       if (!user?.id) return;
 
+      // Skip reload if data was loaded recently (within FOCUS_CACHE_MS)
+      if (
+        familyMembersRef.current.length > 0 &&
+        Date.now() - lastFocusLoadTimeRef.current < FOCUS_CACHE_MS
+      ) {
+        return;
+      }
+
       // Load all data efficiently - show UI immediately, load heavy data in background
       const loadData = async () => {
         if (focusLoadInFlightRef.current) {
@@ -2179,6 +2203,7 @@ export default function FamilyScreen() {
           // This catch prevents unhandled promise rejection
         } finally {
           focusLoadInFlightRef.current = false;
+          lastFocusLoadTimeRef.current = Date.now();
         }
       };
 
@@ -3041,9 +3066,17 @@ export default function FamilyScreen() {
         refreshControl={
           <RefreshControl
             onRefresh={async () => {
+              // Reset cache timestamps so the refresh fetches fresh data
+              lastFocusLoadTimeRef.current = 0;
+              lastMetricsLoadTimeRef.current = 0;
+              memberMetricsLoadKeyRef.current = "";
               await loadFamilyMembers(true);
               if (user?.id) {
                 await Promise.all([loadEvents(true), loadActiveAlerts(true)]);
+              }
+              // Reload metrics with fresh data
+              if (familyMembersRef.current.length > 0) {
+                requestMemberMetricsLoad(familyMembersRef.current, true);
               }
             }}
             refreshing={refreshing}

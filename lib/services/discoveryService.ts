@@ -377,6 +377,12 @@ export async function dismissDiscovery(
       { ids: arrayUnion(discoveryId) },
       { merge: true }
     );
+    // Invalidate cache so next load reflects the dismissal
+    for (const key of _discoveryCache.keys()) {
+      if (key.startsWith(`${userId}:`)) {
+        _discoveryCache.delete(key);
+      }
+    }
   } catch {
     // Non-critical — local dismiss already applied in UI
   }
@@ -414,10 +420,23 @@ async function getDismissedIds(userId: string): Promise<Set<string>> {
 // ─── Public API ────────────────────────────────────────────────────────────────
 
 /** Get all non-dismissed discoveries for a user, newest first */
+// Service-level cache for discoveries (prevents 12-15 Firestore reads on re-mount)
+const _discoveryCache: Map<
+  string,
+  { data: EnrichedDiscovery[]; timestamp: number }
+> = new Map();
+const DISCOVERY_CACHE_TTL = 5 * 60_000; // 5 minutes
+
 export async function getAllDiscoveries(
   userId: string,
   isArabic = false
 ): Promise<EnrichedDiscovery[]> {
+  const cacheKey = `${userId}:${isArabic}`;
+  const cached = _discoveryCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < DISCOVERY_CACHE_TTL) {
+    return cached.data;
+  }
+
   // Fetch dismissed IDs in parallel with the discovery fetchers
   const [
     dismissedResult,
@@ -464,6 +483,9 @@ export async function getAllDiscoveries(
     if (b.status === "new" && a.status !== "new") return 1;
     return b.confidence - a.confidence;
   });
+
+  // Cache the results
+  _discoveryCache.set(cacheKey, { data: all, timestamp: Date.now() });
 
   return all;
 }

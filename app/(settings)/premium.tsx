@@ -33,6 +33,7 @@ import {
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
+  Linking,
   Modal,
   ScrollView,
   TouchableOpacity,
@@ -614,6 +615,66 @@ export default function PremiumScreen() {
                 ? "جميع الخطط المميزة تتضمن نسخاً احتياطية تلقائية، دعماً أولوياً، وتشفيراً كاملاً للبيانات. لأسئلة الفوترة تواصل: support@maakhealth.com"
                 : "All premium plans include automatic cloud backup, priority support, and full data encryption. For billing questions contact support@maakhealth.com"}
             </Caption>
+          </View>
+
+          {/* Auto-renewal disclosure + Terms/Privacy — Apple §3.1.2 */}
+          <Caption
+            style={{
+              color: theme.colors.text.tertiary,
+              textAlign: "center",
+              lineHeight: 16,
+              marginTop: 16,
+              fontSize: 11,
+            }}
+          >
+            {isRTL
+              ? "الاشتراك يتجدد تلقائياً ما لم يتم إلغاؤه قبل 24 ساعة على الأقل من نهاية الفترة الحالية. يتم تحصيل الرسوم من حساب iTunes عند تأكيد الشراء."
+              : "Subscription automatically renews unless canceled at least 24 hours before the end of the current period. Payment is charged to your iTunes account at confirmation of purchase."}
+          </Caption>
+          <View
+            style={{
+              flexDirection: isRTL ? "row-reverse" : "row",
+              justifyContent: "center",
+              alignItems: "center",
+              marginTop: 8,
+              marginBottom: 8,
+            }}
+          >
+            <TouchableOpacity
+              onPress={() =>
+                Linking.openURL(
+                  "https://maak-5caad.web.app/terms-conditions"
+                )
+              }
+              style={{ paddingHorizontal: 8, paddingVertical: 4 }}
+            >
+              <Caption
+                style={{
+                  color: "#2563EB",
+                  textDecorationLine: "underline",
+                }}
+              >
+                {isRTL ? "شروط الاستخدام" : "Terms of Use (EULA)"}
+              </Caption>
+            </TouchableOpacity>
+            <Caption style={{ color: theme.colors.text.tertiary }}>•</Caption>
+            <TouchableOpacity
+              onPress={() =>
+                Linking.openURL(
+                  "https://maak-5caad.web.app/privacy-policy"
+                )
+              }
+              style={{ paddingHorizontal: 8, paddingVertical: 4 }}
+            >
+              <Caption
+                style={{
+                  color: "#2563EB",
+                  textDecorationLine: "underline",
+                }}
+              >
+                {isRTL ? "سياسة الخصوصية" : "Privacy Policy"}
+              </Caption>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       )}

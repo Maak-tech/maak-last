@@ -12,7 +12,7 @@ import {
   TrendingUp,
   X,
 } from "lucide-react-native";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -57,6 +57,10 @@ export default function ProactiveHealthSuggestions({
   const [loading, setLoading] = useState(true);
   const [_refreshing, setRefreshing] = useState(false);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  const lastLoadRef = useRef<number>(0);
+  const dismissedIdsRef = useRef(dismissedIds);
+  dismissedIdsRef.current = dismissedIds;
+  const CACHE_MS = 10 * 60_000; // 10 minutes
 
   const styles = createThemedStyles((theme) => ({
     container: {
@@ -141,9 +145,20 @@ export default function ProactiveHealthSuggestions({
     },
   }))(theme);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: suggestions.length intentionally omitted to prevent refetch loop
   const loadSuggestions = useCallback(
     async (isRefresh = false) => {
       if (!user) {
+        return;
+      }
+
+      // Skip reload if cache is fresh (unless explicit refresh)
+      if (
+        !isRefresh &&
+        Date.now() - lastLoadRef.current < CACHE_MS &&
+        suggestions.length > 0
+      ) {
+        setLoading(false);
         return;
       }
 
@@ -160,12 +175,14 @@ export default function ProactiveHealthSuggestions({
             isRTL
           );
 
-        // Filter out dismissed suggestions
+        // Filter out dismissed suggestions using ref to avoid dependency
+        const currentDismissed = dismissedIdsRef.current;
         const filteredSuggestions = allSuggestions.filter(
-          (s) => !dismissedIds.has(s.id)
+          (s) => !currentDismissed.has(s.id)
         );
 
         setSuggestions(filteredSuggestions.slice(0, maxSuggestions));
+        lastLoadRef.current = Date.now();
       } catch (_error) {
         // Silently handle error
       } finally {
@@ -173,7 +190,7 @@ export default function ProactiveHealthSuggestions({
         setRefreshing(false);
       }
     },
-    [user, maxSuggestions, dismissedIds, isRTL]
+    [user, maxSuggestions, isRTL]
   );
 
   useEffect(() => {

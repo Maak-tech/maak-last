@@ -53,6 +53,10 @@ const getErrorCode = (error: unknown): string => {
   return "";
 };
 
+// In-memory cache for getUserMoods
+const _moodCache = new Map<string, { data: Mood[]; timestamp: number }>();
+const MOOD_CACHE_TTL = 2 * 60_000; // 2 minutes
+
 export const moodService = {
   // Add new mood (offline-first)
   async addMood(moodData: Omit<Mood, "id">): Promise<string> {
@@ -83,6 +87,10 @@ export const moodService = {
 
       if (isOnline) {
         const docRef = await addDoc(collection(db, "moods"), cleanedData);
+        // Invalidate mood cache for this user
+        for (const key of _moodCache.keys()) {
+          if (key.startsWith(`${moodData.userId}:`)) _moodCache.delete(key);
+        }
         // Cache the result for offline access
         const newMood = { id: docRef.id, ...moodData };
         const currentMoods =
@@ -162,6 +170,12 @@ export const moodService = {
 
   // Get user moods (offline-first)
   async getUserMoods(userId: string, limitCount = 50): Promise<Mood[]> {
+    const cacheKey = `${userId}:${limitCount}`;
+    const cached = _moodCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < MOOD_CACHE_TTL) {
+      return cached.data;
+    }
+
     const isOnline = offlineService.isDeviceOnline();
 
     try {
@@ -191,6 +205,7 @@ export const moodService = {
 
         // Cache for offline access
         await offlineService.storeOfflineData("moods", moods);
+        _moodCache.set(cacheKey, { data: moods, timestamp: Date.now() });
         return moods;
       }
       // Offline - use cached data filtered by userId

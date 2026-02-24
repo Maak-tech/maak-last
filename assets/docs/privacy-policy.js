@@ -193,9 +193,16 @@ Your continued use of the App after changes become effective constitutes accepta
 
 If you have questions about this Privacy Policy or our privacy practices, please contact us:
 
-**Email**: info@maaktech.net
-**Phone**: +19477777645
-**Address**: Masayef , Ramallah, Palestine
+**General Inquiries**:
+- Email: info@maaktech.net
+- Phone: +19477777645
+
+**Privacy and Legal Inquiries**:
+- Email: privacy@maaktech.net
+
+**Business Address**:
+Maak Tech
+Doha, Qatar
 
 ## Compliance
 

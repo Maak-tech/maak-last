@@ -102,6 +102,8 @@ export default function DashboardScreen() {
   const tourParamHandledRef = useRef(false);
   const tourTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const medicationReminderSyncKeyRef = useRef<string | null>(null);
+  const lastDashboardLoadRef = useRef<number>(0);
+  const DASHBOARD_CACHE_MS = 60_000; // 1 minute cache for focus reloads
   const params = useLocalSearchParams<{ tour?: string }>();
   const { width, height } = useWindowDimensions();
 
@@ -960,23 +962,26 @@ export default function DashboardScreen() {
     try {
       setLoading(true);
 
-      // Always load family members first if user has family
-      let members: UserType[] = [];
+      // Load family members and personal data in parallel
+      const familyPromise = user.familyId
+        ? userService.getFamilyMembers(user.familyId)
+        : Promise.resolve([] as UserType[]);
+
+      // Reset reminders, medications, alerts, and symptoms all in parallel
+      const [members, medications, alertsCountData, symptomStats] =
+        await Promise.all([
+          familyPromise,
+          medicationService
+            .resetDailyReminders(user.id)
+            .then(() => medicationService.getTodaysMedications(user.id)),
+          alertService.getActiveAlertsCount(user.id),
+          symptomService.getSymptomStats(user.id, 7),
+        ]);
+
       if (user.familyId) {
-        members = await userService.getFamilyMembers(user.familyId);
         setFamilyMembers(members);
         setFamilyMembersCount(members.length);
       }
-
-      // Reset daily reminders first
-      await medicationService.resetDailyReminders(user.id);
-
-      // Load personal data
-      const [medications, alertsCountData, symptomStats] = await Promise.all([
-        medicationService.getTodaysMedications(user.id),
-        alertService.getActiveAlertsCount(user.id),
-        symptomService.getSymptomStats(user.id, 7),
-      ]);
 
       setTodaysMedications(medications);
       setAlertsCount(alertsCountData);
@@ -1053,6 +1058,7 @@ export default function DashboardScreen() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      lastDashboardLoadRef.current = Date.now();
     }
   }, [
     user?.id,
@@ -1081,10 +1087,15 @@ export default function DashboardScreen() {
     return cancel;
   }, [scheduleDashboardLoad]);
 
-  // Refresh data when tab is focused (only if not already loading)
+  // Refresh data when tab is focused — only if cache is stale
   useFocusEffect(
     useCallback(() => {
       if (loading || refreshing) {
+        return;
+      }
+
+      // Skip reload if data was loaded recently (within DASHBOARD_CACHE_MS)
+      if (Date.now() - lastDashboardLoadRef.current < DASHBOARD_CACHE_MS) {
         return;
       }
 
@@ -1247,6 +1258,7 @@ export default function DashboardScreen() {
 
   const onRefresh = () => {
     setRefreshing(true);
+    lastDashboardLoadRef.current = 0; // Reset cache so refresh fetches fresh data
     loadDashboardData();
   };
 
@@ -2291,39 +2303,43 @@ export default function DashboardScreen() {
             </WavyBackground>
           </View>
 
-          {/* Render widgets dynamically */}
-          {isAdmin && enabledWidgets.map((widgetId) => renderWidget(widgetId))}
+          {/* Render widgets dynamically — deferred until parent loads */}
+          {!loading && isAdmin && enabledWidgets.map((widgetId) => renderWidget(widgetId))}
 
-          {/* Health Insights - visible to all users */}
-          <View style={styles.section as ViewStyle}>
-            <ProactiveHealthSuggestions maxSuggestions={5} />
-          </View>
-          <View style={styles.section as ViewStyle}>
-            <PersonalisedHealthInsightsCard userId={user?.id} />
-          </View>
-          <View style={styles.section as ViewStyle}>
-            <AnomalyDashboardSection />
-          </View>
-          <View style={styles.section as ViewStyle}>
-            <PatternInsightsCard userId={user?.id} />
-          </View>
-          <View style={styles.section as ViewStyle}>
-            {/* ML Insights badge row — navigates to Analytics for full detail */}
-            <View
-              style={{
-                flexDirection: isRTL ? "row-reverse" : "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: 8,
-              }}
-            >
-              <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-                {isRTL ? "الاكتشافات الصحية" : "Health Discoveries"}
-              </Text>
-              <MLInsightsBadge userId={user?.id} />
-            </View>
-            <DiscoveryCardsSection />
-          </View>
+          {/* Health Insights - deferred until parent data loads to avoid JS thread saturation */}
+          {!loading && (
+            <>
+              <View style={styles.section as ViewStyle}>
+                <ProactiveHealthSuggestions maxSuggestions={5} />
+              </View>
+              <View style={styles.section as ViewStyle}>
+                <PersonalisedHealthInsightsCard userId={user?.id} />
+              </View>
+              <View style={styles.section as ViewStyle}>
+                <AnomalyDashboardSection />
+              </View>
+              <View style={styles.section as ViewStyle}>
+                <PatternInsightsCard userId={user?.id} />
+              </View>
+              <View style={styles.section as ViewStyle}>
+                {/* ML Insights badge row — navigates to Analytics for full detail */}
+                <View
+                  style={{
+                    flexDirection: isRTL ? "row-reverse" : "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: 8,
+                  }}
+                >
+                  <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+                    {isRTL ? "الاكتشافات الصحية" : "Health Discoveries"}
+                  </Text>
+                  <MLInsightsBadge userId={user?.id} />
+                </View>
+                <DiscoveryCardsSection />
+              </View>
+            </>
+          )}
 
           {/* Alerts Modal */}
           <Modal

@@ -6,7 +6,7 @@ export default `# Maak Terms and Conditions
 
 By downloading, installing, or using the Maak app ("the App"), you acknowledge that you have read, understood, and agree to be bound by these terms and conditions ("Terms"). If you do not agree to any of these Terms, please do not use the App.
 
-These Terms constitute a legally binding agreement between you and Maak Health Technologies ("Maak," "we," "our," or "us").
+These Terms constitute a legally binding agreement between you and Maak Tech ("Maak," "we," "our," or "us").
 
 ## 2. Acceptable Use
 
@@ -185,18 +185,15 @@ Our failure to enforce any provision of these Terms does not constitute a waiver
 If you have questions about these Terms and Conditions, please contact us:
 
 **General Inquiries**:
-- Email: support@maak.app
-- Phone: +966 12 345 6789
+- Email: info@maaktech.net
+- Phone: +19477777645
 
-**Legal Inquiries**:
-- Email: legal@maak.app
-
-**Privacy Inquiries**:
-- Email: privacy@maak.app
+**Privacy and Legal Inquiries**:
+- Email: privacy@maaktech.net
 
 **Business Address**:
-Maak Health Technologies
-Riyadh, Saudi Arabia
+Maak Tech
+Doha, Qatar
 
 ## 15. Acknowledgment
 

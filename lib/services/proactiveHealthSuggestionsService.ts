@@ -598,6 +598,14 @@ const getLocalizedSuggestionText = (
 };
 
 class ProactiveHealthSuggestionsService {
+  // In-memory cache to avoid re-running 10+ queries when multiple components mount
+  private readonly _suggestionsCache = new Map<
+    string,
+    { data: HealthSuggestion[]; timestamp: number }
+  >();
+
+  private readonly _suggestionsCacheTTL = 5 * 60_000; // 5 minutes
+
   /**
    * Generate proactive health suggestions for a user
    */
@@ -605,6 +613,12 @@ class ProactiveHealthSuggestionsService {
     userId: string,
     isArabic = false
   ): Promise<HealthSuggestion[]> {
+    const cacheKey = `${userId}:${isArabic}`;
+    const cached = this._suggestionsCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < this._suggestionsCacheTTL) {
+      return cached.data;
+    }
+
     const suggestions: HealthSuggestion[] = [];
 
     try {
@@ -827,7 +841,13 @@ class ProactiveHealthSuggestionsService {
         return priorityOrder[a.priority] - priorityOrder[b.priority];
       });
 
-      return suggestions.slice(0, 15); // Return top 15 suggestions
+      const result = suggestions.slice(0, 15); // Return top 15 suggestions
+      // Cache the result
+      this._suggestionsCache.set(cacheKey, {
+        data: result,
+        timestamp: Date.now(),
+      });
+      return result;
     } catch (_error) {
       return [];
     }

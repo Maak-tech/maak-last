@@ -22,6 +22,11 @@ import type { Symptom } from "@/types";
 import { offlineService } from "./offlineService";
 import { userService } from "./userService";
 
+// In-memory caches for getUserSymptoms and getSymptomStats
+const _symptomCache = new Map<string, { data: Symptom[]; timestamp: number }>();
+const _symptomStatsCache = new Map<string, { data: { totalSymptoms: number; avgSeverity: number; commonSymptoms: { type: string; count: number }[] }; timestamp: number }>();
+const SYMPTOM_CACHE_TTL = 2 * 60_000; // 2 minutes
+
 export const symptomService = {
   // Add new symptom (offline-first)
   async addSymptom(symptomData: Omit<Symptom, "id">): Promise<string> {
@@ -46,6 +51,14 @@ export const symptomService = {
           ...currentSymptoms,
           newSymptom,
         ]);
+
+        // Invalidate symptom caches for this user
+        for (const key of _symptomCache.keys()) {
+          if (key.startsWith(`${symptomData.userId}:`)) _symptomCache.delete(key);
+        }
+        for (const key of _symptomStatsCache.keys()) {
+          if (key.startsWith(`${symptomData.userId}:`)) _symptomStatsCache.delete(key);
+        }
 
         await healthTimelineService.addEvent({
           userId: symptomData.userId,
@@ -145,6 +158,12 @@ export const symptomService = {
 
   // Get user symptoms (offline-first)
   async getUserSymptoms(userId: string, limitCount = 50): Promise<Symptom[]> {
+    const cacheKey = `${userId}:${limitCount}`;
+    const cached = _symptomCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < SYMPTOM_CACHE_TTL) {
+      return cached.data;
+    }
+
     const isOnline = offlineService.isDeviceOnline();
 
     try {
@@ -170,6 +189,7 @@ export const symptomService = {
 
         // Cache for offline access
         await offlineService.storeOfflineData("symptoms", symptoms);
+        _symptomCache.set(cacheKey, { data: symptoms, timestamp: Date.now() });
         return symptoms;
       }
       // Offline - use cached data filtered by userId
@@ -666,6 +686,12 @@ export const symptomService = {
     avgSeverity: number;
     commonSymptoms: { type: string; count: number }[];
   }> {
+    const statsCacheKey = `${userId}:${days}`;
+    const cachedStats = _symptomStatsCache.get(statsCacheKey);
+    if (cachedStats && Date.now() - cachedStats.timestamp < SYMPTOM_CACHE_TTL) {
+      return cachedStats.data;
+    }
+
     try {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
@@ -706,11 +732,13 @@ export const symptomService = {
         .sort((a, b) => b.count - a.count)
         .slice(0, 5);
 
-      return {
+      const result = {
         totalSymptoms,
         avgSeverity: Math.round(avgSeverity * 10) / 10,
         commonSymptoms,
       };
+      _symptomStatsCache.set(statsCacheKey, { data: result, timestamp: Date.now() });
+      return result;
     } catch (error: unknown) {
       // Check if it's an index error and use fallback
       const code =

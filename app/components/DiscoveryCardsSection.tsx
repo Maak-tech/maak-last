@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { ChevronRight, Sparkles } from "lucide-react-native";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -32,9 +32,24 @@ export default function DiscoveryCardsSection() {
 
   const [topDiscoveries, setTopDiscoveries] = useState<EnrichedDiscovery[]>([]);
   const [loading, setLoading] = useState(true);
+  const lastLoadRef = useRef<number>(0);
+  const lastUserIdRef = useRef<string | undefined>();
+  const CACHE_MS = 10 * 60_000; // 10 minutes
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: topDiscoveries.length intentionally omitted to prevent refetch loop
   useEffect(() => {
     if (!user?.id) return;
+
+    // Skip reload if same user and cache is fresh
+    if (
+      user.id === lastUserIdRef.current &&
+      Date.now() - lastLoadRef.current < CACHE_MS &&
+      topDiscoveries.length > 0
+    ) {
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
     (async () => {
       try {
@@ -43,7 +58,11 @@ export default function DiscoveryCardsSection() {
           5,
           isRTL
         );
-        if (!cancelled) setTopDiscoveries(results);
+        if (!cancelled) {
+          setTopDiscoveries(results);
+          lastLoadRef.current = Date.now();
+          lastUserIdRef.current = user.id;
+        }
       } catch {
         // Silently fail
       } finally {

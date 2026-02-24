@@ -135,6 +135,17 @@ const familyAlertsCache = new Map<
 >();
 const familyAlertsInFlight = new Map<string, Promise<EmergencyAlert[]>>();
 
+// Cache for getActiveAlertsCount / getActiveAlerts to avoid duplicate reads
+const ACTIVE_ALERTS_CACHE_TTL = 60_000; // 1 minute
+const _activeAlertsCountCache = new Map<
+  string,
+  { count: number; timestamp: number }
+>();
+const _activeAlertsCache = new Map<
+  string,
+  { alerts: EmergencyAlert[]; timestamp: number }
+>();
+
 const buildFamilyAlertsCacheKey = (userIds: string[], limitCount: number) =>
   `${[...userIds].sort().join(",")}::${limitCount}`;
 
@@ -184,6 +195,10 @@ export const alertService = {
             userId: alertData.userId,
           },
         });
+
+        // Invalidate alert caches for this user
+        _activeAlertsCountCache.delete(alertData.userId);
+        _activeAlertsCache.delete(alertData.userId);
 
         return docRef.id;
       } catch (directError: unknown) {
@@ -630,6 +645,11 @@ export const alertService = {
 
           familyAlertsCache.clear();
           familyAlertsInFlight.clear();
+          // Invalidate per-user alert caches
+          if (alertData.userId) {
+            _activeAlertsCountCache.delete(alertData.userId);
+            _activeAlertsCache.delete(alertData.userId);
+          }
           return;
         } catch (cloudFunctionError: unknown) {
           // Extract error details using helper function
@@ -894,6 +914,11 @@ export const alertService = {
 
       familyAlertsCache.clear();
       familyAlertsInFlight.clear();
+      // Invalidate per-user alert caches
+      if (alertData.userId) {
+        _activeAlertsCountCache.delete(alertData.userId);
+        _activeAlertsCache.delete(alertData.userId);
+      }
     } catch (error: unknown) {
       // Extract error details using helper function
       const { code: errorCode, message: errorMessage } =
@@ -1121,15 +1146,27 @@ export const alertService = {
   /** Mark an alert as handled by a caregiver without fully resolving it */
   async acknowledgeAlert(alertId: string, caregiverId: string): Promise<void> {
     const alertRef = doc(db, "alerts", alertId);
+    const alertDoc = await getDoc(alertRef);
     await updateDoc(alertRef, {
       acknowledgedBy: caregiverId,
       acknowledgedAt: Timestamp.now(),
     });
     familyAlertsCache.clear();
     familyAlertsInFlight.clear();
+    // Invalidate per-user alert caches
+    const alertUserId = alertDoc.exists() ? alertDoc.data()?.userId : undefined;
+    if (alertUserId) {
+      _activeAlertsCountCache.delete(alertUserId);
+      _activeAlertsCache.delete(alertUserId);
+    }
   },
 
   async getActiveAlertsCount(userId: string): Promise<number> {
+    const cached = _activeAlertsCountCache.get(userId);
+    if (cached && Date.now() - cached.timestamp < ACTIVE_ALERTS_CACHE_TTL) {
+      return cached.count;
+    }
+
     try {
       const q = query(
         collection(db, "alerts"),
@@ -1138,7 +1175,9 @@ export const alertService = {
       );
 
       const querySnapshot = await getDocs(q);
-      return querySnapshot.size;
+      const count = querySnapshot.size;
+      _activeAlertsCountCache.set(userId, { count, timestamp: Date.now() });
+      return count;
     } catch (_error) {
       return 0;
     }
@@ -1146,6 +1185,11 @@ export const alertService = {
 
   /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Includes dual-query fallback path for missing composite indexes and in-memory safety filtering. */
   async getActiveAlerts(userId: string): Promise<EmergencyAlert[]> {
+    const cached = _activeAlertsCache.get(userId);
+    if (cached && Date.now() - cached.timestamp < ACTIVE_ALERTS_CACHE_TTL) {
+      return cached.alerts;
+    }
+
     try {
       const q = query(
         collection(db, "alerts"),
@@ -1179,6 +1223,7 @@ export const alertService = {
         (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
       );
 
+      _activeAlertsCache.set(userId, { alerts: filteredAlerts, timestamp: Date.now() });
       return filteredAlerts;
     } catch (error: unknown) {
       // Silently handle error
@@ -1213,6 +1258,7 @@ export const alertService = {
             }
           }
           alerts.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+          _activeAlertsCache.set(userId, { alerts, timestamp: Date.now() });
           return alerts;
         } catch (_retryError: unknown) {
           // Silently handle error

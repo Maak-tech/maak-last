@@ -423,7 +423,7 @@ export default function HelpSupportScreen() {
               {isRTL ? "موقعنا" : "Our Location"}
             </Text>
             <Text style={[styles.locationText, isRTL && { textAlign: "left" }]}>
-              {isRTL ? "رام الله، فلسطين" : "Palestine, Ramallah"}
+              {isRTL ? "الدوحة، قطر" : "Doha, Qatar"}
             </Text>
           </View>
         </View>
