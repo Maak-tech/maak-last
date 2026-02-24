@@ -41,7 +41,10 @@ export type DiscoveryType =
   | "correlation"
   | "symptom_pattern"
   | "vital_trend"
-  | "medication_effectiveness";
+  | "medication_effectiveness"
+  | "temporal_pattern"
+  | "medication_pattern"
+  | "integration_insight";
 
 export type EnrichedDiscovery = HealthDiscovery & {
   discoveryType: DiscoveryType;
@@ -86,11 +89,21 @@ function patternInsightToDiscovery(
   userId: string,
   idx: number
 ): EnrichedDiscovery {
+  // Map DiscoveryType → the closest DiscoveryCategory for colour/label rendering
+  const categoryMap: Record<DiscoveryType, import("@/types/discoveries").DiscoveryCategory> = {
+    vital_trend: "symptom_vital",
+    temporal_pattern: "temporal_pattern",
+    medication_pattern: "medication_vital",
+    integration_insight: "symptom_vital",
+    correlation: "symptom_vital",
+    symptom_pattern: "temporal_pattern",
+    medication_effectiveness: "medication_vital",
+  };
+
   return {
     id: `${type}_${idx}_${Date.now()}`,
     userId,
-    // Map PatternInsight.type → DiscoveryCategory approximation
-    category: type === "vital_trend" ? "symptom_vital" : "temporal_pattern",
+    category: categoryMap[type] ?? "temporal_pattern",
     title: insight.title,
     description: insight.description,
     strength: insight.confidence / 100,
@@ -233,6 +246,69 @@ async function fetchMedicationEffectivenessDiscoveries(
   }
 }
 
+async function fetchTemporalPatternDiscoveries(
+  userId: string,
+  isArabic: boolean
+): Promise<EnrichedDiscovery[]> {
+  try {
+    const [symptoms, moods] = await Promise.all([
+      symptomService.getUserSymptoms(userId, 200).catch(() => []),
+      moodService.getUserMoods(userId, 200).catch(() => []),
+    ]);
+    if (symptoms.length < 5 && moods.length < 5) return [];
+
+    const insights = detectTemporalPatterns(symptoms, moods, isArabic);
+    return insights
+      .filter((i) => i.confidence >= 50)
+      .map((insight, idx) =>
+        patternInsightToDiscovery(insight, "temporal_pattern", userId, idx)
+      );
+  } catch {
+    return [];
+  }
+}
+
+async function fetchMedicationPatternDiscoveries(
+  userId: string,
+  isArabic: boolean
+): Promise<EnrichedDiscovery[]> {
+  try {
+    const [symptoms, medications] = await Promise.all([
+      symptomService.getUserSymptoms(userId, 200).catch(() => []),
+      medicationService.getUserMedications(userId).catch(() => []),
+    ]);
+    if (symptoms.length < 5 || medications.length === 0) return [];
+
+    const insights = detectMedicationCorrelations(symptoms, medications, isArabic);
+    return insights
+      .filter((i) => i.confidence >= 50)
+      .map((insight, idx) =>
+        patternInsightToDiscovery(insight, "medication_pattern", userId, idx)
+      );
+  } catch {
+    return [];
+  }
+}
+
+async function fetchIntegrationInsightDiscoveries(
+  userId: string,
+  isArabic: boolean
+): Promise<EnrichedDiscovery[]> {
+  try {
+    const vitals = await fetchRecentVitals(userId, 30);
+    if (vitals.length < 3) return [];
+
+    const insights = detectIntegrationSpecificInsights(vitals, isArabic);
+    return insights
+      .filter((i) => i.confidence >= 50)
+      .map((insight, idx) =>
+        patternInsightToDiscovery(insight, "integration_insight", userId, idx)
+      );
+  } catch {
+    return [];
+  }
+}
+
 // ─── Public API ────────────────────────────────────────────────────────────────
 
 /** Get all non-dismissed discoveries for a user, newest first */
@@ -240,19 +316,32 @@ export async function getAllDiscoveries(
   userId: string,
   isArabic = false
 ): Promise<EnrichedDiscovery[]> {
-  const [correlations, symptomPatterns, vitalTrends, medEffectiveness] =
-    await Promise.allSettled([
-      fetchCorrelationDiscoveries(userId, isArabic),
-      fetchSymptomPatternDiscoveries(userId, isArabic),
-      fetchVitalTrendDiscoveries(userId, isArabic),
-      fetchMedicationEffectivenessDiscoveries(userId, isArabic),
-    ]);
+  const [
+    correlations,
+    symptomPatterns,
+    vitalTrends,
+    medEffectiveness,
+    temporalPatterns,
+    medicationPatterns,
+    integrationInsights,
+  ] = await Promise.allSettled([
+    fetchCorrelationDiscoveries(userId, isArabic),
+    fetchSymptomPatternDiscoveries(userId, isArabic),
+    fetchVitalTrendDiscoveries(userId, isArabic),
+    fetchMedicationEffectivenessDiscoveries(userId, isArabic),
+    fetchTemporalPatternDiscoveries(userId, isArabic),
+    fetchMedicationPatternDiscoveries(userId, isArabic),
+    fetchIntegrationInsightDiscoveries(userId, isArabic),
+  ]);
 
   const all: EnrichedDiscovery[] = [
     ...(correlations.status === "fulfilled" ? correlations.value : []),
     ...(symptomPatterns.status === "fulfilled" ? symptomPatterns.value : []),
     ...(vitalTrends.status === "fulfilled" ? vitalTrends.value : []),
     ...(medEffectiveness.status === "fulfilled" ? medEffectiveness.value : []),
+    ...(temporalPatterns.status === "fulfilled" ? temporalPatterns.value : []),
+    ...(medicationPatterns.status === "fulfilled" ? medicationPatterns.value : []),
+    ...(integrationInsights.status === "fulfilled" ? integrationInsights.value : []),
   ];
 
   // Sort: new status first, then by confidence descending

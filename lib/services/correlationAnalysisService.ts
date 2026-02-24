@@ -19,7 +19,16 @@ export type CorrelationResult = {
     | "symptom_vital"
     | "medication_vital"
     | "mood_vital"
-    | "temporal_pattern";
+    | "temporal_pattern"
+    | "sleep_vital"
+    | "sleep_symptom"
+    | "sleep_mood"
+    | "activity_vital"
+    | "activity_symptom"
+    | "activity_mood"
+    | "hrv_symptom"
+    | "hrv_mood"
+    | "hrv_vital";
   strength: number; // Correlation coefficient (-1 to 1)
   confidence: number; // 0-100
   description: string;
@@ -638,6 +647,18 @@ class CorrelationAnalysisService {
         isArabic
       )),
       ...this.analyzeTemporalPatterns(filteredSymptoms, moods),
+      // Sleep cross-correlations
+      ...this.analyzeSleepVitalCorrelations(vitals, isArabic),
+      ...this.analyzeSleepSymptomCorrelations(filteredSymptoms, vitals, isArabic),
+      ...this.analyzeSleepMoodCorrelations(moods, vitals, isArabic),
+      // Activity cross-correlations
+      ...this.analyzeActivityVitalCorrelations(vitals, isArabic),
+      ...this.analyzeActivitySymptomCorrelations(filteredSymptoms, vitals, isArabic),
+      ...this.analyzeActivityMoodCorrelations(moods, vitals, isArabic),
+      // HRV (wearable) cross-correlations
+      ...this.analyzeHrvSymptomCorrelations(filteredSymptoms, vitals, isArabic),
+      ...this.analyzeHrvMoodCorrelations(moods, vitals, isArabic),
+      ...this.analyzeHrvVitalCorrelations(vitals, isArabic),
     ];
 
     // Sort by strength and confidence
@@ -1026,6 +1047,699 @@ class CorrelationAnalysisService {
       respiratoryRate: "breaths/min",
     };
     return units[vitalType] || "";
+  }
+
+  // ─── Sleep Cross-Correlations ──────────────────────────────────────────────
+
+  // ─── Wearable vital type name sets ─────────────────────────────────────────
+  private readonly SLEEP_TYPES = new Set([
+    "sleep", "sleepDuration", "sleepHours", "sleep_analysis",
+  ]);
+  private readonly STEPS_TYPES = new Set([
+    "steps", "stepCount", "dailySteps",
+  ]);
+  private readonly HRV_TYPES = new Set([
+    "heart_rate_variability", "heartRateVariability", "hrv",
+  ]);
+  private readonly ACTIVE_ENERGY_TYPES = new Set([
+    "active_energy", "activeEnergy", "caloriesBurned",
+  ]);
+
+  /**
+   * Build a daily map of sleep hours from vitals collection.
+   * Accepts all provider-specific type names.
+   */
+  private buildDailySleepMap(vitals: VitalSign[]): Map<string, number> {
+    const sleepVitals = vitals.filter((v) => this.SLEEP_TYPES.has(v.type));
+    const dailyMap = new Map<string, number[]>();
+    for (const v of sleepVitals) {
+      const key = v.timestamp.toDateString();
+      if (!dailyMap.has(key)) dailyMap.set(key, []);
+      dailyMap.get(key)!.push(v.value);
+    }
+    const result = new Map<string, number>();
+    for (const [day, vals] of dailyMap) {
+      result.set(day, vals.reduce((a, b) => a + b, 0) / vals.length);
+    }
+    return result;
+  }
+
+  /**
+   * Build a daily map of step counts from vitals collection.
+   */
+  private buildDailyStepsMap(vitals: VitalSign[]): Map<string, number> {
+    const stepVitals = vitals.filter((v) => this.STEPS_TYPES.has(v.type));
+    const dailyMap = new Map<string, number[]>();
+    for (const v of stepVitals) {
+      const key = v.timestamp.toDateString();
+      if (!dailyMap.has(key)) dailyMap.set(key, []);
+      dailyMap.get(key)!.push(v.value);
+    }
+    const result = new Map<string, number>();
+    for (const [day, vals] of dailyMap) {
+      // Sum steps within the day (multiple syncs)
+      result.set(day, vals.reduce((a, b) => a + b, 0));
+    }
+    return result;
+  }
+
+  /**
+   * Analyse how sleep duration correlates with non-sleep vital signs
+   * (heart rate, blood pressure, SpO2, glucose, etc.).
+   */
+  private analyzeSleepVitalCorrelations(
+    vitals: VitalSign[],
+    isArabic = false
+  ): CorrelationResult[] {
+    const results: CorrelationResult[] = [];
+    const sleepMap = this.buildDailySleepMap(vitals);
+    if (sleepMap.size < 5) return results;
+
+    const nonSleepVitalTypes = [
+      ...new Set(
+        vitals
+          .filter(
+            (v) =>
+              !this.SLEEP_TYPES.has(v.type) &&
+              !this.STEPS_TYPES.has(v.type)
+          )
+          .map((v) => v.type)
+      ),
+    ];
+
+    for (const vType of nonSleepVitalTypes) {
+      const typeVitals = vitals.filter((v) => v.type === vType);
+      const vitalMap = new Map<string, number[]>();
+      for (const v of typeVitals) {
+        const key = v.timestamp.toDateString();
+        if (!vitalMap.has(key)) vitalMap.set(key, []);
+        vitalMap.get(key)!.push(v.value);
+      }
+
+      // Align on common days
+      const sleepVals: number[] = [];
+      const vitalVals: number[] = [];
+      for (const [day, sleepHrs] of sleepMap) {
+        const dayVitals = vitalMap.get(day);
+        if (!dayVitals) continue;
+        const avg = dayVitals.reduce((a, b) => a + b, 0) / dayVitals.length;
+        sleepVals.push(sleepHrs);
+        vitalVals.push(avg);
+      }
+
+      if (sleepVals.length < 5) continue;
+      const r = this.calculatePearsonCorrelation(sleepVals, vitalVals);
+      if (Math.abs(r) < 0.3) continue;
+
+      const confidence = Math.min(95, Math.round(Math.abs(r) * 100));
+      const direction = r < 0 ? (isArabic ? "ينخفض" : "decreases") : (isArabic ? "يرتفع" : "increases");
+      const vLabel = vType.replace(/([A-Z])/g, " $1").trim();
+
+      results.push({
+        type: "sleep_vital",
+        strength: r,
+        confidence,
+        description: isArabic
+          ? `${vLabel} ${direction} في الأيام التي تنام فيها أكثر`
+          : `${vLabel} ${direction} on days with more sleep`,
+        actionable: Math.abs(r) >= 0.5,
+        recommendation: isArabic
+          ? `استهدف 7–9 ساعات من النوم لتحسين ${vLabel}`
+          : `Aim for 7–9 hours of sleep to optimise your ${vLabel}`,
+        data: {
+          factor1: "Sleep Duration (hours)",
+          factor2: vLabel,
+          correlationType: "pearson",
+          supportingData: { correlation: r.toFixed(3), n: sleepVals.length },
+        },
+      });
+    }
+
+    return results;
+  }
+
+  /**
+   * Analyse how sleep duration correlates with next-day symptom severity.
+   * Uses a 1-day lag: sleep on day D vs symptoms on day D+1.
+   */
+  private analyzeSleepSymptomCorrelations(
+    symptoms: Symptom[],
+    vitals: VitalSign[],
+    isArabic = false
+  ): CorrelationResult[] {
+    const results: CorrelationResult[] = [];
+    const sleepMap = this.buildDailySleepMap(vitals);
+    if (sleepMap.size < 5 || symptoms.length < 5) return results;
+
+    // Build daily symptom severity map
+    const symptomMap = new Map<string, number[]>();
+    for (const s of symptoms) {
+      const key = s.timestamp.toDateString();
+      if (!symptomMap.has(key)) symptomMap.set(key, []);
+      symptomMap.get(key)!.push(s.severity);
+    }
+
+    // Align: sleep on day D → symptoms on D+1
+    const sleepVals: number[] = [];
+    const symptomVals: number[] = [];
+    for (const [dayStr, sleepHrs] of sleepMap) {
+      const day = new Date(dayStr);
+      const nextDay = new Date(day);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const nextDaySymptoms = symptomMap.get(nextDay.toDateString());
+      if (!nextDaySymptoms) continue;
+      const avgSeverity =
+        nextDaySymptoms.reduce((a, b) => a + b, 0) / nextDaySymptoms.length;
+      sleepVals.push(sleepHrs);
+      symptomVals.push(avgSeverity);
+    }
+
+    if (sleepVals.length < 5) return results;
+    const r = this.calculatePearsonCorrelation(sleepVals, symptomVals);
+    if (Math.abs(r) < 0.3) return results;
+
+    const confidence = Math.min(95, Math.round(Math.abs(r) * 100));
+    const protective = r < 0; // More sleep → lower symptoms
+
+    results.push({
+      type: "sleep_symptom",
+      strength: r,
+      confidence,
+      description: isArabic
+        ? protective
+          ? "النوم لساعات أكثر يرتبط بأعراض أخف في اليوم التالي"
+          : "النوم الأقل يرتبط بأعراض أشد في اليوم التالي"
+        : protective
+        ? "More sleep is associated with milder symptoms the next day"
+        : "Less sleep is associated with worse symptoms the following day",
+      actionable: true,
+      recommendation: isArabic
+        ? "حافظ على نوم 7–9 ساعات لتخفيف الأعراض"
+        : "Aim for 7–9 hours of sleep to help manage your symptoms",
+      data: {
+        factor1: "Sleep Duration (hours, day D)",
+        factor2: "Symptom Severity (day D+1)",
+        correlationType: "pearson_lagged",
+        supportingData: { correlation: r.toFixed(3), n: sleepVals.length },
+      },
+    });
+
+    return results;
+  }
+
+  /**
+   * Analyse how sleep duration correlates with same-day mood.
+   */
+  private analyzeSleepMoodCorrelations(
+    moods: Mood[],
+    vitals: VitalSign[],
+    isArabic = false
+  ): CorrelationResult[] {
+    const results: CorrelationResult[] = [];
+    const sleepMap = this.buildDailySleepMap(vitals);
+    if (sleepMap.size < 5 || moods.length < 5) return results;
+
+    // Build daily mood intensity map
+    const moodMap = new Map<string, number[]>();
+    for (const m of moods) {
+      const key = m.timestamp.toDateString();
+      if (!moodMap.has(key)) moodMap.set(key, []);
+      moodMap.get(key)!.push(m.intensity ?? 5);
+    }
+
+    const sleepVals: number[] = [];
+    const moodVals: number[] = [];
+    for (const [dayStr, sleepHrs] of sleepMap) {
+      const dayMoods = moodMap.get(dayStr);
+      if (!dayMoods) continue;
+      const avg = dayMoods.reduce((a, b) => a + b, 0) / dayMoods.length;
+      sleepVals.push(sleepHrs);
+      moodVals.push(avg);
+    }
+
+    if (sleepVals.length < 5) return results;
+    const r = this.calculateSpearmanCorrelation(sleepVals, moodVals);
+    if (Math.abs(r) < 0.3) return results;
+
+    const confidence = Math.min(95, Math.round(Math.abs(r) * 100));
+    const positive = r > 0;
+
+    results.push({
+      type: "sleep_mood",
+      strength: r,
+      confidence,
+      description: isArabic
+        ? positive
+          ? "مزيد من النوم يرتبط بمزاج أفضل"
+          : "النوم الأقل يرتبط بانخفاض في المزاج"
+        : positive
+        ? "More sleep is associated with better mood"
+        : "Less sleep correlates with lower mood scores",
+      actionable: true,
+      recommendation: isArabic
+        ? "حافظ على روتين نوم منتظم لتحسين مزاجك"
+        : "Maintain a consistent sleep schedule to support your mood",
+      data: {
+        factor1: "Sleep Duration (hours)",
+        factor2: "Mood Intensity",
+        correlationType: "spearman",
+        supportingData: { correlation: r.toFixed(3), n: sleepVals.length },
+      },
+    });
+
+    return results;
+  }
+
+  // ─── Activity Cross-Correlations ───────────────────────────────────────────
+
+  /**
+   * Analyse how daily step count correlates with non-activity vital signs.
+   */
+  private analyzeActivityVitalCorrelations(
+    vitals: VitalSign[],
+    isArabic = false
+  ): CorrelationResult[] {
+    const results: CorrelationResult[] = [];
+    const stepsMap = this.buildDailyStepsMap(vitals);
+    if (stepsMap.size < 5) return results;
+
+    const nonActivityVitalTypes = [
+      ...new Set(
+        vitals
+          .filter(
+            (v) =>
+              !this.STEPS_TYPES.has(v.type) &&
+              !this.SLEEP_TYPES.has(v.type)
+          )
+          .map((v) => v.type)
+      ),
+    ];
+
+    for (const vType of nonActivityVitalTypes) {
+      const typeVitals = vitals.filter((v) => v.type === vType);
+      const vitalMap = new Map<string, number[]>();
+      for (const v of typeVitals) {
+        const key = v.timestamp.toDateString();
+        if (!vitalMap.has(key)) vitalMap.set(key, []);
+        vitalMap.get(key)!.push(v.value);
+      }
+
+      const stepsVals: number[] = [];
+      const vitalVals: number[] = [];
+      for (const [day, steps] of stepsMap) {
+        const dayVitals = vitalMap.get(day);
+        if (!dayVitals) continue;
+        const avg = dayVitals.reduce((a, b) => a + b, 0) / dayVitals.length;
+        stepsVals.push(steps);
+        vitalVals.push(avg);
+      }
+
+      if (stepsVals.length < 5) continue;
+      const r = this.calculatePearsonCorrelation(stepsVals, vitalVals);
+      if (Math.abs(r) < 0.3) continue;
+
+      const confidence = Math.min(95, Math.round(Math.abs(r) * 100));
+      const vLabel = vType.replace(/([A-Z])/g, " $1").trim();
+      const direction = r < 0
+        ? (isArabic ? "ينخفض" : "decreases")
+        : (isArabic ? "يرتفع" : "increases");
+
+      results.push({
+        type: "activity_vital",
+        strength: r,
+        confidence,
+        description: isArabic
+          ? `${vLabel} ${direction} في أيام نشاطك الأعلى`
+          : `${vLabel} ${direction} on your more active days`,
+        actionable: Math.abs(r) >= 0.5,
+        recommendation: isArabic
+          ? `استهدف 8,000 خطوة يومياً لتحسين ${vLabel}`
+          : `Aim for 8,000 steps/day to help optimise your ${vLabel}`,
+        data: {
+          factor1: "Daily Steps",
+          factor2: vLabel,
+          correlationType: "pearson",
+          supportingData: { correlation: r.toFixed(3), n: stepsVals.length },
+        },
+      });
+    }
+
+    return results;
+  }
+
+  /**
+   * Analyse how daily step count correlates with same-day symptom severity.
+   */
+  private analyzeActivitySymptomCorrelations(
+    symptoms: Symptom[],
+    vitals: VitalSign[],
+    isArabic = false
+  ): CorrelationResult[] {
+    const results: CorrelationResult[] = [];
+    const stepsMap = this.buildDailyStepsMap(vitals);
+    if (stepsMap.size < 5 || symptoms.length < 5) return results;
+
+    const symptomMap = new Map<string, number[]>();
+    for (const s of symptoms) {
+      const key = s.timestamp.toDateString();
+      if (!symptomMap.has(key)) symptomMap.set(key, []);
+      symptomMap.get(key)!.push(s.severity);
+    }
+
+    const stepsVals: number[] = [];
+    const symptomVals: number[] = [];
+    for (const [day, steps] of stepsMap) {
+      const daySymptoms = symptomMap.get(day);
+      if (!daySymptoms) continue;
+      const avg = daySymptoms.reduce((a, b) => a + b, 0) / daySymptoms.length;
+      stepsVals.push(steps);
+      symptomVals.push(avg);
+    }
+
+    if (stepsVals.length < 5) return results;
+    const r = this.calculatePearsonCorrelation(stepsVals, symptomVals);
+    if (Math.abs(r) < 0.3) return results;
+
+    const confidence = Math.min(95, Math.round(Math.abs(r) * 100));
+    const protective = r < 0;
+
+    results.push({
+      type: "activity_symptom",
+      strength: r,
+      confidence,
+      description: isArabic
+        ? protective
+          ? "الأيام الأكثر نشاطاً ترتبط بأعراض أخف"
+          : "الأيام الأكثر نشاطاً ترتبط بأعراض أشد"
+        : protective
+        ? "More active days are associated with milder symptoms"
+        : "Higher step counts correlate with increased symptom severity",
+      actionable: protective,
+      recommendation: isArabic
+        ? protective
+          ? "حافظ على نشاطك البدني — يبدو أنه يقلل أعراضك"
+          : "إذا كانت الحركة تزيد أعراضك، ناقش ذلك مع طبيبك"
+        : protective
+        ? "Keep up your physical activity — it appears to reduce your symptoms"
+        : "If activity worsens symptoms, discuss with your doctor",
+      data: {
+        factor1: "Daily Steps",
+        factor2: "Symptom Severity",
+        correlationType: "pearson",
+        supportingData: { correlation: r.toFixed(3), n: stepsVals.length },
+      },
+    });
+
+    return results;
+  }
+
+  /**
+   * Analyse how daily step count correlates with same-day mood.
+   */
+  private analyzeActivityMoodCorrelations(
+    moods: Mood[],
+    vitals: VitalSign[],
+    isArabic = false
+  ): CorrelationResult[] {
+    const results: CorrelationResult[] = [];
+    const stepsMap = this.buildDailyStepsMap(vitals);
+    if (stepsMap.size < 5 || moods.length < 5) return results;
+
+    const moodMap = new Map<string, number[]>();
+    for (const m of moods) {
+      const key = m.timestamp.toDateString();
+      if (!moodMap.has(key)) moodMap.set(key, []);
+      moodMap.get(key)!.push(m.intensity ?? 5);
+    }
+
+    const stepsVals: number[] = [];
+    const moodVals: number[] = [];
+    for (const [day, steps] of stepsMap) {
+      const dayMoods = moodMap.get(day);
+      if (!dayMoods) continue;
+      const avg = dayMoods.reduce((a, b) => a + b, 0) / dayMoods.length;
+      stepsVals.push(steps);
+      moodVals.push(avg);
+    }
+
+    if (stepsVals.length < 5) return results;
+    const r = this.calculateSpearmanCorrelation(stepsVals, moodVals);
+    if (Math.abs(r) < 0.3) return results;
+
+    const confidence = Math.min(95, Math.round(Math.abs(r) * 100));
+    const positive = r > 0;
+
+    results.push({
+      type: "activity_mood",
+      strength: r,
+      confidence,
+      description: isArabic
+        ? positive
+          ? "الأيام الأكثر نشاطاً ترتبط بمزاج أفضل"
+          : "الأيام الأكثر نشاطاً ترتبط بانخفاض في المزاج"
+        : positive
+        ? "More active days are associated with better mood"
+        : "Higher step counts correlate with lower mood on your active days",
+      actionable: positive,
+      recommendation: isArabic
+        ? positive
+          ? "النشاط البدني يحسّن مزاجك — استمر!"
+          : "راقب كيف يؤثر النشاط على مزاجك وناقش الأمر مع طبيبك"
+        : positive
+        ? "Physical activity boosts your mood — keep it up!"
+        : "Monitor how activity affects your mood and discuss with your doctor",
+      data: {
+        factor1: "Daily Steps",
+        factor2: "Mood Intensity",
+        correlationType: "spearman",
+        supportingData: { correlation: r.toFixed(3), n: stepsVals.length },
+      },
+    });
+
+    return results;
+  }
+
+  // ─── HRV Cross-Correlations ────────────────────────────────────────────────
+
+  /**
+   * Build a daily map of average HRV (ms) from wearable vitals.
+   * Oura writes "heart_rate_variability"; Garmin "heartRateVariability".
+   */
+  private buildDailyHrvMap(vitals: VitalSign[]): Map<string, number> {
+    const hrvVitals = vitals.filter((v) => this.HRV_TYPES.has(v.type));
+    const dailyMap = new Map<string, number[]>();
+    for (const v of hrvVitals) {
+      const key = v.timestamp.toDateString();
+      if (!dailyMap.has(key)) dailyMap.set(key, []);
+      dailyMap.get(key)!.push(v.value);
+    }
+    const result = new Map<string, number>();
+    for (const [day, vals] of dailyMap) {
+      result.set(day, vals.reduce((a, b) => a + b, 0) / vals.length);
+    }
+    return result;
+  }
+
+  /**
+   * Analyse HRV vs next-day symptom severity (lag 1 day).
+   * Low HRV (poor autonomic recovery) often predicts symptom flares.
+   */
+  private analyzeHrvSymptomCorrelations(
+    symptoms: Symptom[],
+    vitals: VitalSign[],
+    isArabic = false
+  ): CorrelationResult[] {
+    const results: CorrelationResult[] = [];
+    const hrvMap = this.buildDailyHrvMap(vitals);
+    if (hrvMap.size < 5 || symptoms.length < 5) return results;
+
+    const symptomMap = new Map<string, number[]>();
+    for (const s of symptoms) {
+      const key = s.timestamp.toDateString();
+      if (!symptomMap.has(key)) symptomMap.set(key, []);
+      symptomMap.get(key)!.push(s.severity);
+    }
+
+    const hrvVals: number[] = [];
+    const symptomVals: number[] = [];
+    for (const [dayStr, hrv] of hrvMap) {
+      const nextDay = new Date(dayStr);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const nextSymptoms = symptomMap.get(nextDay.toDateString());
+      if (!nextSymptoms) continue;
+      const avg = nextSymptoms.reduce((a, b) => a + b, 0) / nextSymptoms.length;
+      hrvVals.push(hrv);
+      symptomVals.push(avg);
+    }
+
+    if (hrvVals.length < 5) return results;
+    const r = this.calculatePearsonCorrelation(hrvVals, symptomVals);
+    if (Math.abs(r) < 0.3) return results;
+
+    const confidence = Math.min(95, Math.round(Math.abs(r) * 100));
+    const protective = r < 0; // Higher HRV → lower next-day symptoms
+
+    results.push({
+      type: "hrv_symptom",
+      strength: r,
+      confidence,
+      description: isArabic
+        ? protective
+          ? "انخفاض تقلب معدل القلب (HRV) يسبق تفاقم الأعراض في اليوم التالي"
+          : "ارتفاع HRV يرتبط بأعراض أشد — قد يعكس جهداً جسدياً"
+        : protective
+        ? "Lower HRV often precedes worse symptoms the next day — a sign your body needs recovery"
+        : "Higher HRV days correlate with increased symptom severity",
+      actionable: protective,
+      recommendation: isArabic
+        ? protective
+          ? "في أيام HRV المنخفضة، خذ قسطاً من الراحة وراقب أعراضك"
+          : "ناقش نتائج HRV مع طبيبك"
+        : protective
+        ? "On low-HRV days, prioritise rest and watch for symptom flares"
+        : "Discuss your HRV patterns with your doctor",
+      data: {
+        factor1: "HRV (ms, day D)",
+        factor2: "Symptom Severity (day D+1)",
+        correlationType: "pearson_lagged",
+        supportingData: { correlation: r.toFixed(3), n: hrvVals.length },
+      },
+    });
+
+    return results;
+  }
+
+  /**
+   * Analyse HRV vs same-day mood (HRV is a validated physiological marker
+   * of emotional regulation and stress).
+   */
+  private analyzeHrvMoodCorrelations(
+    moods: Mood[],
+    vitals: VitalSign[],
+    isArabic = false
+  ): CorrelationResult[] {
+    const results: CorrelationResult[] = [];
+    const hrvMap = this.buildDailyHrvMap(vitals);
+    if (hrvMap.size < 5 || moods.length < 5) return results;
+
+    const moodMap = new Map<string, number[]>();
+    for (const m of moods) {
+      const key = m.timestamp.toDateString();
+      if (!moodMap.has(key)) moodMap.set(key, []);
+      moodMap.get(key)!.push(m.intensity ?? 5);
+    }
+
+    const hrvVals: number[] = [];
+    const moodVals: number[] = [];
+    for (const [day, hrv] of hrvMap) {
+      const dayMoods = moodMap.get(day);
+      if (!dayMoods) continue;
+      const avg = dayMoods.reduce((a, b) => a + b, 0) / dayMoods.length;
+      hrvVals.push(hrv);
+      moodVals.push(avg);
+    }
+
+    if (hrvVals.length < 5) return results;
+    const r = this.calculateSpearmanCorrelation(hrvVals, moodVals);
+    if (Math.abs(r) < 0.3) return results;
+
+    const confidence = Math.min(95, Math.round(Math.abs(r) * 100));
+    const positive = r > 0;
+
+    results.push({
+      type: "hrv_mood",
+      strength: r,
+      confidence,
+      description: isArabic
+        ? positive
+          ? "أيام HRV الأعلى ترتبط بمزاج أفضل — جهازك العصبي في حالة جيدة"
+          : "انخفاض HRV يرتبط بانخفاض المزاج — إشارة إلى ضغط أو إجهاد"
+        : positive
+        ? "Higher HRV days align with better mood — your nervous system is in a recovery state"
+        : "Lower HRV correlates with lower mood — a possible stress signal",
+      actionable: true,
+      recommendation: isArabic
+        ? "مارس التأمل والتنفس العميق لرفع HRV وتحسين مزاجك"
+        : "Breathing exercises, meditation, and good sleep can raise HRV and lift mood",
+      data: {
+        factor1: "HRV (ms)",
+        factor2: "Mood Intensity",
+        correlationType: "spearman",
+        supportingData: { correlation: r.toFixed(3), n: hrvVals.length },
+      },
+    });
+
+    return results;
+  }
+
+  /**
+   * Analyse HRV vs same-day non-HRV vital signs (e.g. resting heart rate,
+   * blood pressure — both are clinically linked to autonomic tone).
+   */
+  private analyzeHrvVitalCorrelations(
+    vitals: VitalSign[],
+    isArabic = false
+  ): CorrelationResult[] {
+    const results: CorrelationResult[] = [];
+    const hrvMap = this.buildDailyHrvMap(vitals);
+    if (hrvMap.size < 5) return results;
+
+    // Focus on the most clinically relevant non-HRV vitals
+    const targetVitalTypes = ["heartRate", "heart_rate", "resting_heart_rate",
+      "bloodPressure", "blood_pressure_systolic", "oxygenSaturation", "blood_oxygen"];
+
+    for (const vType of targetVitalTypes) {
+      const typeVitals = vitals.filter((v) => v.type === vType);
+      if (typeVitals.length < 5) continue;
+
+      const vitalMap = new Map<string, number[]>();
+      for (const v of typeVitals) {
+        const key = v.timestamp.toDateString();
+        if (!vitalMap.has(key)) vitalMap.set(key, []);
+        vitalMap.get(key)!.push(v.value);
+      }
+
+      const hrvVals: number[] = [];
+      const vitalVals: number[] = [];
+      for (const [day, hrv] of hrvMap) {
+        const dayVitals = vitalMap.get(day);
+        if (!dayVitals) continue;
+        const avg = dayVitals.reduce((a, b) => a + b, 0) / dayVitals.length;
+        hrvVals.push(hrv);
+        vitalVals.push(avg);
+      }
+
+      if (hrvVals.length < 5) continue;
+      const r = this.calculatePearsonCorrelation(hrvVals, vitalVals);
+      if (Math.abs(r) < 0.35) continue;
+
+      const confidence = Math.min(95, Math.round(Math.abs(r) * 100));
+      const vLabel = vType.replace(/[_]/g, " ").replace(/([A-Z])/g, " $1").trim();
+      const direction = r < 0
+        ? (isArabic ? "ينخفض" : "decreases")
+        : (isArabic ? "يرتفع" : "increases");
+
+      results.push({
+        type: "hrv_vital",
+        strength: r,
+        confidence,
+        description: isArabic
+          ? `${vLabel} ${direction} عندما يرتفع HRV — علاقة فسيولوجية مهمة`
+          : `${vLabel} ${direction} when HRV is higher — a meaningful autonomic signal`,
+        actionable: Math.abs(r) >= 0.5,
+        recommendation: isArabic
+          ? "راقب HRV لفهم صحة جهازك العصبي اللاإرادي"
+          : "Track HRV alongside this vital to understand your autonomic health",
+        data: {
+          factor1: "HRV (ms)",
+          factor2: vLabel,
+          correlationType: "pearson",
+          supportingData: { correlation: r.toFixed(3), n: hrvVals.length },
+        },
+      });
+    }
+
+    return results;
   }
 }
 

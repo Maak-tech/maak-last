@@ -35,6 +35,18 @@ const CATEGORY_COLORS: Record<DiscoveryCategory, string> = {
   medication_vital: "#10B981",
   mood_vital: "#F59E0B",
   temporal_pattern: "#6366F1",
+  // Sleep
+  sleep_vital: "#6366F1",
+  sleep_symptom: "#8B5CF6",
+  sleep_mood: "#A78BFA",
+  // Activity
+  activity_vital: "#10B981",
+  activity_symptom: "#059669",
+  activity_mood: "#34D399",
+  // HRV
+  hrv_symptom: "#EF4444",
+  hrv_mood: "#F472B6",
+  hrv_vital: "#E11D48",
 };
 
 const CATEGORY_LABELS: Record<DiscoveryCategory, { en: string; ar: string }> = {
@@ -44,6 +56,18 @@ const CATEGORY_LABELS: Record<DiscoveryCategory, { en: string; ar: string }> = {
   medication_vital: { en: "Medication", ar: "الأدوية" },
   mood_vital: { en: "Mood", ar: "المزاج" },
   temporal_pattern: { en: "Timing", ar: "التوقيت" },
+  // Sleep
+  sleep_vital: { en: "Sleep", ar: "النوم" },
+  sleep_symptom: { en: "Sleep", ar: "النوم" },
+  sleep_mood: { en: "Sleep & Mood", ar: "النوم والمزاج" },
+  // Activity
+  activity_vital: { en: "Activity", ar: "النشاط" },
+  activity_symptom: { en: "Activity", ar: "النشاط" },
+  activity_mood: { en: "Activity & Mood", ar: "النشاط والمزاج" },
+  // HRV
+  hrv_symptom: { en: "HRV", ar: "تقلب القلب" },
+  hrv_mood: { en: "HRV & Mood", ar: "تقلب القلب والمزاج" },
+  hrv_vital: { en: "HRV", ar: "تقلب القلب" },
 };
 
 export default function CorrelationDiscoveryCard({

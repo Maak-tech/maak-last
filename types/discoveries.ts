@@ -10,7 +10,16 @@ export type DiscoveryCategory =
   | "symptom_vital"
   | "medication_vital"
   | "mood_vital"
-  | "temporal_pattern";
+  | "temporal_pattern"
+  | "sleep_vital"
+  | "sleep_symptom"
+  | "sleep_mood"
+  | "activity_vital"
+  | "activity_symptom"
+  | "activity_mood"
+  | "hrv_symptom"
+  | "hrv_mood"
+  | "hrv_vital";
 
 export type DiscoveryStatus = "new" | "seen" | "dismissed";
 

@@ -39,6 +39,8 @@ const FILTER_TABS: Array<{
   { key: "symptom_pattern", en: "Symptoms", ar: "الأعراض" },
   { key: "vital_trend", en: "Vitals", ar: "الحيوية" },
   { key: "medication_effectiveness", en: "Medications", ar: "الأدوية" },
+  { key: "temporal_pattern", en: "Patterns", ar: "الأنماط" },
+  { key: "integration_insight", en: "Wearables", ar: "الأجهزة" },
 ];
 
 export default function DiscoveriesScreen() {

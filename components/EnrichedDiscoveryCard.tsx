@@ -17,9 +17,11 @@
 
 import {
   Activity,
+  Clock,
   GitBranch,
   Pill,
   Sparkles,
+  Watch,
   X,
 } from "lucide-react-native";
 import { useState } from "react";
@@ -66,6 +68,21 @@ const TYPE_META: Record<
     en: "Medication",
     ar: "الأدوية",
   },
+  temporal_pattern: {
+    accentColor: "#6366F1",
+    en: "Time Pattern",
+    ar: "نمط زمني",
+  },
+  medication_pattern: {
+    accentColor: "#0EA5E9",
+    en: "Med Pattern",
+    ar: "نمط الدواء",
+  },
+  integration_insight: {
+    accentColor: "#F59E0B",
+    en: "Wearable",
+    ar: "جهاز ذكي",
+  },
 };
 
 function TypeIcon({
@@ -85,7 +102,12 @@ function TypeIcon({
     case "vital_trend":
       return <Activity color={color} size={size} />;
     case "medication_effectiveness":
+    case "medication_pattern":
       return <Pill color={color} size={size} />;
+    case "temporal_pattern":
+      return <Clock color={color} size={size} />;
+    case "integration_insight":
+      return <Watch color={color} size={size} />;
   }
 }
 

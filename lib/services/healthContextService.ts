@@ -129,6 +129,19 @@ export type HealthContext = {
     recommendation?: string;
     recommendationAr?: string;
   }>;
+  /** Recent lab results — last 6 months, flagged values surfaced for Zeina */
+  labResults: Array<{
+    testName: string;
+    testDate: string;
+    flaggedValues: Array<{
+      name: string;
+      value: string;
+      unit?: string;
+      referenceRange?: string;
+      status?: string;
+    }>;
+    normalCount: number;
+  }>;
   recentAlerts: Array<{
     type: string;
     timestamp: Date;
@@ -378,6 +391,18 @@ class HealthContextService {
             ),
           ])
         : Promise.resolve([null, null]),
+      // Lab results — last 6 months, summarised for Zeina context
+      (async () => {
+        try {
+          const { labResultService } = await import("./labResultService");
+          const sixMonthsAgo = new Date();
+          sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+          const allResults = await labResultService.getUserLabResults(uid, 20);
+          return allResults.filter((r) => r.testDate >= sixMonthsAgo);
+        } catch {
+          return [];
+        }
+      })(),
     ]);
 
     const [
@@ -392,6 +417,7 @@ class HealthContextService {
       topDiscoveriesResult,
       baselineDeviationsResult,
       periodDataResult,
+      labResultsResult,
     ] = results;
 
     // Process medications
@@ -574,6 +600,32 @@ class HealthContextService {
               recommendation: d.recommendation,
               recommendationAr: d.recommendationAr,
             }))
+        : [];
+
+    // Process lab results — surface flagged values for Zeina context
+    const labResults: HealthContext["labResults"] =
+      labResultsResult?.status === "fulfilled" && Array.isArray(labResultsResult.value)
+        ? labResultsResult.value
+            .slice(0, 10) // Cap to last 10 tests
+            .map((r) => {
+              const flagged = r.results.filter(
+                (v) => v.status && v.status !== "normal"
+              );
+              const normalCount = r.results.length - flagged.length;
+              return {
+                testName: r.testName,
+                testDate: safeFormatDate(r.testDate) || "",
+                flaggedValues: flagged.map((v) => ({
+                  name: v.name,
+                  value: String(v.value),
+                  unit: v.unit,
+                  referenceRange: v.referenceRange,
+                  status: v.status,
+                })),
+                normalCount,
+              };
+            })
+            .filter((r) => r.flaggedValues.length > 0 || r.normalCount > 0)
         : [];
 
     // Process user-level health insights metrics
@@ -945,6 +997,7 @@ class HealthContextService {
       userDetailedInsights,
       topDiscoveries,
       baselineDeviations,
+      labResults,
       recentAlerts,
       vitalSigns: latestVitals,
       periodTracking,
@@ -1160,6 +1213,24 @@ ${context.baselineDeviations
     : ""
 }
 
+${
+  context.labResults.length > 0
+    ? `
+${isArabic ? "نتائج المختبر الأخيرة (آخر 6 أشهر):" : "RECENT LAB RESULTS (last 6 months):"}
+${context.labResults
+  .map((r) => {
+    const flaggedLines = r.flaggedValues
+      .map(
+        (v) =>
+          `  ⚠️ ${v.name}: ${v.value}${v.unit ? ` ${v.unit}` : ""}${v.referenceRange ? ` (${isArabic ? "المرجع" : "ref"}: ${v.referenceRange})` : ""}${v.status ? ` [${v.status.toUpperCase()}]` : ""}`
+      )
+      .join("\n");
+    return `• ${r.testName} (${r.testDate}):\n${flaggedLines}\n  ${isArabic ? `${r.normalCount} قيمة طبيعية` : `${r.normalCount} normal values`}`;
+  })
+  .join("\n")}`
+    : ""
+}
+
 ${isArabic ? "أفراد العائلة:" : "FAMILY MEMBERS:"}
 ${
   context.familyMembers.length > 0
@@ -1309,6 +1380,8 @@ ${
 13. For female users, consider period tracking data when providing health insights — correlate symptoms with cycle phases, provide cycle-aware recommendations, and reference predicted periods/ovulation when relevant
 14. Reference the HEALTH PATTERN DISCOVERIES when relevant — these are AI-detected correlations unique to this user's data (e.g., medication→symptom patterns, mood→vital links). Bring them up proactively when discussing the related health factors
 15. Use the PERSONALISED BASELINE CHANGES section to be proactively aware of recent shifts from the user's normal patterns — if their heart rate is elevated, sleep is worse, or mood has dropped compared to their 30-day baseline, mention this naturally and offer insights. These are the most personalised signals available
+16. When the user asks about test results, medications, chronic conditions, or diet, proactively reference the RECENT LAB RESULTS section — highlight any flagged (high/low/abnormal/critical) values, compare them to reference ranges, and suggest discussing out-of-range values with a doctor
+17. Wearable data (HRV, resting heart rate, sleep duration, steps, SpO2) is included in vital signs — use it to provide recovery, stress, and activity-level insights when asked. A low HRV suggests stress or poor recovery; consistently short sleep warrants a sleep hygiene conversation
 
 Remember: You are an AI assistant providing information and support, not a replacement for professional medical advice. Always encourage users to seek professional medical help for serious concerns.`
 }`;
