@@ -8,7 +8,6 @@
 
 import * as admin from "firebase-admin";
 import { onSchedule } from "firebase-functions/v2/scheduler";
-import { getFunctions, httpsCallable } from "firebase-admin/functions";
 
 const db = () => admin.firestore();
 
@@ -101,13 +100,7 @@ Respond with valid JSON: {"summary": "...", "highlights": ["...", "..."], "highl
 Keep each highlight under 8 words. The Arabic fields should be accurate Arabic translations.`;
 
   try {
-    // Call the existing openaiChatCompletion Cloud Function
-    const openaiFn = admin
-      .app()
-      .functions("us-central1");
-
-    // Use Firestore to queue the OpenAI call via a helper pattern
-    // (direct fetch to avoid circular Cloud Function calling — use OpenAI REST API)
+    // Use OpenAI REST API directly (avoids circular Cloud Function calling)
     const openaiApiKey = process.env.OPENAI_API_KEY;
     if (!openaiApiKey) {
       console.warn("OPENAI_API_KEY not set — skipping briefing for", userId);

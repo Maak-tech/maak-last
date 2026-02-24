@@ -203,7 +203,7 @@ function IntelligenceContent({
 
   const styles = createThemedStyles((t) => ({
     card: {
-      backgroundColor: t.colors.surface.card,
+      backgroundColor: t.colors.background.secondary,
       borderRadius: 16,
       padding: t.spacing.base,
       marginBottom: t.spacing.base,

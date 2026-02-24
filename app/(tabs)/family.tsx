@@ -295,6 +295,7 @@ export default function FamilyScreen() {
   >("today");
   const [markingTaken, setMarkingTaken] = useState<string | null>(null);
   const [resolvingAlertId, setResolvingAlertId] = useState<string | null>(null);
+  const [acknowledgingAlertId, setAcknowledgingAlertId] = useState<string | null>(null);
 
   const { isEnabled: fallDetectionEnabled, toggleFallDetection } =
     useFallDetectionContext();
@@ -883,6 +884,23 @@ export default function FamilyScreen() {
       Alert.alert(t("error"), t("failedToResolveAlert"));
     } finally {
       setResolvingAlertId(null);
+    }
+  };
+
+  const handleAcknowledgeAlert = async (alertId: string) => {
+    if (!user?.id) return;
+    if (acknowledgingAlertId) return;
+
+    setAcknowledgingAlertId(alertId);
+    try {
+      await alertService.acknowledgeAlert(alertId, user.id);
+      // Refresh to pick up acknowledgedBy/At fields
+      await loadActiveAlerts(true);
+    } catch (error) {
+      logger.error("Failed to acknowledge alert", error, "FamilyScreen");
+      Alert.alert(t("error"), isRTL ? "فشل الإقرار بالتنبيه" : "Failed to mark alert as handled");
+    } finally {
+      setAcknowledgingAlertId(null);
     }
   };
 
@@ -3327,34 +3345,68 @@ export default function FamilyScreen() {
                               </View>
                             </View>
                           </View>
-                          <TouchableOpacity
-                            activeOpacity={0.7}
-                            disabled={resolvingAlertId === item.alert.id}
-                            hitSlop={{
-                              top: 12,
-                              bottom: 12,
-                              left: 12,
-                              right: 12,
-                            }}
-                            onPress={() => handleResolveAlert(item.alert.id)}
-                            style={[
-                              styles.resolveAlertButton,
-                              resolvingAlertId === item.alert.id &&
-                                styles.resolveAlertButtonDisabled,
-                            ]}
-                          >
-                            {resolvingAlertId === item.alert.id ? (
-                              <ActivityIndicator
-                                color="#FFFFFF"
-                                size="small"
-                                style={styles.resolveAlertSpinner}
-                              />
+                          <View style={{ gap: 6, alignItems: "flex-end" }}>
+                            {/* Mark Handled button — only shown if not yet acknowledged */}
+                            {!item.alert.acknowledgedBy ? (
+                              <TouchableOpacity
+                                activeOpacity={0.7}
+                                disabled={acknowledgingAlertId === item.alert.id}
+                                onPress={() => handleAcknowledgeAlert(item.alert.id)}
+                                style={[
+                                  styles.resolveAlertButton,
+                                  { backgroundColor: "#0F766E", minWidth: 100 },
+                                  acknowledgingAlertId === item.alert.id &&
+                                    styles.resolveAlertButtonDisabled,
+                                ]}
+                              >
+                                {acknowledgingAlertId === item.alert.id ? (
+                                  <ActivityIndicator
+                                    color="#FFFFFF"
+                                    size="small"
+                                    style={styles.resolveAlertSpinner}
+                                  />
+                                ) : (
+                                  <Text style={styles.resolveAlertButtonText}>
+                                    {isRTL ? "تمت المعالجة" : "Mark Handled"}
+                                  </Text>
+                                )}
+                              </TouchableOpacity>
                             ) : (
-                              <Text style={styles.resolveAlertButtonText}>
-                                {isRTL ? "حل" : "Resolve"}
-                              </Text>
+                              <View style={{ alignItems: "flex-end" }}>
+                                <Text style={{ fontSize: 10, color: "#0F766E", fontFamily: "Inter-Medium" }}>
+                                  {isRTL ? "✓ تمت المعالجة" : "✓ Handled"}
+                                </Text>
+                              </View>
                             )}
-                          </TouchableOpacity>
+                            <TouchableOpacity
+                              activeOpacity={0.7}
+                              disabled={resolvingAlertId === item.alert.id}
+                              hitSlop={{
+                                top: 12,
+                                bottom: 12,
+                                left: 12,
+                                right: 12,
+                              }}
+                              onPress={() => handleResolveAlert(item.alert.id)}
+                              style={[
+                                styles.resolveAlertButton,
+                                resolvingAlertId === item.alert.id &&
+                                  styles.resolveAlertButtonDisabled,
+                              ]}
+                            >
+                              {resolvingAlertId === item.alert.id ? (
+                                <ActivityIndicator
+                                  color="#FFFFFF"
+                                  size="small"
+                                  style={styles.resolveAlertSpinner}
+                                />
+                              ) : (
+                                <Text style={styles.resolveAlertButtonText}>
+                                  {isRTL ? "حل" : "Resolve"}
+                                </Text>
+                              )}
+                            </TouchableOpacity>
+                          </View>
                         </View>
                       );
                     }

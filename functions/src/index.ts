@@ -1122,6 +1122,8 @@ export { weeklyOrgSummary } from "./jobs/orgSummaryDigest";
 
 // Data retention archival job (every Saturday 02:00 UTC)
 export { dataRetentionJob } from "./jobs/dataRetention";
+export { dailyBriefing } from "./jobs/dailyBriefing";
+export { caregiverDailySummary } from "./jobs/caregiverDailySummary";
 
 /**
  * Fitbit Webhook Handler

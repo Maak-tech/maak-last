@@ -207,6 +207,8 @@ export type EmergencyAlert = {
   resolved?: boolean;
   resolvedAt?: Date;
   resolvedBy?: string;
+  acknowledgedBy?: string;
+  acknowledgedAt?: Date;
   metadata?: Record<string, unknown>;
 };
 

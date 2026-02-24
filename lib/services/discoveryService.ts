@@ -27,7 +27,7 @@ export async function getAllDiscoveries(
 ): Promise<EnrichedDiscovery[]> {
   try {
     const result =
-      await correlationDiscoveryService.refreshDiscoveries(userId, 30);
+      await correlationDiscoveryService.refreshDiscoveries(userId, _isArabic);
 
     const correlations: EnrichedDiscovery[] = (result.discoveries ?? [])
       .filter((d) => d.status !== "dismissed")

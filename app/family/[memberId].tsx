@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   Calendar,
   CheckCircle2,
+  ClipboardList,
   Droplet,
   Flame,
   Footprints,
@@ -16,11 +17,13 @@ import {
   Info,
   Moon,
   Pill,
+  Plus,
   Route,
   Ruler,
   Scale,
   ShieldAlert,
   Thermometer,
+  Trash2,
   Waves,
   Wind,
   XCircle,
@@ -43,6 +46,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -53,6 +57,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/firebase";
 import { alertService } from "@/lib/services/alertService";
 import { allergyService } from "@/lib/services/allergyService";
+import {
+  caregiverNotesService,
+  type CaregiverNote,
+} from "@/lib/services/caregiverNotesService";
 import healthContextService from "@/lib/services/healthContextService";
 import {
   healthDataService,
@@ -203,6 +211,10 @@ export default function FamilyMemberHealthView() {
   const [allergies, setAllergies] = useState<Allergy[]>([]);
   const [vitals, setVitals] = useState<VitalSigns | null>(null);
   const [alerts, setAlerts] = useState<EmergencyAlert[]>([]);
+  const [caregiverNotes, setCaregiverNotes] = useState<CaregiverNote[]>([]);
+  const [loadingNotes, setLoadingNotes] = useState(false);
+  const [newNoteText, setNewNoteText] = useState("");
+  const [submittingNote, setSubmittingNote] = useState(false);
   const [insightsSummary, setInsightsSummary] = useState<WeeklySummary | null>(
     null
   );
@@ -436,6 +448,60 @@ export default function FamilyMemberHealthView() {
     loadMemberHealthData();
     loadMemberInsights();
   }, [loadMemberHealthData, loadMemberInsights]);
+
+  // Load caregiver notes (only for caregiver/admin roles)
+  const loadCaregiverNotes = useCallback(async () => {
+    if (!memberId) return;
+    if (user?.role !== "caregiver" && user?.role !== "admin") return;
+    setLoadingNotes(true);
+    try {
+      const notes = await caregiverNotesService.getNotes(memberId, 20);
+      setCaregiverNotes(notes);
+    } catch {
+      // Silently fail
+    } finally {
+      setLoadingNotes(false);
+    }
+  }, [memberId, user?.role]);
+
+  const handleAddNote = useCallback(async () => {
+    if (!memberId || !user?.id || !newNoteText.trim()) return;
+    setSubmittingNote(true);
+    try {
+      const note = await caregiverNotesService.addNote(
+        memberId,
+        user.id,
+        newNoteText.trim(),
+        user.firstName ? `${user.firstName} ${user.lastName ?? ""}`.trim() : undefined
+      );
+      setCaregiverNotes((prev) => [note, ...prev]);
+      setNewNoteText("");
+    } catch {
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "فشل إضافة الملاحظة" : "Failed to add note"
+      );
+    } finally {
+      setSubmittingNote(false);
+    }
+  }, [memberId, user?.id, user?.firstName, user?.lastName, newNoteText, isRTL]);
+
+  const handleDeleteNote = useCallback(async (noteId: string) => {
+    if (!memberId) return;
+    try {
+      await caregiverNotesService.deleteNote(memberId, noteId);
+      setCaregiverNotes((prev) => prev.filter((n) => n.id !== noteId));
+    } catch {
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "فشل حذف الملاحظة" : "Failed to delete note"
+      );
+    }
+  }, [memberId, isRTL]);
+
+  useEffect(() => {
+    loadCaregiverNotes();
+  }, [loadCaregiverNotes]);
 
   const formatDate = (date: Date | string) =>
     safeFormatDate(date, isRTL ? "ar-u-ca-gregory" : "en-US", {
@@ -1610,6 +1676,276 @@ export default function FamilyMemberHealthView() {
             </View>
           )}
         </View>
+
+        {/* Caregiver Notes — only visible to caregiver/admin roles */}
+        {(user?.role === "caregiver" || user?.role === "admin") && (
+          <View style={styles.section}>
+            <View
+              style={[
+                styles.sectionHeader,
+                isRTL && { flexDirection: "row-reverse" },
+              ]}
+            >
+              <ClipboardList color="#7C3AED" size={20} />
+              <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+                {isRTL ? "ملاحظات مقدم الرعاية" : "Caregiver Notes"}
+              </Text>
+            </View>
+
+            {/* Add note input */}
+            <View
+              style={{
+                backgroundColor: "#FFFFFF",
+                borderRadius: 16,
+                padding: 16,
+                marginBottom: 12,
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.06,
+                shadowRadius: 6,
+                elevation: 3,
+              }}
+            >
+              <TextInput
+                multiline
+                numberOfLines={3}
+                onChangeText={setNewNoteText}
+                placeholder={
+                  isRTL
+                    ? "أضف ملاحظة حول هذا العضو..."
+                    : "Add an observation note about this member..."
+                }
+                placeholderTextColor="#94A3B8"
+                style={{
+                  fontFamily: "Inter-Regular",
+                  fontSize: 14,
+                  color: "#1A1D1F",
+                  minHeight: 72,
+                  textAlignVertical: "top",
+                  textAlign: isRTL ? "right" : "left",
+                  borderWidth: 1,
+                  borderColor: "#E5E7EB",
+                  borderRadius: 10,
+                  padding: 12,
+                  marginBottom: 10,
+                }}
+                value={newNoteText}
+              />
+              <TouchableOpacity
+                activeOpacity={0.8}
+                disabled={submittingNote || !newNoteText.trim()}
+                onPress={handleAddNote}
+                style={{
+                  backgroundColor:
+                    submittingNote || !newNoteText.trim() ? "#CBD5E1" : "#7C3AED",
+                  borderRadius: 10,
+                  paddingVertical: 10,
+                  paddingHorizontal: 16,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  alignSelf: "flex-end",
+                }}
+              >
+                {submittingNote ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <>
+                    <Plus color="#FFFFFF" size={16} />
+                    <Text
+                      style={{
+                        color: "#FFFFFF",
+                        fontFamily: "Inter-SemiBold",
+                        fontSize: 14,
+                      }}
+                    >
+                      {isRTL ? "إضافة ملاحظة" : "Add Note"}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Notes list */}
+            {loadingNotes ? (
+              <ActivityIndicator color="#7C3AED" size="small" style={{ marginVertical: 16 }} />
+            ) : caregiverNotes.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
+                  {isRTL
+                    ? "لا توجد ملاحظات بعد. أضف أول ملاحظة أعلاه."
+                    : "No notes yet. Add your first observation above."}
+                </Text>
+              </View>
+            ) : (
+              <View
+                style={{
+                  backgroundColor: "#FFFFFF",
+                  borderRadius: 16,
+                  overflow: "hidden",
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.06,
+                  shadowRadius: 6,
+                  elevation: 3,
+                }}
+              >
+                {caregiverNotes.map((note, idx) => (
+                  <View
+                    key={note.id}
+                    style={{
+                      padding: 14,
+                      borderBottomWidth: idx < caregiverNotes.length - 1 ? 1 : 0,
+                      borderBottomColor: "#F3F4F6",
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: isRTL ? "row-reverse" : "row",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        marginBottom: 6,
+                      }}
+                    >
+                      {/* Author avatar chip */}
+                      <View
+                        style={{
+                          flexDirection: isRTL ? "row-reverse" : "row",
+                          alignItems: "center",
+                          gap: 6,
+                          flex: 1,
+                        }}
+                      >
+                        <View
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: 14,
+                            backgroundColor: "#EDE9FE",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 11,
+                              fontFamily: "Inter-Bold",
+                              color: "#7C3AED",
+                            }}
+                          >
+                            {note.caregiverName
+                              ? note.caregiverName
+                                  .split(" ")
+                                  .map((p) => p[0])
+                                  .slice(0, 2)
+                                  .join("")
+                                  .toUpperCase()
+                              : "CG"}
+                          </Text>
+                        </View>
+                        <View>
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              fontFamily: "Inter-SemiBold",
+                              color: "#4E5661",
+                            }}
+                          >
+                            {note.caregiverName || (isRTL ? "مقدم رعاية" : "Caregiver")}
+                          </Text>
+                          <Text
+                            style={{
+                              fontSize: 11,
+                              fontFamily: "Inter-Regular",
+                              color: "#94A3B8",
+                            }}
+                          >
+                            {safeFormatDate(
+                              note.createdAt,
+                              isRTL ? "ar-u-ca-gregory" : "en-US",
+                              { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }
+                            )}
+                          </Text>
+                        </View>
+                      </View>
+                      {/* Delete button — only own notes or admin */}
+                      {(note.caregiverId === user?.id || user?.role === "admin") && (
+                        <TouchableOpacity
+                          activeOpacity={0.7}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          onPress={() => {
+                            Alert.alert(
+                              isRTL ? "حذف الملاحظة" : "Delete Note",
+                              isRTL
+                                ? "هل أنت متأكد من حذف هذه الملاحظة؟"
+                                : "Are you sure you want to delete this note?",
+                              [
+                                { text: isRTL ? "إلغاء" : "Cancel", style: "cancel" },
+                                {
+                                  text: isRTL ? "حذف" : "Delete",
+                                  style: "destructive",
+                                  onPress: () => handleDeleteNote(note.id),
+                                },
+                              ]
+                            );
+                          }}
+                        >
+                          <Trash2 color="#EF4444" size={16} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                    <Text
+                      style={[
+                        {
+                          fontSize: 14,
+                          fontFamily: "Inter-Regular",
+                          color: "#1A1D1F",
+                          lineHeight: 20,
+                        },
+                        isRTL && styles.rtlText,
+                      ]}
+                    >
+                      {note.note}
+                    </Text>
+                    {note.tags && note.tags.length > 0 && (
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          flexWrap: "wrap",
+                          gap: 4,
+                          marginTop: 8,
+                        }}
+                      >
+                        {note.tags.map((tag) => (
+                          <View
+                            key={tag}
+                            style={{
+                              backgroundColor: "#F3F0FF",
+                              borderRadius: 10,
+                              paddingHorizontal: 8,
+                              paddingVertical: 2,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 11,
+                                fontFamily: "Inter-Medium",
+                                color: "#7C3AED",
+                              }}
+                            >
+                              #{tag}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
       </ScrollView>
     </GradientScreen>
   );

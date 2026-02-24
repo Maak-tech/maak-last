@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { ArrowLeft, Sparkles } from "lucide-react-native";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -20,11 +20,14 @@ import GradientScreen from "@/components/figma/GradientScreen";
 import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useCorrelationDiscoveries } from "@/hooks/useCorrelationDiscoveries";
-import type { DiscoveryCategory } from "@/types/discoveries";
+import {
+  discoveryService,
+  type DiscoveryType,
+  type EnrichedDiscovery,
+} from "@/lib/services/discoveryService";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
-type FilterTab = "all" | DiscoveryCategory;
+type FilterTab = "all" | DiscoveryType;
 
 const FILTER_TABS: Array<{
   key: FilterTab;
@@ -32,10 +35,10 @@ const FILTER_TABS: Array<{
   ar: string;
 }> = [
   { key: "all", en: "All", ar: "الكل" },
-  { key: "symptom_medication", en: "Medications", ar: "الأدوية" },
-  { key: "symptom_mood", en: "Mood", ar: "المزاج" },
-  { key: "symptom_vital", en: "Vitals", ar: "الحيوية" },
-  { key: "temporal_pattern", en: "Timing", ar: "التوقيت" },
+  { key: "correlation", en: "Correlations", ar: "الارتباطات" },
+  { key: "symptom_pattern", en: "Symptoms", ar: "الأعراض" },
+  { key: "vital_trend", en: "Vitals", ar: "الحيوية" },
+  { key: "medication_effectiveness", en: "Medications", ar: "الأدوية" },
 ];
 
 export default function DiscoveriesScreen() {
@@ -47,22 +50,40 @@ export default function DiscoveriesScreen() {
 
   const [activeFilter, setActiveFilter] = useState<FilterTab>("all");
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [allDiscoveries, setAllDiscoveries] = useState<EnrichedDiscovery[]>([]);
 
-  const { discoveries, loading, refresh, dismiss, filterByCategory } =
-    useCorrelationDiscoveries(user?.id, { isArabic: isRTL });
+  const loadDiscoveries = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const results = await discoveryService.getAllDiscoveries(user.id, isRTL);
+      setAllDiscoveries(results);
+    } catch {
+      // Silently fail
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id, isRTL]);
+
+  useEffect(() => {
+    loadDiscoveries();
+  }, [loadDiscoveries]);
+
+  const handleDismiss = useCallback((discoveryId: string) => {
+    setAllDiscoveries((prev) => prev.filter((d) => d.id !== discoveryId));
+  }, []);
 
   const filteredDiscoveries =
     activeFilter === "all"
-      ? discoveries.filter((d) => d.status !== "dismissed")
-      : filterByCategory(activeFilter as DiscoveryCategory).filter(
-          (d) => d.status !== "dismissed"
-        );
+      ? allDiscoveries
+      : allDiscoveries.filter((d) => d.discoveryType === activeFilter);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await refresh();
+    setLoading(true);
+    await loadDiscoveries();
     setRefreshing(false);
-  }, [refresh]);
+  }, [loadDiscoveries]);
 
   const styles = createThemedStyles((t) => ({
     headerContainer: {
@@ -252,7 +273,7 @@ export default function DiscoveriesScreen() {
               <CorrelationDiscoveryCard
                 discovery={discovery}
                 key={discovery.id}
-                onDismiss={dismiss}
+                onDismiss={handleDismiss}
               />
             ))}
         </View>

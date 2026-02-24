@@ -1,5 +1,6 @@
 import { router } from "expo-router";
 import { ChevronRight, Sparkles } from "lucide-react-native";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -16,7 +17,10 @@ import {
 } from "@/components/design-system/Typography";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useCorrelationDiscoveries } from "@/hooks/useCorrelationDiscoveries";
+import {
+  discoveryService,
+  type EnrichedDiscovery,
+} from "@/lib/services/discoveryService";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 import CorrelationDiscoveryCard from "./CorrelationDiscoveryCard";
 
@@ -26,8 +30,30 @@ export default function DiscoveryCardsSection() {
   const { theme } = useTheme();
   const isRTL = i18n.language === "ar";
 
-  const { topDiscoveries, newDiscoveries, loading, dismiss } =
-    useCorrelationDiscoveries(user?.id, { isArabic: isRTL });
+  const [topDiscoveries, setTopDiscoveries] = useState<EnrichedDiscovery[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const results = await discoveryService.getTopDiscoveries(user.id, 5, isRTL);
+        if (!cancelled) setTopDiscoveries(results);
+      } catch {
+        // Silently fail
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id, isRTL]);
+
+  const newDiscoveries = topDiscoveries.filter((d) => d.status === "new");
+
+  const dismiss = useCallback((discoveryId: string) => {
+    setTopDiscoveries((prev) => prev.filter((d) => d.id !== discoveryId));
+  }, []);
 
   const styles = createThemedStyles((t) => ({
     container: {

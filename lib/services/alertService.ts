@@ -1118,6 +1118,17 @@ export const alertService = {
     return alertId;
   },
 
+  /** Mark an alert as handled by a caregiver without fully resolving it */
+  async acknowledgeAlert(alertId: string, caregiverId: string): Promise<void> {
+    const alertRef = doc(db, "alerts", alertId);
+    await updateDoc(alertRef, {
+      acknowledgedBy: caregiverId,
+      acknowledgedAt: Timestamp.now(),
+    });
+    familyAlertsCache.clear();
+    familyAlertsInFlight.clear();
+  },
+
   async getActiveAlertsCount(userId: string): Promise<number> {
     try {
       const q = query(

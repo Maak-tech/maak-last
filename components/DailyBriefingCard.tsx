@@ -42,7 +42,7 @@ function BriefingContent({
 
   const styles = createThemedStyles((t) => ({
     card: {
-      backgroundColor: t.colors.surface.card,
+      backgroundColor: t.colors.background.secondary,
       borderRadius: 16,
       padding: t.spacing.base,
       marginBottom: t.spacing.base,
@@ -83,7 +83,7 @@ function BriefingContent({
       marginBottom: t.spacing.sm,
     } as ViewStyle,
     highlightChip: {
-      backgroundColor: t.colors.surface.elevated,
+      backgroundColor: t.colors.background.tertiary,
       borderRadius: 12,
       paddingHorizontal: t.spacing.sm,
       paddingVertical: 4,
@@ -105,7 +105,7 @@ function BriefingContent({
       alignItems: "center" as const,
     } as ViewStyle,
     emptyCard: {
-      backgroundColor: t.colors.surface.card,
+      backgroundColor: t.colors.background.secondary,
       borderRadius: 16,
       padding: t.spacing.base,
       marginBottom: t.spacing.base,

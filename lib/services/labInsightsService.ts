@@ -128,7 +128,7 @@ export async function analyzeLabResults(
         biomarkerMap.get(key)!.push({
           date: result.testDate,
           value: numVal,
-          unit: val.unit,
+          unit: val.unit ?? "",
           status: val.status,
           rawName: val.name,
         });
