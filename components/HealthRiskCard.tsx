@@ -30,7 +30,6 @@ type Props = {
   userId: string | undefined;
 };
 
-/** Map risk level → colour */
 function riskColor(level: "low" | "moderate" | "high" | "very_high"): string {
   switch (level) {
     case "low":
@@ -67,25 +66,24 @@ function RiskContent({
   const { theme } = useTheme();
   const { assessment, loading, error, refresh } = useHealthRisk(userId, isRTL);
   const [showRecommendations, setShowRecommendations] = useState(false);
-  const { t } = useTranslation();
 
-  const styles = createThemedStyles((th) => ({
+  const styles = createThemedStyles((t) => ({
     card: {
-      backgroundColor: th.colors.background.secondary,
+      backgroundColor: t.colors.background.secondary,
       borderRadius: 16,
-      padding: th.spacing.base,
-      marginBottom: th.spacing.base,
+      padding: t.spacing.base,
+      marginBottom: t.spacing.base,
     } as ViewStyle,
     header: {
       flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",
       alignItems: "center" as const,
       justifyContent: "space-between" as const,
-      marginBottom: th.spacing.sm,
+      marginBottom: t.spacing.sm,
     } as ViewStyle,
     headerLeft: {
       flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",
       alignItems: "center" as const,
-      gap: th.spacing.sm,
+      gap: t.spacing.sm,
     } as ViewStyle,
     iconWrap: {
       width: 36,
@@ -103,8 +101,8 @@ function RiskContent({
     scoreRow: {
       flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",
       alignItems: "center" as const,
-      gap: th.spacing.base,
-      marginBottom: th.spacing.sm,
+      gap: t.spacing.base,
+      marginBottom: t.spacing.sm,
     } as ViewStyle,
     scoreCircle: {
       width: 72,
@@ -118,26 +116,23 @@ function RiskContent({
       flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",
       justifyContent: "space-between" as const,
       alignItems: "center" as const,
-      paddingVertical: th.spacing.xs,
-      borderBottomWidth: 1,
-      borderBottomColor: th.colors.border.light,
-    } as ViewStyle,
-    conditionBar: {
-      height: 6,
-      borderRadius: 3,
-      marginTop: 4,
+      paddingVertical: t.spacing.xs,
     } as ViewStyle,
     conditionBarTrack: {
       height: 6,
       borderRadius: 3,
-      backgroundColor: th.colors.border.light,
+      backgroundColor: t.colors.border.light,
       overflow: "hidden" as const,
+    } as ViewStyle,
+    conditionBar: {
+      height: 6,
+      borderRadius: 3,
     } as ViewStyle,
     factorRow: {
       flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",
       alignItems: "flex-start" as const,
-      gap: th.spacing.sm,
-      paddingVertical: th.spacing.xs,
+      gap: t.spacing.sm,
+      paddingVertical: t.spacing.xs,
     } as ViewStyle,
     factorDot: {
       width: 8,
@@ -149,28 +144,28 @@ function RiskContent({
       flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",
       alignItems: "center" as const,
       justifyContent: "center" as const,
-      paddingTop: th.spacing.sm,
-      gap: th.spacing.xs,
+      paddingTop: t.spacing.sm,
+      gap: t.spacing.xs,
     } as ViewStyle,
     retryBtn: {
-      marginTop: th.spacing.sm,
+      marginTop: t.spacing.sm,
       alignSelf: "flex-start" as const,
-      backgroundColor: th.colors.primary,
-      paddingHorizontal: th.spacing.base,
-      paddingVertical: th.spacing.xs,
+      backgroundColor: t.colors.primary.main,
+      paddingHorizontal: t.spacing.base,
+      paddingVertical: t.spacing.xs,
       borderRadius: 10,
     } as ViewStyle,
     center: {
       alignItems: "center" as const,
-      paddingVertical: th.spacing.lg,
+      paddingVertical: t.spacing.lg,
     } as ViewStyle,
-  }));
+  }))(theme);
 
   if (loading) {
     return (
       <View style={styles.card}>
         <View style={styles.center}>
-          <ActivityIndicator size="small" color={theme.colors.primary} />
+          <ActivityIndicator size="small" color={theme.colors.primary.main} />
           <TypographyText
             style={[
               getTextStyle(theme, "caption", "semibold", theme.colors.text.secondary),
@@ -235,28 +230,18 @@ function RiskContent({
             {isRTL ? "تقييم المخاطر الصحية" : "Health Risk Assessment"}
           </TypographyText>
         </View>
-        <View
-          style={[styles.riskBadge, { backgroundColor: `${scoreColor}20` }]}
-        >
+        <View style={[styles.riskBadge, { backgroundColor: `${scoreColor}20` }]}>
           <Caption style={{ color: scoreColor, fontWeight: "700" }}>
             {riskLabel(assessment.riskLevel, isRTL)}
           </Caption>
         </View>
       </View>
 
-      {/* Score + summary */}
+      {/* Score circle + summary */}
       <View style={styles.scoreRow}>
-        <View
-          style={[
-            styles.scoreCircle,
-            { borderColor: scoreColor },
-          ]}
-        >
+        <View style={[styles.scoreCircle, { borderColor: scoreColor }]}>
           <TypographyText
-            style={[
-              getTextStyle(theme, "title", "bold", scoreColor),
-              { fontSize: 22 },
-            ]}
+            style={getTextStyle(theme, "heading", "bold", scoreColor)}
           >
             {Math.round(assessment.overallRiskScore)}
           </TypographyText>
@@ -295,12 +280,7 @@ function RiskContent({
             <View key={cr.condition} style={{ marginBottom: 10 }}>
               <View style={styles.conditionRow}>
                 <TypographyText
-                  style={getTextStyle(
-                    theme,
-                    "caption",
-                    "semibold",
-                    theme.colors.text.primary
-                  )}
+                  style={getTextStyle(theme, "caption", "semibold", theme.colors.text.primary)}
                 >
                   {cr.condition}
                 </TypographyText>
@@ -338,29 +318,16 @@ function RiskContent({
           {modifiableFactors.map((f) => (
             <View key={f.id} style={styles.factorRow}>
               <View
-                style={[
-                  styles.factorDot,
-                  { backgroundColor: riskColor(f.riskLevel) },
-                ]}
+                style={[styles.factorDot, { backgroundColor: riskColor(f.riskLevel) }]}
               />
               <View style={{ flex: 1 }}>
                 <TypographyText
-                  style={getTextStyle(
-                    theme,
-                    "caption",
-                    "semibold",
-                    theme.colors.text.primary
-                  )}
+                  style={getTextStyle(theme, "caption", "semibold", theme.colors.text.primary)}
                 >
                   {f.name}
                 </TypographyText>
                 {f.recommendations && f.recommendations.length > 0 && (
-                  <Caption
-                    style={{
-                      color: theme.colors.text.secondary,
-                      marginTop: 2,
-                    }}
-                  >
+                  <Caption style={{ color: theme.colors.text.secondary, marginTop: 2 }}>
                     {f.recommendations[0]}
                   </Caption>
                 )}
@@ -378,7 +345,7 @@ function RiskContent({
             onPress={() => setShowRecommendations((v) => !v)}
             activeOpacity={0.7}
           >
-            <Caption style={{ color: theme.colors.primary }}>
+            <Caption style={{ color: theme.colors.primary.main }}>
               {showRecommendations
                 ? isRTL
                   ? "إخفاء التوصيات"
@@ -388,9 +355,9 @@ function RiskContent({
                   : "Show Preventive Recommendations"}
             </Caption>
             {showRecommendations ? (
-              <ChevronUp size={14} color={theme.colors.primary} />
+              <ChevronUp size={14} color={theme.colors.primary.main} />
             ) : (
-              <ChevronDown size={14} color={theme.colors.primary} />
+              <ChevronDown size={14} color={theme.colors.primary.main} />
             )}
           </TouchableOpacity>
           {showRecommendations &&
@@ -403,17 +370,10 @@ function RiskContent({
                 style={styles.factorRow}
               >
                 <View
-                  style={[
-                    styles.factorDot,
-                    { backgroundColor: theme.colors.primary },
-                  ]}
+                  style={[styles.factorDot, { backgroundColor: theme.colors.primary.main }]}
                 />
                 <Caption
-                  style={{
-                    flex: 1,
-                    color: theme.colors.text.secondary,
-                    lineHeight: 18,
-                  }}
+                  style={{ flex: 1, color: theme.colors.text.secondary, lineHeight: 18 }}
                 >
                   {rec}
                 </Caption>
