@@ -409,6 +409,9 @@ export default function ZeinaScreen() {
               baselineMessage = isRTL
                 ? `لاحظت شيئاً مثيراً للاهتمام في بياناتك الصحية — ${desc}. هل تريد مناقشة هذا؟`
                 : `I noticed something interesting in your health data — ${desc}. Would you like to discuss this?`;
+
+              // Dismiss so it won't re-surface on the next Zeina open
+              discoveryService.dismissDiscovery(userId, topDiscovery.id).catch(() => {});
             }
           }
 

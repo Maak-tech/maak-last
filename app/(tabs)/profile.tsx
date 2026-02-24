@@ -1645,6 +1645,11 @@ export default function ProfileScreen() {
           icon: Lock,
           onPress: handleChangePassword,
         },
+        {
+          label: isRTL ? "خطتي والفوترة" : "My Plan & Billing",
+          icon: CreditCard,
+          onPress: () => router.push("/(settings)/premium" as never),
+        },
         ...(isAdmin
           ? [
               {
