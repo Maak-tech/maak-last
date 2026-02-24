@@ -956,6 +956,7 @@ export default function DashboardScreen() {
 
   const loadDashboardData = useCallback(async () => {
     if (!user) {
+      setLoading(false);
       return;
     }
 
@@ -967,13 +968,14 @@ export default function DashboardScreen() {
         ? userService.getFamilyMembers(user.familyId)
         : Promise.resolve([] as UserType[]);
 
-      // Reset reminders, medications, alerts, and symptoms all in parallel
+      // Fire reminder reset in background — don't block the UI on it
+      medicationService.resetDailyReminders(user.id).catch(() => {});
+
+      // Load all display data in parallel
       const [members, medications, alertsCountData, symptomStats] =
         await Promise.all([
           familyPromise,
-          medicationService
-            .resetDailyReminders(user.id)
-            .then(() => medicationService.getTodaysMedications(user.id)),
+          medicationService.getTodaysMedications(user.id),
           alertService.getActiveAlertsCount(user.id),
           symptomService.getSymptomStats(user.id, 7),
         ]);
@@ -1072,20 +1074,14 @@ export default function DashboardScreen() {
     await loadDashboardData();
   }, [loadDashboardData]);
 
-  const scheduleDashboardLoad = useCallback(() => {
-    const handle = InteractionManager.runAfterInteractions(() => {
-      loadDashboardDataMemoized();
-    });
-
-    return () => {
-      handle.cancel?.();
-    };
-  }, [loadDashboardDataMemoized]);
-
   useEffect(() => {
-    const cancel = scheduleDashboardLoad();
-    return cancel;
-  }, [scheduleDashboardLoad]);
+    loadDashboardDataMemoized();
+    // Safety timeout: ensure loading never stays stuck true
+    const timeoutId = setTimeout(() => {
+      setLoading(false);
+    }, 15_000);
+    return () => clearTimeout(timeoutId);
+  }, [loadDashboardDataMemoized]);
 
   // Refresh data when tab is focused — only if cache is stale
   useFocusEffect(
@@ -1099,8 +1095,8 @@ export default function DashboardScreen() {
         return;
       }
 
-      return scheduleDashboardLoad();
-    }, [loading, refreshing, scheduleDashboardLoad])
+      loadDashboardDataMemoized();
+    }, [loading, refreshing, loadDashboardDataMemoized])
   );
 
   useEffect(() => {
@@ -2303,43 +2299,39 @@ export default function DashboardScreen() {
             </WavyBackground>
           </View>
 
-          {/* Render widgets dynamically — deferred until parent loads */}
-          {!loading && isAdmin && enabledWidgets.map((widgetId) => renderWidget(widgetId))}
+          {/* Render widgets dynamically */}
+          {enabledWidgets.map((widgetId) => renderWidget(widgetId))}
 
-          {/* Health Insights - deferred until parent data loads to avoid JS thread saturation */}
-          {!loading && (
-            <>
-              <View style={styles.section as ViewStyle}>
-                <ProactiveHealthSuggestions maxSuggestions={5} />
-              </View>
-              <View style={styles.section as ViewStyle}>
-                <PersonalisedHealthInsightsCard userId={user?.id} />
-              </View>
-              <View style={styles.section as ViewStyle}>
-                <AnomalyDashboardSection />
-              </View>
-              <View style={styles.section as ViewStyle}>
-                <PatternInsightsCard userId={user?.id} />
-              </View>
-              <View style={styles.section as ViewStyle}>
-                {/* ML Insights badge row — navigates to Analytics for full detail */}
-                <View
-                  style={{
-                    flexDirection: isRTL ? "row-reverse" : "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    marginBottom: 8,
-                  }}
-                >
-                  <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-                    {isRTL ? "الاكتشافات الصحية" : "Health Discoveries"}
-                  </Text>
-                  <MLInsightsBadge userId={user?.id} />
-                </View>
-                <DiscoveryCardsSection />
-              </View>
-            </>
-          )}
+          {/* Health Insights - each card manages its own data loading */}
+          <View style={styles.section as ViewStyle}>
+            <ProactiveHealthSuggestions maxSuggestions={5} />
+          </View>
+          <View style={styles.section as ViewStyle}>
+            <PersonalisedHealthInsightsCard userId={user?.id} />
+          </View>
+          <View style={styles.section as ViewStyle}>
+            <AnomalyDashboardSection />
+          </View>
+          <View style={styles.section as ViewStyle}>
+            <PatternInsightsCard userId={user?.id} />
+          </View>
+          <View style={styles.section as ViewStyle}>
+            {/* ML Insights badge row — navigates to Analytics for full detail */}
+            <View
+              style={{
+                flexDirection: isRTL ? "row-reverse" : "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 8,
+              }}
+            >
+              <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+                {isRTL ? "الاكتشافات الصحية" : "Health Discoveries"}
+              </Text>
+              <MLInsightsBadge userId={user?.id} />
+            </View>
+            <DiscoveryCardsSection />
+          </View>
 
           {/* Alerts Modal */}
           <Modal

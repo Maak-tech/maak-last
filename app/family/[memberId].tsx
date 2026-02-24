@@ -245,25 +245,9 @@ export default function FamilyMemberHealthView() {
           setLoading(true);
         }
 
-        // Load member data
-        const memberData = await userService.getUser(memberId);
-        setMember(memberData);
-
-        // Get relationship from user document (might be stored as relationship or relation)
-        if (memberData) {
-          const userDoc = await getDoc(doc(db, "users", memberId));
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            const rel = userData.relationship || userData.relation || "";
-            setRelationship(rel || "");
-          } else {
-            // Fallback to empty string - will show role in UI
-            setRelationship("");
-          }
-        }
-
-        // Load core health data only (insights are loaded separately to avoid blocking render)
+        // Load member user doc + all health data in parallel
         const [
+          userDocResult,
           memberSymptomsResult,
           memberMedicalHistoryResult,
           memberMedicationsResult,
@@ -271,6 +255,7 @@ export default function FamilyMemberHealthView() {
           memberAlertsResult,
           healthContextResult,
         ] = await Promise.allSettled([
+          getDoc(doc(db, "users", memberId)),
           symptomService.getUserSymptoms(memberId, 30),
           medicalHistoryService.getUserMedicalHistory(memberId),
           medicationService.getUserMedications(memberId),
@@ -278,6 +263,13 @@ export default function FamilyMemberHealthView() {
           alertService.getActiveAlerts(memberId),
           healthContextService.getUserHealthContext(memberId),
         ]);
+
+        // Set member data from user doc
+        if (userDocResult.status === "fulfilled" && userDocResult.value.exists()) {
+          const userData = userDocResult.value.data();
+          setMember({ id: memberId, ...userData } as User);
+          setRelationship(userData.relationship || userData.relation || "");
+        }
 
         const memberSymptoms =
           memberSymptomsResult.status === "fulfilled"
@@ -310,7 +302,7 @@ export default function FamilyMemberHealthView() {
         setAllergies(memberAllergies);
         setAlerts(memberAlerts);
 
-        // Extract vitals from health context, with fallback to healthDataService
+        // Extract vitals from health context
         let loadedVitals: VitalSigns | null = null;
 
         if (healthContext?.vitalSigns) {
@@ -348,44 +340,46 @@ export default function FamilyMemberHealthView() {
           };
         }
 
-        // Fallback: Try loading from healthDataService if healthContext didn't have vitals
-        if (!loadedVitals || Object.keys(loadedVitals).length === 0) {
-          try {
-            const latestVitals =
-              await healthDataService.getLatestVitalsFromFirestore(memberId);
-            if (latestVitals) {
-              loadedVitals = latestVitals;
-            }
-          } catch {
-            // Silently fail - vitals might not be available
-          }
-        }
-
-        // When viewing your own profile: prefer live Apple Health data for steps/activity
-        // so displayed values match what you see in the Apple Health app.
-        // Firestore data can be stale if sync hasn't run recently.
-        if (memberId === user?.id && loadedVitals) {
-          try {
-            const liveVitals =
-              await healthDataService.getLatestVitalsFromProviders();
-            if (liveVitals?.steps !== undefined && liveVitals.steps !== null) {
-              loadedVitals = {
-                ...loadedVitals,
-                steps: liveVitals.steps,
-                activeEnergy:
-                  liveVitals.activeEnergy ?? loadedVitals.activeEnergy,
-                distanceWalkingRunning:
-                  liveVitals.distanceWalkingRunning ??
-                  loadedVitals.distanceWalkingRunning,
-                timestamp: liveVitals.timestamp ?? loadedVitals.timestamp,
-              };
-            }
-          } catch {
-            // Keep Firestore data if Apple Health fetch fails
-          }
-        }
-
         setVitals(loadedVitals);
+
+        // Defer slow secondary vitals fetches to background after UI renders
+        Promise.resolve().then(async () => {
+          let bgVitals = loadedVitals;
+
+          if (!bgVitals || Object.keys(bgVitals).length === 0) {
+            try {
+              const latestVitals =
+                await healthDataService.getLatestVitalsFromFirestore(memberId);
+              if (latestVitals) {
+                bgVitals = latestVitals;
+                setVitals(bgVitals);
+              }
+            } catch {
+              // Silently fail
+            }
+          }
+
+          if (memberId === user?.id && bgVitals) {
+            try {
+              const liveVitals =
+                await healthDataService.getLatestVitalsFromProviders();
+              if (liveVitals?.steps !== undefined && liveVitals.steps !== null) {
+                setVitals({
+                  ...bgVitals,
+                  steps: liveVitals.steps,
+                  activeEnergy:
+                    liveVitals.activeEnergy ?? bgVitals.activeEnergy,
+                  distanceWalkingRunning:
+                    liveVitals.distanceWalkingRunning ??
+                    bgVitals.distanceWalkingRunning,
+                  timestamp: liveVitals.timestamp ?? bgVitals.timestamp,
+                });
+              }
+            } catch {
+              // Keep Firestore data if Apple Health fetch fails
+            }
+          }
+        });
       } catch (_error) {
         // Silently handle error
       } finally {

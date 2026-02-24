@@ -89,6 +89,10 @@ const getErrorMessage = (error: unknown): string => {
   return "Unknown error";
 };
 
+// Short-lived cache for getFamilyMembers to avoid redundant reads across screens
+const _familyMembersCache = new Map<string, { members: User[]; timestamp: number }>();
+const FAMILY_MEMBERS_CACHE_TTL = 60_000; // 1 minute
+
 export const userService = {
   // Get user by ID
   async getUser(userId: string): Promise<User | null> {
@@ -278,8 +282,18 @@ export const userService = {
 
   // Get family members
   async getFamilyMembers(familyId: string): Promise<User[]> {
-    // First check if family is active
-    const familyDoc = await getDoc(doc(db, "families", familyId));
+    // Return cached result if fresh
+    const cached = _familyMembersCache.get(familyId);
+    if (cached && Date.now() - cached.timestamp < FAMILY_MEMBERS_CACHE_TTL) {
+      return cached.members;
+    }
+
+    // Run family doc check and users query in parallel
+    const [familyDoc, querySnapshot] = await Promise.all([
+      getDoc(doc(db, "families", familyId)),
+      getDocs(query(collection(db, "users"), where("familyId", "==", familyId))),
+    ]);
+
     if (!familyDoc.exists()) {
       return [];
     }
@@ -288,9 +302,6 @@ export const userService = {
     if (familyData.status === "inactive") {
       return [];
     }
-
-    const q = query(collection(db, "users"), where("familyId", "==", familyId));
-    const querySnapshot = await getDocs(q);
     const members: User[] = [];
 
     querySnapshot.forEach((itemDoc) => {
@@ -314,6 +325,7 @@ export const userService = {
       } as User);
     });
 
+    _familyMembersCache.set(familyId, { members, timestamp: Date.now() });
     return members;
   },
 
