@@ -41,7 +41,8 @@ import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import aiConsentService from "@/lib/services/aiConsentService";
-import { correlationDiscoveryService } from "@/lib/services/correlationDiscoveryService";
+import { discoveryService } from "@/lib/services/discoveryService";
+import { userBaselineService } from "@/lib/services/userBaselineService";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { safeFormatTime } from "@/utils/dateFormat";
@@ -352,35 +353,64 @@ export default function ZeinaScreen() {
         // Silently fail — briefing is optional
       }
 
-      // Check for new health discoveries to proactively surface
+      // Check for new health discoveries (all types) + baseline deviations to surface
       let proactiveMessage: AIMessage | undefined;
       try {
         const userId = user?.id;
         if (userId) {
           const lastChatKey = `zeina_last_chat_${userId}`;
           const lastChatTimestamp = await AsyncStorage.getItem(lastChatKey);
-          const sinceDate = lastChatTimestamp
-            ? new Date(lastChatTimestamp)
-            : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-          const newDiscoveries =
-            await correlationDiscoveryService.getNewDiscoveriesSince(
+          // Try baseline deviations first — most personalised signal
+          let baselineMessage: string | undefined;
+          try {
+            const baseline = await userBaselineService.getBaseline(userId);
+            const deviations = await userBaselineService.detectDeviations(
               userId,
-              sinceDate
+              baseline,
+              isRTL
+            );
+            const significant = deviations.filter(
+              (d) => d.severity === "significant"
+            );
+            if (significant.length > 0) {
+              const top = significant[0];
+              baselineMessage = isRTL
+                ? `لاحظت تغيراً في ${top.insightAr} هل تريد مناقشة ذلك؟`
+                : `I noticed a change in your health patterns: ${top.insight} Would you like to talk about it?`;
+            }
+          } catch {
+            // Non-critical
+          }
+
+          // Fallback to newest discovery across all types
+          if (!baselineMessage) {
+            const allDiscoveries = await discoveryService.getAllDiscoveries(userId, isRTL);
+            const sinceDate = lastChatTimestamp
+              ? new Date(lastChatTimestamp)
+              : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+            const recentNew = allDiscoveries.filter(
+              (d) => d.status === "new" && new Date(d.discoveredAt) >= sinceDate
             );
 
-          if (newDiscoveries.length > 0 && isMountedRef.current) {
-            const topDiscovery = newDiscoveries[0];
-            const desc = isRTL
-              ? topDiscovery.descriptionAr || topDiscovery.description
-              : topDiscovery.description;
+            if (recentNew.length > 0 && isMountedRef.current) {
+              const topDiscovery = recentNew[0];
+              const desc = isRTL
+                ? (topDiscovery as { descriptionAr?: string }).descriptionAr ||
+                  topDiscovery.description
+                : topDiscovery.description;
 
+              baselineMessage = isRTL
+                ? `لاحظت شيئاً مثيراً للاهتمام في بياناتك الصحية — ${desc}. هل تريد مناقشة هذا؟`
+                : `I noticed something interesting in your health data — ${desc}. Would you like to discuss this?`;
+            }
+          }
+
+          if (baselineMessage && isMountedRef.current) {
             proactiveMessage = {
               id: (Date.now() + 3).toString(),
               role: "assistant",
-              content: isRTL
-                ? `لاحظت شيئاً مثيراً للاهتمام في بياناتك الصحية — ${desc}. هل تريد مناقشة هذا؟`
-                : `I noticed something interesting in your health data — ${desc}. Would you like to discuss this?`,
+              content: baselineMessage,
               timestamp: new Date(),
             };
           }

@@ -26,6 +26,7 @@ import TrendPredictionChart from "@/app/components/TrendPredictionChart";
 import HealthRiskCard from "@/components/HealthRiskCard";
 import HealthScoreForecastCard from "@/components/HealthScoreForecastCard";
 import LabInsightsCard from "@/components/LabInsightsCard";
+import PersonalisedHealthInsightsCard from "@/components/PersonalisedHealthInsightsCard";
 import SymptomAnalysisCard from "@/components/SymptomAnalysisCard";
 import GradientScreen from "@/components/figma/GradientScreen";
 import WavyBackground from "@/components/figma/WavyBackground";
@@ -735,6 +736,11 @@ export default function AnalyticsScreen() {
           {/* Symptom Pattern Analysis — ML-powered, Premium Individual+ */}
           <View style={styles.section as ViewStyle}>
             <SymptomAnalysisCard userId={user?.id} />
+          </View>
+
+          {/* Personalised Baseline Monitoring — all users */}
+          <View style={styles.section as ViewStyle}>
+            <PersonalisedHealthInsightsCard userId={user?.id} />
           </View>
 
           {/* AI Insights Section */}

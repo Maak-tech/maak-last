@@ -21,8 +21,8 @@ import {
   discoveryService,
   type EnrichedDiscovery,
 } from "@/lib/services/discoveryService";
+import EnrichedDiscoveryCard from "@/components/EnrichedDiscoveryCard";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
-import CorrelationDiscoveryCard from "./CorrelationDiscoveryCard";
 
 export default function DiscoveryCardsSection() {
   const { i18n } = useTranslation();
@@ -176,12 +176,19 @@ export default function DiscoveryCardsSection() {
         showsHorizontalScrollIndicator={false}
       >
         {topDiscoveries.map((discovery) => (
-          <CorrelationDiscoveryCard
-            compact
-            discovery={discovery}
+          <View
             key={discovery.id}
-            onDismiss={dismiss}
-          />
+            style={{
+              width: 300,
+              marginRight: isRTL ? 0 : theme.spacing.sm,
+              marginLeft: isRTL ? theme.spacing.sm : 0,
+            }}
+          >
+            <EnrichedDiscoveryCard
+              discovery={discovery}
+              onDismiss={dismiss}
+            />
+          </View>
         ))}
       </ScrollView>
     </View>

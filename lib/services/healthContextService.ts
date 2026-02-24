@@ -118,6 +118,17 @@ export type HealthContext = {
     confidence: number;
     strength: number;
   }>;
+  /** Personalised baseline deviations — changes from the user's 30-day averages */
+  baselineDeviations: Array<{
+    dimension: string;
+    metric: string;
+    insight: string;
+    insightAr: string;
+    severity: string;
+    direction: string;
+    recommendation?: string;
+    recommendationAr?: string;
+  }>;
   recentAlerts: Array<{
     type: string;
     timestamp: Date;
@@ -337,6 +348,16 @@ class HealthContextService {
       correlationDiscoveryService
         .getTopDiscoveries(uid, 5)
         .catch(() => []),
+      // Personalised baseline deviations — fire-and-forget, 30s timeout
+      (async () => {
+        try {
+          const { userBaselineService } = await import("./userBaselineService");
+          const baseline = await userBaselineService.getBaseline(uid);
+          return await userBaselineService.detectDeviations(uid, baseline, isArabic);
+        } catch {
+          return [];
+        }
+      })(),
       // Period tracking query (only for female users)
       userData.gender === "female"
         ? Promise.all([
@@ -369,6 +390,7 @@ class HealthContextService {
       insightsMetricsSummary,
       userDetailedInsightsResult,
       topDiscoveriesResult,
+      baselineDeviationsResult,
       periodDataResult,
     ] = results;
 
@@ -533,6 +555,25 @@ class HealthContextService {
             confidence: d.confidence,
             strength: d.strength,
           }))
+        : [];
+
+    // Process personalised baseline deviations for Zeina awareness
+    const baselineDeviations: HealthContext["baselineDeviations"] =
+      baselineDeviationsResult?.status === "fulfilled" &&
+      Array.isArray(baselineDeviationsResult.value)
+        ? baselineDeviationsResult.value
+            .filter((d) => d.severity !== "mild") // Only notable changes
+            .slice(0, 5)
+            .map((d) => ({
+              dimension: d.dimension,
+              metric: d.metric,
+              insight: d.insight,
+              insightAr: d.insightAr,
+              severity: d.severity,
+              direction: d.direction,
+              recommendation: d.recommendation,
+              recommendationAr: d.recommendationAr,
+            }))
         : [];
 
     // Process user-level health insights metrics
@@ -903,6 +944,7 @@ class HealthContextService {
       insightsMetrics,
       userDetailedInsights,
       topDiscoveries,
+      baselineDeviations,
       recentAlerts,
       vitalSigns: latestVitals,
       periodTracking,
@@ -1105,6 +1147,19 @@ ${context.topDiscoveries
     : ""
 }
 
+${
+  context.baselineDeviations.length > 0
+    ? `
+${isArabic ? "تغيرات عن الخط الأساسي الشخصي (آخر 7 أيام مقابل متوسط 30 يوم):" : "PERSONALISED BASELINE CHANGES (last 7 days vs 30-day personal averages):"}
+${context.baselineDeviations
+  .map(
+    (d) =>
+      `• [${d.severity.toUpperCase()}] ${isArabic ? d.insightAr : d.insight}${d.recommendation ? ` — ${isArabic ? "توصية" : "Recommendation"}: ${isArabic && d.recommendationAr ? d.recommendationAr : d.recommendation}` : ""}`
+  )
+  .join("\n")}`
+    : ""
+}
+
 ${isArabic ? "أفراد العائلة:" : "FAMILY MEMBERS:"}
 ${
   context.familyMembers.length > 0
@@ -1253,6 +1308,7 @@ ${
 12. Proactively reference and discuss the detailed health insights (30-day patterns) when the user asks about their health, symptoms, medications, or trends — these insights include ML patterns, correlations, and actionable recommendations
 13. For female users, consider period tracking data when providing health insights — correlate symptoms with cycle phases, provide cycle-aware recommendations, and reference predicted periods/ovulation when relevant
 14. Reference the HEALTH PATTERN DISCOVERIES when relevant — these are AI-detected correlations unique to this user's data (e.g., medication→symptom patterns, mood→vital links). Bring them up proactively when discussing the related health factors
+15. Use the PERSONALISED BASELINE CHANGES section to be proactively aware of recent shifts from the user's normal patterns — if their heart rate is elevated, sleep is worse, or mood has dropped compared to their 30-day baseline, mention this naturally and offer insights. These are the most personalised signals available
 
 Remember: You are an AI assistant providing information and support, not a replacement for professional medical advice. Always encourage users to seek professional medical help for serious concerns.`
 }`;

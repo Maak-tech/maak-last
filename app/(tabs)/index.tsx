@@ -51,6 +51,7 @@ import DailyBriefingCard from "@/components/DailyBriefingCard";
 import HealthScoreForecastCard from "@/components/HealthScoreForecastCard";
 import MLInsightsBadge from "@/components/MLInsightsBadge";
 import PatternInsightsCard from "@/components/PatternInsightsCard";
+import PersonalisedHealthInsightsCard from "@/components/PersonalisedHealthInsightsCard";
 import { Card } from "@/components/design-system";
 import { Heading, Text } from "@/components/design-system/Typography";
 import GradientScreen from "@/components/figma/GradientScreen";
@@ -2303,6 +2304,9 @@ export default function DashboardScreen() {
           {/* Health Insights - visible to all users */}
           <View style={styles.section as ViewStyle}>
             <ProactiveHealthSuggestions maxSuggestions={5} />
+          </View>
+          <View style={styles.section as ViewStyle}>
+            <PersonalisedHealthInsightsCard userId={user?.id} />
           </View>
           <View style={styles.section as ViewStyle}>
             <AnomalyDashboardSection />
