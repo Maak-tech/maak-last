@@ -49,6 +49,8 @@ import DiscoveryCardsSection from "@/app/components/DiscoveryCardsSection";
 import ProactiveHealthSuggestions from "@/app/components/ProactiveHealthSuggestions";
 import DailyBriefingCard from "@/components/DailyBriefingCard";
 import HealthScoreForecastCard from "@/components/HealthScoreForecastCard";
+import MLInsightsBadge from "@/components/MLInsightsBadge";
+import PatternInsightsCard from "@/components/PatternInsightsCard";
 import { Card } from "@/components/design-system";
 import { Heading, Text } from "@/components/design-system/Typography";
 import GradientScreen from "@/components/figma/GradientScreen";
@@ -2067,6 +2069,8 @@ export default function DashboardScreen() {
             <DailyBriefingCard userId={user?.id} />
             {/* Health Score with 7-day forecast teaser */}
             <HealthScoreForecastCard variant="home" userId={user?.id} />
+            {/* ML pattern insights (temporal, vital-trend, wearable) */}
+            <PatternInsightsCard userId={user?.id} />
             <ProactiveHealthSuggestions maxSuggestions={5} />
           </View>
         );
@@ -2304,6 +2308,28 @@ export default function DashboardScreen() {
             <AnomalyDashboardSection />
           </View>
           <View style={styles.section as ViewStyle}>
+            <PatternInsightsCard userId={user?.id} />
+          </View>
+          <View style={styles.section as ViewStyle}>
+            {/* ML Insights badge row — navigates to Analytics for full detail */}
+            <View
+              style={{
+                flexDirection: isRTL ? "row-reverse" : "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 8,
+              }}
+            >
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  isRTL && styles.rtlText,
+                ]}
+              >
+                {isRTL ? "الاكتشافات الصحية" : "Health Discoveries"}
+              </Text>
+              <MLInsightsBadge userId={user?.id} />
+            </View>
             <DiscoveryCardsSection />
           </View>
 

@@ -77,23 +77,23 @@ function AnalysisContent({
   const [expandedPattern, setExpandedPattern] = useState<string | null>(null);
   const [showDiagnosis, setShowDiagnosis] = useState(false);
 
-  const styles = createThemedStyles((th) => ({
+  const styles = createThemedStyles((t) => ({
     card: {
-      backgroundColor: th.colors.background.secondary,
+      backgroundColor: t.colors.background.secondary,
       borderRadius: 16,
-      padding: th.spacing.base,
-      marginBottom: th.spacing.base,
+      padding: t.spacing.base,
+      marginBottom: t.spacing.base,
     } as ViewStyle,
     header: {
       flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",
       alignItems: "center" as const,
       justifyContent: "space-between" as const,
-      marginBottom: th.spacing.sm,
+      marginBottom: t.spacing.sm,
     } as ViewStyle,
     headerLeft: {
       flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",
       alignItems: "center" as const,
-      gap: th.spacing.sm,
+      gap: t.spacing.sm,
     } as ViewStyle,
     iconWrap: {
       width: 36,
@@ -110,9 +110,9 @@ function AnalysisContent({
     } as ViewStyle,
     patternCard: {
       borderRadius: 12,
-      backgroundColor: th.colors.background.tertiary,
-      padding: th.spacing.sm,
-      marginBottom: th.spacing.sm,
+      backgroundColor: t.colors.background.tertiary,
+      padding: t.spacing.sm,
+      marginBottom: t.spacing.sm,
     } as ViewStyle,
     patternHeader: {
       flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",
@@ -122,7 +122,7 @@ function AnalysisContent({
     patternHeaderLeft: {
       flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",
       alignItems: "center" as const,
-      gap: th.spacing.xs,
+      gap: t.spacing.xs,
     } as ViewStyle,
     severityDot: {
       width: 8,
@@ -139,13 +139,13 @@ function AnalysisContent({
       flexDirection: "row" as const,
       flexWrap: "wrap" as const,
       gap: 4,
-      marginTop: th.spacing.xs,
+      marginTop: t.spacing.xs,
     } as ViewStyle,
     diagnosisRow: {
       borderRadius: 10,
-      backgroundColor: th.colors.background.tertiary,
-      padding: th.spacing.sm,
-      marginBottom: th.spacing.xs,
+      backgroundColor: t.colors.background.tertiary,
+      padding: t.spacing.sm,
+      marginBottom: t.spacing.xs,
     } as ViewStyle,
     diagnosisTop: {
       flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",
@@ -156,37 +156,37 @@ function AnalysisContent({
       flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",
       alignItems: "center" as const,
       justifyContent: "center" as const,
-      paddingTop: th.spacing.sm,
-      gap: th.spacing.xs,
+      paddingTop: t.spacing.sm,
+      gap: t.spacing.xs,
     } as ViewStyle,
     center: {
       alignItems: "center" as const,
-      paddingVertical: th.spacing.lg,
+      paddingVertical: t.spacing.lg,
     } as ViewStyle,
     retryBtn: {
-      marginTop: th.spacing.sm,
+      marginTop: t.spacing.sm,
       alignSelf: "flex-start" as const,
-      backgroundColor: th.colors.primary,
-      paddingHorizontal: th.spacing.base,
-      paddingVertical: th.spacing.xs,
+      backgroundColor: t.colors.primary.main,
+      paddingHorizontal: t.spacing.base,
+      paddingVertical: t.spacing.xs,
       borderRadius: 10,
     } as ViewStyle,
     infoRow: {
       flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",
       alignItems: "flex-start" as const,
-      gap: th.spacing.xs,
+      gap: t.spacing.xs,
       backgroundColor: "rgba(245, 158, 11, 0.08)",
       borderRadius: 10,
-      padding: th.spacing.sm,
-      marginTop: th.spacing.sm,
+      padding: t.spacing.sm,
+      marginTop: t.spacing.sm,
     } as ViewStyle,
-  }));
+  }))(theme);
 
   if (loading) {
     return (
       <View style={styles.card}>
         <View style={styles.center}>
-          <ActivityIndicator size="small" color={theme.colors.primary} />
+          <ActivityIndicator size="small" color={theme.colors.primary.main} />
           <TypographyText
             style={[
               getTextStyle(theme, "caption", "semibold", theme.colors.text.secondary),
@@ -202,8 +202,7 @@ function AnalysisContent({
 
   const noPatterns =
     !analysis ||
-    (analysis.patterns.length === 0 &&
-      analysis.diagnosisSuggestions.length === 0);
+    (analysis.patterns.length === 0 && analysis.diagnosisSuggestions.length === 0);
 
   if (error || noPatterns) {
     return (
@@ -244,7 +243,7 @@ function AnalysisContent({
   const topPatterns = analysis.patterns.slice(0, 3);
   const topSuggestions = analysis.diagnosisSuggestions.slice(0, 3);
 
-  const overallRiskLabelMap = {
+  const overallRiskLabelMap: Record<"low" | "medium" | "high", { en: string; ar: string }> = {
     low: { en: "Low Risk", ar: "مخاطر منخفضة" },
     medium: { en: "Moderate Risk", ar: "مخاطر متوسطة" },
     high: { en: "High Risk", ar: "مخاطر عالية" },
@@ -264,16 +263,9 @@ function AnalysisContent({
             {isRTL ? "تحليل الأعراض" : "Symptom Analysis"}
           </TypographyText>
         </View>
-        <View
-          style={[
-            styles.riskBadge,
-            { backgroundColor: `${overallColor}20` },
-          ]}
-        >
+        <View style={[styles.riskBadge, { backgroundColor: `${overallColor}20` }]}>
           <Caption style={{ color: overallColor, fontWeight: "700" }}>
-            {isRTL
-              ? overallRiskLabelMap[overallRisk].ar
-              : overallRiskLabelMap[overallRisk].en}
+            {isRTL ? overallRiskLabelMap[overallRisk].ar : overallRiskLabelMap[overallRisk].en}
           </Caption>
         </View>
       </View>
@@ -317,27 +309,14 @@ function AnalysisContent({
                       {p.name}
                     </TypographyText>
                   </View>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 4,
-                    }}
-                  >
-                    <Caption
-                      style={{
-                        color: theme.colors.text.secondary,
-                      }}
-                    >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                    <Caption style={{ color: theme.colors.text.secondary }}>
                       {Math.round(p.confidence)}%
                     </Caption>
                     {isOpen ? (
                       <ChevronUp size={14} color={theme.colors.text.secondary} />
                     ) : (
-                      <ChevronDown
-                        size={14}
-                        color={theme.colors.text.secondary}
-                      />
+                      <ChevronDown size={14} color={theme.colors.text.secondary} />
                     )}
                   </View>
                 </View>
@@ -375,7 +354,7 @@ function AnalysisContent({
             onPress={() => setShowDiagnosis((v) => !v)}
             activeOpacity={0.7}
           >
-            <Caption style={{ color: theme.colors.primary }}>
+            <Caption style={{ color: theme.colors.primary.main }}>
               {showDiagnosis
                 ? isRTL
                   ? "إخفاء اقتراحات التشخيص"
@@ -385,9 +364,9 @@ function AnalysisContent({
                   : `Show ${topSuggestions.length} Diagnosis Suggestion${topSuggestions.length > 1 ? "s" : ""}`}
             </Caption>
             {showDiagnosis ? (
-              <ChevronUp size={14} color={theme.colors.primary} />
+              <ChevronUp size={14} color={theme.colors.primary.main} />
             ) : (
-              <ChevronDown size={14} color={theme.colors.primary} />
+              <ChevronDown size={14} color={theme.colors.primary.main} />
             )}
           </TouchableOpacity>
 
@@ -396,13 +375,7 @@ function AnalysisContent({
               {/* Medical disclaimer */}
               <View style={styles.infoRow}>
                 <Info size={14} color="#F59E0B" style={{ marginTop: 1 }} />
-                <Caption
-                  style={{
-                    flex: 1,
-                    color: "#92400E",
-                    lineHeight: 16,
-                  }}
-                >
+                <Caption style={{ flex: 1, color: "#92400E", lineHeight: 16 }}>
                   {isRTL
                     ? "هذه اقتراحات معلوماتية فقط، وليست تشخيصاً طبياً. استشر طبيبك دائماً."
                     : "These are informational suggestions only, not a medical diagnosis. Always consult your doctor."}
@@ -433,10 +406,7 @@ function AnalysisContent({
                       ]}
                     >
                       <Caption
-                        style={{
-                          color: urgencyColor(s.urgency),
-                          fontWeight: "700",
-                        }}
+                        style={{ color: urgencyColor(s.urgency), fontWeight: "700" }}
                       >
                         {s.urgency.charAt(0).toUpperCase() + s.urgency.slice(1)}
                       </Caption>
@@ -452,12 +422,7 @@ function AnalysisContent({
                     {s.reasoning}
                   </Caption>
                   {s.recommendations.length > 0 && (
-                    <Caption
-                      style={{
-                        color: theme.colors.primary,
-                        marginTop: 4,
-                      }}
-                    >
+                    <Caption style={{ color: theme.colors.primary.main, marginTop: 4 }}>
                       {isRTL ? "التوصيات: " : "Recommendations: "}
                       {s.recommendations.slice(0, 2).join(" · ")}
                     </Caption>
@@ -473,9 +438,7 @@ function AnalysisContent({
       {analysis.riskAssessment.concerns.length > 0 && (
         <View style={styles.infoRow}>
           <AlertCircle size={14} color="#EF4444" style={{ marginTop: 1 }} />
-          <Caption
-            style={{ flex: 1, color: theme.colors.text.secondary, lineHeight: 16 }}
-          >
+          <Caption style={{ flex: 1, color: theme.colors.text.secondary, lineHeight: 16 }}>
             {analysis.riskAssessment.concerns.join(" · ")}
           </Caption>
         </View>

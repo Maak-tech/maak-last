@@ -7,6 +7,7 @@
 
 import { type Functions, httpsCallable } from "firebase/functions";
 import type { PPGResult } from "@/lib/utils/BiometricUtils";
+import { ppgEmbeddingsService } from "./ppgEmbeddingsService";
 
 type PPGAnalysisRequest = {
   signal: number[];
@@ -138,6 +139,16 @@ export const ppgMLService = {
       const data = result.data;
 
       if (data.success) {
+        // Persist embeddings for longitudinal cardiac fingerprinting (fire-and-forget)
+        if (data.embeddings && data.embeddings.length > 0) {
+          ppgEmbeddingsService.persist(finalUserId, data.embeddings, {
+            heartRate: data.heartRate,
+            hrv: data.heartRateVariability,
+            respiratoryRate: data.respiratoryRate,
+            signalQuality: data.signalQuality,
+            confidence: data.confidence,
+          });
+        }
         return {
           success: true,
           heartRate: data.heartRate,
