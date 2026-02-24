@@ -65,7 +65,7 @@ import { medicationService } from "@/lib/services/medicationService";
 import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
 import { logger } from "@/lib/utils/logger";
-import type { Medication, Symptom, User as UserType } from "@/types";
+import type { Medication, User as UserType } from "@/types";
 import { coerceToDate } from "@/utils/dateCoercion";
 import {
   safeFormatDate,
@@ -81,7 +81,6 @@ export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [recentSymptoms, setRecentSymptoms] = useState<Symptom[]>([]);
   const [todaysMedications, setTodaysMedications] = useState<Medication[]>([]);
   const [alertsCount, setAlertsCount] = useState(0);
   const [familyMembersCount, setFamilyMembersCount] = useState(0);
@@ -974,15 +973,12 @@ export default function DashboardScreen() {
       await medicationService.resetDailyReminders(user.id);
 
       // Load personal data
-      const [symptoms, medications, alertsCountData, symptomStats] =
-        await Promise.all([
-          symptomService.getUserSymptoms(user.id, 5),
-          medicationService.getTodaysMedications(user.id),
-          alertService.getActiveAlertsCount(user.id),
-          symptomService.getSymptomStats(user.id, 7),
-        ]);
+      const [medications, alertsCountData, symptomStats] = await Promise.all([
+        medicationService.getTodaysMedications(user.id),
+        alertService.getActiveAlertsCount(user.id),
+        symptomService.getSymptomStats(user.id, 7),
+      ]);
 
-      setRecentSymptoms(symptoms);
       setTodaysMedications(medications);
       setAlertsCount(alertsCountData);
 
@@ -1610,7 +1606,6 @@ export default function DashboardScreen() {
     "stats",
     "alerts",
     "todaysMedications",
-    "recentSymptoms",
   ];
 
   // Widget render functions
@@ -1926,6 +1921,8 @@ export default function DashboardScreen() {
         );
 
       case "recentSymptoms":
+        return null;
+        /*
         return (
           <View key="recentSymptoms" style={styles.section as ViewStyle}>
             <View style={styles.sectionHeaderRow as ViewStyle}>
@@ -2009,6 +2006,7 @@ export default function DashboardScreen() {
             </View>
           </View>
         );
+        */
 
       case "alerts":
         if (alertsCount === 0) {

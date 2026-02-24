@@ -12,11 +12,16 @@
  */
 
 import {
+  arrayRemove,
+  arrayUnion,
   collection,
+  doc,
+  getDoc,
   getDocs,
   limit,
   orderBy,
   query,
+  setDoc,
   Timestamp,
   where,
 } from "firebase/firestore";
@@ -309,6 +314,56 @@ async function fetchIntegrationInsightDiscoveries(
   }
 }
 
+// ─── Dismissed-ID Persistence ─────────────────────────────────────────────────
+
+const DISMISSED_DOC = (userId: string) =>
+  doc(db, "users", userId, "discovery_prefs", "dismissed");
+
+/** Persist a dismissed discovery ID to Firestore so it survives app restarts. */
+export async function dismissDiscovery(
+  userId: string,
+  discoveryId: string
+): Promise<void> {
+  try {
+    await setDoc(
+      DISMISSED_DOC(userId),
+      { ids: arrayUnion(discoveryId) },
+      { merge: true }
+    );
+  } catch {
+    // Non-critical — local dismiss already applied in UI
+  }
+}
+
+/** Un-dismiss a previously dismissed discovery (restore it to the feed). */
+export async function restoreDiscovery(
+  userId: string,
+  discoveryId: string
+): Promise<void> {
+  try {
+    await setDoc(
+      DISMISSED_DOC(userId),
+      { ids: arrayRemove(discoveryId) },
+      { merge: true }
+    );
+  } catch {
+    // Non-critical
+  }
+}
+
+/** Fetch the set of IDs the user has dismissed. Returns empty set on failure. */
+async function getDismissedIds(userId: string): Promise<Set<string>> {
+  try {
+    const snap = await getDoc(DISMISSED_DOC(userId));
+    if (!snap.exists()) return new Set();
+    const data = snap.data();
+    const ids = Array.isArray(data?.ids) ? (data.ids as string[]) : [];
+    return new Set(ids);
+  } catch {
+    return new Set();
+  }
+}
+
 // ─── Public API ────────────────────────────────────────────────────────────────
 
 /** Get all non-dismissed discoveries for a user, newest first */
@@ -316,7 +371,9 @@ export async function getAllDiscoveries(
   userId: string,
   isArabic = false
 ): Promise<EnrichedDiscovery[]> {
+  // Fetch dismissed IDs in parallel with the discovery fetchers
   const [
+    dismissedResult,
     correlations,
     symptomPatterns,
     vitalTrends,
@@ -325,6 +382,7 @@ export async function getAllDiscoveries(
     medicationPatterns,
     integrationInsights,
   ] = await Promise.allSettled([
+    getDismissedIds(userId),
     fetchCorrelationDiscoveries(userId, isArabic),
     fetchSymptomPatternDiscoveries(userId, isArabic),
     fetchVitalTrendDiscoveries(userId, isArabic),
@@ -334,6 +392,9 @@ export async function getAllDiscoveries(
     fetchIntegrationInsightDiscoveries(userId, isArabic),
   ]);
 
+  const dismissedIds =
+    dismissedResult.status === "fulfilled" ? dismissedResult.value : new Set<string>();
+
   const all: EnrichedDiscovery[] = [
     ...(correlations.status === "fulfilled" ? correlations.value : []),
     ...(symptomPatterns.status === "fulfilled" ? symptomPatterns.value : []),
@@ -342,7 +403,7 @@ export async function getAllDiscoveries(
     ...(temporalPatterns.status === "fulfilled" ? temporalPatterns.value : []),
     ...(medicationPatterns.status === "fulfilled" ? medicationPatterns.value : []),
     ...(integrationInsights.status === "fulfilled" ? integrationInsights.value : []),
-  ];
+  ].filter((d) => !dismissedIds.has(d.id));
 
   // Sort: new status first, then by confidence descending
   all.sort((a, b) => {
@@ -370,4 +431,6 @@ export async function getTopDiscoveries(
 export const discoveryService = {
   getAllDiscoveries,
   getTopDiscoveries,
+  dismissDiscovery,
+  restoreDiscovery,
 };

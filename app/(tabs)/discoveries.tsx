@@ -71,9 +71,19 @@ export default function DiscoveriesScreen() {
     loadDiscoveries();
   }, [loadDiscoveries]);
 
-  const handleDismiss = useCallback((discoveryId: string) => {
-    setAllDiscoveries((prev) => prev.filter((d) => d.id !== discoveryId));
-  }, []);
+  const handleDismiss = useCallback(
+    (discoveryId: string) => {
+      // Optimistic local remove
+      setAllDiscoveries((prev) => prev.filter((d) => d.id !== discoveryId));
+      // Persist to Firestore so dismiss survives app restarts
+      if (user?.id) {
+        discoveryService.dismissDiscovery(user.id, discoveryId).catch(() => {
+          // Non-critical — UI already updated
+        });
+      }
+    },
+    [user?.id]
+  );
 
   const filteredDiscoveries =
     activeFilter === "all"

@@ -33,6 +33,7 @@ type UseAIInsightsOptions = {
   autoLoad?: boolean;
   includeNarrative?: boolean;
   cacheTimeout?: number; // minutes
+  language?: string; // BCP-47 language tag, e.g. "ar" or "en"
 };
 
 type UseAIInsightsReturn = {
@@ -70,7 +71,10 @@ export function useAIInsights(
     autoLoad = true,
     includeNarrative = true,
     cacheTimeout = 30, // 30 minutes
+    language,
   } = options;
+
+  const isArabic = language?.startsWith("ar") ?? false;
 
   // State
   const [dashboard, setDashboard] = useState<AIInsightsDashboardData | null>(
@@ -220,12 +224,15 @@ export function useAIInsights(
 
     try {
       const suggestions =
-        await proactiveHealthSuggestionsService.generateSuggestions(userId);
+        await proactiveHealthSuggestionsService.generateSuggestions(
+          userId,
+          isArabic
+        );
       setHealthSuggestions(suggestions);
     } catch (_err) {
       // Error handled silently
     }
-  }, [userId]);
+  }, [userId, isArabic]);
 
   // Refresh all data
   const refresh = useCallback(async () => {

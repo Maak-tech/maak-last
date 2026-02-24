@@ -62,6 +62,7 @@ export default function AnalyticsScreen() {
   const aiInsights = useAIInsights(user?.id, {
     autoLoad: false, // Load on demand to avoid slowing down analytics
     includeNarrative: true,
+    language: i18n.language, // Pass locale so suggestions/narrative are bilingual
   });
 
   const styles = useMemo(

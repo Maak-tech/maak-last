@@ -261,6 +261,9 @@ export default function ProactiveHealthSuggestions({
       Lifestyle: "#8B5CF6",
       Health: "#F59E0B",
       "Preventive Care": "#6366F1",
+      // Discovery-derived suggestions (EN + AR)
+      Discoveries: "#0D9488",
+      الاكتشافات: "#0D9488",
     };
     return colors[category] || theme.colors.primary.main;
   };
