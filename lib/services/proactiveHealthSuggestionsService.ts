@@ -23,6 +23,10 @@ import type {
 import { alertService } from "./alertService";
 import { allergyService } from "./allergyService";
 import { calendarService } from "./calendarService";
+import {
+  discoveryService,
+  type EnrichedDiscovery,
+} from "./discoveryService";
 import healthContextService, {
   type HealthContext,
 } from "./healthContextService";
@@ -618,6 +622,7 @@ class ProactiveHealthSuggestionsService {
         allergies,
         medicalHistory,
         vitals,
+        discoveries,
       ] = await Promise.all([
         medicationService
           .getUserMedications(userId)
@@ -671,6 +676,9 @@ class ProactiveHealthSuggestionsService {
         this.getRecentVitals(userId).catch(
           () => [] as Array<{ type?: string; value?: number }>
         ),
+        discoveryService
+          .getTopDiscoveries(userId, 10, isArabic)
+          .catch(() => [] as EnrichedDiscovery[]),
       ]);
 
       const activeMedications = medications.filter((m) => m.isActive);
@@ -807,6 +815,14 @@ class ProactiveHealthSuggestionsService {
         );
         suggestions.push(...periodSuggestions);
       }
+
+      // 17. Discovery-based suggestions — promote actionable correlations and
+      //     patterns already discovered from historical data into suggestions.
+      const discoverySuggestions = this.getDiscoveryBasedSuggestions(
+        discoveries as EnrichedDiscovery[],
+        isArabic
+      );
+      suggestions.push(...discoverySuggestions);
 
       // Sort by priority (high first)
       suggestions.sort((a, b) => {
@@ -2590,6 +2606,100 @@ class ProactiveHealthSuggestionsService {
       }
     } catch (_error) {
       // Silently handle errors
+    }
+
+    return suggestions;
+  }
+
+  // ─── Discovery-based suggestions ─────────────────────────────────────────
+
+  /**
+   * Convert actionable health discoveries into proactive suggestions.
+   *
+   * Rules:
+   * - Only discoveries with `actionable: true` and status !== "dismissed" are
+   *   promoted to suggestions.
+   * - Confidence ≥ 80 → priority "high", ≥ 60 → "medium", else "low".
+   * - Each discovery category maps to a meaningful suggestion type and route.
+   * - Bilingual: uses titleAr/descriptionAr/recommendationAr when isArabic.
+   * - Capped at 5 per call (highest-confidence first) to avoid crowding the
+   *   suggestion feed.
+   */
+  private getDiscoveryBasedSuggestions(
+    discoveries: EnrichedDiscovery[],
+    isArabic = false
+  ): HealthSuggestion[] {
+    const suggestions: HealthSuggestion[] = [];
+
+    // Category → suggestion metadata
+    const CATEGORY_META: Record<
+      string,
+      { type: HealthSuggestion["type"]; route: string; icon: string }
+    > = {
+      symptom_medication: { type: "medication",  route: "/(tabs)/medications", icon: "Pill" },
+      symptom_mood:       { type: "lifestyle",   route: "/(tabs)/mood",        icon: "Heart" },
+      symptom_vital:      { type: "wellness",    route: "/(tabs)/vitals",      icon: "Activity" },
+      medication_vital:   { type: "medication",  route: "/(tabs)/medications", icon: "Pill" },
+      mood_vital:         { type: "wellness",    route: "/(tabs)/vitals",      icon: "TrendingUp" },
+      temporal_pattern:   { type: "lifestyle",   route: "/(tabs)/track",       icon: "Clock" },
+      sleep_vital:        { type: "wellness",    route: "/(tabs)/track",       icon: "Moon" },
+      sleep_symptom:      { type: "symptom",     route: "/(tabs)/symptoms",    icon: "Moon" },
+      sleep_mood:         { type: "lifestyle",   route: "/(tabs)/mood",        icon: "Moon" },
+      activity_vital:     { type: "wellness",    route: "/(tabs)/vitals",      icon: "Zap" },
+      activity_symptom:   { type: "symptom",     route: "/(tabs)/symptoms",    icon: "Zap" },
+      activity_mood:      { type: "lifestyle",   route: "/(tabs)/mood",        icon: "Zap" },
+      hrv_symptom:        { type: "wellness",    route: "/(tabs)/vitals",      icon: "Heart" },
+      hrv_mood:           { type: "lifestyle",   route: "/(tabs)/mood",        icon: "Heart" },
+      hrv_vital:          { type: "wellness",    route: "/(tabs)/vitals",      icon: "Activity" },
+    };
+
+    // Only actionable, non-dismissed, sorted highest-confidence first
+    const eligible = discoveries
+      .filter((d) => d.actionable && d.status !== "dismissed")
+      .sort((a, b) => b.confidence - a.confidence)
+      .slice(0, 5);
+
+    for (const discovery of eligible) {
+      const meta = CATEGORY_META[discovery.category];
+      if (!meta) continue;
+
+      const title =
+        isArabic && discovery.titleAr ? discovery.titleAr : discovery.title;
+      const description =
+        isArabic && discovery.descriptionAr
+          ? discovery.descriptionAr
+          : discovery.description;
+      const recommendation =
+        isArabic && discovery.recommendationAr
+          ? discovery.recommendationAr
+          : (discovery.recommendation ?? "");
+
+      // Append the recommendation to the description when available
+      const fullDescription = recommendation
+        ? `${description} ${recommendation}`
+        : description;
+
+      const priority: HealthSuggestion["priority"] =
+        discovery.confidence >= 80
+          ? "high"
+          : discovery.confidence >= 60
+            ? "medium"
+            : "low";
+
+      suggestions.push({
+        id: `discovery-${discovery.id}`,
+        type: meta.type,
+        priority,
+        title,
+        description: fullDescription,
+        action: {
+          label: isArabic ? "عرض التفاصيل" : "View Details",
+          route: meta.route,
+        },
+        icon: meta.icon,
+        category: isArabic ? "الاكتشافات" : "Discoveries",
+        timestamp: discovery.discoveredAt,
+      });
     }
 
     return suggestions;

@@ -297,8 +297,12 @@ export default function ZeinaScreen() {
       setSelectedModel(model);
       setTempModel(model);
 
-      // Load health context
-      const prompt = await healthContextService.getContextualPrompt();
+      // Load health context — pass current language so the system prompt is
+      // generated in the user's language (Arabic users get Arabic instructions).
+      const prompt = await healthContextService.getContextualPrompt(
+        undefined,
+        i18n.language
+      );
       if (!isMountedRef.current) {
         return;
       }

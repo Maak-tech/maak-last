@@ -11,6 +11,7 @@ import {
 } from "firebase/firestore";
 import { Platform } from "react-native";
 import { auth, db } from "@/lib/firebase";
+import type { VitalSign } from "@/types";
 import { safeFormatNumber } from "@/utils/dateFormat";
 import { appleHealthService } from "./appleHealthService";
 
@@ -1159,5 +1160,78 @@ export const healthDataService = {
         ? `${vitals.bodyTemperature.toFixed(1)}°C`
         : "N/A",
     };
+  },
+
+  /**
+   * Fetch historical vital sign readings for a user as a flat VitalSign[].
+   *
+   * Maps Firestore field names to the VitalSign type:
+   *   bodyTemperature → temperature
+   *   bloodGlucose    → bloodSugar
+   * Other types (heartRate, bloodPressure, weight) are passed through as-is.
+   *
+   * @param userId  The authenticated user's UID.
+   * @param days    How many days back to fetch (default 90).
+   * @param maxDocs Maximum Firestore documents to read (default 1000).
+   */
+  async getUserVitals(
+    userId: string,
+    days = 90,
+    maxDocs = 1000
+  ): Promise<VitalSign[]> {
+    try {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+
+      const q = query(
+        collection(db, "vitals"),
+        where("userId", "==", userId),
+        where("timestamp", ">=", Timestamp.fromDate(cutoff)),
+        orderBy("timestamp", "desc"),
+        limit(maxDocs)
+      );
+
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) return [];
+
+      // Map Firestore types to VitalSign["type"] union
+      const TYPE_MAP: Record<string, VitalSign["type"] | null> = {
+        heartRate: "heartRate",
+        bloodPressure: "bloodPressure",
+        bodyTemperature: "temperature",
+        temperature: "temperature",
+        weight: "weight",
+        bloodGlucose: "bloodSugar",
+        bloodSugar: "bloodSugar",
+      };
+
+      const results: VitalSign[] = [];
+
+      for (const doc of snapshot.docs) {
+        const data = doc.data();
+        const mappedType = TYPE_MAP[data.type as string] ?? null;
+        if (!mappedType) continue; // Skip unsupported types (steps, sleep, etc.)
+
+        results.push({
+          id: doc.id,
+          userId,
+          type: mappedType,
+          value: typeof data.value === "number" ? data.value : 0,
+          unit: typeof data.unit === "string" ? data.unit : "",
+          timestamp:
+            data.timestamp?.toDate instanceof Function
+              ? data.timestamp.toDate()
+              : new Date(data.timestamp),
+          source:
+            data.source === "manual" || data.source === "clinic"
+              ? data.source
+              : "device",
+        });
+      }
+
+      return results;
+    } catch {
+      return [];
+    }
   },
 };

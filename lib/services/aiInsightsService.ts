@@ -507,7 +507,8 @@ class AIInsightsService {
         correlationAnalysis,
         symptomAnalysis,
         riskAssessment,
-        healthSuggestions
+        healthSuggestions,
+        isArabic
       );
     }
 
@@ -572,11 +573,13 @@ class AIInsightsService {
   /**
    * Generate AI-powered narrative summarizing all insights
    */
+  // biome-ignore lint/nursery/useMaxParams: isArabic is a required 5th param for bilingual narrative generation.
   private async generateAINarrative(
     correlationAnalysis: CorrelationInsight,
     symptomAnalysis: PatternAnalysisResult,
     riskAssessment: HealthRiskAssessment,
-    healthSuggestions: HealthSuggestion[]
+    healthSuggestions: HealthSuggestion[],
+    isArabic = false
   ): Promise<string> {
     try {
       // Prepare context for AI narrative generation
@@ -614,6 +617,7 @@ class AIInsightsService {
         2. Explains what the data means in simple, understandable terms
         3. Provides encouragement and actionable next steps
         4. Maintains a supportive, non-alarming tone
+        ${isArabic ? "5. Write the entire narrative in Modern Standard Arabic (فصحى)." : ""}
 
         Health Data Summary:
         - Correlation Analysis: ${context.correlations.map((c) => `${c.type} (${c.strength}): ${c.description}`).join(", ")}
@@ -628,31 +632,57 @@ class AIInsightsService {
 
       const narrative = await openaiService.generateHealthInsights(prompt);
       if (!narrative) {
-        return this.generateFallbackNarrative(context);
+        return this.generateFallbackNarrative(context, isArabic);
       }
       return typeof narrative.narrative === "string"
         ? narrative.narrative
-        : this.generateFallbackNarrative(context);
+        : this.generateFallbackNarrative(context, isArabic);
     } catch (_error) {
       // Missing API key or network errors should not spam logs; fallback is fine.
-      return this.generateFallbackNarrative({
-        correlations: [],
-        symptomPatterns: [],
-        diagnosisSuggestions: [],
-        riskLevel: riskAssessment.riskLevel,
-        riskScore: riskAssessment.overallRiskScore,
-        topRiskFactors: riskAssessment.riskFactors
-          .slice(0, 3)
-          .map((f) => f.name),
-        topSuggestions: healthSuggestions.slice(0, 3).map((s) => s.title),
-      });
+      return this.generateFallbackNarrative(
+        {
+          correlations: [],
+          symptomPatterns: [],
+          diagnosisSuggestions: [],
+          riskLevel: riskAssessment.riskLevel,
+          riskScore: riskAssessment.overallRiskScore,
+          topRiskFactors: riskAssessment.riskFactors
+            .slice(0, 3)
+            .map((f) => f.name),
+          topSuggestions: healthSuggestions.slice(0, 3).map((s) => s.title),
+        },
+        isArabic
+      );
     }
   }
 
   /**
-   * Generate fallback narrative when AI fails
+   * Generate fallback narrative when AI fails.
+   * Bilingual: returns Arabic text when isArabic=true.
    */
-  private generateFallbackNarrative(context: NarrativeContext): string {
+  private generateFallbackNarrative(
+    context: NarrativeContext,
+    isArabic = false
+  ): string {
+    if (isArabic) {
+      const riskLevelAr: Record<string, string> = {
+        low: "منخفض",
+        moderate: "متوسط",
+        high: "مرتفع",
+        very_high: "مرتفع جداً",
+      };
+      const levelAr = riskLevelAr[context.riskLevel] ?? context.riskLevel;
+      const factorsAr =
+        context.topRiskFactors.length > 0
+          ? `تشمل المجالات الرئيسية التي تستحق الاهتمام: ${context.topRiskFactors.join("، ")}. `
+          : "";
+      const suggestionsAr =
+        context.topSuggestions.length > 0
+          ? context.topSuggestions.join("، ")
+          : "المتابعة المنتظمة للبيانات الصحية";
+      return `تُظهر بياناتك الصحية مستوى مخاطر عام ${levelAr} بدرجة ${context.riskScore ?? 0}/100. ${factorsAr}للحفاظ على صحتك وتحسينها، يُنصح بمراعاة التوصيات التالية: ${suggestionsAr}. تذكر أن الخطوات الصغيرة المستمرة تُحدث تحسينات ملموسة في جودة حياتك.`;
+    }
+
     return `Your health data shows ${context.riskLevel} overall risk with a score of ${context.riskScore}/100. ${
       context.topRiskFactors.length > 0
         ? `Key areas to focus on include: ${context.topRiskFactors.join(", ")}. `

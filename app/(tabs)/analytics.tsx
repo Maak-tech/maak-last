@@ -51,7 +51,7 @@ export default function AnalyticsScreen() {
   const [dateRange, setDateRange] = useState<DateRange>("30d");
   const [symptoms, setSymptoms] = useState<Symptom[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
-  const [_vitals, setVitals] = useState<VitalSign[]>([]);
+  const [vitals, setVitals] = useState<VitalSign[]>([]);
   const [showComparison, setShowComparison] = useState(false);
   const [comparisonRange, setComparisonRange] = useState<DateRange | null>(
     null
@@ -308,18 +308,17 @@ export default function AnalyticsScreen() {
           setLoading(true);
         }
 
-        // Load data in parallel
-        const [userSymptoms, userMedications, _userVitals] = await Promise.all([
-          symptomService.getUserSymptoms(user.id, 1000), // Get more for better charts
+        // Load data in parallel — getDaysFromRange called outside callback to avoid stale closure
+        const daysToFetch = getDaysFromRange(dateRange);
+        const [userSymptoms, userMedications, userVitals] = await Promise.all([
+          symptomService.getUserSymptoms(user.id, 1000),
           medicationService.getUserMedications(user.id),
-          healthDataService.getLatestVitals(), // This might need to be updated to get historical vitals
+          healthDataService.getUserVitals(user.id, daysToFetch),
         ]);
 
         setSymptoms(userSymptoms);
         setMedications(userMedications);
-        // Note: getLatestVitals returns VitalSigns object, not VitalSign[]
-        // For now, we'll keep vitals as empty array since it's not used in the analytics
-        setVitals([]);
+        setVitals(userVitals);
       } catch (_error) {
         // Handle error silently
       } finally {
@@ -327,7 +326,7 @@ export default function AnalyticsScreen() {
         setRefreshing(false);
       }
     },
-    [user]
+    [user, dateRange, getDaysFromRange]
   );
 
   useEffect(() => {
@@ -374,6 +373,33 @@ export default function AnalyticsScreen() {
     () =>
       chartsService.calculateCorrelation(symptoms, medications, daysInRange),
     [symptoms, medications, daysInRange]
+  );
+
+  // Vital sign chart series — only computed when vitals are available
+  const heartRateChartData = useMemo(
+    () => chartsService.prepareVitalTimeSeries(vitals, "heartRate", daysInRange),
+    [vitals, daysInRange]
+  );
+  const weightChartData = useMemo(
+    () => chartsService.prepareVitalTimeSeries(vitals, "weight", daysInRange),
+    [vitals, daysInRange]
+  );
+  const bloodSugarChartData = useMemo(
+    () => chartsService.prepareVitalTimeSeries(vitals, "bloodSugar", daysInRange),
+    [vitals, daysInRange]
+  );
+
+  const hasHeartRateData = useMemo(
+    () => heartRateChartData.datasets[0].data.some((v) => v > 0),
+    [heartRateChartData]
+  );
+  const hasWeightData = useMemo(
+    () => weightChartData.datasets[0].data.some((v) => v > 0),
+    [weightChartData]
+  );
+  const hasBloodSugarData = useMemo(
+    () => bloodSugarChartData.datasets[0].data.some((v) => v > 0),
+    [bloodSugarChartData]
   );
 
   const symptomIsoDates = useMemo(
@@ -548,6 +574,49 @@ export default function AnalyticsScreen() {
               </TouchableOpacity>
             ))}
           </View>
+          {/* Vital Signs Charts */}
+          {(hasHeartRateData || hasWeightData || hasBloodSugarData) && (
+            <View style={styles.section as ViewStyle}>
+              <View style={styles.sectionHeader as ViewStyle}>
+                <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+                  {isRTL ? "العلامات الحيوية" : "Vital Signs"}
+                </Text>
+              </View>
+              <View style={styles.chartStack as ViewStyle}>
+                {hasHeartRateData && (
+                  <View style={styles.chartCard as ViewStyle}>
+                    <HealthChart
+                      data={heartRateChartData}
+                      title={isRTL ? "معدل ضربات القلب" : "Heart Rate"}
+                      yAxisLabel=""
+                      yAxisSuffix=" bpm"
+                    />
+                  </View>
+                )}
+                {hasBloodSugarData && (
+                  <View style={styles.chartCard as ViewStyle}>
+                    <HealthChart
+                      data={bloodSugarChartData}
+                      title={isRTL ? "سكر الدم" : "Blood Sugar"}
+                      yAxisLabel=""
+                      yAxisSuffix=" mg/dL"
+                    />
+                  </View>
+                )}
+                {hasWeightData && (
+                  <View style={styles.chartCard as ViewStyle}>
+                    <HealthChart
+                      data={weightChartData}
+                      title={isRTL ? "الوزن" : "Weight"}
+                      yAxisLabel=""
+                      yAxisSuffix=" kg"
+                    />
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
+
           {/* Symptom Trends */}
           {symptoms.length > 0 && (
             <View style={styles.section as ViewStyle}>
