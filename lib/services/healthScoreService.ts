@@ -1,5 +1,17 @@
+import {
+  collection,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  Timestamp,
+  where,
+} from "firebase/firestore";
 import type { Medication, Symptom } from "@/types";
 import { coerceToDate } from "@/utils/dateCoercion";
+import { db } from "../firebase";
+import type { VitalSample } from "./healthPatternDetectionService";
+import { getVitalAnomalySignals } from "./healthInsightScoringService";
 import { medicationService } from "./medicationService";
 import { symptomService } from "./symptomService";
 
@@ -23,12 +35,16 @@ export type HealthScoreResult = {
     baseScore: number;
     symptomPenalty: number;
     medicationBonus: number;
+    /** Penalty applied when recent vital signs show statistically anomalous readings */
+    vitalPenalty: number;
   };
   factors: {
     recentSymptoms: number;
     symptomSeverityAvg: number;
     medicationCompliance: number;
     activeMedications: number;
+    /** Number of vital types showing z-score anomalies in the last 14 days */
+    vitalAnomalies: number;
   };
   rating: "excellent" | "good" | "fair" | "poor" | "critical";
 };
@@ -60,6 +76,12 @@ const MAX_SYMPTOM_PENALTY = 35;
  * Good compliance provides a health bonus
  */
 const MEDICATION_COMPLIANCE_WEIGHT = 15;
+
+/**
+ * Maximum vital anomaly penalty
+ * Each anomalous vital contributes up to 5 points penalty; capped at 20.
+ */
+const MAX_VITAL_PENALTY = 20;
 
 /**
  * Get symptom severity category
@@ -177,6 +199,51 @@ function calculateCompliancePercentage(medications: Medication[]): number {
 }
 
 /**
+ * Fetch recent vital samples for anomaly scoring (last 14 days, limit 200).
+ * Returns empty array on any error so the health score degrades gracefully.
+ */
+async function fetchRecentVitalsForScore(
+  userId: string
+): Promise<VitalSample[]> {
+  try {
+    const since = new Date();
+    since.setDate(since.getDate() - 14);
+    const q = query(
+      collection(db, "vitals"),
+      where("userId", "==", userId),
+      where("timestamp", ">=", Timestamp.fromDate(since)),
+      orderBy("timestamp", "desc"),
+      limit(200)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        type: data.type as string,
+        value: data.value as number,
+        unit: data.unit as string | undefined,
+        timestamp:
+          data.timestamp instanceof Timestamp
+            ? data.timestamp.toDate()
+            : new Date(),
+        source: data.source as string | undefined,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Calculate vital anomaly penalty.
+ * Each anomalous vital (z-score ≥ 1.8) contributes 5 points; capped at MAX_VITAL_PENALTY.
+ */
+function calculateVitalPenalty(anomalyCount: number): number {
+  return Math.min(anomalyCount * 5, MAX_VITAL_PENALTY);
+}
+
+/**
  * Get health rating based on score
  */
 function getHealthRating(score: number): HealthScoreResult["rating"] {
@@ -205,10 +272,11 @@ export async function calculateHealthScore(
   userId: string
 ): Promise<HealthScoreResult> {
   try {
-    // Fetch recent symptoms and medications in parallel
-    const [symptoms, medications] = await Promise.all([
-      symptomService.getUserSymptoms(userId, 100), // Get more than needed, we'll filter
+    // Fetch recent symptoms, medications, and vitals in parallel
+    const [symptoms, medications, vitals] = await Promise.all([
+      symptomService.getUserSymptoms(userId, 100),
       medicationService.getUserMedications(userId),
+      fetchRecentVitalsForScore(userId),
     ]);
 
     // Filter symptoms to last 7 days
@@ -237,6 +305,10 @@ export async function calculateHealthScore(
     const compliancePercentage =
       calculateCompliancePercentage(todaysMedications);
 
+    // Compute vital anomaly signals and penalty
+    const vitalAnomalies = vitals.length >= 5 ? getVitalAnomalySignals(vitals) : [];
+    const vitalPenalty = calculateVitalPenalty(vitalAnomalies.length);
+
     // Calculate components
     const baseScore = 100;
     const { penalty: symptomPenalty, avgSeverity } =
@@ -247,7 +319,7 @@ export async function calculateHealthScore(
     );
 
     // Calculate final score (clamped between 0 and 100)
-    const rawScore = baseScore - symptomPenalty + medicationBonus;
+    const rawScore = baseScore - symptomPenalty + medicationBonus - vitalPenalty;
     const score = Math.max(0, Math.min(100, Math.round(rawScore)));
 
     return {
@@ -256,12 +328,14 @@ export async function calculateHealthScore(
         baseScore,
         symptomPenalty: Math.round(symptomPenalty * 10) / 10,
         medicationBonus: Math.round(medicationBonus * 10) / 10,
+        vitalPenalty: Math.round(vitalPenalty * 10) / 10,
       },
       factors: {
         recentSymptoms: recentSymptoms.length,
         symptomSeverityAvg: Math.round(avgSeverity * 10) / 10,
         medicationCompliance: Math.round(compliancePercentage),
         activeMedications: activeMedications.length,
+        vitalAnomalies: vitalAnomalies.length,
       },
       rating: getHealthRating(score),
     };
@@ -273,12 +347,14 @@ export async function calculateHealthScore(
         baseScore: 100,
         symptomPenalty: 0,
         medicationBonus: 0,
+        vitalPenalty: 0,
       },
       factors: {
         recentSymptoms: 0,
         symptomSeverityAvg: 0,
         medicationCompliance: 100,
         activeMedications: 0,
+        vitalAnomalies: 0,
       },
       rating: "fair",
     };
@@ -291,11 +367,13 @@ export async function calculateHealthScore(
  *
  * @param symptoms - User's symptoms
  * @param medications - User's medications
+ * @param vitals - Optional recent vital samples for anomaly scoring
  * @returns Health score result with detailed breakdown
  */
 export function calculateHealthScoreFromData(
   symptoms: Symptom[],
-  medications: Medication[]
+  medications: Medication[],
+  vitals: VitalSample[] = []
 ): HealthScoreResult {
   try {
     // Filter symptoms to last 7 days
@@ -324,6 +402,10 @@ export function calculateHealthScoreFromData(
     const compliancePercentage =
       calculateCompliancePercentage(todaysMedications);
 
+    // Compute vital anomaly signals and penalty
+    const vitalAnomalies = vitals.length >= 5 ? getVitalAnomalySignals(vitals) : [];
+    const vitalPenalty = calculateVitalPenalty(vitalAnomalies.length);
+
     // Calculate components
     const baseScore = 100;
     const { penalty: symptomPenalty, avgSeverity } =
@@ -334,7 +416,7 @@ export function calculateHealthScoreFromData(
     );
 
     // Calculate final score (clamped between 0 and 100)
-    const rawScore = baseScore - symptomPenalty + medicationBonus;
+    const rawScore = baseScore - symptomPenalty + medicationBonus - vitalPenalty;
     const score = Math.max(0, Math.min(100, Math.round(rawScore)));
 
     return {
@@ -343,12 +425,14 @@ export function calculateHealthScoreFromData(
         baseScore,
         symptomPenalty: Math.round(symptomPenalty * 10) / 10,
         medicationBonus: Math.round(medicationBonus * 10) / 10,
+        vitalPenalty: Math.round(vitalPenalty * 10) / 10,
       },
       factors: {
         recentSymptoms: recentSymptoms.length,
         symptomSeverityAvg: Math.round(avgSeverity * 10) / 10,
         medicationCompliance: Math.round(compliancePercentage),
         activeMedications: activeMedications.length,
+        vitalAnomalies: vitalAnomalies.length,
       },
       rating: getHealthRating(score),
     };
@@ -360,12 +444,14 @@ export function calculateHealthScoreFromData(
         baseScore: 100,
         symptomPenalty: 0,
         medicationBonus: 0,
+        vitalPenalty: 0,
       },
       factors: {
         recentSymptoms: 0,
         symptomSeverityAvg: 0,
         medicationCompliance: 100,
         activeMedications: 0,
+        vitalAnomalies: 0,
       },
       rating: "fair",
     };

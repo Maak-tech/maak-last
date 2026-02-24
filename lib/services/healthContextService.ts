@@ -142,6 +142,16 @@ export type HealthContext = {
     }>;
     normalCount: number;
   }>;
+  /** Detected symptom patterns — clusters identified from recent symptom history */
+  symptomPatterns: Array<{
+    name: string;
+    confidence: number;
+    severity: "mild" | "moderate" | "severe";
+    duration: "acute" | "chronic" | "recurring";
+    matchedSymptoms: string[];
+    triggers?: string[];
+    description: string;
+  }>;
   recentAlerts: Array<{
     type: string;
     timestamp: Date;
@@ -403,6 +413,23 @@ class HealthContextService {
           return [];
         }
       })(),
+      // Symptom pattern recognition — detect clusters in recent symptom history
+      (async () => {
+        try {
+          const { symptomPatternRecognitionService } = await import(
+            "./symptomPatternRecognitionService"
+          );
+          const { symptomService } = await import("./symptomService");
+          const recentSymptoms = await symptomService.getUserSymptoms(uid, 100);
+          if (recentSymptoms.length < 3) return null;
+          return await symptomPatternRecognitionService.analyzeSymptomPatterns(
+            uid,
+            recentSymptoms
+          );
+        } catch {
+          return null;
+        }
+      })(),
     ]);
 
     const [
@@ -418,6 +445,7 @@ class HealthContextService {
       baselineDeviationsResult,
       periodDataResult,
       labResultsResult,
+      symptomPatternsResult,
     ] = results;
 
     // Process medications
@@ -626,6 +654,24 @@ class HealthContextService {
               };
             })
             .filter((r) => r.flaggedValues.length > 0 || r.normalCount > 0)
+        : [];
+
+    // Process symptom pattern recognition results
+    const symptomPatterns: HealthContext["symptomPatterns"] =
+      symptomPatternsResult?.status === "fulfilled" &&
+      symptomPatternsResult.value !== null
+        ? symptomPatternsResult.value.patterns
+            .filter((p) => p.confidence >= 40)
+            .slice(0, 5)
+            .map((p) => ({
+              name: p.name,
+              confidence: p.confidence,
+              severity: p.severity,
+              duration: p.duration,
+              matchedSymptoms: p.symptoms,
+              triggers: p.triggers,
+              description: p.description,
+            }))
         : [];
 
     // Process user-level health insights metrics
@@ -998,6 +1044,7 @@ class HealthContextService {
       topDiscoveries,
       baselineDeviations,
       labResults,
+      symptomPatterns,
       recentAlerts,
       vitalSigns: latestVitals,
       periodTracking,
@@ -1231,6 +1278,20 @@ ${context.labResults
     : ""
 }
 
+${
+  context.symptomPatterns.length > 0
+    ? `
+${isArabic ? "أنماط الأعراض المكتشفة (تحليل آلي):" : "SYMPTOM PATTERNS DETECTED (automated analysis):"}
+${context.symptomPatterns
+  .map(
+    (p) =>
+      `• [${Math.round(p.confidence)}% confidence | ${p.severity} | ${p.duration}] ${p.name}: ${p.description}
+  ${isArabic ? "الأعراض المتطابقة" : "Matched symptoms"}: ${p.matchedSymptoms.join(", ")}${p.triggers && p.triggers.length > 0 ? `\n  ${isArabic ? "المحفزات" : "Triggers"}: ${p.triggers.join(", ")}` : ""}`
+  )
+  .join("\n")}`
+    : ""
+}
+
 ${isArabic ? "أفراد العائلة:" : "FAMILY MEMBERS:"}
 ${
   context.familyMembers.length > 0
@@ -1363,6 +1424,7 @@ ${
 11. استخدم رؤى الصحة التفصيلية (أنماط 30 يوماً) عند سؤال المستخدم عن صحته أو أعراضه أو أدويته أو اتجاهاته — هذه الرؤى تتضمن أنماط ML والارتباطات والتوصيات القابلة للتنفيذ
 12. للمستخدمات الإناث، ضع في اعتبارك بيانات تتبع الدورة الشهرية عند تقديم الرؤى الصحية — ربط الأعراض بمراحل الدورة، وتقديم توصيات تراعي الدورة، والإشارة إلى فترات/الإباضة المتوقعة عند الاقتضاء
 13. أشر إلى اكتشافات الأنماط الصحية عند الاقتضاء — هذه ارتباطات فريدة مكتشفة بالذكاء الاصطناعي من بيانات المستخدم (مثل: أنماط الأدوية والأعراض، وصلات المزاج بالمؤشرات الحيوية)
+14. عند وجود أنماط أعراض مكتشفة، اذكرها بشكل استباقي عندما يصف المستخدم أعراضاً مطابقة — دائماً قدّمها كاحتمالات لمناقشتها مع الطبيب، وليس كتشخيصات
 
 تذكر: أنت مساعد ذكي تقدم معلومات ودعماً، وليس بديلاً عن النصيحة الطبية المهنية. شجع دائماً المستخدمين على طلب المساعدة الطبية المهنية للاهتمامات الخطيرة.`
     : `1. Provide personalized health insights based on the complete medical profile
@@ -1382,6 +1444,7 @@ ${
 15. Use the PERSONALISED BASELINE CHANGES section to be proactively aware of recent shifts from the user's normal patterns — if their heart rate is elevated, sleep is worse, or mood has dropped compared to their 30-day baseline, mention this naturally and offer insights. These are the most personalised signals available
 16. When the user asks about test results, medications, chronic conditions, or diet, proactively reference the RECENT LAB RESULTS section — highlight any flagged (high/low/abnormal/critical) values, compare them to reference ranges, and suggest discussing out-of-range values with a doctor
 17. Wearable data (HRV, resting heart rate, sleep duration, steps, SpO2) is included in vital signs — use it to provide recovery, stress, and activity-level insights when asked. A low HRV suggests stress or poor recovery; consistently short sleep warrants a sleep hygiene conversation
+18. When SYMPTOM PATTERNS DETECTED are present, proactively mention them when the user describes symptoms that match — e.g. if a migraine pattern is detected and the user mentions a headache, note the pattern and its matched triggers. Always frame these as possibilities to discuss with a doctor, not diagnoses
 
 Remember: You are an AI assistant providing information and support, not a replacement for professional medical advice. Always encourage users to seek professional medical help for serious concerns.`
 }`;

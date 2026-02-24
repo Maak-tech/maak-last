@@ -733,12 +733,14 @@ export default function ProfileScreen() {
                 baseScore: 100,
                 symptomPenalty: 0,
                 medicationBonus: 0,
+                vitalPenalty: 0,
               },
               factors: {
                 recentSymptoms: 0,
                 symptomSeverityAvg: 0,
                 medicationCompliance: 100,
                 activeMedications: 0,
+                vitalAnomalies: 0,
               },
               rating: "fair",
             };

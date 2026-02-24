@@ -636,6 +636,8 @@ class ProactiveHealthSuggestionsService {
               userDetailedInsights: [],
               topDiscoveries: [],
               baselineDeviations: [],
+              labResults: [],
+              symptomPatterns: [],
               recentAlerts: [],
               vitalSigns: {},
             }) as HealthContext
