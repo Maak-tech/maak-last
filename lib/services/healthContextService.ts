@@ -152,6 +152,21 @@ export type HealthContext = {
     triggers?: string[];
     description: string;
   }>;
+  /** ML-powered health risk profile — overall level + top modifiable risk factors */
+  riskAssessment?: {
+    riskLevel: "low" | "moderate" | "high" | "very_high";
+    overallRiskScore: number;
+    topRiskFactors: Array<{
+      name: string;
+      category: string;
+      riskLevel: string;
+      modifiable: boolean;
+    }>;
+    topConditionRisks: Array<{
+      condition: string;
+      riskLevel: string;
+    }>;
+  };
   recentAlerts: Array<{
     type: string;
     timestamp: Date;
@@ -430,6 +445,20 @@ class HealthContextService {
           return null;
         }
       })(),
+      // Risk assessment — ML-powered health risk profile (age, family history, lifestyle, vitals)
+      (async () => {
+        try {
+          const { riskAssessmentService } = await import(
+            "./riskAssessmentService"
+          );
+          return await riskAssessmentService.generateRiskAssessment(
+            uid,
+            options?.language?.startsWith("ar") ?? false
+          );
+        } catch {
+          return null;
+        }
+      })(),
     ]);
 
     const [
@@ -446,6 +475,7 @@ class HealthContextService {
       periodDataResult,
       labResultsResult,
       symptomPatternsResult,
+      riskAssessmentResult,
     ] = results;
 
     // Process medications
@@ -673,6 +703,31 @@ class HealthContextService {
               description: p.description,
             }))
         : [];
+
+    // Process risk assessment results
+    const riskAssessment: HealthContext["riskAssessment"] =
+      riskAssessmentResult?.status === "fulfilled" &&
+      riskAssessmentResult.value !== null
+        ? {
+            riskLevel: riskAssessmentResult.value.riskLevel,
+            overallRiskScore: Math.round(riskAssessmentResult.value.overallRiskScore),
+            topRiskFactors: riskAssessmentResult.value.riskFactors
+              .sort((a, b) => b.impact - a.impact)
+              .slice(0, 5)
+              .map((f) => ({
+                name: f.name,
+                category: f.category,
+                riskLevel: f.riskLevel,
+                modifiable: f.modifiable,
+              })),
+            topConditionRisks: riskAssessmentResult.value.conditionRisks
+              .slice(0, 3)
+              .map((c) => ({
+                condition: c.condition,
+                riskLevel: c.riskLevel,
+              })),
+          }
+        : undefined;
 
     // Process user-level health insights metrics
     let insightsMetrics: HealthContext["insightsMetrics"] = null;
@@ -1045,6 +1100,7 @@ class HealthContextService {
       baselineDeviations,
       labResults,
       symptomPatterns,
+      riskAssessment,
       recentAlerts,
       vitalSigns: latestVitals,
       periodTracking,
@@ -1292,6 +1348,33 @@ ${context.symptomPatterns
     : ""
 }
 
+${
+  context.riskAssessment
+    ? `
+${isArabic ? "ملف المخاطر الصحية (تقييم آلي):" : "HEALTH RISK PROFILE (automated assessment):"}
+${isArabic ? "مستوى المخاطر الإجمالي" : "Overall risk level"}: ${context.riskAssessment.riskLevel.replace("_", " ")} (${context.riskAssessment.overallRiskScore}/100)
+${
+  context.riskAssessment.topRiskFactors.length > 0
+    ? `${isArabic ? "أبرز عوامل الخطر:" : "Top risk factors:"}
+${context.riskAssessment.topRiskFactors
+  .map(
+    (f) =>
+      `  • ${f.name} [${f.riskLevel.replace("_", " ")} | ${f.category}${f.modifiable ? ` | ${isArabic ? "قابل للتعديل" : "modifiable"}` : ""}]`
+  )
+  .join("\n")}`
+    : ""
+}
+${
+  context.riskAssessment.topConditionRisks.length > 0
+    ? `${isArabic ? "مخاطر الحالات:" : "Condition risks:"}
+${context.riskAssessment.topConditionRisks
+  .map((c) => `  • ${c.condition}: ${c.riskLevel.replace("_", " ")} risk`)
+  .join("\n")}`
+    : ""
+}`
+    : ""
+}
+
 ${isArabic ? "أفراد العائلة:" : "FAMILY MEMBERS:"}
 ${
   context.familyMembers.length > 0
@@ -1425,6 +1508,7 @@ ${
 12. للمستخدمات الإناث، ضع في اعتبارك بيانات تتبع الدورة الشهرية عند تقديم الرؤى الصحية — ربط الأعراض بمراحل الدورة، وتقديم توصيات تراعي الدورة، والإشارة إلى فترات/الإباضة المتوقعة عند الاقتضاء
 13. أشر إلى اكتشافات الأنماط الصحية عند الاقتضاء — هذه ارتباطات فريدة مكتشفة بالذكاء الاصطناعي من بيانات المستخدم (مثل: أنماط الأدوية والأعراض، وصلات المزاج بالمؤشرات الحيوية)
 14. عند وجود أنماط أعراض مكتشفة، اذكرها بشكل استباقي عندما يصف المستخدم أعراضاً مطابقة — دائماً قدّمها كاحتمالات لمناقشتها مع الطبيب، وليس كتشخيصات
+15. عند توفر ملف المخاطر الصحية، استخدمه لتخصيص النصائح بعمق — إذا كانت المخاطر القلبية مرتفعة، اذكر الفحوصات المنتظمة والحمية والنشاط البدني بشكل استباقي؛ إذا كانت عوامل الخطر قابلة للتعديل، قدّم تغييرات حياتية قابلة للتطبيق. لا تخوّف المستخدم، بل قدّم المعلومات بشكل بنّاء ومشجّع
 
 تذكر: أنت مساعد ذكي تقدم معلومات ودعماً، وليس بديلاً عن النصيحة الطبية المهنية. شجع دائماً المستخدمين على طلب المساعدة الطبية المهنية للاهتمامات الخطيرة.`
     : `1. Provide personalized health insights based on the complete medical profile
@@ -1445,6 +1529,7 @@ ${
 16. When the user asks about test results, medications, chronic conditions, or diet, proactively reference the RECENT LAB RESULTS section — highlight any flagged (high/low/abnormal/critical) values, compare them to reference ranges, and suggest discussing out-of-range values with a doctor
 17. Wearable data (HRV, resting heart rate, sleep duration, steps, SpO2) is included in vital signs — use it to provide recovery, stress, and activity-level insights when asked. A low HRV suggests stress or poor recovery; consistently short sleep warrants a sleep hygiene conversation
 18. When SYMPTOM PATTERNS DETECTED are present, proactively mention them when the user describes symptoms that match — e.g. if a migraine pattern is detected and the user mentions a headache, note the pattern and its matched triggers. Always frame these as possibilities to discuss with a doctor, not diagnoses
+19. When a HEALTH RISK PROFILE is present, use it to deeply personalise advice — if cardiovascular risk is high, proactively mention regular checkups, diet, and activity; if risk factors are modifiable, offer concrete lifestyle changes. Frame this constructively and encouragingly, never alarmingly. Highlight modifiable factors as empowering opportunities
 
 Remember: You are an AI assistant providing information and support, not a replacement for professional medical advice. Always encourage users to seek professional medical help for serious concerns.`
 }`;

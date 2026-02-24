@@ -8,12 +8,18 @@ import { symptomService } from "./symptomService";
 export type SymptomPattern = {
   id: string;
   name: string;
+  /** Arabic name — populated when analyzeSymptomPatterns is called with isArabic=true */
+  nameAr?: string;
   symptoms: string[];
   confidence: number; // 0-100
   severity: "mild" | "moderate" | "severe";
   duration: "acute" | "chronic" | "recurring";
   triggers?: string[];
+  /** Arabic triggers — populated when analyzeSymptomPatterns is called with isArabic=true */
+  triggersAr?: string[];
   description: string;
+  /** Arabic description — populated when analyzeSymptomPatterns is called with isArabic=true */
+  descriptionAr?: string;
 };
 
 export type DiagnosisSuggestion = {
