@@ -87,6 +87,22 @@ async function fetchRecentVitals(
   });
 }
 
+/**
+ * Build a stable discovery ID from its content so that dismiss persists
+ * across app sessions. IDs are deterministic per (userId, type, title).
+ */
+function stableDiscoveryId(type: DiscoveryType, userId: string, key: string): string {
+  // Simple djb2-style hash — no crypto needed, just collision-resistance
+  let hash = 5381;
+  const str = `${type}:${userId}:${key}`;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash) ^ str.charCodeAt(i);
+  }
+  // Convert to unsigned 32-bit hex
+  const hex = (hash >>> 0).toString(16).padStart(8, "0");
+  return `${type}_${hex}`;
+}
+
 /** Convert a PatternInsight to the HealthDiscovery shape (for unified rendering) */
 function patternInsightToDiscovery(
   insight: PatternInsight,
@@ -106,7 +122,7 @@ function patternInsightToDiscovery(
   };
 
   return {
-    id: `${type}_${idx}_${Date.now()}`,
+    id: stableDiscoveryId(type, userId, insight.title),
     userId,
     category: categoryMap[type] ?? "temporal_pattern",
     title: insight.title,
@@ -163,8 +179,8 @@ async function fetchSymptomPatternDiscoveries(
 
     return analysis.patterns
       .filter((p) => p.confidence >= 40) // Only reasonably confident patterns
-      .map((p, idx): EnrichedDiscovery => ({
-        id: `symptom_pattern_${idx}_${Date.now()}`,
+      .map((p, _idx): EnrichedDiscovery => ({
+        id: stableDiscoveryId("symptom_pattern", userId, p.name),
         userId,
         category: "temporal_pattern",
         title: p.name,
@@ -223,8 +239,8 @@ async function fetchMedicationEffectivenessDiscoveries(
 
     return insights
       .filter((i): i is NonNullable<typeof i> => i !== null)
-      .map((insight, idx): EnrichedDiscovery => ({
-        id: `med_effectiveness_${idx}_${Date.now()}`,
+      .map((insight, _idx): EnrichedDiscovery => ({
+        id: stableDiscoveryId("medication_effectiveness", userId, insight.medicationName),
         userId,
         category: "medication_vital",
         title: isArabic

@@ -51,9 +51,19 @@ export default function DiscoveryCardsSection() {
 
   const newDiscoveries = topDiscoveries.filter((d) => d.status === "new");
 
-  const dismiss = useCallback((discoveryId: string) => {
-    setTopDiscoveries((prev) => prev.filter((d) => d.id !== discoveryId));
-  }, []);
+  const dismiss = useCallback(
+    (discoveryId: string) => {
+      // Optimistic local remove
+      setTopDiscoveries((prev) => prev.filter((d) => d.id !== discoveryId));
+      // Persist so it stays dismissed across sessions
+      if (user?.id) {
+        discoveryService.dismissDiscovery(user.id, discoveryId).catch(() => {
+          // Non-critical — UI already updated
+        });
+      }
+    },
+    [user?.id]
+  );
 
   const styles = createThemedStyles((t) => ({
     container: {

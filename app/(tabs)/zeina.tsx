@@ -339,16 +339,18 @@ export default function ZeinaScreen() {
           if (briefingSnap.exists()) {
             const data = briefingSnap.data();
             const summary = data.summary as string;
+            const summaryAr = data.summaryAr as string | undefined;
             const highlights: string[] = (data.highlights as string[]) ?? [];
             const highlightsAr: string[] = (data.highlightsAr as string[]) ?? [];
+            const displaySummary = isRTL && summaryAr ? summaryAr : summary;
             const displayHighlights = isRTL && highlightsAr.length ? highlightsAr : highlights;
             const bulletPoints = displayHighlights.map((h) => `• ${h}`).join("\n");
             briefingMessage = {
               id: (Date.now() + 2).toString(),
               role: "assistant",
               content: isRTL
-                ? `🌅 **إحاطتك الصحية اليومية**\n\n${summary}${bulletPoints ? `\n\n${bulletPoints}` : ""}\n\n_كيف يمكنني مساعدتك اليوم؟_`
-                : `🌅 **Your Daily Health Briefing**\n\n${summary}${bulletPoints ? `\n\n${bulletPoints}` : ""}\n\n_How can I help you today?_`,
+                ? `🌅 **إحاطتك الصحية اليومية**\n\n${displaySummary}${bulletPoints ? `\n\n${bulletPoints}` : ""}\n\n_كيف يمكنني مساعدتك اليوم؟_`
+                : `🌅 **Your Daily Health Briefing**\n\n${displaySummary}${bulletPoints ? `\n\n${bulletPoints}` : ""}\n\n_How can I help you today?_`,
               timestamp: new Date(),
             };
           }

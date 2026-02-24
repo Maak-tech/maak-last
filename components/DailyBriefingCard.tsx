@@ -148,7 +148,9 @@ function BriefingContent({
         </View>
       </View>
 
-      <TypographyText style={styles.summaryText}>{briefing.summary}</TypographyText>
+      <TypographyText style={styles.summaryText}>
+        {isRTL && briefing.summaryAr ? briefing.summaryAr : briefing.summary}
+      </TypographyText>
 
       {highlights.length > 0 && (
         <View style={styles.highlightsRow}>
