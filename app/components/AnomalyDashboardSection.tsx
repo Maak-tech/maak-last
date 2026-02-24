@@ -17,7 +17,12 @@ import { useAnomalyDetection } from "@/hooks/useAnomalyDetection";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 import AnomalyAlertCard from "./AnomalyAlertCard";
 
-export default function AnomalyDashboardSection() {
+type AnomalyDashboardSectionProps = {
+  /** When true, renders nothing if there are no active unacknowledged anomalies */
+  onlyWhenActive?: boolean;
+};
+
+export default function AnomalyDashboardSection({ onlyWhenActive = false }: AnomalyDashboardSectionProps) {
   const { i18n } = useTranslation();
   const { user } = useAuth();
   const { theme } = useTheme();
@@ -74,6 +79,9 @@ export default function AnomalyDashboardSection() {
 
   // Filter to unacknowledged anomalies
   const activeAnomalies = recentAnomalies.filter((a) => !a.acknowledged);
+
+  // Hide entirely when no anomalies and caller requested silence
+  if (onlyWhenActive && activeAnomalies.length === 0) return null;
 
   return (
     <View style={styles.container}>

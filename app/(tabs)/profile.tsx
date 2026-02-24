@@ -72,6 +72,7 @@ import {
   StyleSheet,
   Switch,
   Text,
+  type TextStyle,
   TextInput,
   TouchableOpacity,
   View,
@@ -1530,7 +1531,19 @@ export default function ProfileScreen() {
   const sleepTrend = getTrend(vitalsSparklines.sleepHours);
   const stepsTrend = getTrend(vitalsSparklines.steps);
 
-  const vitalsOverview = [
+  type HealthOverviewCard = {
+    icon: any;
+    label: string;
+    value: string;
+    trend: string;
+    trendDirection: "stable" | "up" | "down";
+    sparkline: number[];
+    color: string;
+    onPress: () => void;
+    labelStyle?: TextStyle;
+  };
+
+  const vitalsOverview: HealthOverviewCard[] = [
     {
       icon: Heart,
       label: isRTL ? "نبض القلب" : "Heart Rate",
@@ -1587,11 +1600,12 @@ export default function ProfileScreen() {
     },
   ];
 
-  const healthOverviewCards = [
+  const healthOverviewCards: HealthOverviewCard[] = [
     ...vitalsOverview,
     {
       icon: Brain,
       label: t("healthInsights", "Health Insights"),
+      labelStyle: { marginTop: 3 },
       value: isRTL ? "ملخص ذكي" : "AI Summary",
       trend: isRTL ? "اضغط للعرض" : "Tap to view",
       trendDirection: "stable" as const,
@@ -1833,7 +1847,9 @@ export default function ProfileScreen() {
                       <Icon color={vital.color} size={20} />
                     </View>
                     <View style={styles.figmaVitalInfo}>
-                      <Text style={styles.figmaVitalLabel}>{vital.label}</Text>
+                      <Text style={[styles.figmaVitalLabel, vital.labelStyle]}>
+                        {vital.label}
+                      </Text>
                       <Text style={styles.figmaVitalValue}>{vital.value}</Text>
                     </View>
                   </View>

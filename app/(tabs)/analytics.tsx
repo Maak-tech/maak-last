@@ -29,6 +29,7 @@ import HealthRiskCard from "@/components/HealthRiskCard";
 import HealthScoreForecastCard from "@/components/HealthScoreForecastCard";
 import LabInsightsCard from "@/components/LabInsightsCard";
 import RecoveryScoreCard from "@/components/RecoveryScoreCard";
+import PatternInsightsCard from "@/components/PatternInsightsCard";
 import PersonalisedHealthInsightsCard from "@/components/PersonalisedHealthInsightsCard";
 import SymptomAnalysisCard from "@/components/SymptomAnalysisCard";
 import { useAuth } from "@/contexts/AuthContext";
@@ -578,6 +579,11 @@ export default function AnalyticsScreen() {
               </TouchableOpacity>
             ))}
           </View>
+          {/* Pattern Insights — ML-powered temporal, vital-trend, and wearable patterns */}
+          <View style={styles.section as ViewStyle}>
+            <PatternInsightsCard userId={user?.id} />
+          </View>
+
           {/* Vital Signs Charts */}
           {(hasHeartRateData || hasWeightData || hasBloodSugarData) && (
             <View style={styles.section as ViewStyle}>

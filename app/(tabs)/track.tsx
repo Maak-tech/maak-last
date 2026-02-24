@@ -6,7 +6,9 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
   Activity,
   AlertCircle,
+  BarChart2,
   Brain,
+  ChevronRight,
   Clock,
   Droplet,
   FileText,
@@ -426,6 +428,54 @@ export default function TrackScreen() {
           marginBottom: 20,
         },
         sectionRTL: {},
+        analyticsBox: {
+          backgroundColor: "#FFFFFF",
+          borderRadius: 16,
+          padding: 16,
+          marginBottom: 16,
+          flexDirection: "row" as const,
+          alignItems: "center" as const,
+          gap: 12,
+          shadowColor: "#0F172A",
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.07,
+          shadowRadius: 10,
+          elevation: 3,
+        },
+        analyticsBoxRTL: {
+          flexDirection: "row-reverse" as const,
+        },
+        analyticsIconWrap: {
+          width: 44,
+          height: 44,
+          borderRadius: 14,
+          backgroundColor: "#F0FDFA",
+          alignItems: "center" as const,
+          justifyContent: "center" as const,
+          flexShrink: 0,
+        },
+        analyticsTextWrap: {
+          flex: 1,
+        },
+        analyticsTitle: {
+          fontSize: 15,
+          fontFamily: "Inter-Bold",
+          color: "#0F172A",
+          marginBottom: 2,
+        },
+        analyticsTitleRTL: {
+          fontFamily: "NotoSansArabic-Regular",
+          textAlign: "right" as const,
+        },
+        analyticsSubtitle: {
+          fontSize: 12,
+          fontFamily: "Inter-SemiBold",
+          color: "#64748B",
+        },
+        analyticsSubtitleRTL: {
+          fontFamily: "NotoSansArabic-Regular",
+          textAlign: "right" as const,
+        },
         categoriesSection: {
           marginTop: -theme.spacing.xl,
         },
@@ -1226,6 +1276,43 @@ export default function TrackScreen() {
                   </View>
                 </View>
               ) : null}
+
+              {/* Analytics & Insights entry card — visible to all, gated content inside analytics screen */}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => router.push("/(tabs)/analytics" as Parameters<typeof router.push>[0])}
+                style={[
+                  styles.analyticsBox as ViewStyle,
+                  isRTL && styles.analyticsBoxRTL,
+                ]}
+              >
+                <View style={styles.analyticsIconWrap as ViewStyle}>
+                  <BarChart2 color="#0D9488" size={22} />
+                </View>
+                <View style={styles.analyticsTextWrap as ViewStyle}>
+                  <Text
+                    style={[
+                      styles.analyticsTitle,
+                      isRTL && styles.analyticsTitleRTL,
+                    ]}
+                  >
+                    {isRTL ? "التحليلات والرؤى" : "Analytics & Insights"}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.analyticsSubtitle,
+                      isRTL && styles.analyticsSubtitleRTL,
+                    ]}
+                  >
+                    {isRTL ? "الرسوم البيانية والاتجاهات والتنبؤات" : "Charts, trends, and AI predictions"}
+                  </Text>
+                </View>
+                <ChevronRight
+                  color="#94A3B8"
+                  size={18}
+                  style={{ transform: [{ scaleX: isRTL ? -1 : 1 }] }}
+                />
+              </TouchableOpacity>
 
               <View
                 style={[

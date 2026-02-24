@@ -29,8 +29,13 @@ import {
   Heading,
   Text as TypographyText,
 } from "@/components/design-system/Typography";
+import EnrichedDiscoveryCard from "@/components/EnrichedDiscoveryCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import {
+  discoveryService,
+  type EnrichedDiscovery,
+} from "@/lib/services/discoveryService";
 import {
   type HealthSuggestion,
   proactiveHealthSuggestionsService,
@@ -41,12 +46,15 @@ type ProactiveHealthSuggestionsProps = {
   maxSuggestions?: number;
   showDismissed?: boolean;
   onSuggestionTap?: (suggestion: HealthSuggestion) => void;
+  /** When true, appends the top new health discovery after the suggestions list */
+  showDiscoveries?: boolean;
 };
 
 export default function ProactiveHealthSuggestions({
   maxSuggestions = 5,
   showDismissed: _showDismissed = false,
   onSuggestionTap,
+  showDiscoveries = false,
 }: ProactiveHealthSuggestionsProps) {
   const { i18n } = useTranslation();
   const { user } = useAuth();
@@ -61,6 +69,9 @@ export default function ProactiveHealthSuggestions({
   const dismissedIdsRef = useRef(dismissedIds);
   dismissedIdsRef.current = dismissedIds;
   const CACHE_MS = 10 * 60_000; // 10 minutes
+
+  // Top new discovery state (only loaded when showDiscoveries=true)
+  const [topDiscovery, setTopDiscovery] = useState<EnrichedDiscovery | null>(null);
 
   const styles = createThemedStyles((theme) => ({
     container: {
@@ -197,9 +208,30 @@ export default function ProactiveHealthSuggestions({
     loadSuggestions();
   }, [loadSuggestions]);
 
+  // Load top new discovery when showDiscoveries is enabled
+  useEffect(() => {
+    if (!showDiscoveries || !user?.id) return;
+    let cancelled = false;
+    discoveryService.getTopDiscoveries(user.id, 5, isRTL).then((results) => {
+      if (cancelled) return;
+      const newest = results.find((d) => d.status === "new") ?? null;
+      setTopDiscovery(newest);
+    }).catch(() => {
+      // Non-critical
+    });
+    return () => { cancelled = true; };
+  }, [showDiscoveries, user?.id, isRTL]);
+
   const handleDismiss = (suggestionId: string) => {
     setDismissedIds((prev) => new Set(prev).add(suggestionId));
     setSuggestions((prev) => prev.filter((s) => s.id !== suggestionId));
+  };
+
+  const handleDismissDiscovery = (discoveryId: string) => {
+    setTopDiscovery(null);
+    if (user?.id) {
+      discoveryService.dismissDiscovery(user.id, discoveryId).catch(() => {});
+    }
   };
 
   const comingSoonRoutes = [
@@ -299,7 +331,12 @@ export default function ProactiveHealthSuggestions({
     );
   }
 
-  if (suggestions.length === 0) {
+  if (suggestions.length === 0 && (!showDiscoveries || !topDiscovery)) {
+    return null;
+  }
+
+  if (suggestions.length === 0 && showDiscoveries && topDiscovery) {
+    // Only a discovery to show — render it under the section header
     return (
       <View style={styles.container}>
         <View style={styles.header}>
@@ -307,19 +344,21 @@ export default function ProactiveHealthSuggestions({
             level={6}
             style={[styles.headerTitle, isRTL && styles.rtlText]}
           >
-            {isRTL ? "اقتراحات صحية" : "Health Suggestions"}
+            {isRTL ? "الاقتراحات والاكتشافات" : "Suggestions & Discoveries"}
           </Heading>
         </View>
-        <View style={styles.emptyContainer}>
-          <Lightbulb color={theme.colors.text.secondary} size={24} />
-          <TypographyText
-            style={[styles.emptyText, { marginTop: theme.spacing.sm }]}
-          >
-            {isRTL
-              ? "لا توجد اقتراحات حالياً. استمر في تتبع صحتك للحصول على رؤى مخصصة!"
-              : "No suggestions right now. Keep tracking your health for personalized insights!"}
-          </TypographyText>
+        <View style={{ marginTop: theme.spacing.xs }}>
+          <EnrichedDiscoveryCard discovery={topDiscovery} onDismiss={handleDismissDiscovery} />
         </View>
+        <TouchableOpacity
+          onPress={() => router.push("/(tabs)/discoveries" as Parameters<typeof router.push>[0])}
+          style={[styles.suggestionAction, { marginTop: theme.spacing.sm }]}
+        >
+          <Caption style={{ color: theme.colors.primary.main }}>
+            {isRTL ? "عرض جميع الاكتشافات" : "See all discoveries"}
+          </Caption>
+          <ChevronRight color={theme.colors.primary.main} size={16} />
+        </TouchableOpacity>
       </View>
     );
   }
@@ -331,7 +370,9 @@ export default function ProactiveHealthSuggestions({
           level={6}
           style={[styles.headerTitle, isRTL && styles.rtlText]}
         >
-          {isRTL ? "اقتراحات صحية" : "Health Suggestions"}
+          {showDiscoveries
+            ? (isRTL ? "الاقتراحات والاكتشافات" : "Suggestions & Discoveries")
+            : (isRTL ? "اقتراحات صحية" : "Health Suggestions")}
         </Heading>
         <Badge size="small" style={{}} variant="outline">
           {suggestions.length}
@@ -426,6 +467,21 @@ export default function ProactiveHealthSuggestions({
           </Card>
         ))}
       </ScrollView>
+
+      {showDiscoveries && topDiscovery && (
+        <View style={{ marginTop: theme.spacing.base }}>
+          <EnrichedDiscoveryCard discovery={topDiscovery} onDismiss={handleDismissDiscovery} />
+          <TouchableOpacity
+            onPress={() => router.push("/(tabs)/discoveries" as Parameters<typeof router.push>[0])}
+            style={[styles.suggestionAction, { marginTop: theme.spacing.sm }]}
+          >
+            <Caption style={{ color: theme.colors.primary.main }}>
+              {isRTL ? "عرض جميع الاكتشافات" : "See all discoveries"}
+            </Caption>
+            <ChevronRight color={theme.colors.primary.main} size={16} />
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }

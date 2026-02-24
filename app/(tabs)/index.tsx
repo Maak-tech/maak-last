@@ -44,18 +44,16 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 // Design System Components
 import AnomalyDashboardSection from "@/app/components/AnomalyDashboardSection";
-import DiscoveryCardsSection from "@/app/components/DiscoveryCardsSection";
 import ProactiveHealthSuggestions from "@/app/components/ProactiveHealthSuggestions";
 import DailyBriefingCard from "@/components/DailyBriefingCard";
 import { Card } from "@/components/design-system";
 import { Heading, Text } from "@/components/design-system/Typography";
 import GradientScreen from "@/components/figma/GradientScreen";
 import WavyBackground from "@/components/figma/WavyBackground";
+import HealthPulseCard from "@/components/HealthPulseCard";
 import HealthScoreForecastCard from "@/components/HealthScoreForecastCard";
 import RecoveryScoreCard from "@/components/RecoveryScoreCard";
-import MLInsightsBadge from "@/components/MLInsightsBadge";
 import PatternInsightsCard from "@/components/PatternInsightsCard";
-import PersonalisedHealthInsightsCard from "@/components/PersonalisedHealthInsightsCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -2307,36 +2305,19 @@ export default function DashboardScreen() {
           {/* Render widgets dynamically */}
           {enabledWidgets.map((widgetId) => renderWidget(widgetId))}
 
-          {/* Proactive health suggestions */}
+          {/* Health Pulse — unified health score + recovery entry point */}
           <View style={styles.section as ViewStyle}>
-            <ProactiveHealthSuggestions maxSuggestions={5} />
+            <HealthPulseCard isRTL={isRTL} userId={user?.id} />
           </View>
-          {/* Personalised health insights */}
+
+          {/* Vital anomaly monitoring — only shown when there are active alerts */}
           <View style={styles.section as ViewStyle}>
-            <PersonalisedHealthInsightsCard userId={user?.id} />
+            <AnomalyDashboardSection onlyWhenActive={true} />
           </View>
+
+          {/* Proactive health suggestions + top new discovery (unified section) */}
           <View style={styles.section as ViewStyle}>
-            <AnomalyDashboardSection />
-          </View>
-          <View style={styles.section as ViewStyle}>
-            <PatternInsightsCard userId={user?.id} />
-          </View>
-          <View style={styles.section as ViewStyle}>
-            {/* ML Insights badge row — navigates to Analytics for full detail */}
-            <View
-              style={{
-                flexDirection: isRTL ? "row-reverse" : "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: 8,
-              }}
-            >
-              <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-                {isRTL ? "الاكتشافات الصحية" : "Health Discoveries"}
-              </Text>
-              <MLInsightsBadge userId={user?.id} />
-            </View>
-            <DiscoveryCardsSection />
+            <ProactiveHealthSuggestions showDiscoveries={true} />
           </View>
 
           {/* Alerts Modal */}
