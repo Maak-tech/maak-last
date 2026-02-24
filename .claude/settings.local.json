@@ -4,7 +4,9 @@
       "Bash(ls:*)",
       "Bash(xargs:*)",
       "Bash(python3:*)",
-      "Bash(node -e:*)"
+      "Bash(node -e:*)",
+      "Bash(npx tsc:*)",
+      "Bash(dir:*)"
     ]
   }
 }

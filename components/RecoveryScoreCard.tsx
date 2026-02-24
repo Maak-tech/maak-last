@@ -509,8 +509,7 @@ export default function RecoveryScoreCard({
                 <View
                   style={{
                     height: 1,
-                    backgroundColor:
-                      theme.colors.border?.default ?? "#E5E7EB",
+                    backgroundColor: "#E5E7EB",
                     marginVertical: 8,
                   }}
                 />

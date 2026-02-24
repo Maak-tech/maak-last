@@ -43,6 +43,36 @@ const normalizeReminder = (
   takenAt: coerceToDate(reminder.takenAt) || undefined,
 });
 
+const coerceMedicationStartDate = (value: unknown): Date => {
+  const parsed = coerceToDate(value);
+  if (parsed) {
+    return parsed;
+  }
+  return new Date(0);
+};
+
+const coerceMedicationEndDate = (value: unknown): Date | undefined => {
+  const parsed = coerceToDate(value);
+  return parsed || undefined;
+};
+
+const normalizeMedicationForClient = (
+  medication: Medication,
+  baseId: string
+): Medication => ({
+  ...medication,
+  startDate: coerceMedicationStartDate(medication.startDate),
+  endDate: coerceMedicationEndDate(medication.endDate),
+  reminders: Array.isArray(medication.reminders)
+    ? medication.reminders.map((reminder: ReminderRecord, index: number) =>
+        normalizeReminder(reminder, baseId, index)
+      )
+    : [],
+});
+
+const compareMedicationStartDateDesc = (a: Medication, b: Medication) =>
+  b.startDate.getTime() - a.startDate.getTime();
+
 const getFamilyMemberIds = async (familyId: string): Promise<string[]> => {
   const familyMembersQuery = query(
     collection(db, "users"),
@@ -66,9 +96,7 @@ const fetchFamilyMedicationsByMembers = async (
       fetchFamilyMedicationsByInQuery(batch).catch(() => [] as Medication[])
     )
   );
-  return batchResults
-    .flat()
-    .sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+  return batchResults.flat().sort(compareMedicationStartDateDesc);
 };
 
 const dismissMedicationReminderNotifications = async (options: {
@@ -152,8 +180,8 @@ const fetchFamilyMedicationsByInQuery = async (
     medications.push({
       id: docSnap.id,
       ...data,
-      startDate: data.startDate.toDate(),
-      endDate: data.endDate?.toDate(),
+      startDate: coerceMedicationStartDate(data.startDate),
+      endDate: coerceMedicationEndDate(data.endDate),
       reminders: processedReminders,
     } as Medication);
   }
@@ -343,15 +371,13 @@ export const medicationService = {
             id: docSnap.id,
             ...data,
             reminders: processedReminders,
-            startDate: data.startDate.toDate(),
-            endDate: data.endDate?.toDate() || undefined,
+            startDate: coerceMedicationStartDate(data.startDate),
+            endDate: coerceMedicationEndDate(data.endDate),
           } as Medication);
         }
 
         // Sort by startDate descending in memory
-        medications.sort(
-          (a, b) => b.startDate.getTime() - a.startDate.getTime()
-        );
+        medications.sort(compareMedicationStartDateDesc);
 
         // Update in-memory cache
         _medCache.data.set(userId, { medications, timestamp: Date.now() });
@@ -365,7 +391,8 @@ export const medicationService = {
         await offlineService.getOfflineCollection<Medication>("medications");
       return cachedMedications
         .filter((m) => m.userId === userId && m.isActive !== false)
-        .sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+        .map((m) => normalizeMedicationForClient(m, m.id || userId))
+        .sort(compareMedicationStartDateDesc);
     } catch (error) {
       // If online but fails, try offline cache
       if (isOnline) {
@@ -373,7 +400,8 @@ export const medicationService = {
           await offlineService.getOfflineCollection<Medication>("medications");
         return cachedMedications
           .filter((m) => m.userId === userId && m.isActive !== false)
-          .sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+          .map((m) => normalizeMedicationForClient(m, m.id || userId))
+          .sort(compareMedicationStartDateDesc);
       }
       throw error;
     }
@@ -697,8 +725,8 @@ export const medicationService = {
       medications.push({
         id: docSnap.id,
         ...data,
-        startDate: data.startDate.toDate(),
-        endDate: data.endDate?.toDate(),
+        startDate: coerceMedicationStartDate(data.startDate),
+        endDate: coerceMedicationEndDate(data.endDate),
         reminders: processedReminders,
       } as Medication);
     }
