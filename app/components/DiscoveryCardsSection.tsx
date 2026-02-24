@@ -15,13 +15,13 @@ import {
   Heading,
   Text as TypographyText,
 } from "@/components/design-system/Typography";
+import EnrichedDiscoveryCard from "@/components/EnrichedDiscoveryCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
   discoveryService,
   type EnrichedDiscovery,
 } from "@/lib/services/discoveryService";
-import EnrichedDiscoveryCard from "@/components/EnrichedDiscoveryCard";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 export default function DiscoveryCardsSection() {
@@ -38,7 +38,11 @@ export default function DiscoveryCardsSection() {
     let cancelled = false;
     (async () => {
       try {
-        const results = await discoveryService.getTopDiscoveries(user.id, 5, isRTL);
+        const results = await discoveryService.getTopDiscoveries(
+          user.id,
+          5,
+          isRTL
+        );
         if (!cancelled) setTopDiscoveries(results);
       } catch {
         // Silently fail
@@ -46,7 +50,9 @@ export default function DiscoveryCardsSection() {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [user?.id, isRTL]);
 
   const newDiscoveries = topDiscoveries.filter((d) => d.status === "new");
@@ -194,10 +200,7 @@ export default function DiscoveryCardsSection() {
               marginLeft: isRTL ? theme.spacing.sm : 0,
             }}
           >
-            <EnrichedDiscoveryCard
-              discovery={discovery}
-              onDismiss={dismiss}
-            />
+            <EnrichedDiscoveryCard discovery={discovery} onDismiss={dismiss} />
           </View>
         ))}
       </ScrollView>

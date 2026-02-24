@@ -8,7 +8,13 @@
  * Premium Individual+ gate.
  */
 
-import { Activity, AlertCircle, ChevronDown, ChevronUp, Info } from "lucide-react-native";
+import {
+  Activity,
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
+  Info,
+} from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -17,11 +23,11 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
-import { FeatureGate } from "@/components/FeatureGate";
 import {
   Caption,
   Text as TypographyText,
 } from "@/components/design-system/Typography";
+import { FeatureGate } from "@/components/FeatureGate";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useSymptomAnalysis } from "@/hooks/useSymptomAnalysis";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
@@ -30,7 +36,9 @@ type Props = {
   userId: string | undefined;
 };
 
-function urgencyColor(urgency: "low" | "medium" | "high" | "emergency"): string {
+function urgencyColor(
+  urgency: "low" | "medium" | "high" | "emergency"
+): string {
   switch (urgency) {
     case "low":
       return "#22C55E";
@@ -73,7 +81,10 @@ function AnalysisContent({
   isRTL: boolean;
 }) {
   const { theme } = useTheme();
-  const { analysis, loading, error, refresh } = useSymptomAnalysis(userId, isRTL);
+  const { analysis, loading, error, refresh } = useSymptomAnalysis(
+    userId,
+    isRTL
+  );
   const [expandedPattern, setExpandedPattern] = useState<string | null>(null);
   const [showDiagnosis, setShowDiagnosis] = useState(false);
 
@@ -186,10 +197,15 @@ function AnalysisContent({
     return (
       <View style={styles.card}>
         <View style={styles.center}>
-          <ActivityIndicator size="small" color={theme.colors.primary.main} />
+          <ActivityIndicator color={theme.colors.primary.main} size="small" />
           <TypographyText
             style={[
-              getTextStyle(theme, "caption", "semibold", theme.colors.text.secondary),
+              getTextStyle(
+                theme,
+                "caption",
+                "semibold",
+                theme.colors.text.secondary
+              ),
               { marginTop: 8 },
             ]}
           >
@@ -202,7 +218,8 @@ function AnalysisContent({
 
   const noPatterns =
     !analysis ||
-    (analysis.patterns.length === 0 && analysis.diagnosisSuggestions.length === 0);
+    (analysis.patterns.length === 0 &&
+      analysis.diagnosisSuggestions.length === 0);
 
   if (error || noPatterns) {
     return (
@@ -210,10 +227,15 @@ function AnalysisContent({
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <View style={styles.iconWrap}>
-              <Activity size={18} color="#6366F1" />
+              <Activity color="#6366F1" size={18} />
             </View>
             <TypographyText
-              style={getTextStyle(theme, "body", "bold", theme.colors.text.primary)}
+              style={getTextStyle(
+                theme,
+                "body",
+                "bold",
+                theme.colors.text.primary
+              )}
             >
               {isRTL ? "تحليل الأعراض" : "Symptom Analysis"}
             </TypographyText>
@@ -226,7 +248,7 @@ function AnalysisContent({
               : "Not enough data. Log more symptoms to get an analysis.")}
         </Caption>
         {error && (
-          <TouchableOpacity style={styles.retryBtn} onPress={refresh}>
+          <TouchableOpacity onPress={refresh} style={styles.retryBtn}>
             <TypographyText
               style={getTextStyle(theme, "caption", "semibold", "#fff")}
             >
@@ -243,7 +265,10 @@ function AnalysisContent({
   const topPatterns = analysis.patterns.slice(0, 3);
   const topSuggestions = analysis.diagnosisSuggestions.slice(0, 3);
 
-  const overallRiskLabelMap: Record<"low" | "medium" | "high", { en: string; ar: string }> = {
+  const overallRiskLabelMap: Record<
+    "low" | "medium" | "high",
+    { en: string; ar: string }
+  > = {
     low: { en: "Low Risk", ar: "مخاطر منخفضة" },
     medium: { en: "Moderate Risk", ar: "مخاطر متوسطة" },
     high: { en: "High Risk", ar: "مخاطر عالية" },
@@ -255,17 +280,26 @@ function AnalysisContent({
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.iconWrap}>
-            <Activity size={18} color="#6366F1" />
+            <Activity color="#6366F1" size={18} />
           </View>
           <TypographyText
-            style={getTextStyle(theme, "body", "bold", theme.colors.text.primary)}
+            style={getTextStyle(
+              theme,
+              "body",
+              "bold",
+              theme.colors.text.primary
+            )}
           >
             {isRTL ? "تحليل الأعراض" : "Symptom Analysis"}
           </TypographyText>
         </View>
-        <View style={[styles.riskBadge, { backgroundColor: `${overallColor}20` }]}>
+        <View
+          style={[styles.riskBadge, { backgroundColor: `${overallColor}20` }]}
+        >
           <Caption style={{ color: overallColor, fontWeight: "700" }}>
-            {isRTL ? overallRiskLabelMap[overallRisk].ar : overallRiskLabelMap[overallRisk].en}
+            {isRTL
+              ? overallRiskLabelMap[overallRisk].ar
+              : overallRiskLabelMap[overallRisk].en}
           </Caption>
         </View>
       </View>
@@ -285,10 +319,10 @@ function AnalysisContent({
             const isOpen = expandedPattern === p.id;
             return (
               <TouchableOpacity
-                key={p.id}
-                style={styles.patternCard}
-                onPress={() => setExpandedPattern(isOpen ? null : p.id)}
                 activeOpacity={0.8}
+                key={p.id}
+                onPress={() => setExpandedPattern(isOpen ? null : p.id)}
+                style={styles.patternCard}
               >
                 <View style={styles.patternHeader}>
                   <View style={styles.patternHeaderLeft}>
@@ -309,14 +343,26 @@ function AnalysisContent({
                       {p.name}
                     </TypographyText>
                   </View>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
                     <Caption style={{ color: theme.colors.text.secondary }}>
                       {Math.round(p.confidence)}%
                     </Caption>
                     {isOpen ? (
-                      <ChevronUp size={14} color={theme.colors.text.secondary} />
+                      <ChevronUp
+                        color={theme.colors.text.secondary}
+                        size={14}
+                      />
                     ) : (
-                      <ChevronDown size={14} color={theme.colors.text.secondary} />
+                      <ChevronDown
+                        color={theme.colors.text.secondary}
+                        size={14}
+                      />
                     )}
                   </View>
                 </View>
@@ -350,9 +396,9 @@ function AnalysisContent({
       {topSuggestions.length > 0 && (
         <>
           <TouchableOpacity
-            style={styles.toggleRow}
-            onPress={() => setShowDiagnosis((v) => !v)}
             activeOpacity={0.7}
+            onPress={() => setShowDiagnosis((v) => !v)}
+            style={styles.toggleRow}
           >
             <Caption style={{ color: theme.colors.primary.main }}>
               {showDiagnosis
@@ -364,9 +410,9 @@ function AnalysisContent({
                   : `Show ${topSuggestions.length} Diagnosis Suggestion${topSuggestions.length > 1 ? "s" : ""}`}
             </Caption>
             {showDiagnosis ? (
-              <ChevronUp size={14} color={theme.colors.primary.main} />
+              <ChevronUp color={theme.colors.primary.main} size={14} />
             ) : (
-              <ChevronDown size={14} color={theme.colors.primary.main} />
+              <ChevronDown color={theme.colors.primary.main} size={14} />
             )}
           </TouchableOpacity>
 
@@ -374,7 +420,7 @@ function AnalysisContent({
             <>
               {/* Medical disclaimer */}
               <View style={styles.infoRow}>
-                <Info size={14} color="#F59E0B" style={{ marginTop: 1 }} />
+                <Info color="#F59E0B" size={14} style={{ marginTop: 1 }} />
                 <Caption style={{ flex: 1, color: "#92400E", lineHeight: 16 }}>
                   {isRTL
                     ? "هذه اقتراحات معلوماتية فقط، وليست تشخيصاً طبياً. استشر طبيبك دائماً."
@@ -406,7 +452,10 @@ function AnalysisContent({
                       ]}
                     >
                       <Caption
-                        style={{ color: urgencyColor(s.urgency), fontWeight: "700" }}
+                        style={{
+                          color: urgencyColor(s.urgency),
+                          fontWeight: "700",
+                        }}
                       >
                         {s.urgency.charAt(0).toUpperCase() + s.urgency.slice(1)}
                       </Caption>
@@ -422,7 +471,9 @@ function AnalysisContent({
                     {s.reasoning}
                   </Caption>
                   {s.recommendations.length > 0 && (
-                    <Caption style={{ color: theme.colors.primary.main, marginTop: 4 }}>
+                    <Caption
+                      style={{ color: theme.colors.primary.main, marginTop: 4 }}
+                    >
                       {isRTL ? "التوصيات: " : "Recommendations: "}
                       {s.recommendations.slice(0, 2).join(" · ")}
                     </Caption>
@@ -437,8 +488,14 @@ function AnalysisContent({
       {/* Overall concerns */}
       {analysis.riskAssessment.concerns.length > 0 && (
         <View style={styles.infoRow}>
-          <AlertCircle size={14} color="#EF4444" style={{ marginTop: 1 }} />
-          <Caption style={{ flex: 1, color: theme.colors.text.secondary, lineHeight: 16 }}>
+          <AlertCircle color="#EF4444" size={14} style={{ marginTop: 1 }} />
+          <Caption
+            style={{
+              flex: 1,
+              color: theme.colors.text.secondary,
+              lineHeight: 16,
+            }}
+          >
             {analysis.riskAssessment.concerns.join(" · ")}
           </Caption>
         </View>
@@ -453,7 +510,7 @@ export default function SymptomAnalysisCard({ userId }: Props) {
 
   return (
     <FeatureGate featureId="SYMPTOM_ANALYSIS">
-      <AnalysisContent userId={userId} isRTL={isRTL} />
+      <AnalysisContent isRTL={isRTL} userId={userId} />
     </FeatureGate>
   );
 }

@@ -128,7 +128,7 @@ export const onConsentRevoked = onDocumentUpdated(
     const before = event.data?.before.data();
     const after = event.data?.after.data();
 
-    if (!before || !after) return;
+    if (!(before && after)) return;
 
     // Only process active → revoked transitions
     const wasActive = before.isActive === true;
@@ -152,7 +152,13 @@ export const onConsentRevoked = onDocumentUpdated(
     // Run all side-effects in parallel; individual failures are logged but don't abort others
     await Promise.allSettled([
       archiveRosterEntry(userId, orgId, traceId),
-      writeAuditEntry(userId, orgId, after.revokedBy as string | undefined, revokedAt, traceId),
+      writeAuditEntry(
+        userId,
+        orgId,
+        after.revokedBy as string | undefined,
+        revokedAt,
+        traceId
+      ),
       sendRevocationEmail(userId, orgId, revokedAt, traceId),
     ]);
 
@@ -257,12 +263,16 @@ async function writeAuditEntry(
       fn: "writeAuditEntry",
     });
   } catch (err) {
-    logger.error("onConsentRevoked: failed to write audit entry", err as Error, {
-      traceId,
-      userId,
-      orgId,
-      fn: "writeAuditEntry",
-    });
+    logger.error(
+      "onConsentRevoked: failed to write audit entry",
+      err as Error,
+      {
+        traceId,
+        userId,
+        orgId,
+        fn: "writeAuditEntry",
+      }
+    );
   }
 }
 
@@ -289,15 +299,12 @@ async function sendRevocationEmail(
     if (!email) return; // No email, skip silently
 
     const displayName =
-      (userData.displayName as string) ??
-      (userData.name as string) ??
-      "there";
+      (userData.displayName as string) ?? (userData.name as string) ?? "there";
     const firstName = displayName.split(" ")[0];
 
-    const orgName =
-      orgSnap.exists
-        ? ((orgSnap.data()!.name as string) ?? orgId)
-        : orgId;
+    const orgName = orgSnap.exists
+      ? ((orgSnap.data()!.name as string) ?? orgId)
+      : orgId;
 
     const { subject, html } = buildRevocationConfirmationHtml({
       patientFirstName: firstName,
@@ -305,19 +312,21 @@ async function sendRevocationEmail(
       revokedAt,
     });
 
-    await db().collection("email_queue").add({
-      to: [email],
-      subject,
-      bodyHtml: html,
-      channel: "consent_revocation",
-      orgId,
-      patientUserId: userId,
-      status: "pending",
-      attempts: 0,
-      sentAt: null,
-      error: null,
-      createdAt: FieldValue.serverTimestamp(),
-    });
+    await db()
+      .collection("email_queue")
+      .add({
+        to: [email],
+        subject,
+        bodyHtml: html,
+        channel: "consent_revocation",
+        orgId,
+        patientUserId: userId,
+        status: "pending",
+        attempts: 0,
+        sentAt: null,
+        error: null,
+        createdAt: FieldValue.serverTimestamp(),
+      });
 
     logger.info("onConsentRevoked: confirmation email queued", {
       traceId,

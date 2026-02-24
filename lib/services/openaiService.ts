@@ -8,6 +8,8 @@ export type ChatMessage = {
   role: "user" | "assistant" | "system";
   content: string;
   timestamp: Date;
+  /** Optional chip label shown above the message bubble (e.g. "Daily Briefing") */
+  label?: string;
 };
 
 export const AI_MODELS = {

@@ -8,7 +8,12 @@
  * Premium Individual+ gate.
  */
 
-import { AlertTriangle, ChevronDown, ChevronUp, ShieldCheck } from "lucide-react-native";
+import {
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  ShieldCheck,
+} from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -17,11 +22,11 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
-import { FeatureGate } from "@/components/FeatureGate";
 import {
   Caption,
   Text as TypographyText,
 } from "@/components/design-system/Typography";
+import { FeatureGate } from "@/components/FeatureGate";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useHealthRisk } from "@/hooks/useHealthRisk";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
@@ -165,10 +170,15 @@ function RiskContent({
     return (
       <View style={styles.card}>
         <View style={styles.center}>
-          <ActivityIndicator size="small" color={theme.colors.primary.main} />
+          <ActivityIndicator color={theme.colors.primary.main} size="small" />
           <TypographyText
             style={[
-              getTextStyle(theme, "caption", "semibold", theme.colors.text.secondary),
+              getTextStyle(
+                theme,
+                "caption",
+                "semibold",
+                theme.colors.text.secondary
+              ),
               { marginTop: 8 },
             ]}
           >
@@ -185,20 +195,26 @@ function RiskContent({
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <View style={styles.iconWrap}>
-              <AlertTriangle size={18} color="#EF4444" />
+              <AlertTriangle color="#EF4444" size={18} />
             </View>
             <TypographyText
-              style={getTextStyle(theme, "body", "bold", theme.colors.text.primary)}
+              style={getTextStyle(
+                theme,
+                "body",
+                "bold",
+                theme.colors.text.primary
+              )}
             >
               {isRTL ? "تقييم المخاطر الصحية" : "Health Risk Assessment"}
             </TypographyText>
           </View>
         </View>
         <Caption style={{ color: theme.colors.text.secondary }}>
-          {error ?? (isRTL ? "لا تتوفر بيانات كافية بعد." : "Not enough data yet.")}
+          {error ??
+            (isRTL ? "لا تتوفر بيانات كافية بعد." : "Not enough data yet.")}
         </Caption>
         {error && (
-          <TouchableOpacity style={styles.retryBtn} onPress={refresh}>
+          <TouchableOpacity onPress={refresh} style={styles.retryBtn}>
             <TypographyText
               style={getTextStyle(theme, "caption", "semibold", "#fff")}
             >
@@ -222,15 +238,22 @@ function RiskContent({
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.iconWrap}>
-            <ShieldCheck size={18} color="#EF4444" />
+            <ShieldCheck color="#EF4444" size={18} />
           </View>
           <TypographyText
-            style={getTextStyle(theme, "body", "bold", theme.colors.text.primary)}
+            style={getTextStyle(
+              theme,
+              "body",
+              "bold",
+              theme.colors.text.primary
+            )}
           >
             {isRTL ? "تقييم المخاطر الصحية" : "Health Risk Assessment"}
           </TypographyText>
         </View>
-        <View style={[styles.riskBadge, { backgroundColor: `${scoreColor}20` }]}>
+        <View
+          style={[styles.riskBadge, { backgroundColor: `${scoreColor}20` }]}
+        >
           <Caption style={{ color: scoreColor, fontWeight: "700" }}>
             {riskLabel(assessment.riskLevel, isRTL)}
           </Caption>
@@ -248,13 +271,25 @@ function RiskContent({
         </View>
         <View style={{ flex: 1 }}>
           <TypographyText
-            style={getTextStyle(theme, "caption", "semibold", theme.colors.text.secondary)}
+            style={getTextStyle(
+              theme,
+              "caption",
+              "semibold",
+              theme.colors.text.secondary
+            )}
           >
-            {isRTL ? "درجة المخاطر الإجمالية / ١٠٠" : "Overall risk score / 100"}
+            {isRTL
+              ? "درجة المخاطر الإجمالية / ١٠٠"
+              : "Overall risk score / 100"}
           </TypographyText>
           <TypographyText
             style={[
-              getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
+              getTextStyle(
+                theme,
+                "caption",
+                "regular",
+                theme.colors.text.secondary
+              ),
               { marginTop: 4, lineHeight: 18 },
             ]}
           >
@@ -280,7 +315,12 @@ function RiskContent({
             <View key={cr.condition} style={{ marginBottom: 10 }}>
               <View style={styles.conditionRow}>
                 <TypographyText
-                  style={getTextStyle(theme, "caption", "semibold", theme.colors.text.primary)}
+                  style={getTextStyle(
+                    theme,
+                    "caption",
+                    "semibold",
+                    theme.colors.text.primary
+                  )}
                 >
                   {cr.condition}
                 </TypographyText>
@@ -318,16 +358,26 @@ function RiskContent({
           {modifiableFactors.map((f) => (
             <View key={f.id} style={styles.factorRow}>
               <View
-                style={[styles.factorDot, { backgroundColor: riskColor(f.riskLevel) }]}
+                style={[
+                  styles.factorDot,
+                  { backgroundColor: riskColor(f.riskLevel) },
+                ]}
               />
               <View style={{ flex: 1 }}>
                 <TypographyText
-                  style={getTextStyle(theme, "caption", "semibold", theme.colors.text.primary)}
+                  style={getTextStyle(
+                    theme,
+                    "caption",
+                    "semibold",
+                    theme.colors.text.primary
+                  )}
                 >
                   {f.name}
                 </TypographyText>
                 {f.recommendations && f.recommendations.length > 0 && (
-                  <Caption style={{ color: theme.colors.text.secondary, marginTop: 2 }}>
+                  <Caption
+                    style={{ color: theme.colors.text.secondary, marginTop: 2 }}
+                  >
                     {f.recommendations[0]}
                   </Caption>
                 )}
@@ -341,9 +391,9 @@ function RiskContent({
       {assessment.preventiveRecommendations.length > 0 && (
         <>
           <TouchableOpacity
-            style={styles.toggleRow}
-            onPress={() => setShowRecommendations((v) => !v)}
             activeOpacity={0.7}
+            onPress={() => setShowRecommendations((v) => !v)}
+            style={styles.toggleRow}
           >
             <Caption style={{ color: theme.colors.primary.main }}>
               {showRecommendations
@@ -355,9 +405,9 @@ function RiskContent({
                   : "Show Preventive Recommendations"}
             </Caption>
             {showRecommendations ? (
-              <ChevronUp size={14} color={theme.colors.primary.main} />
+              <ChevronUp color={theme.colors.primary.main} size={14} />
             ) : (
-              <ChevronDown size={14} color={theme.colors.primary.main} />
+              <ChevronDown color={theme.colors.primary.main} size={14} />
             )}
           </TouchableOpacity>
           {showRecommendations &&
@@ -370,10 +420,17 @@ function RiskContent({
                 style={styles.factorRow}
               >
                 <View
-                  style={[styles.factorDot, { backgroundColor: theme.colors.primary.main }]}
+                  style={[
+                    styles.factorDot,
+                    { backgroundColor: theme.colors.primary.main },
+                  ]}
                 />
                 <Caption
-                  style={{ flex: 1, color: theme.colors.text.secondary, lineHeight: 18 }}
+                  style={{
+                    flex: 1,
+                    color: theme.colors.text.secondary,
+                    lineHeight: 18,
+                  }}
                 >
                   {rec}
                 </Caption>
@@ -405,7 +462,7 @@ export default function HealthRiskCard({ userId }: Props) {
 
   return (
     <FeatureGate featureId="HEALTH_RISK_ASSESSMENT">
-      <RiskContent userId={userId} isRTL={isRTL} />
+      <RiskContent isRTL={isRTL} userId={userId} />
     </FeatureGate>
   );
 }

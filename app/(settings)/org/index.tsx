@@ -95,8 +95,8 @@ function NavItem({
         </Caption>
       </View>
       <ChevronRight
-        size={18}
         color={theme.colors.text.secondary}
+        size={18}
         style={isRTL ? { transform: [{ scaleX: -1 }] } : undefined}
       />
     </TouchableOpacity>
@@ -164,10 +164,10 @@ export default function OrgSettingsHub() {
         }}
       >
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => navigation.goBack()}
         >
-          <ChevronLeft size={24} color={theme.colors.text.primary} />
+          <ChevronLeft color={theme.colors.text.primary} size={24} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <TypographyText
@@ -213,7 +213,7 @@ export default function OrgSettingsHub() {
               justifyContent: "center",
             }}
           >
-            <Building2 size={24} color="#2563EB" />
+            <Building2 color="#2563EB" size={24} />
           </View>
           <View style={{ flex: 1 }}>
             <TypographyText
@@ -226,150 +226,153 @@ export default function OrgSettingsHub() {
               {orgName}
             </TypographyText>
             <Caption
-              style={{ color: theme.colors.text.secondary, fontFamily: "monospace" }}
               numberOfLines={1}
+              style={{
+                color: theme.colors.text.secondary,
+                fontFamily: "monospace",
+              }}
             >
               ID: {orgId}
             </Caption>
           </View>
-          <ChevronRight size={16} color={theme.colors.text.secondary} />
+          <ChevronRight color={theme.colors.text.secondary} size={16} />
         </TouchableOpacity>
 
         {/* — Clinical Workflows — */}
         <SectionHeader label="Clinical Workflows" theme={theme} />
 
         <NavItem
-          icon={<GitBranch size={22} color="#6366F1" />}
-          label="Care Pathways"
           description="Automated clinical protocols for patient cohorts"
-          onPress={() => navigate("pathways")}
-          isRTL={isRTL}
-          theme={theme}
+          icon={<GitBranch color="#6366F1" size={22} />}
           iconBg="#EEF2FF"
+          isRTL={isRTL}
+          label="Care Pathways"
+          onPress={() => navigate("pathways")}
+          theme={theme}
         />
 
         <NavItem
-          icon={<Users size={22} color="#10B981" />}
-          label="Patient Roster"
           description="Enrolled patients, consent, and risk overview"
+          icon={<Users color="#10B981" size={22} />}
+          iconBg="#ECFDF5"
+          isRTL={isRTL}
+          label="Patient Roster"
           onPress={() =>
             router.push(
               `/(tabs)/org-dashboard?orgId=${encodeURIComponent(orgId)}` as never
             )
           }
-          isRTL={isRTL}
           theme={theme}
-          iconBg="#ECFDF5"
         />
 
         <NavItem
-          icon={<Layers size={22} color="#0D9488" />}
-          label="Patient Cohorts"
           description="Group patients by condition, program, or risk tier"
-          onPress={() => navigate("cohorts")}
-          isRTL={isRTL}
-          theme={theme}
+          icon={<Layers color="#0D9488" size={22} />}
           iconBg="#F0FDFA"
-        />
-
-        <NavItem
-          icon={<Users size={22} color="#8B5CF6" />}
-          label="Team Members"
-          description="Manage providers, coordinators, and access roles"
-          onPress={() => navigate("members")}
           isRTL={isRTL}
+          label="Patient Cohorts"
+          onPress={() => navigate("cohorts")}
           theme={theme}
-          iconBg="#F5F3FF"
         />
 
         <NavItem
-          icon={<ClipboardList size={22} color="#0EA5E9" />}
-          label="Task Queue"
+          description="Manage providers, coordinators, and access roles"
+          icon={<Users color="#8B5CF6" size={22} />}
+          iconBg="#F5F3FF"
+          isRTL={isRTL}
+          label="Team Members"
+          onPress={() => navigate("members")}
+          theme={theme}
+        />
+
+        <NavItem
           description="Open tasks and coordinator work queue"
+          icon={<ClipboardList color="#0EA5E9" size={22} />}
+          iconBg="#F0F9FF"
+          isRTL={isRTL}
+          label="Task Queue"
           onPress={() =>
             router.push(
               `/(tabs)/tasks?orgId=${encodeURIComponent(orgId)}` as never
             )
           }
-          isRTL={isRTL}
           theme={theme}
-          iconBg="#F0F9FF"
         />
 
         {/* — Integration — */}
         <SectionHeader label="Integration" theme={theme} />
 
         <NavItem
-          icon={<Zap size={22} color="#10B981" />}
-          label="FHIR R4 / EHR"
           description="Endpoints, LOINC codes, and Epic / Cerner connection guide"
-          onPress={() => navigate("fhir")}
-          isRTL={isRTL}
-          theme={theme}
+          icon={<Zap color="#10B981" size={22} />}
           iconBg="#ECFDF5"
+          isRTL={isRTL}
+          label="FHIR R4 / EHR"
+          onPress={() => navigate("fhir")}
+          theme={theme}
         />
 
         <NavItem
-          icon={<Key size={22} color="#F59E0B" />}
-          label="API Keys"
           description="Manage keys for EHR and analytics integrations"
-          onPress={() => navigate("api-keys")}
-          isRTL={isRTL}
-          theme={theme}
+          icon={<Key color="#F59E0B" size={22} />}
           iconBg="#FFFBEB"
+          isRTL={isRTL}
+          label="API Keys"
+          onPress={() => navigate("api-keys")}
+          theme={theme}
         />
 
         <NavItem
-          icon={<Webhook size={22} color="#EC4899" />}
-          label="Webhooks"
           description="Real-time event delivery to external systems"
-          onPress={() => navigate("webhooks")}
-          isRTL={isRTL}
-          theme={theme}
+          icon={<Webhook color="#EC4899" size={22} />}
           iconBg="#FDF2F8"
+          isRTL={isRTL}
+          label="Webhooks"
+          onPress={() => navigate("webhooks")}
+          theme={theme}
         />
 
         <NavItem
-          icon={<Bell size={22} color="#F97316" />}
-          label="Notifications"
           description="Email digest channels, delivery logs, and alert settings"
-          onPress={() => navigate("notifications")}
-          isRTL={isRTL}
-          theme={theme}
+          icon={<Bell color="#F97316" size={22} />}
           iconBg="#FFF7ED"
+          isRTL={isRTL}
+          label="Notifications"
+          onPress={() => navigate("notifications")}
+          theme={theme}
         />
 
         <NavItem
-          icon={<MessageSquare size={22} color="#7C3AED" />}
-          label="Message Templates"
           description="Customize push notification copy for each alert type"
-          onPress={() => navigate("templates")}
-          isRTL={isRTL}
-          theme={theme}
+          icon={<MessageSquare color="#7C3AED" size={22} />}
           iconBg="#F5F3FF"
+          isRTL={isRTL}
+          label="Message Templates"
+          onPress={() => navigate("templates")}
+          theme={theme}
         />
 
         <NavItem
-          icon={<CreditCard size={22} color="#6366F1" />}
-          label="Plan & Billing"
           description="Current plan, usage limits, and upgrade options"
-          onPress={() => navigate("billing")}
-          isRTL={isRTL}
-          theme={theme}
+          icon={<CreditCard color="#6366F1" size={22} />}
           iconBg="#EEF2FF"
+          isRTL={isRTL}
+          label="Plan & Billing"
+          onPress={() => navigate("billing")}
+          theme={theme}
         />
 
         {/* — Compliance — */}
         <SectionHeader label="Compliance" theme={theme} />
 
         <NavItem
-          icon={<Shield size={22} color="#64748B" />}
-          label="Audit Trail"
           description="HIPAA-compliant access and mutation log"
-          onPress={() => navigate("audit-trail")}
-          isRTL={isRTL}
-          theme={theme}
+          icon={<Shield color="#64748B" size={22} />}
           iconBg="#F1F5F9"
+          isRTL={isRTL}
+          label="Audit Trail"
+          onPress={() => navigate("audit-trail")}
+          theme={theme}
         />
 
         {/* Info footer */}

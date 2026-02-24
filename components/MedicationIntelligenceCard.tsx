@@ -22,14 +22,17 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
-import { FeatureGate } from "@/components/FeatureGate";
 import {
   Caption,
   Text as TypographyText,
 } from "@/components/design-system/Typography";
+import { FeatureGate } from "@/components/FeatureGate";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useMedicationIntelligence } from "@/hooks/useMedicationIntelligence";
-import type { InteractionWarning, RefillPrediction } from "@/lib/services/medicationIntelligenceService";
+import type {
+  InteractionWarning,
+  RefillPrediction,
+} from "@/lib/services/medicationIntelligenceService";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 type Props = {
@@ -41,7 +44,11 @@ const SEVERITY_COLORS = {
   moderate: "#F59E0B",
   minor: "#6B7280",
 };
-const SEVERITY_LABELS_EN = { major: "Major", moderate: "Moderate", minor: "Minor" };
+const SEVERITY_LABELS_EN = {
+  major: "Major",
+  moderate: "Moderate",
+  minor: "Minor",
+};
 const SEVERITY_LABELS_AR = { major: "خطير", moderate: "متوسط", minor: "بسيط" };
 
 function InteractionRow({
@@ -58,12 +65,14 @@ function InteractionRow({
     ? SEVERITY_LABELS_AR[warning.severity]
     : SEVERITY_LABELS_EN[warning.severity];
   const description = isRTL ? warning.descriptionAr : warning.description;
-  const recommendation = isRTL ? warning.recommendationAr : warning.recommendation;
+  const recommendation = isRTL
+    ? warning.recommendationAr
+    : warning.recommendation;
 
   return (
     <TouchableOpacity
-      onPress={() => setExpanded(!expanded)}
       activeOpacity={0.7}
+      onPress={() => setExpanded(!expanded)}
       style={{
         backgroundColor: color + "10",
         borderRadius: 10,
@@ -88,15 +97,26 @@ function InteractionRow({
             flex: 1,
           }}
         >
-          <AlertTriangle size={14} color={color} />
+          <AlertTriangle color={color} size={14} />
           <TypographyText
-            style={getTextStyle(theme as Parameters<typeof getTextStyle>[0], "caption", "semibold", theme.colors.text.primary)}
             numberOfLines={1}
+            style={getTextStyle(
+              theme as Parameters<typeof getTextStyle>[0],
+              "caption",
+              "semibold",
+              theme.colors.text.primary
+            )}
           >
             {warning.drug1} + {warning.drug2}
           </TypographyText>
         </View>
-        <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 4 }}>
+        <View
+          style={{
+            flexDirection: isRTL ? "row-reverse" : "row",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
           <View
             style={{
               backgroundColor: color,
@@ -105,14 +125,21 @@ function InteractionRow({
               borderRadius: 8,
             }}
           >
-            <Caption style={getTextStyle(theme as Parameters<typeof getTextStyle>[0], "caption", "semibold", "#fff")}>
+            <Caption
+              style={getTextStyle(
+                theme as Parameters<typeof getTextStyle>[0],
+                "caption",
+                "semibold",
+                "#fff"
+              )}
+            >
               {label}
             </Caption>
           </View>
           {expanded ? (
-            <ChevronUp size={14} color={theme.colors.text.secondary} />
+            <ChevronUp color={theme.colors.text.secondary} size={14} />
           ) : (
-            <ChevronDown size={14} color={theme.colors.text.secondary} />
+            <ChevronDown color={theme.colors.text.secondary} size={14} />
           )}
         </View>
       </View>
@@ -120,7 +147,12 @@ function InteractionRow({
         <View style={{ marginTop: 8, gap: 4 }}>
           <TypographyText
             style={{
-              ...getTextStyle(theme as Parameters<typeof getTextStyle>[0], "caption", "regular", theme.colors.text.secondary),
+              ...getTextStyle(
+                theme as Parameters<typeof getTextStyle>[0],
+                "caption",
+                "regular",
+                theme.colors.text.secondary
+              ),
               textAlign: isRTL ? "right" : "left",
             }}
           >
@@ -136,7 +168,12 @@ function InteractionRow({
           >
             <TypographyText
               style={{
-                ...getTextStyle(theme as Parameters<typeof getTextStyle>[0], "caption", "medium", color),
+                ...getTextStyle(
+                  theme as Parameters<typeof getTextStyle>[0],
+                  "caption",
+                  "medium",
+                  color
+                ),
                 textAlign: isRTL ? "right" : "left",
               }}
             >
@@ -149,7 +186,13 @@ function InteractionRow({
   );
 }
 
-function RefillRow({ refill, isRTL }: { refill: RefillPrediction; isRTL: boolean }) {
+function RefillRow({
+  refill,
+  isRTL,
+}: {
+  refill: RefillPrediction;
+  isRTL: boolean;
+}) {
   const { theme } = useTheme();
   const color = refill.isUrgent ? "#EF4444" : "#F59E0B";
 
@@ -164,23 +207,69 @@ function RefillRow({ refill, isRTL }: { refill: RefillPrediction; isRTL: boolean
         borderBottomColor: theme.colors.border.light,
       }}
     >
-      <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 6 }}>
-        <Pill size={14} color={color} />
-        <TypographyText style={getTextStyle(theme as Parameters<typeof getTextStyle>[0], "body", "medium", theme.colors.text.primary)}>
+      <View
+        style={{
+          flexDirection: isRTL ? "row-reverse" : "row",
+          alignItems: "center",
+          gap: 6,
+        }}
+      >
+        <Pill color={color} size={14} />
+        <TypographyText
+          style={getTextStyle(
+            theme as Parameters<typeof getTextStyle>[0],
+            "body",
+            "medium",
+            theme.colors.text.primary
+          )}
+        >
           {refill.name}
         </TypographyText>
       </View>
-      <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 6 }}>
+      <View
+        style={{
+          flexDirection: isRTL ? "row-reverse" : "row",
+          alignItems: "center",
+          gap: 6,
+        }}
+      >
         {refill.isUrgent && (
-          <View style={{ backgroundColor: "#EF444420", borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
-            <Caption style={getTextStyle(theme as Parameters<typeof getTextStyle>[0], "caption", "semibold", "#EF4444")}>
+          <View
+            style={{
+              backgroundColor: "#EF444420",
+              borderRadius: 8,
+              paddingHorizontal: 6,
+              paddingVertical: 2,
+            }}
+          >
+            <Caption
+              style={getTextStyle(
+                theme as Parameters<typeof getTextStyle>[0],
+                "caption",
+                "semibold",
+                "#EF4444"
+              )}
+            >
               {isRTL ? "عاجل" : "Urgent"}
             </Caption>
           </View>
         )}
-        <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 3 }}>
-          <Clock size={12} color={color} />
-          <Caption style={getTextStyle(theme as Parameters<typeof getTextStyle>[0], "caption", "medium", color)}>
+        <View
+          style={{
+            flexDirection: isRTL ? "row-reverse" : "row",
+            alignItems: "center",
+            gap: 3,
+          }}
+        >
+          <Clock color={color} size={12} />
+          <Caption
+            style={getTextStyle(
+              theme as Parameters<typeof getTextStyle>[0],
+              "caption",
+              "medium",
+              color
+            )}
+          >
             {refill.daysRemaining}d
           </Caption>
         </View>
@@ -234,7 +323,8 @@ function IntelligenceContent({
 
   if (interactions.length === 0 && refills.length === 0) return null;
 
-  const totalWarnings = interactions.length + refills.filter((r) => r.isUrgent).length;
+  const totalWarnings =
+    interactions.length + refills.filter((r) => r.isUrgent).length;
 
   return (
     <View style={styles.card}>
@@ -247,10 +337,21 @@ function IntelligenceContent({
           marginBottom: 12,
         }}
       >
-        <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 6 }}>
-          <TrendingUp size={18} color={theme.colors.primary.main} />
+        <View
+          style={{
+            flexDirection: isRTL ? "row-reverse" : "row",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <TrendingUp color={theme.colors.primary.main} size={18} />
           <TypographyText
-            style={getTextStyle(theme as Parameters<typeof getTextStyle>[0], "subheading", "bold", theme.colors.text.primary)}
+            style={getTextStyle(
+              theme as Parameters<typeof getTextStyle>[0],
+              "subheading",
+              "bold",
+              theme.colors.text.primary
+            )}
           >
             {isRTL ? "تحليل الأدوية" : "Medication Intelligence"}
           </TypographyText>
@@ -265,7 +366,12 @@ function IntelligenceContent({
             }}
           >
             <Caption
-              style={getTextStyle(theme as Parameters<typeof getTextStyle>[0], "caption", "semibold", "#EF4444")}
+              style={getTextStyle(
+                theme as Parameters<typeof getTextStyle>[0],
+                "caption",
+                "semibold",
+                "#EF4444"
+              )}
             >
               {totalWarnings} {isRTL ? "تنبيه" : "alerts"}
             </Caption>
@@ -277,21 +383,21 @@ function IntelligenceContent({
       {interactions.length > 0 && (
         <>
           <TouchableOpacity
-            style={styles.sectionHeader}
             onPress={() => setShowInteractions(!showInteractions)}
+            style={styles.sectionHeader}
           >
             <TypographyText style={styles.sectionTitle}>
               {isRTL ? "⚠️ تفاعلات الأدوية" : "⚠️ Drug Interactions"}
             </TypographyText>
             {showInteractions ? (
-              <ChevronUp size={16} color={theme.colors.text.secondary} />
+              <ChevronUp color={theme.colors.text.secondary} size={16} />
             ) : (
-              <ChevronDown size={16} color={theme.colors.text.secondary} />
+              <ChevronDown color={theme.colors.text.secondary} size={16} />
             )}
           </TouchableOpacity>
           {showInteractions &&
             interactions.map((w, i) => (
-              <InteractionRow key={String(i)} warning={w} isRTL={isRTL} />
+              <InteractionRow isRTL={isRTL} key={String(i)} warning={w} />
             ))}
         </>
       )}
@@ -300,21 +406,21 @@ function IntelligenceContent({
       {refills.length > 0 && (
         <>
           <TouchableOpacity
-            style={styles.sectionHeader}
             onPress={() => setShowRefills(!showRefills)}
+            style={styles.sectionHeader}
           >
             <TypographyText style={styles.sectionTitle}>
               {isRTL ? "💊 تجديد الأدوية" : "💊 Refills Due"}
             </TypographyText>
             {showRefills ? (
-              <ChevronUp size={16} color={theme.colors.text.secondary} />
+              <ChevronUp color={theme.colors.text.secondary} size={16} />
             ) : (
-              <ChevronDown size={16} color={theme.colors.text.secondary} />
+              <ChevronDown color={theme.colors.text.secondary} size={16} />
             )}
           </TouchableOpacity>
           {showRefills &&
             refills.map((r) => (
-              <RefillRow key={r.medicationId} refill={r} isRTL={isRTL} />
+              <RefillRow isRTL={isRTL} key={r.medicationId} refill={r} />
             ))}
         </>
       )}
@@ -328,7 +434,7 @@ export default function MedicationIntelligenceCard({ userId }: Props) {
 
   return (
     <FeatureGate featureId="MEDICATION_INTELLIGENCE" showUpgradePrompt>
-      <IntelligenceContent userId={userId} isRTL={isRTL} />
+      <IntelligenceContent isRTL={isRTL} userId={userId} />
     </FeatureGate>
   );
 }

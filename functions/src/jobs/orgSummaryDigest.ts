@@ -128,9 +128,11 @@ function buildOrgSummaryHtml(params: {
             </td>
           </tr>
         </table>
-        ${stats.criticalAlerts === 0 && stats.highAlerts === 0
-    ? `<p style="margin:10px 0 0;font-size:12px;color:#15803D">✅ No critical or high alerts this week.</p>`
-    : ""}
+        ${
+          stats.criticalAlerts === 0 && stats.highAlerts === 0
+            ? `<p style="margin:10px 0 0;font-size:12px;color:#15803D">✅ No critical or high alerts this week.</p>`
+            : ""
+        }
       </div>
 
       <!-- Risk distribution -->
@@ -248,7 +250,7 @@ async function gatherWeekStats(
     .where("lastCycleAt", ">=", weekCutoff)
     .get();
 
-  let agentCyclesRun = agentStateSnap.size;
+  const agentCyclesRun = agentStateSnap.size;
   let agentActionsTriggered = 0;
   for (const doc of agentStateSnap.docs) {
     const history = (doc.data().actionHistory as unknown[]) ?? [];
@@ -380,12 +382,12 @@ export const weeklyOrgSummary = onSchedule(
           (orgData.settings?.branding?.primaryColor as string) ?? "#2563EB";
 
         // Fetch admin user profiles and queue emails
-        const adminUserIds = adminSnap.docs.map((d) => d.data().userId as string);
+        const adminUserIds = adminSnap.docs.map(
+          (d) => d.data().userId as string
+        );
 
         const adminResults = await Promise.allSettled(
-          adminUserIds.map((uid) =>
-            db().collection("users").doc(uid).get()
-          )
+          adminUserIds.map((uid) => db().collection("users").doc(uid).get())
         );
 
         const emails: string[] = [];
@@ -403,10 +405,9 @@ export const weeklyOrgSummary = onSchedule(
         }
 
         // Pick a representative admin name for the greeting
-        const firstAdminSnap =
-          adminResults.find(
-            (r) => r.status === "fulfilled" && r.value.exists
-          );
+        const firstAdminSnap = adminResults.find(
+          (r) => r.status === "fulfilled" && r.value.exists
+        );
         const firstAdminData =
           firstAdminSnap?.status === "fulfilled"
             ? firstAdminSnap.value.data()

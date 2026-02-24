@@ -244,7 +244,11 @@ export default function ProfileScreen() {
   const isAdmin = user?.role === "admin";
 
   // Org membership — available for org_admin, provider, care_coordinator roles
-  const { org: myOrg, member: myMember, loading: orgLoading } = useMyOrganization();
+  const {
+    org: myOrg,
+    member: myMember,
+    loading: orgLoading,
+  } = useMyOrganization();
   const isOrgMember =
     myOrg != null &&
     myMember != null &&
@@ -1267,21 +1271,20 @@ export default function ProfileScreen() {
             ],
           },
         ]
-      : !myOrg && !orgLoading
-        ? [
+      : myOrg || orgLoading
+        ? []
+        : [
             {
               title: "Organization",
               items: [
                 {
                   icon: Building2,
                   label: "Create an Organization",
-                  onPress: () =>
-                    router.push("/(settings)/create-org" as never),
+                  onPress: () => router.push("/(settings)/create-org" as never),
                 },
               ],
             },
-          ]
-        : []),
+          ]),
     // Health features for regular users
     ...(isRegularUser
       ? [

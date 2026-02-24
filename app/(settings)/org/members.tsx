@@ -146,10 +146,10 @@ function InviteModal({
 
   return (
     <Modal
-      visible={visible}
       animationType="slide"
-      presentationStyle="pageSheet"
       onRequestClose={handleClose}
+      presentationStyle="pageSheet"
+      visible={visible}
     >
       <View
         style={{
@@ -170,52 +170,71 @@ function InviteModal({
           Invite Team Member
         </TypographyText>
         <Caption
-          style={{ color: theme.colors.text.secondary, marginTop: 4, marginBottom: 24 }}
+          style={{
+            color: theme.colors.text.secondary,
+            marginTop: 4,
+            marginBottom: 24,
+          }}
         >
           They must already have a Maak account.
         </Caption>
 
-        <Caption style={{ color: theme.colors.text.secondary, marginBottom: 6 }}>
+        <Caption
+          style={{ color: theme.colors.text.secondary, marginBottom: 6 }}
+        >
           USER ID *
         </Caption>
         <TextInput
-          style={inputStyle}
-          placeholder="Firebase UID or email address"
-          placeholderTextColor={theme.colors.text.secondary}
-          value={userId}
-          onChangeText={setUserId}
           autoCapitalize="none"
           autoCorrect={false}
+          onChangeText={setUserId}
+          placeholder="Firebase UID or email address"
+          placeholderTextColor={theme.colors.text.secondary}
+          style={inputStyle}
+          value={userId}
         />
 
-        <Caption style={{ color: theme.colors.text.secondary, marginBottom: 6 }}>
+        <Caption
+          style={{ color: theme.colors.text.secondary, marginBottom: 6 }}
+        >
           DISPLAY NAME
         </Caption>
         <TextInput
-          style={inputStyle}
+          onChangeText={setDisplayName}
           placeholder="Dr. Jane Smith"
           placeholderTextColor={theme.colors.text.secondary}
+          style={inputStyle}
           value={displayName}
-          onChangeText={setDisplayName}
         />
 
-        <Caption style={{ color: theme.colors.text.secondary, marginBottom: 6 }}>
+        <Caption
+          style={{ color: theme.colors.text.secondary, marginBottom: 6 }}
+        >
           EMAIL (optional)
         </Caption>
         <TextInput
-          style={inputStyle}
-          placeholder="jane@clinic.com"
-          placeholderTextColor={theme.colors.text.secondary}
-          value={email}
-          onChangeText={setEmail}
           autoCapitalize="none"
           keyboardType="email-address"
+          onChangeText={setEmail}
+          placeholder="jane@clinic.com"
+          placeholderTextColor={theme.colors.text.secondary}
+          style={inputStyle}
+          value={email}
         />
 
-        <Caption style={{ color: theme.colors.text.secondary, marginBottom: 10 }}>
+        <Caption
+          style={{ color: theme.colors.text.secondary, marginBottom: 10 }}
+        >
           ROLE
         </Caption>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 32 }}>
+        <View
+          style={{
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: 8,
+            marginBottom: 32,
+          }}
+        >
           {ROLES.map((r) => {
             const active = role === r;
             const colors = ROLE_COLORS[r];
@@ -227,7 +246,9 @@ function InviteModal({
                   paddingHorizontal: 14,
                   paddingVertical: 8,
                   borderRadius: 20,
-                  backgroundColor: active ? colors.bg : theme.colors.background.secondary,
+                  backgroundColor: active
+                    ? colors.bg
+                    : theme.colors.background.secondary,
                   borderWidth: active ? 1.5 : 0,
                   borderColor: active ? colors.text : "transparent",
                 }}
@@ -246,8 +267,8 @@ function InviteModal({
         </View>
 
         <TouchableOpacity
-          onPress={handleInvite}
           disabled={saving}
+          onPress={handleInvite}
           style={{
             backgroundColor: "#6366F1",
             borderRadius: 12,
@@ -268,8 +289,13 @@ function InviteModal({
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={handleClose} style={{ alignItems: "center", padding: 12 }}>
-          <Caption style={{ color: theme.colors.text.secondary }}>Cancel</Caption>
+        <TouchableOpacity
+          onPress={handleClose}
+          style={{ alignItems: "center", padding: 12 }}
+        >
+          <Caption style={{ color: theme.colors.text.secondary }}>
+            Cancel
+          </Caption>
         </TouchableOpacity>
       </View>
     </Modal>
@@ -301,7 +327,11 @@ function MemberRow({
 
     if (Platform.OS === "ios") {
       ActionSheetIOS.showActionSheetWithOptions(
-        { options, destructiveButtonIndex: destructiveIndex, cancelButtonIndex: cancelIndex },
+        {
+          options,
+          destructiveButtonIndex: destructiveIndex,
+          cancelButtonIndex: cancelIndex,
+        },
         (idx) => {
           if (idx === 0) onChangeRole(member);
           if (idx === 1) onDeactivate(member);
@@ -400,10 +430,10 @@ function MemberRow({
       {/* Options */}
       {!isMe && (
         <TouchableOpacity
-          onPress={handleOptions}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={handleOptions}
         >
-          <MoreVertical size={18} color={theme.colors.text.secondary} />
+          <MoreVertical color={theme.colors.text.secondary} size={18} />
         </TouchableOpacity>
       )}
     </View>
@@ -434,62 +464,83 @@ export default function MembersScreen() {
 
   useEffect(() => {
     isMountedRef.current = true;
-    return () => { isMountedRef.current = false; };
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
-  const load = useCallback(async (isRefresh = false) => {
-    if (!orgId) return;
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
-    setError(null);
-    try {
-      const data = await organizationService.getMembers(orgId);
-      if (isMountedRef.current) setMembers(data);
-    } catch (err) {
-      if (isMountedRef.current)
-        setError(err instanceof Error ? err.message : "Failed to load members");
-    } finally {
-      if (isMountedRef.current) {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    }
-  }, [orgId]);
-
-  useEffect(() => { load(false); }, [load]);
-
-  const handleChangeRole = useCallback((member: OrgMember) => {
-    const options = [...ROLES.map((r) => ROLE_LABELS[r]), "Cancel"];
-    const cancelIndex = options.length - 1;
-
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { options, cancelButtonIndex: cancelIndex, title: `Change role for ${member.displayName}` },
-        async (idx) => {
-          if (idx === cancelIndex) return;
-          const newRole = ROLES[idx];
-          if (newRole === member.role) return;
-          try {
-            await organizationService.updateMemberRole(orgId, member.userId, newRole);
-            setMembers((prev) =>
-              prev.map((m) => (m.id === member.id ? { ...m, role: newRole } : m))
-            );
-          } catch {
-            Alert.alert("Error", "Failed to update role.");
-          }
+  const load = useCallback(
+    async (isRefresh = false) => {
+      if (!orgId) return;
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
+      setError(null);
+      try {
+        const data = await organizationService.getMembers(orgId);
+        if (isMountedRef.current) setMembers(data);
+      } catch (err) {
+        if (isMountedRef.current)
+          setError(
+            err instanceof Error ? err.message : "Failed to load members"
+          );
+      } finally {
+        if (isMountedRef.current) {
+          setLoading(false);
+          setRefreshing(false);
         }
-      );
-    } else {
-      Alert.alert(
-        `Role for ${member.displayName}`,
-        "Select new role:",
-        [
+      }
+    },
+    [orgId]
+  );
+
+  useEffect(() => {
+    load(false);
+  }, [load]);
+
+  const handleChangeRole = useCallback(
+    (member: OrgMember) => {
+      const options = [...ROLES.map((r) => ROLE_LABELS[r]), "Cancel"];
+      const cancelIndex = options.length - 1;
+
+      if (Platform.OS === "ios") {
+        ActionSheetIOS.showActionSheetWithOptions(
+          {
+            options,
+            cancelButtonIndex: cancelIndex,
+            title: `Change role for ${member.displayName}`,
+          },
+          async (idx) => {
+            if (idx === cancelIndex) return;
+            const newRole = ROLES[idx];
+            if (newRole === member.role) return;
+            try {
+              await organizationService.updateMemberRole(
+                orgId,
+                member.userId,
+                newRole
+              );
+              setMembers((prev) =>
+                prev.map((m) =>
+                  m.id === member.id ? { ...m, role: newRole } : m
+                )
+              );
+            } catch {
+              Alert.alert("Error", "Failed to update role.");
+            }
+          }
+        );
+      } else {
+        Alert.alert(`Role for ${member.displayName}`, "Select new role:", [
           ...ROLES.map((r) => ({
             text: ROLE_LABELS[r],
             onPress: async () => {
               if (r === member.role) return;
               try {
-                await organizationService.updateMemberRole(orgId, member.userId, r);
+                await organizationService.updateMemberRole(
+                  orgId,
+                  member.userId,
+                  r
+                );
                 setMembers((prev) =>
                   prev.map((m) => (m.id === member.id ? { ...m, role: r } : m))
                 );
@@ -499,32 +550,39 @@ export default function MembersScreen() {
             },
           })),
           { text: "Cancel", style: "cancel" },
+        ]);
+      }
+    },
+    [orgId]
+  );
+
+  const handleDeactivate = useCallback(
+    (member: OrgMember) => {
+      Alert.alert(
+        "Remove Member",
+        `Remove ${member.displayName} from this organization? They will lose access immediately.`,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Remove",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                await organizationService.deactivateMember(
+                  orgId,
+                  member.userId
+                );
+                setMembers((prev) => prev.filter((m) => m.id !== member.id));
+              } catch {
+                Alert.alert("Error", "Failed to remove member.");
+              }
+            },
+          },
         ]
       );
-    }
-  }, [orgId]);
-
-  const handleDeactivate = useCallback((member: OrgMember) => {
-    Alert.alert(
-      "Remove Member",
-      `Remove ${member.displayName} from this organization? They will lose access immediately.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Remove",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await organizationService.deactivateMember(orgId, member.userId);
-              setMembers((prev) => prev.filter((m) => m.id !== member.id));
-            } catch {
-              Alert.alert("Error", "Failed to remove member.");
-            }
-          },
-        },
-      ]
-    );
-  }, [orgId]);
+    },
+    [orgId]
+  );
 
   // ─── Render ─────────────────────────────────────────────────────────────────
 
@@ -542,25 +600,30 @@ export default function MembersScreen() {
         }}
       >
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => navigation.goBack()}
         >
-          <ChevronLeft size={24} color={theme.colors.text.primary} />
+          <ChevronLeft color={theme.colors.text.primary} size={24} />
         </TouchableOpacity>
         <TypographyText
-          style={getTextStyle(theme, "heading", "bold", theme.colors.text.primary)}
+          style={getTextStyle(
+            theme,
+            "heading",
+            "bold",
+            theme.colors.text.primary
+          )}
         >
           Team Members
         </TypographyText>
         <View style={{ flex: 1 }} />
         <TouchableOpacity
-          onPress={() => load(true)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => load(true)}
           style={{ marginRight: 8 }}
         >
           <RefreshCw
-            size={18}
             color={theme.colors.text.secondary}
+            size={18}
             style={refreshing ? { opacity: 0.4 } : undefined}
           />
         </TouchableOpacity>
@@ -576,17 +639,22 @@ export default function MembersScreen() {
             gap: 6,
           }}
         >
-          <UserPlus size={15} color="#FFFFFF" />
-          <Caption style={{ color: "#FFFFFF", fontWeight: "600" }}>Invite</Caption>
+          <UserPlus color="#FFFFFF" size={15} />
+          <Caption style={{ color: "#FFFFFF", fontWeight: "600" }}>
+            Invite
+          </Caption>
         </TouchableOpacity>
       </View>
 
       <ScrollView
         contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
-        showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />
+          <RefreshControl
+            onRefresh={() => load(true)}
+            refreshing={refreshing}
+          />
         }
+        showsVerticalScrollIndicator={false}
       >
         {/* Error */}
         {error ? (
@@ -598,12 +666,17 @@ export default function MembersScreen() {
               marginBottom: 16,
             }}
           >
-            <TypographyText style={{ color: "#DC2626" }}>{error}</TypographyText>
+            <TypographyText style={{ color: "#DC2626" }}>
+              {error}
+            </TypographyText>
           </View>
         ) : null}
 
         {loading ? (
-          <ActivityIndicator color={theme.colors.text.primary} style={{ marginTop: 48 }} />
+          <ActivityIndicator
+            color={theme.colors.text.primary}
+            style={{ marginTop: 48 }}
+          />
         ) : (
           <>
             <Caption
@@ -617,18 +690,18 @@ export default function MembersScreen() {
 
             {members.map((m) => (
               <MemberRow
+                isMe={m.userId === user?.id}
                 key={m.id}
                 member={m}
-                isMe={m.userId === user?.id}
-                theme={theme}
                 onChangeRole={handleChangeRole}
                 onDeactivate={handleDeactivate}
+                theme={theme}
               />
             ))}
 
             {members.length === 0 && !error ? (
               <View style={{ alignItems: "center", paddingVertical: 48 }}>
-                <Mail size={36} color={theme.colors.text.secondary} />
+                <Mail color={theme.colors.text.secondary} size={36} />
                 <TypographyText
                   style={{
                     color: theme.colors.text.secondary,
@@ -651,15 +724,19 @@ export default function MembersScreen() {
                 marginTop: 24,
               }}
             >
-              <Caption style={{ color: "#1D4ED8", fontWeight: "600", marginBottom: 6 }}>
+              <Caption
+                style={{ color: "#1D4ED8", fontWeight: "600", marginBottom: 6 }}
+              >
                 Role Permissions
               </Caption>
               {ROLES.map((r) => (
                 <Caption key={r} style={{ color: "#1D4ED8", marginBottom: 2 }}>
                   {ROLE_LABELS[r]} —{" "}
-                  {r === "org_admin" && "full access, manage members & settings"}
+                  {r === "org_admin" &&
+                    "full access, manage members & settings"}
                   {r === "provider" && "view & act on assigned patient cohort"}
-                  {r === "care_coordinator" && "manage tasks, pathways, and outreach"}
+                  {r === "care_coordinator" &&
+                    "manage tasks, pathways, and outreach"}
                   {r === "viewer" && "read-only dashboards and reports"}
                 </Caption>
               ))}
@@ -669,12 +746,12 @@ export default function MembersScreen() {
       </ScrollView>
 
       <InviteModal
-        visible={showInvite}
-        orgId={orgId}
         invitedBy={user?.id ?? ""}
-        theme={theme}
         onClose={() => setShowInvite(false)}
         onInvited={(m) => setMembers((prev) => [m, ...prev])}
+        orgId={orgId}
+        theme={theme}
+        visible={showInvite}
       />
     </WavyBackground>
   );

@@ -16,14 +16,14 @@ import {
   CreditCard,
   FlaskConical,
   Heart,
-  RotateCcw,
   Sparkles,
   TrendingUp,
   Users,
   XCircle,
   Zap,
 } from "lucide-react-native";
-import React, {
+import type React from "react";
+import {
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -33,9 +33,7 @@ import React, {
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
-  Alert,
   Modal,
-  RefreshControl,
   ScrollView,
   TouchableOpacity,
   View,
@@ -71,95 +69,147 @@ const FEATURE_ROWS: FeatureRow[] = [
     icon: Heart,
     labelEn: "Symptom & vital tracking",
     labelAr: "تتبع الأعراض والعلامات الحيوية",
-    free: true, individual: true, family: true,
+    free: true,
+    individual: true,
+    family: true,
   },
   {
     icon: Heart,
     labelEn: "Medication tracking",
     labelAr: "تتبع الأدوية",
-    free: true, individual: true, family: true,
+    free: true,
+    individual: true,
+    family: true,
   },
   {
     icon: Heart,
     labelEn: "Basic health reports",
     labelAr: "تقارير صحية أساسية",
-    free: true, individual: true, family: true,
+    free: true,
+    individual: true,
+    family: true,
   },
   {
     icon: TrendingUp,
     labelEn: "Advanced vitals & PPG",
     labelAr: "العلامات الحيوية المتقدمة",
-    free: false, individual: true, family: true,
+    free: false,
+    individual: true,
+    family: true,
   },
   {
     icon: Sparkles,
     labelEn: "Daily AI health briefing",
     labelAr: "ملخص صحي يومي بالذكاء الاصطناعي",
-    free: false, individual: true, family: true,
+    free: false,
+    individual: true,
+    family: true,
   },
   {
     icon: TrendingUp,
     labelEn: "Predictive health score (7-day)",
     labelAr: "توقع نقاط الصحة (٧ أيام)",
-    free: false, individual: true, family: true,
+    free: false,
+    individual: true,
+    family: true,
   },
   {
     icon: FlaskConical,
     labelEn: "Lab results intelligence",
     labelAr: "تحليل نتائج الفحوصات",
-    free: false, individual: true, family: true,
+    free: false,
+    individual: true,
+    family: true,
   },
   {
     icon: Brain,
     labelEn: "Medication intelligence",
     labelAr: "ذكاء الأدوية",
-    free: false, individual: true, family: true,
+    free: false,
+    individual: true,
+    family: true,
   },
   {
     icon: Sparkles,
     labelEn: "Health discoveries",
     labelAr: "الاكتشافات الصحية",
-    free: false, individual: true, family: true,
+    free: false,
+    individual: true,
+    family: true,
   },
   {
     icon: Brain,
     labelEn: "Zeina AI assistant",
     labelAr: "مساعدة زينا الذكية",
-    free: false, individual: true, family: true,
+    free: false,
+    individual: true,
+    family: true,
   },
   {
     icon: Heart,
     labelEn: "Data export (CSV/PDF)",
     labelAr: "تصدير البيانات",
-    free: false, individual: true, family: true,
+    free: false,
+    individual: true,
+    family: true,
   },
   {
     icon: Users,
     labelEn: "Family members",
     labelAr: "أفراد العائلة",
-    free: false, individual: false, family: true,
+    free: false,
+    individual: false,
+    family: true,
   },
   {
     icon: Users,
     labelEn: "Family health dashboard",
     labelAr: "لوحة صحة العائلة",
-    free: false, individual: false, family: true,
+    free: false,
+    individual: false,
+    family: true,
   },
   {
     icon: Users,
     labelEn: "Family alerts & sharing",
     labelAr: "تنبيهات ومشاركة عائلية",
-    free: false, individual: false, family: true,
+    free: false,
+    individual: false,
+    family: true,
   },
 ];
 
 const PLAN_META: Record<
   PlanCol,
-  { labelEn: string; labelAr: string; color: string; bg: string; border: string }
+  {
+    labelEn: string;
+    labelAr: string;
+    color: string;
+    bg: string;
+    border: string;
+  }
 > = {
-  free:       { labelEn: "Free",       labelAr: "مجاني", color: "#6B7280", bg: "#F9FAFB", border: "#E5E7EB" },
-  individual: { labelEn: "Individual", labelAr: "فردي",  color: "#6366F1", bg: "#EEF2FF", border: "#C7D2FE" },
-  family:     { labelEn: "Family",     labelAr: "عائلي", color: "#0D9488", bg: "#F0FDF9", border: "#99F6E4" },
+  free: {
+    labelEn: "Free",
+    labelAr: "مجاني",
+    color: "#6B7280",
+    bg: "#F9FAFB",
+    border: "#E5E7EB",
+  },
+  individual: {
+    labelEn: "Individual",
+    labelAr: "فردي",
+    color: "#6366F1",
+    bg: "#EEF2FF",
+    border: "#C7D2FE",
+  },
+  family: {
+    labelEn: "Family",
+    labelAr: "عائلي",
+    color: "#0D9488",
+    bg: "#F0FDF9",
+    border: "#99F6E4",
+  },
 };
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
@@ -167,15 +217,17 @@ const PLAN_META: Record<
 function FeatureCell({ value }: { value: boolean | string }) {
   if (typeof value === "string") {
     return (
-      <TypographyText style={{ fontSize: 11, color: "#374151", textAlign: "center" }}>
+      <TypographyText
+        style={{ fontSize: 11, color: "#374151", textAlign: "center" }}
+      >
         {value}
       </TypographyText>
     );
   }
   return value ? (
-    <CheckCircle2 size={15} color="#10B981" />
+    <CheckCircle2 color="#10B981" size={15} />
   ) : (
-    <XCircle size={15} color="#D1D5DB" />
+    <XCircle color="#D1D5DB" size={15} />
   );
 }
 
@@ -187,8 +239,13 @@ export default function PremiumScreen() {
   const navigation = useNavigation();
   const isRTL = i18n.language === "ar";
 
-  const { isPremium, isFamilyPlan, isIndividualPlan, subscriptionStatus, isLoading } =
-    useSubscription();
+  const {
+    isPremium,
+    isFamilyPlan,
+    isIndividualPlan,
+    subscriptionStatus,
+    isLoading,
+  } = useSubscription();
   const { refreshCustomerInfo } = useRevenueCat();
 
   const [showPaywall, setShowPaywall] = useState(false);
@@ -201,7 +258,9 @@ export default function PremiumScreen() {
 
   useEffect(() => {
     isMountedRef.current = true;
-    return () => { isMountedRef.current = false; };
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   const openPaywall = useCallback(() => {
@@ -223,7 +282,11 @@ export default function PremiumScreen() {
     }
   }, [closePaywall, refreshCustomerInfo]);
 
-  const currentPlan: PlanCol = isFamilyPlan ? "family" : isIndividualPlan ? "individual" : "free";
+  const currentPlan: PlanCol = isFamilyPlan
+    ? "family"
+    : isIndividualPlan
+      ? "individual"
+      : "free";
   const meta = PLAN_META[currentPlan];
 
   // ─── Render ─────────────────────────────────────────────────────────────────
@@ -242,14 +305,19 @@ export default function PremiumScreen() {
         }}
       >
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => navigation.goBack()}
         >
-          <ChevronLeft size={24} color={theme.colors.text.primary} />
+          <ChevronLeft color={theme.colors.text.primary} size={24} />
         </TouchableOpacity>
         <Heading
           level={5}
-          style={getTextStyle(theme, "heading", "bold", theme.colors.text.primary)}
+          style={getTextStyle(
+            theme,
+            "heading",
+            "bold",
+            theme.colors.text.primary
+          )}
         >
           {isRTL ? "اشتراكي" : "My Plan"}
         </Heading>
@@ -294,7 +362,7 @@ export default function PremiumScreen() {
                   justifyContent: "center",
                 }}
               >
-                <CreditCard size={20} color={meta.color} />
+                <CreditCard color={meta.color} size={20} />
               </View>
               <View style={{ flex: 1 }}>
                 <TypographyText
@@ -355,7 +423,12 @@ export default function PremiumScreen() {
                 <Caption style={{ color: theme.colors.text.secondary }}>
                   {isRTL ? "يتجدد:" : "Renews:"}
                 </Caption>
-                <Caption style={{ color: theme.colors.text.primary, fontWeight: "600" }}>
+                <Caption
+                  style={{
+                    color: theme.colors.text.primary,
+                    fontWeight: "600",
+                  }}
+                >
                   {subscriptionStatus.expirationDate.toLocaleDateString(
                     isRTL ? "ar-SA" : undefined,
                     { day: "numeric", month: "long", year: "numeric" }
@@ -364,8 +437,12 @@ export default function PremiumScreen() {
                 <Caption style={{ color: theme.colors.text.secondary }}>
                   ·{" "}
                   {subscriptionStatus.subscriptionPeriod === "yearly"
-                    ? isRTL ? "سنوي" : "Annual"
-                    : isRTL ? "شهري" : "Monthly"}
+                    ? isRTL
+                      ? "سنوي"
+                      : "Annual"
+                    : isRTL
+                      ? "شهري"
+                      : "Monthly"}
                 </Caption>
               </View>
             )}
@@ -386,7 +463,7 @@ export default function PremiumScreen() {
                 borderColor: isPremium ? meta.border : "transparent",
               }}
             >
-              <Zap size={16} color={isPremium ? meta.color : "#FFF"} />
+              <Zap color={isPremium ? meta.color : "#FFF"} size={16} />
               <TypographyText
                 style={{
                   color: isPremium ? meta.color : "#FFF",
@@ -395,8 +472,12 @@ export default function PremiumScreen() {
                 }}
               >
                 {isPremium
-                  ? isRTL ? "تغيير الخطة" : "Change Plan"
-                  : isRTL ? "ترقية الخطة" : "Upgrade Plan"}
+                  ? isRTL
+                    ? "تغيير الخطة"
+                    : "Change Plan"
+                  : isRTL
+                    ? "ترقية الخطة"
+                    : "Upgrade Plan"}
               </TypographyText>
             </TouchableOpacity>
           </View>
@@ -404,8 +485,17 @@ export default function PremiumScreen() {
           {/* ── Plan Comparison Table ──────────────────────────────────────── */}
           <TypographyText
             style={[
-              getTextStyle(theme, "caption", "semibold", theme.colors.text.secondary),
-              { textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 14 },
+              getTextStyle(
+                theme,
+                "caption",
+                "semibold",
+                theme.colors.text.secondary
+              ),
+              {
+                textTransform: "uppercase",
+                letterSpacing: 0.8,
+                marginBottom: 14,
+              },
             ]}
           >
             {isRTL ? "مقارنة الخطط" : "Plan Comparison"}
@@ -464,7 +554,9 @@ export default function PremiumScreen() {
                 paddingVertical: 10,
                 paddingHorizontal: 8,
                 backgroundColor:
-                  i % 2 === 0 ? theme.colors.background.secondary : "transparent",
+                  i % 2 === 0
+                    ? theme.colors.background.secondary
+                    : "transparent",
                 borderRadius: 8,
               }}
             >
@@ -476,7 +568,7 @@ export default function PremiumScreen() {
                   gap: 8,
                 }}
               >
-                <row.icon size={14} color={theme.colors.text.secondary} />
+                <row.icon color={theme.colors.text.secondary} size={14} />
                 <Caption
                   style={{
                     color: theme.colors.text.primary,
@@ -488,7 +580,14 @@ export default function PremiumScreen() {
                 </Caption>
               </View>
               {(["free", "individual", "family"] as PlanCol[]).map((col) => (
-                <View key={col} style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+                <View
+                  key={col}
+                  style={{
+                    flex: 1,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
                   <FeatureCell value={row[col]} />
                 </View>
               ))}
@@ -522,9 +621,9 @@ export default function PremiumScreen() {
       {/* ── RevenueCat Paywall Modal ───────────────────────────────────────── */}
       <Modal
         animationType="slide"
+        onRequestClose={closePaywall}
         presentationStyle="pageSheet"
         visible={showPaywall}
-        onRequestClose={closePaywall}
       >
         <RevenueCatPaywall
           onDismiss={closePaywall}

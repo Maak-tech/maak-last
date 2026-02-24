@@ -12,12 +12,8 @@
  */
 
 import { router, useNavigation } from "expo-router";
-import {
-  Building2,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react-native";
-import { useState, useLayoutEffect } from "react";
+import { Building2, ChevronLeft, ChevronRight } from "lucide-react-native";
+import { useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -116,7 +112,7 @@ export default function CreateOrgScreen() {
   const isValid = orgName.trim().length >= 2;
 
   const handleCreate = async () => {
-    if (!user?.id || !isValid) return;
+    if (!(user?.id && isValid)) return;
     setCreating(true);
     try {
       const org = await organizationService.createOrganization({
@@ -175,10 +171,10 @@ export default function CreateOrgScreen() {
         }}
       >
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => navigation.goBack()}
         >
-          <ChevronLeft size={24} color={theme.colors.text.primary} />
+          <ChevronLeft color={theme.colors.text.primary} size={24} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <TypographyText
@@ -199,8 +195,8 @@ export default function CreateOrgScreen() {
 
       <ScrollView
         contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
-        showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
         {/* Identity card preview */}
         <View
@@ -226,7 +222,7 @@ export default function CreateOrgScreen() {
               justifyContent: "center",
             }}
           >
-            <Building2 size={24} color="#2563EB" />
+            <Building2 color="#2563EB" size={24} />
           </View>
           <View style={{ flex: 1 }}>
             <TypographyText
@@ -257,7 +253,9 @@ export default function CreateOrgScreen() {
           }}
         >
           <TextInput
-            value={orgName}
+            autoCapitalize="words"
+            autoCorrect={false}
+            maxLength={80}
             onChangeText={setOrgName}
             placeholder="e.g. Sunrise Health Clinic"
             placeholderTextColor={theme.colors.text.secondary}
@@ -266,9 +264,7 @@ export default function CreateOrgScreen() {
               fontSize: 16,
               fontWeight: "500",
             }}
-            autoCapitalize="words"
-            autoCorrect={false}
-            maxLength={80}
+            value={orgName}
           />
         </View>
 
@@ -334,9 +330,7 @@ export default function CreateOrgScreen() {
                     {type.description}
                   </Caption>
                 </View>
-                {isSelected && (
-                  <ChevronRight size={16} color="#2563EB" />
-                )}
+                {isSelected && <ChevronRight color="#2563EB" size={16} />}
               </TouchableOpacity>
             );
           })}
@@ -364,9 +358,7 @@ export default function CreateOrgScreen() {
                   padding: 14,
                   borderTopWidth: i > 0 ? 1 : 0,
                   borderTopColor: theme.colors.background.primary,
-                  backgroundColor: isSelected
-                    ? "#EFF6FF"
-                    : "transparent",
+                  backgroundColor: isSelected ? "#EFF6FF" : "transparent",
                 }}
               >
                 <View
@@ -419,15 +411,15 @@ export default function CreateOrgScreen() {
         >
           <Caption style={{ color: "#166534" }}>
             Your organization will start on the free Starter plan (up to 50
-            patients, 5 team members). Upgrade to Growth or Enterprise from
-            the Plan & Billing screen at any time.
+            patients, 5 team members). Upgrade to Growth or Enterprise from the
+            Plan & Billing screen at any time.
           </Caption>
         </View>
 
         {/* Create button */}
         <TouchableOpacity
-          onPress={handleCreate}
           disabled={!isValid || creating}
+          onPress={handleCreate}
           style={{
             backgroundColor: "#2563EB",
             borderRadius: 14,

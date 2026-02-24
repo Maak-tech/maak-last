@@ -232,8 +232,18 @@ export const RealtimeHealthProvider: React.FC<{
           });
         }
       },
-      () => {
-        // Silently handle listener errors
+      (error) => {
+        // Handle quota errors gracefully
+        if (error && typeof error === "object" && "code" in error) {
+          if (error.code === "resource-exhausted") {
+            // Quota exceeded - log but don't crash
+            console.warn("Firestore quota exceeded for anomalies listener");
+            // The listener will automatically retry with backoff
+          } else {
+            // Other errors - log for debugging
+            console.error("Anomalies listener error:", error);
+          }
+        }
       }
     );
 

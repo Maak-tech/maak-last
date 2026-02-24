@@ -38,9 +38,7 @@ function toDateSafe(v: unknown): Date {
 
 /** Capitalise first letter, replace underscores with spaces. */
 function humaniseVitalType(raw: string): string {
-  return raw
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 // ─── HTML Template ────────────────────────────────────────────────────────────
@@ -279,9 +277,7 @@ export const criticalAlertEmail = onDocumentCreated(
         if (patientSnap.exists) {
           const pd = patientSnap.data()!;
           patientName =
-            (pd.displayName as string) ??
-            (pd.name as string) ??
-            patientUserId;
+            (pd.displayName as string) ?? (pd.name as string) ?? patientUserId;
         }
       } catch {
         // Non-fatal; use "Patient" fallback
@@ -308,20 +304,22 @@ export const criticalAlertEmail = onDocumentCreated(
       timestamp,
     });
 
-    await db().collection("email_queue").add({
-      to: emails,
-      subject,
-      bodyHtml: html,
-      channel: "critical_alert",
-      orgId,
-      patientUserId: patientUserId ?? null,
-      alertId,
-      status: "pending",
-      attempts: 0,
-      sentAt: null,
-      error: null,
-      createdAt: FieldValue.serverTimestamp(),
-    });
+    await db()
+      .collection("email_queue")
+      .add({
+        to: emails,
+        subject,
+        bodyHtml: html,
+        channel: "critical_alert",
+        orgId,
+        patientUserId: patientUserId ?? null,
+        alertId,
+        status: "pending",
+        attempts: 0,
+        sentAt: null,
+        error: null,
+        createdAt: FieldValue.serverTimestamp(),
+      });
 
     logger.info("criticalAlertEmail: queued", {
       traceId,

@@ -442,7 +442,10 @@ class AnomalyDetectionService {
   ): Promise<TODBaseline | null> {
     const cacheKey = `${userId}_${vitalType}_${timeOfDay}`;
     const cached = this.todBaselineCache.get(cacheKey);
-    if (cached && Date.now() - cached.cachedAt.getTime() < this.TOD_CACHE_TTL_MS) {
+    if (
+      cached &&
+      Date.now() - cached.cachedAt.getTime() < this.TOD_CACHE_TTL_MS
+    ) {
       return cached;
     }
 

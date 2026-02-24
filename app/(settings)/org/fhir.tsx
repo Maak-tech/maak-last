@@ -20,8 +20,8 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import {
   BookOpen,
   Check,
-  ChevronLeft,
   ChevronDown,
+  ChevronLeft,
   ChevronUp,
   Code2,
   Copy,
@@ -32,7 +32,7 @@ import {
 } from "lucide-react-native";
 import { useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
+import { ScrollView, TouchableOpacity, View } from "react-native";
 import {
   Caption,
   Text as TypographyText,
@@ -176,21 +176,21 @@ function CopyableField({
         }}
       >
         <TypographyText
+          numberOfLines={2}
+          selectable
           style={{
             flex: 1,
             color: theme.colors.text.primary,
             fontSize: 12,
             fontFamily: mono ? "monospace" : undefined,
           }}
-          numberOfLines={2}
-          selectable
         >
           {value}
         </TypographyText>
         {copied ? (
-          <Check size={14} color="#10B981" />
+          <Check color="#10B981" size={14} />
         ) : (
-          <Copy size={14} color={theme.colors.text.secondary} />
+          <Copy color={theme.colors.text.secondary} size={14} />
         )}
       </TouchableOpacity>
     </View>
@@ -218,7 +218,12 @@ function SectionHeader({
     >
       {icon}
       <TypographyText
-        style={getTextStyle(theme, "subheading", "bold", theme.colors.text.primary)}
+        style={getTextStyle(
+          theme,
+          "subheading",
+          "bold",
+          theme.colors.text.primary
+        )}
       >
         {label}
       </TypographyText>
@@ -257,14 +262,18 @@ function CollapsibleSection({
         }}
       >
         <TypographyText
-          style={{ color: theme.colors.text.primary, fontSize: 14, fontWeight: "600" }}
+          style={{
+            color: theme.colors.text.primary,
+            fontSize: 14,
+            fontWeight: "600",
+          }}
         >
           {title}
         </TypographyText>
         {open ? (
-          <ChevronUp size={16} color={theme.colors.text.secondary} />
+          <ChevronUp color={theme.colors.text.secondary} size={16} />
         ) : (
-          <ChevronDown size={16} color={theme.colors.text.secondary} />
+          <ChevronDown color={theme.colors.text.secondary} size={16} />
         )}
       </TouchableOpacity>
       {open && (
@@ -309,14 +318,19 @@ export default function FhirIntegrationScreen() {
         }}
       >
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => navigation.goBack()}
         >
-          <ChevronLeft size={24} color={theme.colors.text.primary} />
+          <ChevronLeft color={theme.colors.text.primary} size={24} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <TypographyText
-            style={getTextStyle(theme, "heading", "bold", theme.colors.text.primary)}
+            style={getTextStyle(
+              theme,
+              "heading",
+              "bold",
+              theme.colors.text.primary
+            )}
           >
             FHIR R4 Integration
           </TypographyText>
@@ -342,7 +356,7 @@ export default function FhirIntegrationScreen() {
             marginBottom: 8,
           }}
         >
-          <Zap size={18} color="#059669" />
+          <Zap color="#059669" size={18} />
           <Caption style={{ color: "#065F46", flex: 1 }}>
             FHIR R4 + SMART on FHIR OAuth 2.0 is live. Supports
             authorization_code (PKCE S256), client_credentials, and
@@ -353,26 +367,26 @@ export default function FhirIntegrationScreen() {
 
         {/* Base URL */}
         <SectionHeader
+          icon={<Link color={theme.colors.text.primary} size={18} />}
           label="Endpoint URLs"
-          icon={<Link size={18} color={theme.colors.text.primary} />}
           theme={theme}
         />
 
         <CopyableField
           label="FHIR R4 Base URL"
-          value={FHIR_BASE}
           theme={theme}
+          value={FHIR_BASE}
         />
         <CopyableField
           label="SMART on FHIR Discovery"
-          value={`${FHIR_BASE}/.well-known/smart-configuration`}
           theme={theme}
+          value={`${FHIR_BASE}/.well-known/smart-configuration`}
         />
 
         {/* Authentication */}
         <SectionHeader
+          icon={<Shield color={theme.colors.text.primary} size={18} />}
           label="Authentication"
-          icon={<Shield size={18} color={theme.colors.text.primary} />}
           theme={theme}
         />
         <View
@@ -383,9 +397,11 @@ export default function FhirIntegrationScreen() {
             marginBottom: 8,
           }}
         >
-          <Caption style={{ color: theme.colors.text.secondary, marginBottom: 8 }}>
-            All FHIR endpoints (except SMART discovery) require an API key
-            in the request header:
+          <Caption
+            style={{ color: theme.colors.text.secondary, marginBottom: 8 }}
+          >
+            All FHIR endpoints (except SMART discovery) require an API key in
+            the request header:
           </Caption>
           <View
             style={{
@@ -399,15 +415,15 @@ export default function FhirIntegrationScreen() {
             </Caption>
           </View>
           <Caption style={{ color: theme.colors.text.secondary, marginTop: 8 }}>
-            Generate an API key in the API Keys screen. Keys can be scoped
-            to read-only, write, or admin permissions.
+            Generate an API key in the API Keys screen. Keys can be scoped to
+            read-only, write, or admin permissions.
           </Caption>
         </View>
 
         {/* SMART OAuth 2.0 */}
         <SectionHeader
+          icon={<Lock color={theme.colors.text.primary} size={18} />}
           label="SMART on FHIR OAuth 2.0"
-          icon={<Lock size={18} color={theme.colors.text.primary} />}
           theme={theme}
         />
         <View
@@ -418,25 +434,48 @@ export default function FhirIntegrationScreen() {
             marginBottom: 10,
           }}
         >
-          <Caption style={{ color: theme.colors.text.secondary, marginBottom: 12 }}>
+          <Caption
+            style={{ color: theme.colors.text.secondary, marginBottom: 12 }}
+          >
             Full OAuth 2.0 authorization server. Supports PKCE S256
             (authorization_code), client_credentials, and refresh_token grant
             types. All access tokens are RS256-signed JWTs with a 1-hour TTL.
           </Caption>
           {SMART_OAUTH_ENDPOINTS.map((ep) => (
-            <CopyableField key={ep.label} label={ep.label} value={ep.value} theme={theme} />
+            <CopyableField
+              key={ep.label}
+              label={ep.label}
+              theme={theme}
+              value={ep.value}
+            />
           ))}
         </View>
 
-        <CollapsibleSection title="Register an EHR app (POST /auth/register)" theme={theme}>
-          <Caption style={{ color: theme.colors.text.secondary, marginBottom: 10 }}>
+        <CollapsibleSection
+          theme={theme}
+          title="Register an EHR app (POST /auth/register)"
+        >
+          <Caption
+            style={{ color: theme.colors.text.secondary, marginBottom: 10 }}
+          >
             Before your EHR can launch SMART flows, register its client ID with
             Maak. Use your organization API key to authenticate this call:
           </Caption>
           <View
-            style={{ backgroundColor: "#111827", borderRadius: 8, padding: 12, marginBottom: 10 }}
+            style={{
+              backgroundColor: "#111827",
+              borderRadius: 8,
+              padding: 12,
+              marginBottom: 10,
+            }}
           >
-            <Caption style={{ color: "#86EFAC", fontFamily: "monospace", lineHeight: 18 }}>
+            <Caption
+              style={{
+                color: "#86EFAC",
+                fontFamily: "monospace",
+                lineHeight: 18,
+              }}
+            >
               {`curl -X POST ${AUTH_BASE}/auth/register \\
   -H "X-API-Key: <your-api-key>" \\
   -H "Content-Type: application/json" \\
@@ -449,20 +488,57 @@ export default function FhirIntegrationScreen() {
   }'`}
             </Caption>
           </View>
-          <Caption style={{ color: theme.colors.text.secondary, marginBottom: 6 }}>
-            The response returns a <Caption style={{ fontFamily: "monospace", color: theme.colors.text.primary }}>clientId</Caption> and a one-time <Caption style={{ fontFamily: "monospace", color: theme.colors.text.primary }}>clientSecret</Caption>. Store
-            the secret immediately — it is not retrievable after this call.
+          <Caption
+            style={{ color: theme.colors.text.secondary, marginBottom: 6 }}
+          >
+            The response returns a{" "}
+            <Caption
+              style={{
+                fontFamily: "monospace",
+                color: theme.colors.text.primary,
+              }}
+            >
+              clientId
+            </Caption>{" "}
+            and a one-time{" "}
+            <Caption
+              style={{
+                fontFamily: "monospace",
+                color: theme.colors.text.primary,
+              }}
+            >
+              clientSecret
+            </Caption>
+            . Store the secret immediately — it is not retrievable after this
+            call.
           </Caption>
           <Caption style={{ color: theme.colors.text.secondary }}>
-            For <Caption style={{ fontFamily: "monospace", color: theme.colors.text.primary }}>client_credentials</Caption> (backend M2M) flows, omit
-            redirectUris and set <Caption style={{ fontFamily: "monospace", color: theme.colors.text.primary }}>grantTypes: ["client_credentials"]</Caption>.
+            For{" "}
+            <Caption
+              style={{
+                fontFamily: "monospace",
+                color: theme.colors.text.primary,
+              }}
+            >
+              client_credentials
+            </Caption>{" "}
+            (backend M2M) flows, omit redirectUris and set{" "}
+            <Caption
+              style={{
+                fontFamily: "monospace",
+                color: theme.colors.text.primary,
+              }}
+            >
+              grantTypes: ["client_credentials"]
+            </Caption>
+            .
           </Caption>
         </CollapsibleSection>
 
         {/* FHIR Endpoints */}
         <SectionHeader
+          icon={<Code2 color={theme.colors.text.primary} size={18} />}
           label="FHIR R4 Resources"
-          icon={<Code2 size={18} color={theme.colors.text.primary} />}
           theme={theme}
         />
 
@@ -476,7 +552,14 @@ export default function FhirIntegrationScreen() {
               marginBottom: 8,
             }}
           >
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 4,
+              }}
+            >
               <View
                 style={{
                   backgroundColor: methodColor(ep.method) + "20",
@@ -486,7 +569,11 @@ export default function FhirIntegrationScreen() {
                 }}
               >
                 <Caption
-                  style={{ color: methodColor(ep.method), fontWeight: "700", fontFamily: "monospace" }}
+                  style={{
+                    color: methodColor(ep.method),
+                    fontWeight: "700",
+                    fontFamily: "monospace",
+                  }}
                 >
                   {ep.method}
                 </Caption>
@@ -500,7 +587,9 @@ export default function FhirIntegrationScreen() {
                     paddingVertical: 2,
                   }}
                 >
-                  <Caption style={{ color: "#059669", fontWeight: "600" }}>public</Caption>
+                  <Caption style={{ color: "#059669", fontWeight: "600" }}>
+                    public
+                  </Caption>
                 </View>
               )}
             </View>
@@ -522,11 +611,11 @@ export default function FhirIntegrationScreen() {
 
         {/* LOINC codes */}
         <SectionHeader
+          icon={<BookOpen color={theme.colors.text.primary} size={18} />}
           label="LOINC Code Reference"
-          icon={<BookOpen size={18} color={theme.colors.text.primary} />}
           theme={theme}
         />
-        <CollapsibleSection title="Vital Signs LOINC Codes" theme={theme}>
+        <CollapsibleSection theme={theme} title="Vital Signs LOINC Codes">
           {LOINC_CODES.map((loinc) => (
             <View
               key={loinc.code}
@@ -546,7 +635,13 @@ export default function FhirIntegrationScreen() {
               <Caption style={{ flex: 1, color: theme.colors.text.primary }}>
                 {loinc.display}
               </Caption>
-              <Caption style={{ color: theme.colors.text.secondary, width: 56, textAlign: "right" }}>
+              <Caption
+                style={{
+                  color: theme.colors.text.secondary,
+                  width: 56,
+                  textAlign: "right",
+                }}
+              >
                 {loinc.unit}
               </Caption>
             </View>
@@ -555,11 +650,14 @@ export default function FhirIntegrationScreen() {
 
         {/* Epic guide */}
         <SectionHeader
+          icon={<BookOpen color={theme.colors.text.primary} size={18} />}
           label="Epic App Orchard Setup"
-          icon={<BookOpen size={18} color={theme.colors.text.primary} />}
           theme={theme}
         />
-        <CollapsibleSection title="Step-by-step Epic connection guide" theme={theme}>
+        <CollapsibleSection
+          theme={theme}
+          title="Step-by-step Epic connection guide"
+        >
           {EPIC_STEPS.map((step, i) => (
             <View
               key={i}
@@ -582,9 +680,17 @@ export default function FhirIntegrationScreen() {
                   marginTop: 1,
                 }}
               >
-                <Caption style={{ color: "#FFF", fontWeight: "700" }}>{i + 1}</Caption>
+                <Caption style={{ color: "#FFF", fontWeight: "700" }}>
+                  {i + 1}
+                </Caption>
               </View>
-              <Caption style={{ color: theme.colors.text.primary, flex: 1, lineHeight: 18 }}>
+              <Caption
+                style={{
+                  color: theme.colors.text.primary,
+                  flex: 1,
+                  lineHeight: 18,
+                }}
+              >
                 {step}
               </Caption>
             </View>
@@ -592,17 +698,22 @@ export default function FhirIntegrationScreen() {
         </CollapsibleSection>
 
         {/* Cerner note */}
-        <CollapsibleSection title="Cerner Code / Oracle Health connection" theme={theme}>
-          <Caption style={{ color: theme.colors.text.secondary, marginBottom: 8 }}>
+        <CollapsibleSection
+          theme={theme}
+          title="Cerner Code / Oracle Health connection"
+        >
+          <Caption
+            style={{ color: theme.colors.text.secondary, marginBottom: 8 }}
+          >
             Cerner uses the same SMART on FHIR 2.0 standard. Follow the same
-            steps above but use the Cerner Code App Gallery instead of Epic
-            App Orchard.
+            steps above but use the Cerner Code App Gallery instead of Epic App
+            Orchard.
           </Caption>
           <CopyableField
             label="Cerner SMART Launch URL"
-            value={`${FHIR_BASE}/.well-known/smart-configuration`}
-            theme={theme}
             mono
+            theme={theme}
+            value={`${FHIR_BASE}/.well-known/smart-configuration`}
           />
           <Caption style={{ color: theme.colors.text.secondary }}>
             Cerner requires a Vendor Access Agreement (VAA) before production

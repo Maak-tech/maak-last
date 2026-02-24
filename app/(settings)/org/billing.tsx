@@ -16,8 +16,8 @@ import {
   CreditCard,
   RefreshCw,
   RotateCcw,
-  Zap,
   XCircle,
+  Zap,
 } from "lucide-react-native";
 import {
   useCallback,
@@ -60,26 +60,89 @@ type PlanFeature = {
 };
 
 const PLAN_FEATURES: PlanFeature[] = [
-  { label: "Enrolled patients", starter: "Up to 50", growth: "Up to 500", enterprise: "Unlimited" },
-  { label: "Team seats", starter: "Up to 5", growth: "Up to 25", enterprise: "Unlimited" },
-  { label: "Population dashboard", starter: true, growth: true, enterprise: true },
+  {
+    label: "Enrolled patients",
+    starter: "Up to 50",
+    growth: "Up to 500",
+    enterprise: "Unlimited",
+  },
+  {
+    label: "Team seats",
+    starter: "Up to 5",
+    growth: "Up to 25",
+    enterprise: "Unlimited",
+  },
+  {
+    label: "Population dashboard",
+    starter: true,
+    growth: true,
+    enterprise: true,
+  },
   { label: "Care pathways", starter: false, growth: true, enterprise: true },
   { label: "Task management", starter: false, growth: true, enterprise: true },
-  { label: "AI agent cycle (15 min)", starter: false, growth: true, enterprise: true },
-  { label: "Outbound webhooks", starter: false, growth: true, enterprise: true },
+  {
+    label: "AI agent cycle (15 min)",
+    starter: false,
+    growth: true,
+    enterprise: true,
+  },
+  {
+    label: "Outbound webhooks",
+    starter: false,
+    growth: true,
+    enterprise: true,
+  },
   { label: "REST API access", starter: false, growth: true, enterprise: true },
-  { label: "FHIR R4 endpoints", starter: false, growth: false, enterprise: true },
-  { label: "SMART on FHIR (Epic/Cerner)", starter: false, growth: false, enterprise: true },
-  { label: "Weekly email digests", starter: false, growth: true, enterprise: true },
-  { label: "HIPAA audit trail", starter: false, growth: true, enterprise: true },
-  { label: "Data residency (EU/UAE)", starter: false, growth: false, enterprise: true },
-  { label: "SLA (99.9% uptime)", starter: false, growth: false, enterprise: true },
-  { label: "Dedicated support", starter: false, growth: false, enterprise: true },
+  {
+    label: "FHIR R4 endpoints",
+    starter: false,
+    growth: false,
+    enterprise: true,
+  },
+  {
+    label: "SMART on FHIR (Epic/Cerner)",
+    starter: false,
+    growth: false,
+    enterprise: true,
+  },
+  {
+    label: "Weekly email digests",
+    starter: false,
+    growth: true,
+    enterprise: true,
+  },
+  {
+    label: "HIPAA audit trail",
+    starter: false,
+    growth: true,
+    enterprise: true,
+  },
+  {
+    label: "Data residency (EU/UAE)",
+    starter: false,
+    growth: false,
+    enterprise: true,
+  },
+  {
+    label: "SLA (99.9% uptime)",
+    starter: false,
+    growth: false,
+    enterprise: true,
+  },
+  {
+    label: "Dedicated support",
+    starter: false,
+    growth: false,
+    enterprise: true,
+  },
 ];
 
-const PLAN_COLORS: Record<OrgPlan, { bg: string; text: string; border: string }> = {
-  starter:    { bg: "#F1F5F9", text: "#475569", border: "#CBD5E1" },
-  growth:     { bg: "#EFF6FF", text: "#2563EB", border: "#BFDBFE" },
+const PLAN_COLORS: Record<
+  OrgPlan,
+  { bg: string; text: string; border: string }
+> = {
+  starter: { bg: "#F1F5F9", text: "#475569", border: "#CBD5E1" },
+  growth: { bg: "#EFF6FF", text: "#2563EB", border: "#BFDBFE" },
   enterprise: { bg: "#F5F3FF", text: "#7C3AED", border: "#DDD6FE" },
 };
 
@@ -104,11 +167,21 @@ function UsageBar({
 
   return (
     <View style={{ marginBottom: 14 }}>
-      <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
-        <Caption style={{ color: theme.colors.text.primary, fontWeight: "600" }}>
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          marginBottom: 6,
+        }}
+      >
+        <Caption
+          style={{ color: theme.colors.text.primary, fontWeight: "600" }}
+        >
           {label}
         </Caption>
-        <Caption style={{ color: isWarning ? "#F97316" : theme.colors.text.secondary }}>
+        <Caption
+          style={{ color: isWarning ? "#F97316" : theme.colors.text.secondary }}
+        >
           {used} {limit ? `/ ${limit}` : "enrolled"}
         </Caption>
       </View>
@@ -157,9 +230,9 @@ function FeatureCell({
     );
   }
   return value ? (
-    <CheckCircle2 size={14} color={isHighlighted ? "#2563EB" : "#10B981"} />
+    <CheckCircle2 color={isHighlighted ? "#2563EB" : "#10B981"} size={14} />
   ) : (
-    <XCircle size={14} color="#D1D5DB" />
+    <XCircle color="#D1D5DB" size={14} />
   );
 }
 
@@ -296,24 +369,29 @@ export default function BillingScreen() {
         }}
       >
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => navigation.goBack()}
         >
-          <ChevronLeft size={24} color={theme.colors.text.primary} />
+          <ChevronLeft color={theme.colors.text.primary} size={24} />
         </TouchableOpacity>
         <TypographyText
-          style={getTextStyle(theme, "heading", "bold", theme.colors.text.primary)}
+          style={getTextStyle(
+            theme,
+            "heading",
+            "bold",
+            theme.colors.text.primary
+          )}
         >
           Plan & Billing
         </TypographyText>
         <View style={{ flex: 1 }} />
         <TouchableOpacity
-          onPress={() => load(true)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => load(true)}
         >
           <RefreshCw
-            size={18}
             color={theme.colors.text.secondary}
+            size={18}
             style={refreshing ? { opacity: 0.4 } : undefined}
           />
         </TouchableOpacity>
@@ -327,13 +405,13 @@ export default function BillingScreen() {
       ) : (
         <ScrollView
           contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
-          showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
-              refreshing={refreshing}
               onRefresh={() => load(true)}
+              refreshing={refreshing}
             />
           }
+          showsVerticalScrollIndicator={false}
         >
           {/* ── Current Plan Card ─────────────────────────────────────────── */}
           <View
@@ -357,7 +435,7 @@ export default function BillingScreen() {
               <View
                 style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
               >
-                <CreditCard size={22} color={planColor.text} />
+                <CreditCard color={planColor.text} size={22} />
                 <TypographyText
                   style={{
                     color: planColor.text,
@@ -372,22 +450,22 @@ export default function BillingScreen() {
             </View>
 
             <UsageBar
-              label="Team Seats"
-              used={seatCount}
-              limit={seatLimit}
               color={planColor.text}
+              label="Team Seats"
+              limit={seatLimit}
               theme={theme}
+              used={seatCount}
             />
             <UsageBar
-              label="Enrolled Patients"
-              used={patientCount}
-              limit={patientLimit}
               color={planColor.text}
+              label="Enrolled Patients"
+              limit={patientLimit}
               theme={theme}
+              used={patientCount}
             />
 
-            {((seatLimit && seatCount >= seatLimit * 0.8) ||
-              (patientLimit && patientCount >= patientLimit * 0.8)) ? (
+            {(seatLimit && seatCount >= seatLimit * 0.8) ||
+            (patientLimit && patientCount >= patientLimit * 0.8) ? (
               <View
                 style={{
                   flexDirection: "row",
@@ -399,9 +477,10 @@ export default function BillingScreen() {
                   marginTop: 4,
                 }}
               >
-                <AlertCircle size={14} color="#D97706" />
+                <AlertCircle color="#D97706" size={14} />
                 <Caption style={{ color: "#92400E", flex: 1 }}>
-                  Approaching plan limits. Upgrade to avoid service interruption.
+                  Approaching plan limits. Upgrade to avoid service
+                  interruption.
                 </Caption>
               </View>
             ) : null}
@@ -527,9 +606,9 @@ export default function BillingScreen() {
 
                 return (
                   <TouchableOpacity
+                    disabled={isCurrentProduct || purchasing !== null}
                     key={pkg.product.identifier}
                     onPress={() => handlePurchase(pkg)}
-                    disabled={isCurrentProduct || purchasing !== null}
                     style={{
                       backgroundColor: isCurrentProduct
                         ? "#EFF6FF"
@@ -558,8 +637,8 @@ export default function BillingScreen() {
                       }}
                     >
                       <Zap
-                        size={20}
                         color={isCurrentProduct ? "#2563EB" : "#6366F1"}
+                        size={20}
                       />
                     </View>
                     <View style={{ flex: 1 }}>
@@ -632,7 +711,7 @@ export default function BillingScreen() {
                 marginBottom: 16,
               }}
             >
-              <Zap size={16} color="#FFF" />
+              <Zap color="#FFF" size={16} />
               <TypographyText
                 style={{ color: "#FFF", fontWeight: "600", fontSize: 15 }}
               >
@@ -643,8 +722,8 @@ export default function BillingScreen() {
 
           {/* Restore Purchases */}
           <TouchableOpacity
-            onPress={handleRestore}
             disabled={restoring}
+            onPress={handleRestore}
             style={{
               flexDirection: "row",
               alignItems: "center",
@@ -656,9 +735,12 @@ export default function BillingScreen() {
             }}
           >
             {restoring ? (
-              <ActivityIndicator size="small" color={theme.colors.text.secondary} />
+              <ActivityIndicator
+                color={theme.colors.text.secondary}
+                size="small"
+              />
             ) : (
-              <RotateCcw size={14} color={theme.colors.text.secondary} />
+              <RotateCcw color={theme.colors.text.secondary} size={14} />
             )}
             <Caption style={{ color: theme.colors.text.secondary }}>
               Restore Purchases
@@ -720,9 +802,7 @@ export default function BillingScreen() {
                   {p}
                 </Caption>
                 {plan === p && (
-                  <Caption
-                    style={{ color: PLAN_COLORS[p].text, fontSize: 9 }}
-                  >
+                  <Caption style={{ color: PLAN_COLORS[p].text, fontSize: 9 }}>
                     current
                   </Caption>
                 )}
@@ -746,17 +826,12 @@ export default function BillingScreen() {
                 borderRadius: 6,
               }}
             >
-              <Caption
-                style={{ flex: 2, color: theme.colors.text.primary }}
-              >
+              <Caption style={{ flex: 2, color: theme.colors.text.primary }}>
                 {feature.label}
               </Caption>
               {(["starter", "growth", "enterprise"] as OrgPlan[]).map((p) => (
                 <View key={p} style={{ flex: 1, alignItems: "center" }}>
-                  <FeatureCell
-                    value={feature[p]}
-                    isHighlighted={plan === p}
-                  />
+                  <FeatureCell isHighlighted={plan === p} value={feature[p]} />
                 </View>
               ))}
             </View>

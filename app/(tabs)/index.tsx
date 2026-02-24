@@ -17,7 +17,6 @@ import {
   Check,
   ChevronRight,
   Heart,
-  MoreVertical,
   Phone,
   Pill,
   Smile,
@@ -48,14 +47,14 @@ import AnomalyDashboardSection from "@/app/components/AnomalyDashboardSection";
 import DiscoveryCardsSection from "@/app/components/DiscoveryCardsSection";
 import ProactiveHealthSuggestions from "@/app/components/ProactiveHealthSuggestions";
 import DailyBriefingCard from "@/components/DailyBriefingCard";
-import HealthScoreForecastCard from "@/components/HealthScoreForecastCard";
-import MLInsightsBadge from "@/components/MLInsightsBadge";
-import PatternInsightsCard from "@/components/PatternInsightsCard";
-import PersonalisedHealthInsightsCard from "@/components/PersonalisedHealthInsightsCard";
 import { Card } from "@/components/design-system";
 import { Heading, Text } from "@/components/design-system/Typography";
 import GradientScreen from "@/components/figma/GradientScreen";
 import WavyBackground from "@/components/figma/WavyBackground";
+import HealthScoreForecastCard from "@/components/HealthScoreForecastCard";
+import MLInsightsBadge from "@/components/MLInsightsBadge";
+import PatternInsightsCard from "@/components/PatternInsightsCard";
+import PersonalisedHealthInsightsCard from "@/components/PersonalisedHealthInsightsCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -1602,11 +1601,7 @@ export default function DashboardScreen() {
   };
 
   // Default widget order
-  const enabledWidgets = [
-    "stats",
-    "alerts",
-    "todaysMedications",
-  ];
+  const enabledWidgets = ["stats", "alerts", "todaysMedications"];
 
   // Widget render functions
   const renderWidget = (widgetId: string) => {
@@ -1922,7 +1917,7 @@ export default function DashboardScreen() {
 
       case "recentSymptoms":
         return null;
-        /*
+      /*
         return (
           <View key="recentSymptoms" style={styles.section as ViewStyle}>
             <View style={styles.sectionHeaderRow as ViewStyle}>
@@ -2067,7 +2062,7 @@ export default function DashboardScreen() {
             {/* Daily AI Briefing — Premium Individual+ */}
             <DailyBriefingCard userId={user?.id} />
             {/* Health Score with 7-day forecast teaser */}
-            <HealthScoreForecastCard variant="home" userId={user?.id} />
+            <HealthScoreForecastCard userId={user?.id} variant="home" />
             {/* ML pattern insights (temporal, vital-trend, wearable) */}
             <PatternInsightsCard userId={user?.id} />
             <ProactiveHealthSuggestions maxSuggestions={5} />
@@ -2322,12 +2317,7 @@ export default function DashboardScreen() {
                 marginBottom: 8,
               }}
             >
-              <Text
-                style={[
-                  styles.sectionTitle,
-                  isRTL && styles.rtlText,
-                ]}
-              >
+              <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
                 {isRTL ? "الاكتشافات الصحية" : "Health Discoveries"}
               </Text>
               <MLInsightsBadge userId={user?.id} />

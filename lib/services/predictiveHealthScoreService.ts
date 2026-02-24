@@ -131,8 +131,14 @@ async function fetchAnomalyByDay(
  */
 function buildMoodRiskByDay(moods: Mood[]): Map<string, number> {
   const NEGATIVE_MOODS = new Set([
-    "sad", "anxious", "stressed", "tired", "overwhelmed", "angry",
-    "confused", "empty",
+    "sad",
+    "anxious",
+    "stressed",
+    "tired",
+    "overwhelmed",
+    "angry",
+    "confused",
+    "empty",
   ]);
   const byDay = new Map<string, Mood[]>();
   for (const mood of moods) {
@@ -142,9 +148,15 @@ function buildMoodRiskByDay(moods: Mood[]): Map<string, number> {
   }
   const result = new Map<string, number>();
   for (const [day, dayMoods] of byDay) {
-    const negRatio = dayMoods.filter((m) => NEGATIVE_MOODS.has(m.mood)).length / dayMoods.length;
-    const lowIntRatio = dayMoods.filter((m) => m.intensity <= 2).length / dayMoods.length;
-    result.set(day, Math.round(Math.min(100, negRatio * 70 + lowIntRatio * 30)));
+    const negRatio =
+      dayMoods.filter((m) => NEGATIVE_MOODS.has(m.mood)).length /
+      dayMoods.length;
+    const lowIntRatio =
+      dayMoods.filter((m) => m.intensity <= 2).length / dayMoods.length;
+    result.set(
+      day,
+      Math.round(Math.min(100, negRatio * 70 + lowIntRatio * 30))
+    );
   }
   return result;
 }
@@ -163,8 +175,8 @@ export async function getPredictiveForecast(
     const medsRef = collection(db, "users", userId, "medications");
     const moodsRef = collection(db, "users", userId, "moods");
 
-    const [symptomsSnap, medsSnap, moodsSnap, anomalyByDay] =
-      await Promise.all([
+    const [symptomsSnap, medsSnap, moodsSnap, anomalyByDay] = await Promise.all(
+      [
         getDocs(
           query(
             symptomsRef,
@@ -183,7 +195,8 @@ export async function getPredictiveForecast(
           )
         ).catch(() => ({ docs: [] })),
         fetchAnomalyByDay(userId, cutoff),
-      ]);
+      ]
+    );
 
     const symptoms: Symptom[] = symptomsSnap.docs.map((d) => ({
       ...(d.data() as Omit<Symptom, "id">),
@@ -217,7 +230,10 @@ export async function getPredictiveForecast(
     const historyDays = 14;
     const dailyBuckets = buildDailyBuckets(symptoms, medications, historyDays);
     const historicalScores = dailyBuckets.map((b) => {
-      const baseScore = calculateHealthScoreFromData(b.symptoms, b.medications).score;
+      const baseScore = calculateHealthScoreFromData(
+        b.symptoms,
+        b.medications
+      ).score;
       const dateKey = b.date.toDateString();
       // Apply anomaly penalty: each anomaly severity point → 0.1 score penalty, capped at 15
       const anomalySeverity = anomalyByDay.get(dateKey) ?? 0;
@@ -225,7 +241,10 @@ export async function getPredictiveForecast(
       // Apply mood risk adjustment: high mood risk (>60) → up to 5 point penalty
       const moodRisk = moodRiskByDay.get(dateKey) ?? 0;
       const moodPenalty = moodRisk > 60 ? Math.min(5, (moodRisk - 60) / 8) : 0;
-      const adjusted = Math.max(0, Math.min(100, Math.round(baseScore - anomalyPenalty - moodPenalty)));
+      const adjusted = Math.max(
+        0,
+        Math.min(100, Math.round(baseScore - anomalyPenalty - moodPenalty))
+      );
       return { date: b.date, score: adjusted };
     });
 
@@ -234,9 +253,9 @@ export async function getPredictiveForecast(
     const { slope, intercept } = linearRegression(last7);
 
     // Check if anomalies are worsening in recent days (last 7)
-    const recentAnomalySeverity = historicalScores.slice(-7).map((h) =>
-      anomalyByDay.get(h.date.toDateString()) ?? 0
-    );
+    const recentAnomalySeverity = historicalScores
+      .slice(-7)
+      .map((h) => anomalyByDay.get(h.date.toDateString()) ?? 0);
     const anomalyTrend = linearRegression(recentAnomalySeverity);
     const anomalyWorsening = anomalyTrend.slope > 5; // rising by 5+ severity pts/day
 
@@ -262,28 +281,30 @@ export async function getPredictiveForecast(
       // Extrapolate from regression (deterministic — no random noise)
       const extrapolated = intercept + slope * (last7.length - 1 + i);
       // Apply anomaly momentum: if anomalies are rising, add extra penalty per day
-      const anomalyMomentumPenalty = anomalyWorsening ? Math.min(10, i * 1.5) : 0;
+      const anomalyMomentumPenalty = anomalyWorsening
+        ? Math.min(10, i * 1.5)
+        : 0;
       const score = Math.max(
         30,
         Math.min(100, Math.round(extrapolated - anomalyMomentumPenalty))
       );
       // Confidence degrades over time and further if anomalies present
-      const confidence = Math.max(
-        35,
-        90 - i * 6 - (anomalyWorsening ? 8 : 0)
-      );
+      const confidence = Math.max(35, 90 - i * 6 - (anomalyWorsening ? 8 : 0));
 
       const riskFactors: string[] = [];
       if (score < 70) riskFactors.push("Low compliance trend");
       if (slope < -1) riskFactors.push("Worsening symptom trend");
       if (score < 60) riskFactors.push("High symptom severity predicted");
-      if (anomalyWorsening) riskFactors.push("Recent vital sign anomalies detected");
+      if (anomalyWorsening)
+        riskFactors.push("Recent vital sign anomalies detected");
       const avgMoodRisk =
         recentAnomalySeverity.length > 0
-          ? recentAnomalySeverity.reduce((a, b) => a + b, 0) / recentAnomalySeverity.length
+          ? recentAnomalySeverity.reduce((a, b) => a + b, 0) /
+            recentAnomalySeverity.length
           : 0;
       if (avgMoodRisk > 0 && moodRiskByDay.size > 0) {
-        const avgMood = [...moodRiskByDay.values()].slice(-7).reduce((a, b) => a + b, 0) /
+        const avgMood =
+          [...moodRiskByDay.values()].slice(-7).reduce((a, b) => a + b, 0) /
           Math.max(1, Math.min(7, moodRiskByDay.size));
         if (avgMood > 60) riskFactors.push("Elevated stress or mood risk");
       }
@@ -341,9 +362,7 @@ export async function getPredictiveForecast(
       forecast,
       historicalScores: historicalScores.slice(-7),
       lowestDay:
-        lowestDay && lowestDay.score < currentScore - 5
-          ? lowestDay
-          : undefined,
+        lowestDay && lowestDay.score < currentScore - 5 ? lowestDay : undefined,
       insight,
       insightAr,
       generatedAt: new Date(),

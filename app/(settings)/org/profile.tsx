@@ -8,7 +8,15 @@
  */
 
 import { useLocalSearchParams, useNavigation } from "expo-router";
-import { Building2, ChevronLeft, Clock, Globe, MapPin, Palette, Save } from "lucide-react-native";
+import {
+  Building2,
+  ChevronLeft,
+  Clock,
+  Globe,
+  MapPin,
+  Palette,
+  Save,
+} from "lucide-react-native";
 import {
   useCallback,
   useEffect,
@@ -59,19 +67,47 @@ const TIMEZONES = [
   "Australia/Sydney",
 ];
 
-const DATA_REGIONS: Array<{ key: "us" | "eu" | "uae"; label: string; description: string }> = [
+const DATA_REGIONS: Array<{
+  key: "us" | "eu" | "uae";
+  label: string;
+  description: string;
+}> = [
   { key: "us", label: "United States", description: "HIPAA — AWS us-east-1" },
   { key: "eu", label: "European Union", description: "GDPR — AWS eu-west-1" },
   { key: "uae", label: "UAE / GCC", description: "PDPL — AWS me-south-1" },
 ];
 
 /** null = no automatic archiving */
-const RETENTION_OPTIONS: Array<{ years: number | null; label: string; description: string }> = [
-  { years: null, label: "No Limit", description: "Keep data indefinitely (default)" },
-  { years: 2, label: "2 Years", description: "Recommended for low-risk consumer apps" },
-  { years: 5, label: "5 Years", description: "Typical clinical records minimum" },
-  { years: 7, label: "7 Years", description: "Common HIPAA / EU GDPR standard" },
-  { years: 10, label: "10 Years", description: "Long-term chronic disease management" },
+const RETENTION_OPTIONS: Array<{
+  years: number | null;
+  label: string;
+  description: string;
+}> = [
+  {
+    years: null,
+    label: "No Limit",
+    description: "Keep data indefinitely (default)",
+  },
+  {
+    years: 2,
+    label: "2 Years",
+    description: "Recommended for low-risk consumer apps",
+  },
+  {
+    years: 5,
+    label: "5 Years",
+    description: "Typical clinical records minimum",
+  },
+  {
+    years: 7,
+    label: "7 Years",
+    description: "Common HIPAA / EU GDPR standard",
+  },
+  {
+    years: 10,
+    label: "10 Years",
+    description: "Long-term chronic disease management",
+  },
 ];
 
 const BRAND_COLORS = [
@@ -108,7 +144,12 @@ function SectionLabel({
     <TypographyText
       style={[
         getTextStyle(theme, "caption", "semibold", theme.colors.text.secondary),
-        { textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8, marginTop: 20 },
+        {
+          textTransform: "uppercase",
+          letterSpacing: 0.8,
+          marginBottom: 8,
+          marginTop: 20,
+        },
       ]}
     >
       {label}
@@ -140,7 +181,9 @@ function SelectRow<T extends string>({
               paddingVertical: 8,
               borderRadius: 20,
               borderWidth: 1.5,
-              borderColor: active ? theme.colors.primary.main : theme.colors.border.light,
+              borderColor: active
+                ? theme.colors.primary.main
+                : theme.colors.border.light,
               backgroundColor: active
                 ? theme.colors.primary.main + "15"
                 : theme.colors.background.secondary,
@@ -148,7 +191,9 @@ function SelectRow<T extends string>({
           >
             <Caption
               style={{
-                color: active ? theme.colors.primary.main : theme.colors.text.secondary,
+                color: active
+                  ? theme.colors.primary.main
+                  : theme.colors.text.secondary,
                 fontWeight: active ? "600" : "400",
               }}
             >
@@ -189,7 +234,9 @@ export default function OrgProfileScreen() {
 
   useEffect(() => {
     isMountedRef.current = true;
-    return () => { isMountedRef.current = false; };
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   const load = useCallback(async () => {
@@ -208,13 +255,18 @@ export default function OrgProfileScreen() {
         setRetentionYears(data.settings.retentionYears ?? null);
       }
     } catch (err) {
-      Alert.alert("Error", err instanceof Error ? err.message : "Failed to load organization.");
+      Alert.alert(
+        "Error",
+        err instanceof Error ? err.message : "Failed to load organization."
+      );
     } finally {
       if (isMountedRef.current) setLoading(false);
     }
   }, [orgId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   // Track changes
   useEffect(() => {
@@ -241,7 +293,12 @@ export default function OrgProfileScreen() {
         name: trimmedName,
         type,
         settings: {
-          ...(org?.settings ?? { language: "en", features: [], dataRegion: "us", timezone: "UTC" }),
+          ...(org?.settings ?? {
+            language: "en",
+            features: [],
+            dataRegion: "us",
+            timezone: "UTC",
+          }),
           timezone,
           dataRegion,
           branding: {
@@ -270,7 +327,10 @@ export default function OrgProfileScreen() {
       setDirty(false);
       Alert.alert("Saved", "Organization profile updated.");
     } catch (err) {
-      Alert.alert("Error", err instanceof Error ? err.message : "Failed to save changes.");
+      Alert.alert(
+        "Error",
+        err instanceof Error ? err.message : "Failed to save changes."
+      );
     } finally {
       setSaving(false);
     }
@@ -302,13 +362,18 @@ export default function OrgProfileScreen() {
         }}
       >
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => navigation.goBack()}
         >
-          <ChevronLeft size={24} color={theme.colors.text.primary} />
+          <ChevronLeft color={theme.colors.text.primary} size={24} />
         </TouchableOpacity>
         <TypographyText
-          style={getTextStyle(theme, "heading", "bold", theme.colors.text.primary)}
+          style={getTextStyle(
+            theme,
+            "heading",
+            "bold",
+            theme.colors.text.primary
+          )}
         >
           Organization Profile
         </TypographyText>
@@ -322,7 +387,9 @@ export default function OrgProfileScreen() {
               paddingVertical: 4,
             }}
           >
-            <Caption style={{ color: "#D97706", fontWeight: "600" }}>Unsaved</Caption>
+            <Caption style={{ color: "#D97706", fontWeight: "600" }}>
+              Unsaved
+            </Caption>
           </View>
         )}
       </View>
@@ -361,17 +428,22 @@ export default function OrgProfileScreen() {
                 justifyContent: "center",
               }}
             >
-              <Building2 size={24} color={primaryColor} />
+              <Building2 color={primaryColor} size={24} />
             </View>
             <View style={{ flex: 1 }}>
               <TypographyText
-                style={{ color: theme.colors.text.primary, fontSize: 16, fontWeight: "700" }}
                 numberOfLines={1}
+                style={{
+                  color: theme.colors.text.primary,
+                  fontSize: 16,
+                  fontWeight: "700",
+                }}
               >
                 {name || "Organization Name"}
               </TypographyText>
               <Caption style={{ color: theme.colors.text.secondary }}>
-                {org?.plan ?? "starter"} plan · {org?.createdAt ? formatDate(org.createdAt) : ""}
+                {org?.plan ?? "starter"} plan ·{" "}
+                {org?.createdAt ? formatDate(org.createdAt) : ""}
               </Caption>
             </View>
           </View>
@@ -379,26 +451,26 @@ export default function OrgProfileScreen() {
           {/* Name */}
           <SectionLabel label="Organization Name" theme={theme} />
           <TextInput
-            style={inputStyle}
-            value={name}
             onChangeText={setName}
             placeholder="e.g. City General Clinic"
             placeholderTextColor={theme.colors.text.secondary}
+            style={inputStyle}
+            value={name}
           />
 
           {/* Type */}
           <SectionLabel label="Organization Type" theme={theme} />
           <SelectRow
-            options={ORG_TYPES}
-            value={type}
             onChange={setType}
+            options={ORG_TYPES}
             theme={theme}
+            value={type}
           />
 
           {/* Brand color */}
           <SectionLabel label="Brand Color" theme={theme} />
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-            <Palette size={16} color={theme.colors.text.secondary} />
+            <Palette color={theme.colors.text.secondary} size={16} />
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
               {BRAND_COLORS.map((c) => (
                 <TouchableOpacity
@@ -424,8 +496,15 @@ export default function OrgProfileScreen() {
 
           {/* Timezone */}
           <SectionLabel label="Timezone" theme={theme} />
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
-            <Globe size={14} color={theme.colors.text.secondary} />
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 8,
+              marginBottom: 4,
+            }}
+          >
+            <Globe color={theme.colors.text.secondary} size={14} />
             <Caption style={{ color: theme.colors.text.secondary }}>
               Used for scheduled reports and alert windows
             </Caption>
@@ -473,10 +552,18 @@ export default function OrgProfileScreen() {
 
           {/* Data region */}
           <SectionLabel label="Data Residency Region" theme={theme} />
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}>
-            <MapPin size={14} color={theme.colors.text.secondary} />
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 8,
+              marginBottom: 10,
+            }}
+          >
+            <MapPin color={theme.colors.text.secondary} size={14} />
             <Caption style={{ color: theme.colors.text.secondary }}>
-              Determines where patient data is stored. Contact support to migrate.
+              Determines where patient data is stored. Contact support to
+              migrate.
             </Caption>
           </View>
           {DATA_REGIONS.map((r) => {
@@ -545,11 +632,19 @@ export default function OrgProfileScreen() {
 
           {/* Data Retention */}
           <SectionLabel label="Data Retention Policy" theme={theme} />
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}>
-            <Clock size={14} color={theme.colors.text.secondary} />
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 8,
+              marginBottom: 10,
+            }}
+          >
+            <Clock color={theme.colors.text.secondary} size={14} />
             <Caption style={{ color: theme.colors.text.secondary, flex: 1 }}>
-              Health records older than this threshold are archived automatically each Saturday.
-              GDPR / HIPAA compliance may require a specific policy.
+              Health records older than this threshold are archived
+              automatically each Saturday. GDPR / HIPAA compliance may require a
+              specific policy.
             </Caption>
           </View>
           {RETENTION_OPTIONS.map((opt) => {
@@ -569,7 +664,9 @@ export default function OrgProfileScreen() {
                   alignItems: "center",
                   gap: 12,
                   borderWidth: 1.5,
-                  borderColor: active ? theme.colors.primary.main : "transparent",
+                  borderColor: active
+                    ? theme.colors.primary.main
+                    : "transparent",
                 }}
               >
                 <View
@@ -625,8 +722,11 @@ export default function OrgProfileScreen() {
             }}
           >
             <Caption
-              style={{ color: theme.colors.text.secondary, fontFamily: "monospace" }}
               selectable
+              style={{
+                color: theme.colors.text.secondary,
+                fontFamily: "monospace",
+              }}
             >
               {orgId}
             </Caption>
@@ -634,10 +734,12 @@ export default function OrgProfileScreen() {
 
           {/* Save button */}
           <TouchableOpacity
-            onPress={handleSave}
             disabled={saving || !dirty}
+            onPress={handleSave}
             style={{
-              backgroundColor: dirty ? "#6366F1" : theme.colors.background.secondary,
+              backgroundColor: dirty
+                ? "#6366F1"
+                : theme.colors.background.secondary,
               borderRadius: 12,
               padding: 16,
               alignItems: "center",
@@ -648,12 +750,14 @@ export default function OrgProfileScreen() {
             }}
           >
             {saving ? (
-              <ActivityIndicator color={dirty ? "#FFF" : theme.colors.text.secondary} />
+              <ActivityIndicator
+                color={dirty ? "#FFF" : theme.colors.text.secondary}
+              />
             ) : (
               <>
                 <Save
-                  size={16}
                   color={dirty ? "#FFF" : theme.colors.text.secondary}
+                  size={16}
                 />
                 <TypographyText
                   style={{

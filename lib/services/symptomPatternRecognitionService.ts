@@ -96,7 +96,12 @@ const SYMPTOM_PATTERNS: Record<string, SymptomPattern> = {
     severity: "moderate",
     duration: "acute",
     triggers: ["allergens", "exercise", "cold air", "stress"],
-    triggersAr: ["مسببات الحساسية", "ممارسة الرياضة", "الهواء البارد", "الإجهاد"],
+    triggersAr: [
+      "مسببات الحساسية",
+      "ممارسة الرياضة",
+      "الهواء البارد",
+      "الإجهاد",
+    ],
     description: "Worsening of asthma symptoms requiring attention",
     descriptionAr: "تفاقم أعراض الربو يستدعي الاهتمام",
   },

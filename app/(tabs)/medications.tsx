@@ -37,7 +37,6 @@ import FamilyDataFilter, {
 } from "@/app/components/FamilyDataFilter";
 import MedicationInteractionWarning from "@/app/components/MedicationInteractionWarning";
 import MedicationRefillCard from "@/app/components/MedicationRefillCard";
-import MedicationIntelligenceCard from "@/components/MedicationIntelligenceCard";
 import TagInput from "@/app/components/TagInput";
 // Design System Components
 import { Button, Input } from "@/components/design-system";
@@ -45,6 +44,7 @@ import { Badge } from "@/components/design-system/AdditionalComponents";
 import { Caption, Heading, Text } from "@/components/design-system/Typography";
 import GradientScreen from "@/components/figma/GradientScreen";
 import WavyBackground from "@/components/figma/WavyBackground";
+import MedicationIntelligenceCard from "@/components/MedicationIntelligenceCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/hooks/useNotifications";
 import { allergyService } from "@/lib/services/allergyService";

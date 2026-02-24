@@ -30,7 +30,8 @@ export function useLabInsights(
     async (force = false) => {
       if (!userId) return;
       const now = Date.now();
-      if (!force && now - lastLoadRef.current < CACHE_TTL_MS && insights) return;
+      if (!force && now - lastLoadRef.current < CACHE_TTL_MS && insights)
+        return;
 
       setLoading(true);
       setError(null);
@@ -39,7 +40,9 @@ export function useLabInsights(
         setInsights(data);
         lastLoadRef.current = Date.now();
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load lab insights");
+        setError(
+          err instanceof Error ? err.message : "Failed to load lab insights"
+        );
       } finally {
         setLoading(false);
       }

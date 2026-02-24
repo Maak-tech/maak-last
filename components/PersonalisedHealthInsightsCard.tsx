@@ -58,13 +58,38 @@ type DimensionMeta = {
 };
 
 const DIMENSION_META: Record<string, DimensionMeta> = {
-  vital: { color: "#EF4444", Icon: Heart, labelEn: "Vital Signs", labelAr: "العلامات الحيوية" },
+  vital: {
+    color: "#EF4444",
+    Icon: Heart,
+    labelEn: "Vital Signs",
+    labelAr: "العلامات الحيوية",
+  },
   mood: { color: "#8B5CF6", Icon: Smile, labelEn: "Mood", labelAr: "المزاج" },
-  symptoms: { color: "#F59E0B", Icon: AlertTriangle, labelEn: "Symptoms", labelAr: "الأعراض" },
-  medication: { color: "#3B82F6", Icon: Pill, labelEn: "Medication", labelAr: "الأدوية" },
+  symptoms: {
+    color: "#F59E0B",
+    Icon: AlertTriangle,
+    labelEn: "Symptoms",
+    labelAr: "الأعراض",
+  },
+  medication: {
+    color: "#3B82F6",
+    Icon: Pill,
+    labelEn: "Medication",
+    labelAr: "الأدوية",
+  },
   sleep: { color: "#6366F1", Icon: Moon, labelEn: "Sleep", labelAr: "النوم" },
-  steps: { color: "#10B981", Icon: Activity, labelEn: "Activity", labelAr: "النشاط" },
-  women_health: { color: "#EC4899", Icon: Zap, labelEn: "Cycle", labelAr: "الدورة" },
+  steps: {
+    color: "#10B981",
+    Icon: Activity,
+    labelEn: "Activity",
+    labelAr: "النشاط",
+  },
+  women_health: {
+    color: "#EC4899",
+    Icon: Zap,
+    labelEn: "Cycle",
+    labelAr: "الدورة",
+  },
 };
 
 function getDimensionMeta(dimension: string): DimensionMeta {
@@ -99,7 +124,9 @@ function DeviationRow({
   const [expanded, setExpanded] = useState(false);
   const meta = getDimensionMeta(deviation.dimension);
   const devColor = severityColor(deviation.severity);
-  const hasRec = deviation.actionable && (deviation.recommendation || deviation.recommendationAr);
+  const hasRec =
+    deviation.actionable &&
+    (deviation.recommendation || deviation.recommendationAr);
 
   return (
     <TouchableOpacity
@@ -142,9 +169,7 @@ function DeviationRow({
               marginBottom: 2,
             }}
           >
-            <Caption
-              style={{ color: meta.color, fontWeight: "700" }}
-            >
+            <Caption style={{ color: meta.color, fontWeight: "700" }}>
               {isRTL ? meta.labelAr : meta.labelEn}
             </Caption>
             <View
@@ -188,11 +213,11 @@ function DeviationRow({
                 padding: 8,
               }}
             >
-              <Caption
-                style={{ color: meta.color, lineHeight: 17 }}
-              >
+              <Caption style={{ color: meta.color, lineHeight: 17 }}>
                 {isRTL
-                  ? (deviation.recommendationAr ?? deviation.recommendation ?? "")
+                  ? (deviation.recommendationAr ??
+                    deviation.recommendation ??
+                    "")
                   : (deviation.recommendation ?? "")}
               </Caption>
             </View>
@@ -296,7 +321,12 @@ export default function PersonalisedHealthInsightsCard({ userId }: Props) {
           <ActivityIndicator color={theme.colors.primary.main} size="small" />
           <TypographyText
             style={[
-              getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
+              getTextStyle(
+                theme,
+                "caption",
+                "regular",
+                theme.colors.text.secondary
+              ),
               { marginTop: 8 },
             ]}
           >
@@ -318,7 +348,12 @@ export default function PersonalisedHealthInsightsCard({ userId }: Props) {
                 <CheckCircle color="#10B981" size={20} />
               </View>
               <TypographyText
-                style={getTextStyle(theme, "body", "bold", theme.colors.text.primary)}
+                style={getTextStyle(
+                  theme,
+                  "body",
+                  "bold",
+                  theme.colors.text.primary
+                )}
               >
                 {isRTL ? "وضعك الصحي" : "Your Health Status"}
               </TypographyText>
@@ -332,7 +367,9 @@ export default function PersonalisedHealthInsightsCard({ userId }: Props) {
             <TypographyText
               style={getTextStyle(theme, "body", "bold", "#10B981")}
             >
-              {isRTL ? "كل شيء ضمن حدودك الطبيعية" : "All within your normal range"}
+              {isRTL
+                ? "كل شيء ضمن حدودك الطبيعية"
+                : "All within your normal range"}
             </TypographyText>
             <Caption
               style={{
@@ -367,13 +404,22 @@ export default function PersonalisedHealthInsightsCard({ userId }: Props) {
             )}
           </View>
           <TypographyText
-            style={getTextStyle(theme, "body", "bold", theme.colors.text.primary)}
+            style={getTextStyle(
+              theme,
+              "body",
+              "bold",
+              theme.colors.text.primary
+            )}
           >
             {isRTL ? "تغيرات عن خط أساسك" : "Changes from Your Baseline"}
           </TypographyText>
         </View>
         <View
-          style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 8, alignItems: "center" }}
+          style={{
+            flexDirection: isRTL ? "row-reverse" : "row",
+            gap: 8,
+            alignItems: "center",
+          }}
         >
           <View style={styles.statusPill}>
             <Caption
@@ -409,8 +455,8 @@ export default function PersonalisedHealthInsightsCard({ userId }: Props) {
         <DeviationRow
           deviation={dev}
           // biome-ignore lint/suspicious/noArrayIndexKey: stable list within cache
-          key={`${dev.dimension}_${dev.metric}_${idx}`}
           isRTL={isRTL}
+          key={`${dev.dimension}_${dev.metric}_${idx}`}
         />
       ))}
 

@@ -121,13 +121,13 @@ function PathwayCard({
         </View>
 
         <TouchableOpacity
-          onPress={() => onToggle(pathway)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => onToggle(pathway)}
         >
           {pathway.isActive ? (
-            <ToggleRight size={28} color="#22C55E" />
+            <ToggleRight color="#22C55E" size={28} />
           ) : (
-            <ToggleLeft size={28} color="#9CA3AF" />
+            <ToggleLeft color="#9CA3AF" size={28} />
           )}
         </TouchableOpacity>
       </View>
@@ -141,7 +141,7 @@ function PathwayCard({
           gap: 6,
         }}
       >
-        <Activity size={13} color={theme.colors.text.secondary} />
+        <Activity color={theme.colors.text.secondary} size={13} />
         <Caption style={{ color: theme.colors.text.secondary }}>
           {"Trigger: "}
           <Caption style={{ color: theme.colors.text.primary }}>
@@ -210,7 +210,7 @@ function TemplateRow({
         gap: 12,
       }}
     >
-      <GitBranch size={20} color="#6366F1" />
+      <GitBranch color="#6366F1" size={20} />
       <View style={{ flex: 1 }}>
         <TypographyText
           style={{
@@ -326,7 +326,7 @@ export default function PathwaysScreen() {
         typeof carePathwayService.getBuiltInTemplates
       >[number]
     ) => {
-      if (!orgId || !user?.id) return;
+      if (!(orgId && user?.id)) return;
       try {
         const created = await carePathwayService.createPathway({
           orgId,
@@ -368,10 +368,10 @@ export default function PathwaysScreen() {
         }}
       >
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => navigation.goBack()}
         >
-          <ChevronLeft size={24} color={theme.colors.text.primary} />
+          <ChevronLeft color={theme.colors.text.primary} size={24} />
         </TouchableOpacity>
         <TypographyText
           style={getTextStyle(
@@ -385,12 +385,12 @@ export default function PathwaysScreen() {
         </TypographyText>
         <View style={{ flex: 1 }} />
         <TouchableOpacity
-          onPress={() => load(true)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => load(true)}
         >
           <RefreshCw
-            size={18}
             color={theme.colors.text.secondary}
+            size={18}
             style={refreshing ? { opacity: 0.4 } : undefined}
           />
         </TouchableOpacity>
@@ -398,13 +398,13 @@ export default function PathwaysScreen() {
 
       <ScrollView
         contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
-        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
             onRefresh={() => load(true)}
+            refreshing={refreshing}
           />
         }
+        showsVerticalScrollIndicator={false}
       >
         {/* Error */}
         {error ? (
@@ -452,7 +452,7 @@ export default function PathwaysScreen() {
                   marginBottom: 24,
                 }}
               >
-                <GitBranch size={36} color={theme.colors.text.secondary} />
+                <GitBranch color={theme.colors.text.secondary} size={36} />
                 <TypographyText
                   style={{
                     color: theme.colors.text.secondary,
@@ -466,11 +466,11 @@ export default function PathwaysScreen() {
             ) : (
               pathways.map((p) => (
                 <PathwayCard
-                  key={p.id}
-                  pathway={p}
                   isRTL={isRTL}
-                  theme={theme}
+                  key={p.id}
                   onToggle={handleToggle}
+                  pathway={p}
+                  theme={theme}
                 />
               ))
             )}
@@ -485,7 +485,7 @@ export default function PathwaysScreen() {
                 marginTop: 8,
               }}
             >
-              <Plus size={16} color={theme.colors.text.secondary} />
+              <Plus color={theme.colors.text.secondary} size={16} />
               <TypographyText
                 style={getTextStyle(
                   theme,
@@ -505,14 +505,14 @@ export default function PathwaysScreen() {
 
             {templates.map((t) => (
               <TemplateRow
+                description={t.description}
+                isRTL={isRTL}
                 key={t.triggerCondition}
                 name={t.name}
-                description={t.description}
-                triggerCondition={t.triggerCondition}
-                stepCount={t.steps.length}
-                isRTL={isRTL}
-                theme={theme}
                 onImport={() => handleImportTemplate(t)}
+                stepCount={t.steps.length}
+                theme={theme}
+                triggerCondition={t.triggerCondition}
               />
             ))}
           </>

@@ -18,9 +18,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  userBaselineService,
   type BaselineDeviation,
   type UserHealthBaseline,
+  userBaselineService,
 } from "@/lib/services/userBaselineService";
 
 const DEVIATIONS_CACHE_MS = 60 * 60 * 1000; // 1 hour
@@ -48,7 +48,11 @@ export function useProactiveMonitor(
     async (force = false) => {
       if (!userId) return;
       const now = Date.now();
-      if (!force && now - lastLoadRef.current < DEVIATIONS_CACHE_MS && baseline !== null)
+      if (
+        !force &&
+        now - lastLoadRef.current < DEVIATIONS_CACHE_MS &&
+        baseline !== null
+      )
         return;
 
       setLoading(true);
@@ -59,7 +63,11 @@ export function useProactiveMonitor(
           : await userBaselineService.getBaseline(userId);
         setBaseline(b);
 
-        const devs = await userBaselineService.detectDeviations(userId, b, isArabic);
+        const devs = await userBaselineService.detectDeviations(
+          userId,
+          b,
+          isArabic
+        );
         setDeviations(devs);
         lastLoadRef.current = Date.now();
       } catch (err) {
@@ -80,7 +88,9 @@ export function useProactiveMonitor(
 
   const refresh = useCallback(() => load(true), [load]);
 
-  const hasCriticalChange = deviations.some((d) => d.severity === "significant");
+  const hasCriticalChange = deviations.some(
+    (d) => d.severity === "significant"
+  );
 
   return { baseline, deviations, loading, error, refresh, hasCriticalChange };
 }

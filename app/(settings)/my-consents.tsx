@@ -111,7 +111,9 @@ function ConsentCard({
             {org?.name ?? consent.orgId}
           </TypographyText>
           {org?.type ? (
-            <Caption style={{ color: theme.colors.text.secondary, marginTop: 2 }}>
+            <Caption
+              style={{ color: theme.colors.text.secondary, marginTop: 2 }}
+            >
               {org.type.charAt(0).toUpperCase() + org.type.slice(1)}
             </Caption>
           ) : null}
@@ -130,9 +132,9 @@ function ConsentCard({
           }}
         >
           {isActive ? (
-            <CheckCircle2 size={13} color="#16A34A" />
+            <CheckCircle2 color="#16A34A" size={13} />
           ) : (
-            <XCircle size={13} color="#9CA3AF" />
+            <XCircle color="#9CA3AF" size={13} />
           )}
           <Caption
             style={{
@@ -146,19 +148,30 @@ function ConsentCard({
       </View>
 
       {/* Scope chips */}
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+      <View
+        style={{
+          flexDirection: "row",
+          flexWrap: "wrap",
+          gap: 6,
+          marginBottom: 12,
+        }}
+      >
         {consent.scope.map((s) => (
           <View
             key={s}
             style={{
-              backgroundColor: isActive ? "#EFF6FF" : theme.colors.background.primary,
+              backgroundColor: isActive
+                ? "#EFF6FF"
+                : theme.colors.background.primary,
               borderRadius: 6,
               paddingHorizontal: 8,
               paddingVertical: 3,
             }}
           >
             <Caption
-              style={{ color: isActive ? "#2563EB" : theme.colors.text.secondary }}
+              style={{
+                color: isActive ? "#2563EB" : theme.colors.text.secondary,
+              }}
             >
               {SCOPE_LABELS[s] ?? s}
             </Caption>
@@ -222,84 +235,104 @@ export default function MyConsentsScreen() {
 
   useEffect(() => {
     isMountedRef.current = true;
-    return () => { isMountedRef.current = false; };
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
-  const load = useCallback(async (isRefresh = false) => {
-    if (!user?.id) return;
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
-    setError(null);
-    try {
-      const data = await consentService.getUserConsents(user.id);
-      // Sort: active first, then by grantedAt desc
-      data.sort((a, b) => {
-        if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
-        return b.grantedAt.getTime() - a.grantedAt.getTime();
-      });
+  const load = useCallback(
+    async (isRefresh = false) => {
+      if (!user?.id) return;
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
+      setError(null);
+      try {
+        const data = await consentService.getUserConsents(user.id);
+        // Sort: active first, then by grantedAt desc
+        data.sort((a, b) => {
+          if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
+          return b.grantedAt.getTime() - a.grantedAt.getTime();
+        });
 
-      // Fetch org names for display
-      const map: Record<string, Organization> = {};
-      await Promise.allSettled(
-        data.map(async (c) => {
-          if (!map[c.orgId]) {
-            const org = await organizationService.getOrganization(c.orgId);
-            if (org) map[c.orgId] = org;
-          }
-        })
-      );
-
-      if (isMountedRef.current) {
-        setConsents(data);
-        setOrgsMap(map);
-      }
-    } catch (err) {
-      if (isMountedRef.current)
-        setError(err instanceof Error ? err.message : "Failed to load consents");
-    } finally {
-      if (isMountedRef.current) {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    }
-  }, [user?.id]);
-
-  useEffect(() => { load(false); }, [load]);
-
-  const handleRevoke = useCallback((consent: PatientConsent) => {
-    const orgName = orgsMap[consent.orgId]?.name ?? consent.orgId;
-    Alert.alert(
-      "Revoke Access",
-      `Remove ${orgName}'s access to your health data? This takes effect immediately and cannot be undone without contacting the organization.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Revoke",
-          style: "destructive",
-          onPress: async () => {
-            if (!user?.id) return;
-            try {
-              await consentService.revokeConsentWithMirror(
-                user.id,
-                consent.orgId,
-                user.id
-              );
-              // Optimistic update
-              setConsents((prev) =>
-                prev.map((c) =>
-                  c.orgId === consent.orgId
-                    ? { ...c, isActive: false, revokedAt: new Date(), revokedBy: user.id }
-                    : c
-                )
-              );
-            } catch {
-              Alert.alert("Error", "Failed to revoke consent. Please try again.");
+        // Fetch org names for display
+        const map: Record<string, Organization> = {};
+        await Promise.allSettled(
+          data.map(async (c) => {
+            if (!map[c.orgId]) {
+              const org = await organizationService.getOrganization(c.orgId);
+              if (org) map[c.orgId] = org;
             }
+          })
+        );
+
+        if (isMountedRef.current) {
+          setConsents(data);
+          setOrgsMap(map);
+        }
+      } catch (err) {
+        if (isMountedRef.current)
+          setError(
+            err instanceof Error ? err.message : "Failed to load consents"
+          );
+      } finally {
+        if (isMountedRef.current) {
+          setLoading(false);
+          setRefreshing(false);
+        }
+      }
+    },
+    [user?.id]
+  );
+
+  useEffect(() => {
+    load(false);
+  }, [load]);
+
+  const handleRevoke = useCallback(
+    (consent: PatientConsent) => {
+      const orgName = orgsMap[consent.orgId]?.name ?? consent.orgId;
+      Alert.alert(
+        "Revoke Access",
+        `Remove ${orgName}'s access to your health data? This takes effect immediately and cannot be undone without contacting the organization.`,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Revoke",
+            style: "destructive",
+            onPress: async () => {
+              if (!user?.id) return;
+              try {
+                await consentService.revokeConsentWithMirror(
+                  user.id,
+                  consent.orgId,
+                  user.id
+                );
+                // Optimistic update
+                setConsents((prev) =>
+                  prev.map((c) =>
+                    c.orgId === consent.orgId
+                      ? {
+                          ...c,
+                          isActive: false,
+                          revokedAt: new Date(),
+                          revokedBy: user.id,
+                        }
+                      : c
+                  )
+                );
+              } catch {
+                Alert.alert(
+                  "Error",
+                  "Failed to revoke consent. Please try again."
+                );
+              }
+            },
           },
-        },
-      ]
-    );
-  }, [orgsMap, user?.id]);
+        ]
+      );
+    },
+    [orgsMap, user?.id]
+  );
 
   const activeCount = consents.filter((c) => c.isActive).length;
 
@@ -319,24 +352,29 @@ export default function MyConsentsScreen() {
         }}
       >
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => navigation.goBack()}
         >
-          <ChevronLeft size={24} color={theme.colors.text.primary} />
+          <ChevronLeft color={theme.colors.text.primary} size={24} />
         </TouchableOpacity>
         <TypographyText
-          style={getTextStyle(theme, "heading", "bold", theme.colors.text.primary)}
+          style={getTextStyle(
+            theme,
+            "heading",
+            "bold",
+            theme.colors.text.primary
+          )}
         >
           Data Access
         </TypographyText>
         <View style={{ flex: 1 }} />
         <TouchableOpacity
-          onPress={() => load(true)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => load(true)}
         >
           <RefreshCw
-            size={18}
             color={theme.colors.text.secondary}
+            size={18}
             style={refreshing ? { opacity: 0.4 } : undefined}
           />
         </TouchableOpacity>
@@ -344,10 +382,13 @@ export default function MyConsentsScreen() {
 
       <ScrollView
         contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
-        showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />
+          <RefreshControl
+            onRefresh={() => load(true)}
+            refreshing={refreshing}
+          />
         }
+        showsVerticalScrollIndicator={false}
       >
         {/* Summary banner */}
         {!loading && consents.length > 0 ? (
@@ -363,8 +404,8 @@ export default function MyConsentsScreen() {
             }}
           >
             <AlertCircle
-              size={18}
               color={activeCount > 0 ? "#2563EB" : "#64748B"}
+              size={18}
             />
             <Caption
               style={{
@@ -389,7 +430,9 @@ export default function MyConsentsScreen() {
               marginBottom: 16,
             }}
           >
-            <TypographyText style={{ color: "#DC2626" }}>{error}</TypographyText>
+            <TypographyText style={{ color: "#DC2626" }}>
+              {error}
+            </TypographyText>
           </View>
         ) : null}
 
@@ -400,7 +443,7 @@ export default function MyConsentsScreen() {
           />
         ) : consents.length === 0 ? (
           <View style={{ alignItems: "center", paddingVertical: 48 }}>
-            <Shield size={40} color={theme.colors.text.secondary} />
+            <Shield color={theme.colors.text.secondary} size={40} />
             <TypographyText
               style={{
                 color: theme.colors.text.secondary,
@@ -414,11 +457,11 @@ export default function MyConsentsScreen() {
         ) : (
           consents.map((c) => (
             <ConsentCard
-              key={`${c.orgId}-${c.grantedAt.getTime()}`}
               consent={c}
+              key={`${c.orgId}-${c.grantedAt.getTime()}`}
+              onRevoke={handleRevoke}
               org={orgsMap[c.orgId] ?? null}
               theme={theme}
-              onRevoke={handleRevoke}
             />
           ))
         )}

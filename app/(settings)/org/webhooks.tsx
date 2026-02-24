@@ -114,19 +114,19 @@ function EndpointCard({
         </TypographyText>
         {endpoint.isActive ? (
           hasFailures ? (
-            <AlertTriangle size={16} color="#F59E0B" />
+            <AlertTriangle color="#F59E0B" size={16} />
           ) : (
-            <CheckCircle2 size={16} color="#22C55E" />
+            <CheckCircle2 color="#22C55E" size={16} />
           )
         ) : (
-          <XCircle size={16} color="#9CA3AF" />
+          <XCircle color="#9CA3AF" size={16} />
         )}
       </View>
 
       {/* URL */}
       <Caption
-        style={{ color: theme.colors.text.secondary, marginBottom: 6 }}
         numberOfLines={1}
+        style={{ color: theme.colors.text.secondary, marginBottom: 6 }}
       >
         {endpoint.url}
       </Caption>
@@ -150,7 +150,9 @@ function EndpointCard({
               paddingVertical: 3,
             }}
           >
-            <Caption style={{ color: theme.colors.text.secondary }}>{ev}</Caption>
+            <Caption style={{ color: theme.colors.text.secondary }}>
+              {ev}
+            </Caption>
           </View>
         ))}
       </View>
@@ -178,9 +180,7 @@ function EndpointCard({
 
       {/* Actions */}
       {endpoint.isActive ? (
-        <View
-          style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 8 }}
-        >
+        <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 8 }}>
           <TouchableOpacity
             onPress={() => onRotateSecret(endpoint.id, endpoint.name)}
             style={{
@@ -194,7 +194,7 @@ function EndpointCard({
               paddingVertical: 8,
             }}
           >
-            <RotateCcw size={14} color={theme.colors.text.secondary} />
+            <RotateCcw color={theme.colors.text.secondary} size={14} />
             <Caption style={{ color: theme.colors.text.secondary }}>
               Rotate secret
             </Caption>
@@ -213,7 +213,7 @@ function EndpointCard({
               paddingVertical: 8,
             }}
           >
-            <ZapOff size={14} color="#DC2626" />
+            <ZapOff color="#DC2626" size={14} />
             <Caption style={{ color: "#DC2626" }}>Disable</Caption>
           </TouchableOpacity>
         </View>
@@ -278,10 +278,7 @@ function AddEndpointModal({
       return;
     }
     if (selectedEvents.size === 0) {
-      Alert.alert(
-        "Validation",
-        "Select at least one event to subscribe to."
-      );
+      Alert.alert("Validation", "Select at least one event to subscribe to.");
       return;
     }
     setSaving(true);
@@ -298,10 +295,10 @@ function AddEndpointModal({
 
   return (
     <Modal
-      visible={visible}
-      transparent
       animationType="slide"
       onRequestClose={onClose}
+      transparent
+      visible={visible}
     >
       <View
         style={{
@@ -342,7 +339,6 @@ function AddEndpointModal({
               Name
             </Caption>
             <TextInput
-              value={name}
               onChangeText={setName}
               placeholder="e.g. EHR System"
               placeholderTextColor={theme.colors.text.secondary}
@@ -354,6 +350,7 @@ function AddEndpointModal({
                 marginBottom: 16,
                 fontSize: 15,
               }}
+              value={name}
             />
 
             {/* URL */}
@@ -363,13 +360,12 @@ function AddEndpointModal({
               Endpoint URL (HTTPS required)
             </Caption>
             <TextInput
-              value={url}
-              onChangeText={setUrl}
-              placeholder="https://your-system.com/webhook"
-              placeholderTextColor={theme.colors.text.secondary}
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="url"
+              onChangeText={setUrl}
+              placeholder="https://your-system.com/webhook"
+              placeholderTextColor={theme.colors.text.secondary}
               style={{
                 backgroundColor: theme.colors.background.secondary,
                 borderRadius: 10,
@@ -378,6 +374,7 @@ function AddEndpointModal({
                 marginBottom: 16,
                 fontSize: 15,
               }}
+              value={url}
             />
 
             {/* Events */}
@@ -399,24 +396,22 @@ function AddEndpointModal({
                   borderBottomColor: theme.colors.background.secondary,
                 }}
               >
-                <Caption
-                  style={{ color: theme.colors.text.primary, flex: 1 }}
-                >
+                <Caption style={{ color: theme.colors.text.primary, flex: 1 }}>
                   {label}
                 </Caption>
                 <Switch
-                  value={selectedEvents.has(key)}
                   onValueChange={() => toggleEvent(key)}
-                  trackColor={{ false: "#E5E7EB", true: "#6366F1" }}
                   thumbColor="#FFFFFF"
+                  trackColor={{ false: "#E5E7EB", true: "#6366F1" }}
+                  value={selectedEvents.has(key)}
                 />
               </TouchableOpacity>
             ))}
 
             {/* Save */}
             <TouchableOpacity
-              onPress={handleSave}
               disabled={saving}
+              onPress={handleSave}
               style={{
                 backgroundColor: "#6366F1",
                 borderRadius: 12,
@@ -512,7 +507,7 @@ export default function WebhooksScreen() {
 
   const handleAddEndpoint = useCallback(
     async (name: string, url: string, events: WebhookEventType[]) => {
-      if (!orgId || !user?.id) return;
+      if (!(orgId && user?.id)) return;
       const { endpoint, signingSecret } = await webhookService.createEndpoint({
         orgId,
         name,
@@ -611,10 +606,10 @@ export default function WebhooksScreen() {
         }}
       >
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => navigation.goBack()}
         >
-          <ChevronLeft size={24} color={theme.colors.text.primary} />
+          <ChevronLeft color={theme.colors.text.primary} size={24} />
         </TouchableOpacity>
         <TypographyText
           style={getTextStyle(
@@ -628,12 +623,12 @@ export default function WebhooksScreen() {
         </TypographyText>
         <View style={{ flex: 1 }} />
         <TouchableOpacity
-          onPress={() => load(true)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => load(true)}
         >
           <RefreshCw
-            size={18}
             color={theme.colors.text.secondary}
+            size={18}
             style={refreshing ? { opacity: 0.4 } : undefined}
           />
         </TouchableOpacity>
@@ -641,13 +636,13 @@ export default function WebhooksScreen() {
 
       <ScrollView
         contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
-        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
             onRefresh={() => load(true)}
+            refreshing={refreshing}
           />
         }
+        showsVerticalScrollIndicator={false}
       >
         {/* Summary + Add button */}
         <View
@@ -673,7 +668,7 @@ export default function WebhooksScreen() {
               paddingVertical: 7,
             }}
           >
-            <Webhook size={14} color="#FFFFFF" />
+            <Webhook color="#FFFFFF" size={14} />
             <Caption style={{ color: "#FFFFFF", fontWeight: "600" }}>
               Add Endpoint
             </Caption>
@@ -704,7 +699,7 @@ export default function WebhooksScreen() {
           />
         ) : endpoints.length === 0 ? (
           <View style={{ alignItems: "center", paddingVertical: 48 }}>
-            <Webhook size={40} color={theme.colors.text.secondary} />
+            <Webhook color={theme.colors.text.secondary} size={40} />
             <TypographyText
               style={{
                 color: theme.colors.text.secondary,
@@ -721,12 +716,12 @@ export default function WebhooksScreen() {
         ) : (
           endpoints.map((ep) => (
             <EndpointCard
-              key={ep.id}
               endpoint={ep}
               isRTL={isRTL}
-              theme={theme}
+              key={ep.id}
               onDisable={handleDisable}
               onRotateSecret={handleRotateSecret}
+              theme={theme}
             />
           ))
         )}
@@ -753,11 +748,11 @@ export default function WebhooksScreen() {
       </ScrollView>
 
       <AddEndpointModal
-        visible={showAddModal}
         isRTL={isRTL}
-        theme={theme}
         onClose={() => setShowAddModal(false)}
         onSave={handleAddEndpoint}
+        theme={theme}
+        visible={showAddModal}
       />
     </WavyBackground>
   );

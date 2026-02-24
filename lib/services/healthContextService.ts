@@ -391,7 +391,11 @@ class HealthContextService {
         try {
           const { userBaselineService } = await import("./userBaselineService");
           const baseline = await userBaselineService.getBaseline(uid);
-          return await userBaselineService.detectDeviations(uid, baseline, isArabic);
+          return await userBaselineService.detectDeviations(
+            uid,
+            baseline,
+            isArabic
+          );
         } catch {
           return [];
         }
@@ -665,7 +669,8 @@ class HealthContextService {
 
     // Process lab results — surface flagged values for Zeina context
     const labResults: HealthContext["labResults"] =
-      labResultsResult?.status === "fulfilled" && Array.isArray(labResultsResult.value)
+      labResultsResult?.status === "fulfilled" &&
+      Array.isArray(labResultsResult.value)
         ? labResultsResult.value
             .slice(0, 10) // Cap to last 10 tests
             .map((r) => {
@@ -713,7 +718,9 @@ class HealthContextService {
       riskAssessmentResult.value !== null
         ? {
             riskLevel: riskAssessmentResult.value.riskLevel,
-            overallRiskScore: Math.round(riskAssessmentResult.value.overallRiskScore),
+            overallRiskScore: Math.round(
+              riskAssessmentResult.value.overallRiskScore
+            ),
             topRiskFactors: riskAssessmentResult.value.riskFactors
               .sort((a, b) => b.impact - a.impact)
               .slice(0, 5)

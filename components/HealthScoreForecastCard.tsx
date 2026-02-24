@@ -7,7 +7,12 @@
  */
 
 import { useRouter } from "expo-router";
-import { ChevronRight, TrendingDown, TrendingUp, Minus } from "lucide-react-native";
+import {
+  ChevronRight,
+  Minus,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -15,15 +20,14 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
-import { FeatureGate } from "@/components/FeatureGate";
-import { useFeatureGate } from "@/lib/services/featureGateService";
 import {
   Caption,
-  Heading,
   Text as TypographyText,
 } from "@/components/design-system/Typography";
+import { FeatureGate } from "@/components/FeatureGate";
 import { useTheme } from "@/contexts/ThemeContext";
 import { usePredictiveScore } from "@/hooks/usePredictiveScore";
+import { useFeatureGate } from "@/lib/services/featureGateService";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 type Props = {
@@ -57,8 +61,7 @@ const DAY_SHORT_AR = ["أحد", "اثن", "ثلا", "أرب", "خمي", "جمع"
 
 function ScoreCircle({ score, size = 72 }: { score: number; size?: number }) {
   const { theme } = useTheme();
-  const color =
-    score >= 80 ? "#10B981" : score >= 60 ? "#F59E0B" : "#EF4444";
+  const color = score >= 80 ? "#10B981" : score >= 60 ? "#F59E0B" : "#EF4444";
   return (
     <View
       style={{
@@ -106,7 +109,13 @@ function SparklineChart({
 
   return (
     <View
-      style={{ flexDirection: "row", alignItems: "flex-end", width, height, gap: 2 }}
+      style={{
+        flexDirection: "row",
+        alignItems: "flex-end",
+        width,
+        height,
+        gap: 2,
+      }}
     >
       {scores.map((s, i) => {
         const barHeight = Math.max(4, ((s.score - min) / range) * height);
@@ -173,12 +182,17 @@ function ForecastBarChart({
             item.score >= 80
               ? "#10B981"
               : item.score >= 60
-              ? "#F59E0B"
-              : "#EF4444";
+                ? "#F59E0B"
+                : "#EF4444";
           return (
             <View
               key={String(i)}
-              style={{ flex: 1, alignItems: "center", justifyContent: "flex-end", height: chartHeight + 24 }}
+              style={{
+                flex: 1,
+                alignItems: "center",
+                justifyContent: "flex-end",
+                height: chartHeight + 24,
+              }}
             >
               <View
                 style={{
@@ -219,14 +233,45 @@ function ForecastBarChart({
         }}
       >
         <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-          <View style={{ width: 12, height: 8, backgroundColor: "#10B98185", borderRadius: 2 }} />
-          <Caption style={getTextStyle(theme as Parameters<typeof getTextStyle>[0], "caption", "regular", theme.colors.text.secondary)}>
+          <View
+            style={{
+              width: 12,
+              height: 8,
+              backgroundColor: "#10B98185",
+              borderRadius: 2,
+            }}
+          />
+          <Caption
+            style={getTextStyle(
+              theme as Parameters<typeof getTextStyle>[0],
+              "caption",
+              "regular",
+              theme.colors.text.secondary
+            )}
+          >
             {isRTL ? "الماضي" : "Past"}
           </Caption>
         </View>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-          <View style={{ width: 12, height: 8, backgroundColor: "#10B98140", borderRadius: 2, borderWidth: 1, borderColor: "#10B981", borderStyle: "dashed" }} />
-          <Caption style={getTextStyle(theme as Parameters<typeof getTextStyle>[0], "caption", "regular", theme.colors.text.secondary)}>
+          <View
+            style={{
+              width: 12,
+              height: 8,
+              backgroundColor: "#10B98140",
+              borderRadius: 2,
+              borderWidth: 1,
+              borderColor: "#10B981",
+              borderStyle: "dashed",
+            }}
+          />
+          <Caption
+            style={getTextStyle(
+              theme as Parameters<typeof getTextStyle>[0],
+              "caption",
+              "regular",
+              theme.colors.text.secondary
+            )}
+          >
             {isRTL ? "التوقع" : "Forecast"}
           </Caption>
         </View>
@@ -314,7 +359,12 @@ export default function HealthScoreForecastCard({
       <View style={styles.card}>
         <View style={styles.header}>
           <TypographyText
-            style={getTextStyle(theme as Parameters<typeof getTextStyle>[0], "subheading", "bold", theme.colors.text.primary)}
+            style={getTextStyle(
+              theme as Parameters<typeof getTextStyle>[0],
+              "subheading",
+              "bold",
+              theme.colors.text.primary
+            )}
           >
             {isRTL ? "مؤشر الصحة" : "Health Score"}
           </TypographyText>
@@ -325,9 +375,14 @@ export default function HealthScoreForecastCard({
                 { backgroundColor: trendColor + "20" },
               ]}
             >
-              <TrendIcon size={12} color={trendColor} />
+              <TrendIcon color={trendColor} size={12} />
               <Caption
-                style={getTextStyle(theme as Parameters<typeof getTextStyle>[0], "caption", "semibold", trendColor)}
+                style={getTextStyle(
+                  theme as Parameters<typeof getTextStyle>[0],
+                  "caption",
+                  "semibold",
+                  trendColor
+                )}
               >
                 {trendLabel}
               </Caption>
@@ -340,7 +395,7 @@ export default function HealthScoreForecastCard({
           {hasAccess && forecast.historicalScores.length > 0 && (
             <View style={{ flex: 1, gap: 6 }}>
               <SparklineChart scores={forecast.historicalScores} width={100} />
-              <TypographyText style={styles.insightText} numberOfLines={2}>
+              <TypographyText numberOfLines={2} style={styles.insightText}>
                 {insight}
               </TypographyText>
             </View>
@@ -349,13 +404,13 @@ export default function HealthScoreForecastCard({
 
         {hasAccess && (
           <TouchableOpacity
-            style={styles.linkRow}
             onPress={() => router.push("/(tabs)/analytics")}
+            style={styles.linkRow}
           >
             <TypographyText style={styles.linkText}>
               {isRTL ? "عرض توقع 7 أيام" : "See 7-day forecast"}
             </TypographyText>
-            <ChevronRight size={14} color={theme.colors.primary.main} />
+            <ChevronRight color={theme.colors.primary.main} size={14} />
           </TouchableOpacity>
         )}
       </View>
@@ -368,16 +423,26 @@ export default function HealthScoreForecastCard({
       <View style={styles.card}>
         <View style={styles.header}>
           <TypographyText
-            style={getTextStyle(theme as Parameters<typeof getTextStyle>[0], "subheading", "bold", theme.colors.text.primary)}
+            style={getTextStyle(
+              theme as Parameters<typeof getTextStyle>[0],
+              "subheading",
+              "bold",
+              theme.colors.text.primary
+            )}
           >
             {isRTL ? "توقع مؤشر الصحة - 7 أيام" : "7-Day Health Forecast"}
           </TypographyText>
           <View
             style={[styles.trendBadge, { backgroundColor: trendColor + "20" }]}
           >
-            <TrendIcon size={12} color={trendColor} />
+            <TrendIcon color={trendColor} size={12} />
             <Caption
-              style={getTextStyle(theme as Parameters<typeof getTextStyle>[0], "caption", "semibold", trendColor)}
+              style={getTextStyle(
+                theme as Parameters<typeof getTextStyle>[0],
+                "caption",
+                "semibold",
+                trendColor
+              )}
             >
               {trendLabel}
             </Caption>
@@ -385,8 +450,8 @@ export default function HealthScoreForecastCard({
         </View>
 
         <ForecastBarChart
-          historical={forecast.historicalScores}
           forecast={forecast.forecast}
+          historical={forecast.historicalScores}
           isRTL={isRTL}
         />
 
@@ -404,7 +469,12 @@ export default function HealthScoreForecastCard({
             }}
           >
             <Caption
-              style={getTextStyle(theme as Parameters<typeof getTextStyle>[0], "caption", "medium", "#92400E")}
+              style={getTextStyle(
+                theme as Parameters<typeof getTextStyle>[0],
+                "caption",
+                "medium",
+                "#92400E"
+              )}
             >
               {isRTL
                 ? `⚠️ ${DAY_SHORT_AR[forecast.lowestDay.date.getDay()]} قد يكون أصعب يوم — راقب الأعراض`
@@ -416,4 +486,3 @@ export default function HealthScoreForecastCard({
     </FeatureGate>
   );
 }
-

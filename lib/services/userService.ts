@@ -107,8 +107,8 @@ export const userService = {
         ...(data.dateOfBirth instanceof Timestamp
           ? { dateOfBirth: data.dateOfBirth.toDate() }
           : data.dateOfBirth
-          ? { dateOfBirth: new Date(data.dateOfBirth) }
-          : {}),
+            ? { dateOfBirth: new Date(data.dateOfBirth) }
+            : {}),
         preferences: {
           language: preferences.language || "en",
           notifications:

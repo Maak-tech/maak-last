@@ -86,7 +86,11 @@ export function usePatternInsights(
     async (force = false) => {
       if (!userId) return;
       const now = Date.now();
-      if (!force && now - lastLoadRef.current < CACHE_TTL_MS && insights.length > 0)
+      if (
+        !force &&
+        now - lastLoadRef.current < CACHE_TTL_MS &&
+        insights.length > 0
+      )
         return;
 
       setLoading(true);
@@ -111,7 +115,12 @@ export function usePatternInsights(
           isArabic
         );
 
-        const all = [...temporal, ...medCorr, ...vitalTrends, ...integrationInsights];
+        const all = [
+          ...temporal,
+          ...medCorr,
+          ...vitalTrends,
+          ...integrationInsights,
+        ];
 
         // Prioritise: actionable first, then by confidence descending
         all.sort((a, b) => {

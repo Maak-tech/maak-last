@@ -169,7 +169,9 @@ async function saveVitalSample(
   // Rate-limited to once per 8h inside the method — safe to call on every vital save
   import("./userBaselineService")
     .then(({ userBaselineService }) => {
-      userBaselineService.checkAndNotifySignificantDeviations(userId).catch(() => {});
+      userBaselineService
+        .checkAndNotifySignificantDeviations(userId)
+        .catch(() => {});
     })
     .catch(() => {});
 }

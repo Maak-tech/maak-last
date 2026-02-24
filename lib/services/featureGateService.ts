@@ -159,19 +159,22 @@ export const FEATURES = {
     id: "medication_intelligence",
     name: "Medication Intelligence",
     accessLevel: FeatureAccessLevel.PREMIUM_INDIVIDUAL,
-    description: "Drug interaction warnings, refill predictions, and effectiveness insights",
+    description:
+      "Drug interaction warnings, refill predictions, and effectiveness insights",
   },
   HEALTH_RISK_ASSESSMENT: {
     id: "health_risk_assessment",
     name: "Health Risk Assessment",
     accessLevel: FeatureAccessLevel.PREMIUM_INDIVIDUAL,
-    description: "ML-powered personalised health risk scoring and condition risk analysis",
+    description:
+      "ML-powered personalised health risk scoring and condition risk analysis",
   },
   SYMPTOM_ANALYSIS: {
     id: "symptom_analysis",
     name: "Symptom Pattern Analysis",
     accessLevel: FeatureAccessLevel.PREMIUM_INDIVIDUAL,
-    description: "AI-powered symptom pattern recognition and differential suggestions",
+    description:
+      "AI-powered symptom pattern recognition and differential suggestions",
   },
 } as const;
 

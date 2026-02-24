@@ -7,6 +7,7 @@
  * Route: /(settings)/org/patient-detail?orgId=<orgId>&userId=<userId>&patientName=<name>
  */
 
+import { useLocalSearchParams, useNavigation } from "expo-router";
 import {
   collection,
   doc,
@@ -18,7 +19,6 @@ import {
   Timestamp,
   where,
 } from "firebase/firestore";
-import { useLocalSearchParams, useNavigation } from "expo-router";
 import {
   Activity,
   AlertTriangle,
@@ -58,11 +58,11 @@ import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { db } from "@/lib/firebase";
-import {
-  populationHealthService,
-  type PatientHealthSnapshot,
-} from "@/lib/services/populationHealthService";
 import { carePathwayService } from "@/lib/services/carePathwayService";
+import {
+  type PatientHealthSnapshot,
+  populationHealthService,
+} from "@/lib/services/populationHealthService";
 import { taskService } from "@/lib/services/taskService";
 import type { PathwayDefinition, Task, TaskPriority, TaskType } from "@/types";
 import { getTextStyle } from "@/utils/styles";
@@ -124,7 +124,11 @@ const TASK_TYPES: Array<{ key: TaskType; label: string }> = [
   { key: "care_plan_update", label: "Care Plan Update" },
 ];
 
-const TASK_PRIORITIES: Array<{ key: TaskPriority; label: string; color: string }> = [
+const TASK_PRIORITIES: Array<{
+  key: TaskPriority;
+  label: string;
+  color: string;
+}> = [
   { key: "urgent", label: "Urgent", color: "#EF4444" },
   { key: "high", label: "High", color: "#F97316" },
   { key: "normal", label: "Normal", color: "#6366F1" },
@@ -184,10 +188,14 @@ function CreateTaskModal({
     setSaving(false);
   };
 
-  const handleClose = () => { reset(); onClose(); };
+  const handleClose = () => {
+    reset();
+    onClose();
+  };
 
   const handleCreate = async () => {
-    const taskTitle = title.trim() || (TASK_TYPES.find((t) => t.key === type)?.label ?? type);
+    const taskTitle =
+      title.trim() || (TASK_TYPES.find((t) => t.key === type)?.label ?? type);
     setSaving(true);
     try {
       const task = await taskService.createTask({
@@ -203,7 +211,10 @@ function CreateTaskModal({
       onCreated(task);
       handleClose();
     } catch (err) {
-      Alert.alert("Error", err instanceof Error ? err.message : "Failed to create task.");
+      Alert.alert(
+        "Error",
+        err instanceof Error ? err.message : "Failed to create task."
+      );
     } finally {
       setSaving(false);
     }
@@ -221,18 +232,51 @@ function CreateTaskModal({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleClose}>
-      <View style={{ flex: 1, backgroundColor: theme.colors.background.primary, padding: 24, paddingTop: 48 }}>
-        <TypographyText style={getTextStyle(theme, "heading", "bold", theme.colors.text.primary)}>
+    <Modal
+      animationType="slide"
+      onRequestClose={handleClose}
+      presentationStyle="pageSheet"
+      visible={visible}
+    >
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: theme.colors.background.primary,
+          padding: 24,
+          paddingTop: 48,
+        }}
+      >
+        <TypographyText
+          style={getTextStyle(
+            theme,
+            "heading",
+            "bold",
+            theme.colors.text.primary
+          )}
+        >
           Create Task
         </TypographyText>
-        <Caption style={{ color: theme.colors.text.secondary, marginTop: 4, marginBottom: 20 }}>
+        <Caption
+          style={{
+            color: theme.colors.text.secondary,
+            marginTop: 4,
+            marginBottom: 20,
+          }}
+        >
           Assigned to care coordinator queue.
         </Caption>
 
         {/* Task type */}
-        <Caption style={{ color: theme.colors.text.secondary, marginBottom: 8 }}>TYPE</Caption>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+        <Caption
+          style={{ color: theme.colors.text.secondary, marginBottom: 8 }}
+        >
+          TYPE
+        </Caption>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ marginBottom: 16 }}
+        >
           <View style={{ flexDirection: "row", gap: 8 }}>
             {TASK_TYPES.map((t) => (
               <TouchableOpacity
@@ -242,10 +286,19 @@ function CreateTaskModal({
                   paddingHorizontal: 14,
                   paddingVertical: 8,
                   borderRadius: 20,
-                  backgroundColor: type === t.key ? "#6366F1" : theme.colors.background.secondary,
+                  backgroundColor:
+                    type === t.key
+                      ? "#6366F1"
+                      : theme.colors.background.secondary,
                 }}
               >
-                <Caption style={{ color: type === t.key ? "#FFF" : theme.colors.text.secondary, fontWeight: type === t.key ? "600" : "400" }}>
+                <Caption
+                  style={{
+                    color:
+                      type === t.key ? "#FFF" : theme.colors.text.secondary,
+                    fontWeight: type === t.key ? "600" : "400",
+                  }}
+                >
                   {t.label}
                 </Caption>
               </TouchableOpacity>
@@ -254,7 +307,11 @@ function CreateTaskModal({
         </ScrollView>
 
         {/* Priority */}
-        <Caption style={{ color: theme.colors.text.secondary, marginBottom: 8 }}>PRIORITY</Caption>
+        <Caption
+          style={{ color: theme.colors.text.secondary, marginBottom: 8 }}
+        >
+          PRIORITY
+        </Caption>
         <View style={{ flexDirection: "row", gap: 8, marginBottom: 16 }}>
           {TASK_PRIORITIES.map((p) => (
             <TouchableOpacity
@@ -264,12 +321,21 @@ function CreateTaskModal({
                 paddingHorizontal: 12,
                 paddingVertical: 7,
                 borderRadius: 20,
-                backgroundColor: priority === p.key ? p.color + "20" : theme.colors.background.secondary,
+                backgroundColor:
+                  priority === p.key
+                    ? p.color + "20"
+                    : theme.colors.background.secondary,
                 borderWidth: priority === p.key ? 1.5 : 0,
                 borderColor: p.color,
               }}
             >
-              <Caption style={{ color: priority === p.key ? p.color : theme.colors.text.secondary, fontWeight: priority === p.key ? "600" : "400" }}>
+              <Caption
+                style={{
+                  color:
+                    priority === p.key ? p.color : theme.colors.text.secondary,
+                  fontWeight: priority === p.key ? "600" : "400",
+                }}
+              >
                 {p.label}
               </Caption>
             </TouchableOpacity>
@@ -277,37 +343,65 @@ function CreateTaskModal({
         </View>
 
         {/* Title */}
-        <Caption style={{ color: theme.colors.text.secondary, marginBottom: 6 }}>TITLE</Caption>
+        <Caption
+          style={{ color: theme.colors.text.secondary, marginBottom: 6 }}
+        >
+          TITLE
+        </Caption>
         <TextInput
-          style={inputStyle}
-          placeholder={TASK_TYPES.find((t) => t.key === type)?.label ?? "Task title"}
-          placeholderTextColor={theme.colors.text.secondary}
-          value={title}
           onChangeText={setTitle}
+          placeholder={
+            TASK_TYPES.find((t) => t.key === type)?.label ?? "Task title"
+          }
+          placeholderTextColor={theme.colors.text.secondary}
+          style={inputStyle}
+          value={title}
         />
 
         {/* Description */}
-        <Caption style={{ color: theme.colors.text.secondary, marginBottom: 6 }}>NOTES (optional)</Caption>
+        <Caption
+          style={{ color: theme.colors.text.secondary, marginBottom: 6 }}
+        >
+          NOTES (optional)
+        </Caption>
         <TextInput
-          style={[inputStyle, { height: 80, textAlignVertical: "top" }]}
+          multiline
+          onChangeText={setDescription}
           placeholder="Additional context for the coordinator..."
           placeholderTextColor={theme.colors.text.secondary}
+          style={[inputStyle, { height: 80, textAlignVertical: "top" }]}
           value={description}
-          onChangeText={setDescription}
-          multiline
         />
 
         <TouchableOpacity
-          onPress={handleCreate}
           disabled={saving}
-          style={{ backgroundColor: "#6366F1", borderRadius: 12, padding: 16, alignItems: "center", marginTop: 8, opacity: saving ? 0.6 : 1 }}
+          onPress={handleCreate}
+          style={{
+            backgroundColor: "#6366F1",
+            borderRadius: 12,
+            padding: 16,
+            alignItems: "center",
+            marginTop: 8,
+            opacity: saving ? 0.6 : 1,
+          }}
         >
-          {saving ? <ActivityIndicator color="#FFF" /> : (
-            <TypographyText style={{ color: "#FFF", fontWeight: "600", fontSize: 16 }}>Create Task</TypographyText>
+          {saving ? (
+            <ActivityIndicator color="#FFF" />
+          ) : (
+            <TypographyText
+              style={{ color: "#FFF", fontWeight: "600", fontSize: 16 }}
+            >
+              Create Task
+            </TypographyText>
           )}
         </TouchableOpacity>
-        <TouchableOpacity onPress={handleClose} style={{ alignItems: "center", padding: 14 }}>
-          <Caption style={{ color: theme.colors.text.secondary }}>Cancel</Caption>
+        <TouchableOpacity
+          onPress={handleClose}
+          style={{ alignItems: "center", padding: 14 }}
+        >
+          <Caption style={{ color: theme.colors.text.secondary }}>
+            Cancel
+          </Caption>
         </TouchableOpacity>
       </View>
     </Modal>
@@ -316,12 +410,23 @@ function CreateTaskModal({
 
 // ─── Section Header ───────────────────────────────────────────────────────────
 
-function SectionHeader({ label, theme }: { label: string; theme: ReturnType<typeof useTheme>["theme"] }) {
+function SectionHeader({
+  label,
+  theme,
+}: {
+  label: string;
+  theme: ReturnType<typeof useTheme>["theme"];
+}) {
   return (
     <TypographyText
       style={[
         getTextStyle(theme, "caption", "semibold", theme.colors.text.secondary),
-        { textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8, marginTop: 20 },
+        {
+          textTransform: "uppercase",
+          letterSpacing: 0.8,
+          marginBottom: 8,
+          marginTop: 20,
+        },
       ]}
     >
       {label}
@@ -336,7 +441,11 @@ export default function PatientDetailScreen() {
   const { theme } = useTheme();
   const { user } = useAuth();
   const navigation = useNavigation();
-  const params = useLocalSearchParams<{ orgId: string; userId: string; patientName?: string }>();
+  const params = useLocalSearchParams<{
+    orgId: string;
+    userId: string;
+    patientName?: string;
+  }>();
   const orgId = params.orgId ?? "";
   const userId = params.userId ?? "";
   const patientName = params.patientName ?? userId.slice(0, 8).toUpperCase();
@@ -348,7 +457,9 @@ export default function PatientDetailScreen() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [pathways, setPathways] = useState<PathwayDefinition[]>([]);
   const [agentState, setAgentState] = useState<AgentState | null>(null);
-  const [enrollingPathwayId, setEnrollingPathwayId] = useState<string | null>(null);
+  const [enrollingPathwayId, setEnrollingPathwayId] = useState<string | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateTask, setShowCreateTask] = useState(false);
@@ -360,157 +471,185 @@ export default function PatientDetailScreen() {
 
   useEffect(() => {
     isMountedRef.current = true;
-    return () => { isMountedRef.current = false; };
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
-  const load = useCallback(async (isRefresh = false) => {
-    if (!userId || !orgId) return;
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
+  const load = useCallback(
+    async (isRefresh = false) => {
+      if (!(userId && orgId)) return;
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
 
-    const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000);
+      const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000);
 
-    try {
-      const results = await Promise.allSettled([
-        populationHealthService.getPatientSnapshot(userId),
-        getDocs(query(
-          collection(db, "users", userId, "anomalies"),
-          where("timestamp", ">=", Timestamp.fromDate(sevenDaysAgo)),
-          orderBy("timestamp", "desc"),
-          limit(20)
-        )),
-        getDocs(query(
-          collection(db, "medications"),
-          where("userId", "==", userId),
-          where("isActive", "==", true),
-          limit(20)
-        )),
-        taskService.listOrgTasks(orgId, { patientId: userId, status: "open", maxResults: 20 }),
-        carePathwayService.listPathways(orgId),
-        getDoc(doc(db, "patient_agent_state", `${orgId}_${userId}`)),
-      ] as const);
+      try {
+        const results = await Promise.allSettled([
+          populationHealthService.getPatientSnapshot(userId),
+          getDocs(
+            query(
+              collection(db, "users", userId, "anomalies"),
+              where("timestamp", ">=", Timestamp.fromDate(sevenDaysAgo)),
+              orderBy("timestamp", "desc"),
+              limit(20)
+            )
+          ),
+          getDocs(
+            query(
+              collection(db, "medications"),
+              where("userId", "==", userId),
+              where("isActive", "==", true),
+              limit(20)
+            )
+          ),
+          taskService.listOrgTasks(orgId, {
+            patientId: userId,
+            status: "open",
+            maxResults: 20,
+          }),
+          carePathwayService.listPathways(orgId),
+          getDoc(doc(db, "patient_agent_state", `${orgId}_${userId}`)),
+        ] as const);
 
-      if (!isMountedRef.current) return;
+        if (!isMountedRef.current) return;
 
-      const [snap, anomalySnap, medSnap, taskList, pathwayList, agentSnap] = results;
+        const [snap, anomalySnap, medSnap, taskList, pathwayList, agentSnap] =
+          results;
 
-      if (snap.status === "fulfilled") setSnapshot(snap.value);
+        if (snap.status === "fulfilled") setSnapshot(snap.value);
 
-      if (anomalySnap.status === "fulfilled") {
-        setAnomalies(
-          anomalySnap.value.docs.map((d) => {
-            const data = d.data();
-            return {
-              id: d.id,
-              vitalType: (data.vitalType as string) ?? "vital",
-              severity: data.severity as "critical" | "warning",
-              message: (data.message as string) ?? "",
-              timestamp: toDate(data.timestamp),
-            };
-          })
-        );
-      }
-
-      if (medSnap.status === "fulfilled") {
-        setMedications(
-          medSnap.value.docs.map((d) => {
-            const data = d.data();
-            return {
-              id: d.id,
-              name: (data.name as string) ?? "Unknown",
-              dosage: data.dosage as string | undefined,
-              frequency: data.frequency as string | undefined,
-            };
-          })
-        );
-      }
-
-      if (taskList.status === "fulfilled") setTasks(taskList.value);
-      if (pathwayList.status === "fulfilled") {
-        setPathways(pathwayList.value.filter((p) => p.isActive));
-      }
-      if (agentSnap.status === "fulfilled" && agentSnap.value.exists()) {
-        const d = agentSnap.value.data()!;
-        const rawHistory = (d.actionHistory as unknown[]) ?? [];
-        setAgentState({
-          lastCycleAt: d.lastCycleAt ? toDate(d.lastCycleAt) : null,
-          nextCycleAt: d.nextCycleAt ? toDate(d.nextCycleAt) : null,
-          openActionsCount: (d.openActionsCount as number) ?? 0,
-          agentNotes: (d.agentNotes as string) ?? "",
-          actionHistory: rawHistory
-            .slice(-5) // show last 5 actions
-            .reverse()
-            .map((entry) => {
-              const e = entry as Record<string, unknown>;
+        if (anomalySnap.status === "fulfilled") {
+          setAnomalies(
+            anomalySnap.value.docs.map((d) => {
+              const data = d.data();
               return {
-                type: (e.type as string) ?? "unknown",
-                timestamp: toDate(e.timestamp),
-                reasoning: (e.reasoning as string) ?? "",
-                outcome: (e.outcome as string) ?? "success",
-                taskId: e.taskId as string | undefined,
+                id: d.id,
+                vitalType: (data.vitalType as string) ?? "vital",
+                severity: data.severity as "critical" | "warning",
+                message: (data.message as string) ?? "",
+                timestamp: toDate(data.timestamp),
               };
-            }),
-        });
+            })
+          );
+        }
+
+        if (medSnap.status === "fulfilled") {
+          setMedications(
+            medSnap.value.docs.map((d) => {
+              const data = d.data();
+              return {
+                id: d.id,
+                name: (data.name as string) ?? "Unknown",
+                dosage: data.dosage as string | undefined,
+                frequency: data.frequency as string | undefined,
+              };
+            })
+          );
+        }
+
+        if (taskList.status === "fulfilled") setTasks(taskList.value);
+        if (pathwayList.status === "fulfilled") {
+          setPathways(pathwayList.value.filter((p) => p.isActive));
+        }
+        if (agentSnap.status === "fulfilled" && agentSnap.value.exists()) {
+          const d = agentSnap.value.data()!;
+          const rawHistory = (d.actionHistory as unknown[]) ?? [];
+          setAgentState({
+            lastCycleAt: d.lastCycleAt ? toDate(d.lastCycleAt) : null,
+            nextCycleAt: d.nextCycleAt ? toDate(d.nextCycleAt) : null,
+            openActionsCount: (d.openActionsCount as number) ?? 0,
+            agentNotes: (d.agentNotes as string) ?? "",
+            actionHistory: rawHistory
+              .slice(-5) // show last 5 actions
+              .reverse()
+              .map((entry) => {
+                const e = entry as Record<string, unknown>;
+                return {
+                  type: (e.type as string) ?? "unknown",
+                  timestamp: toDate(e.timestamp),
+                  reasoning: (e.reasoning as string) ?? "",
+                  outcome: (e.outcome as string) ?? "success",
+                  taskId: e.taskId as string | undefined,
+                };
+              }),
+          });
+        }
+      } catch {
+        // partial failures handled by Promise.allSettled above
+      } finally {
+        if (isMountedRef.current) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
-    } catch {
-      // partial failures handled by Promise.allSettled above
-    } finally {
-      if (isMountedRef.current) {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    }
-  }, [userId, orgId]);
+    },
+    [userId, orgId]
+  );
 
-  useEffect(() => { load(false); }, [load]);
+  useEffect(() => {
+    load(false);
+  }, [load]);
 
-  const handleCompleteTask = useCallback(async (task: Task) => {
-    if (!user?.id) return;
-    Alert.alert("Complete Task", `Mark "${task.title}" as done?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Complete",
-        onPress: async () => {
-          try {
-            await taskService.updateStatus(task.id, "completed", user.id);
-            setTasks((prev) => prev.filter((t) => t.id !== task.id));
-          } catch {
-            Alert.alert("Error", "Failed to complete task.");
-          }
-        },
-      },
-    ]);
-  }, [user?.id]);
-
-  const handleEnrollPathway = useCallback(async (pathway: PathwayDefinition) => {
-    if (!user?.id) return;
-    Alert.alert(
-      "Enroll in Pathway",
-      `Enroll ${patientName} in "${pathway.name}"? The first step will begin immediately.`,
-      [
+  const handleCompleteTask = useCallback(
+    async (task: Task) => {
+      if (!user?.id) return;
+      Alert.alert("Complete Task", `Mark "${task.title}" as done?`, [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Enroll",
+          text: "Complete",
           onPress: async () => {
-            setEnrollingPathwayId(pathway.id);
             try {
-              await carePathwayService.enrollPatient({
-                orgId,
-                patientId: userId,
-                pathwayId: pathway.id,
-                pathway,
-              });
-              Alert.alert("Enrolled", `${patientName} is now on the "${pathway.name}" pathway.`);
-            } catch (err) {
-              Alert.alert("Error", err instanceof Error ? err.message : "Failed to enroll.");
-            } finally {
-              setEnrollingPathwayId(null);
+              await taskService.updateStatus(task.id, "completed", user.id);
+              setTasks((prev) => prev.filter((t) => t.id !== task.id));
+            } catch {
+              Alert.alert("Error", "Failed to complete task.");
             }
           },
         },
-      ]
-    );
-  }, [orgId, userId, patientName, user?.id]);
+      ]);
+    },
+    [user?.id]
+  );
+
+  const handleEnrollPathway = useCallback(
+    async (pathway: PathwayDefinition) => {
+      if (!user?.id) return;
+      Alert.alert(
+        "Enroll in Pathway",
+        `Enroll ${patientName} in "${pathway.name}"? The first step will begin immediately.`,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Enroll",
+            onPress: async () => {
+              setEnrollingPathwayId(pathway.id);
+              try {
+                await carePathwayService.enrollPatient({
+                  orgId,
+                  patientId: userId,
+                  pathwayId: pathway.id,
+                  pathway,
+                });
+                Alert.alert(
+                  "Enrolled",
+                  `${patientName} is now on the "${pathway.name}" pathway.`
+                );
+              } catch (err) {
+                Alert.alert(
+                  "Error",
+                  err instanceof Error ? err.message : "Failed to enroll."
+                );
+              } finally {
+                setEnrollingPathwayId(null);
+              }
+            },
+          },
+        ]
+      );
+    },
+    [orgId, userId, patientName, user?.id]
+  );
 
   const riskColor = snapshot ? RISK_COLORS[snapshot.riskLevel] : "#6B7280";
   const riskBg = snapshot ? RISK_BG[snapshot.riskLevel] : "#F9FAFB";
@@ -530,60 +669,158 @@ export default function PatientDetailScreen() {
           gap: 12,
         }}
       >
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <ChevronLeft size={24} color={theme.colors.text.primary} />
+        <TouchableOpacity
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => navigation.goBack()}
+        >
+          <ChevronLeft color={theme.colors.text.primary} size={24} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <TypographyText style={getTextStyle(theme, "heading", "bold", theme.colors.text.primary)}>
+          <TypographyText
+            style={getTextStyle(
+              theme,
+              "heading",
+              "bold",
+              theme.colors.text.primary
+            )}
+          >
             {patientName}
           </TypographyText>
-          <Caption style={{ color: theme.colors.text.secondary }}>Patient Overview</Caption>
+          <Caption style={{ color: theme.colors.text.secondary }}>
+            Patient Overview
+          </Caption>
         </View>
-        <TouchableOpacity onPress={() => load(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <RefreshCw size={18} color={theme.colors.text.secondary} style={refreshing ? { opacity: 0.4 } : undefined} />
+        <TouchableOpacity
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => load(true)}
+        >
+          <RefreshCw
+            color={theme.colors.text.secondary}
+            size={18}
+            style={refreshing ? { opacity: 0.4 } : undefined}
+          />
         </TouchableOpacity>
       </View>
 
       <ScrollView
         contentContainerStyle={{ padding: 20, paddingBottom: 80 }}
+        refreshControl={
+          <RefreshControl
+            onRefresh={() => load(true)}
+            refreshing={refreshing}
+          />
+        }
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
       >
         {loading ? (
-          <ActivityIndicator color={theme.colors.text.primary} style={{ marginTop: 48 }} />
+          <ActivityIndicator
+            color={theme.colors.text.primary}
+            style={{ marginTop: 48 }}
+          />
         ) : (
           <>
             {/* Risk Summary Card */}
             {snapshot && (
-              <View style={{ backgroundColor: riskBg, borderRadius: 16, padding: 18, marginBottom: 4 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                  <TypographyText style={{ color: riskColor, fontSize: 32, fontWeight: "800" }}>
+              <View
+                style={{
+                  backgroundColor: riskBg,
+                  borderRadius: 16,
+                  padding: 18,
+                  marginBottom: 4,
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: 12,
+                  }}
+                >
+                  <TypographyText
+                    style={{
+                      color: riskColor,
+                      fontSize: 32,
+                      fontWeight: "800",
+                    }}
+                  >
                     {snapshot.riskScore}
                   </TypographyText>
-                  <View style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: riskColor + "20", borderWidth: 1.5, borderColor: riskColor }}>
-                    <Caption style={{ color: riskColor, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                  <View
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 20,
+                      backgroundColor: riskColor + "20",
+                      borderWidth: 1.5,
+                      borderColor: riskColor,
+                    }}
+                  >
+                    <Caption
+                      style={{
+                        color: riskColor,
+                        fontWeight: "700",
+                        textTransform: "uppercase",
+                        letterSpacing: 0.5,
+                      }}
+                    >
                       {snapshot.riskLevel}
                     </Caption>
                   </View>
                 </View>
-                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    <AlertTriangle size={14} color={riskColor} />
+                <View
+                  style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                  >
+                    <AlertTriangle color={riskColor} size={14} />
                     <Caption style={{ color: riskColor }}>
-                      {snapshot.recentAnomalies.total} anomal{snapshot.recentAnomalies.total !== 1 ? "ies" : "y"}
+                      {snapshot.recentAnomalies.total} anomal
+                      {snapshot.recentAnomalies.total !== 1 ? "ies" : "y"}
                     </Caption>
                   </View>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    <Pill size={14} color={snapshot.missedMedicationsToday > 0 ? "#F97316" : "#10B981"} />
-                    <Caption style={{ color: snapshot.missedMedicationsToday > 0 ? "#F97316" : "#10B981" }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                  >
+                    <Pill
+                      color={
+                        snapshot.missedMedicationsToday > 0
+                          ? "#F97316"
+                          : "#10B981"
+                      }
+                      size={14}
+                    />
+                    <Caption
+                      style={{
+                        color:
+                          snapshot.missedMedicationsToday > 0
+                            ? "#F97316"
+                            : "#10B981",
+                      }}
+                    >
                       {snapshot.missedMedicationsToday > 0
                         ? `${snapshot.missedMedicationsToday} missed today`
                         : "Meds on track"}
                     </Caption>
                   </View>
                   {snapshot.lastVitalSyncAt && (
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                      <Clock size={14} color={theme.colors.text.secondary} />
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
+                      <Clock color={theme.colors.text.secondary} size={14} />
                       <Caption style={{ color: theme.colors.text.secondary }}>
                         Synced {relativeTime(snapshot.lastVitalSyncAt)}
                       </Caption>
@@ -594,11 +831,25 @@ export default function PatientDetailScreen() {
             )}
 
             {/* Tasks */}
-            <SectionHeader label={`Open Tasks (${tasks.length})`} theme={theme} />
+            <SectionHeader
+              label={`Open Tasks (${tasks.length})`}
+              theme={theme}
+            />
             {tasks.length === 0 ? (
-              <View style={{ backgroundColor: theme.colors.background.secondary, borderRadius: 10, padding: 14, alignItems: "center" }}>
-                <CheckCircle2 size={22} color={theme.colors.text.secondary} />
-                <Caption style={{ color: theme.colors.text.secondary, marginTop: 6 }}>No open tasks</Caption>
+              <View
+                style={{
+                  backgroundColor: theme.colors.background.secondary,
+                  borderRadius: 10,
+                  padding: 14,
+                  alignItems: "center",
+                }}
+              >
+                <CheckCircle2 color={theme.colors.text.secondary} size={22} />
+                <Caption
+                  style={{ color: theme.colors.text.secondary, marginTop: 6 }}
+                >
+                  No open tasks
+                </Caption>
               </View>
             ) : (
               tasks.map((task) => {
@@ -617,25 +868,54 @@ export default function PatientDetailScreen() {
                     }}
                   >
                     <View style={{ flex: 1 }}>
-                      <TypographyText style={{ color: theme.colors.text.primary, fontSize: 14, fontWeight: "600" }}>
+                      <TypographyText
+                        style={{
+                          color: theme.colors.text.primary,
+                          fontSize: 14,
+                          fontWeight: "600",
+                        }}
+                      >
                         {task.title}
                       </TypographyText>
-                      <View style={{ flexDirection: "row", gap: 8, marginTop: 4 }}>
-                        <Caption style={{ color: pc?.color ?? theme.colors.text.secondary }}>{task.priority}</Caption>
+                      <View
+                        style={{ flexDirection: "row", gap: 8, marginTop: 4 }}
+                      >
+                        <Caption
+                          style={{
+                            color: pc?.color ?? theme.colors.text.secondary,
+                          }}
+                        >
+                          {task.priority}
+                        </Caption>
                         {task.source === "agent" && (
-                          <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
-                            <Zap size={10} color="#6366F1" />
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 3,
+                            }}
+                          >
+                            <Zap color="#6366F1" size={10} />
                             <Caption style={{ color: "#6366F1" }}>AI</Caption>
                           </View>
                         )}
-                        <Caption style={{ color: theme.colors.text.secondary }}>{relativeTime(task.createdAt)}</Caption>
+                        <Caption style={{ color: theme.colors.text.secondary }}>
+                          {relativeTime(task.createdAt)}
+                        </Caption>
                       </View>
                     </View>
                     <TouchableOpacity
                       onPress={() => handleCompleteTask(task)}
-                      style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: "#ECFDF5" }}
+                      style={{
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                        borderRadius: 8,
+                        backgroundColor: "#ECFDF5",
+                      }}
                     >
-                      <Caption style={{ color: "#059669", fontWeight: "600" }}>Done</Caption>
+                      <Caption style={{ color: "#059669", fontWeight: "600" }}>
+                        Done
+                      </Caption>
                     </TouchableOpacity>
                   </View>
                 );
@@ -643,44 +923,90 @@ export default function PatientDetailScreen() {
             )}
 
             {/* Recent Anomalies */}
-            <SectionHeader label={`Recent Anomalies (7d)`} theme={theme} />
+            <SectionHeader label={"Recent Anomalies (7d)"} theme={theme} />
             {anomalies.length === 0 ? (
-              <View style={{ backgroundColor: theme.colors.background.secondary, borderRadius: 10, padding: 14, alignItems: "center" }}>
-                <Activity size={22} color={theme.colors.text.secondary} />
-                <Caption style={{ color: theme.colors.text.secondary, marginTop: 6 }}>No anomalies detected</Caption>
+              <View
+                style={{
+                  backgroundColor: theme.colors.background.secondary,
+                  borderRadius: 10,
+                  padding: 14,
+                  alignItems: "center",
+                }}
+              >
+                <Activity color={theme.colors.text.secondary} size={22} />
+                <Caption
+                  style={{ color: theme.colors.text.secondary, marginTop: 6 }}
+                >
+                  No anomalies detected
+                </Caption>
               </View>
             ) : (
               anomalies.slice(0, 10).map((a) => (
                 <View
                   key={a.id}
                   style={{
-                    backgroundColor: a.severity === "critical" ? "#FEF2F2" : "#FFFBEB",
+                    backgroundColor:
+                      a.severity === "critical" ? "#FEF2F2" : "#FFFBEB",
                     borderRadius: 10,
                     padding: 12,
                     marginBottom: 8,
                     borderLeftWidth: 3,
-                    borderLeftColor: a.severity === "critical" ? "#EF4444" : "#F59E0B",
+                    borderLeftColor:
+                      a.severity === "critical" ? "#EF4444" : "#F59E0B",
                   }}
                 >
-                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                    <Caption style={{ color: a.severity === "critical" ? "#EF4444" : "#D97706", fontWeight: "700", textTransform: "uppercase" }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <Caption
+                      style={{
+                        color:
+                          a.severity === "critical" ? "#EF4444" : "#D97706",
+                        fontWeight: "700",
+                        textTransform: "uppercase",
+                      }}
+                    >
                       {a.vitalType.replace(/_/g, " ")}
                     </Caption>
-                    <Caption style={{ color: theme.colors.text.secondary }}>{relativeTime(a.timestamp)}</Caption>
+                    <Caption style={{ color: theme.colors.text.secondary }}>
+                      {relativeTime(a.timestamp)}
+                    </Caption>
                   </View>
                   {a.message ? (
-                    <Caption style={{ color: theme.colors.text.primary, marginTop: 3 }}>{a.message}</Caption>
+                    <Caption
+                      style={{ color: theme.colors.text.primary, marginTop: 3 }}
+                    >
+                      {a.message}
+                    </Caption>
                   ) : null}
                 </View>
               ))
             )}
 
             {/* Active Medications */}
-            <SectionHeader label={`Active Medications (${medications.length})`} theme={theme} />
+            <SectionHeader
+              label={`Active Medications (${medications.length})`}
+              theme={theme}
+            />
             {medications.length === 0 ? (
-              <View style={{ backgroundColor: theme.colors.background.secondary, borderRadius: 10, padding: 14, alignItems: "center" }}>
-                <Pill size={22} color={theme.colors.text.secondary} />
-                <Caption style={{ color: theme.colors.text.secondary, marginTop: 6 }}>No active medications</Caption>
+              <View
+                style={{
+                  backgroundColor: theme.colors.background.secondary,
+                  borderRadius: 10,
+                  padding: 14,
+                  alignItems: "center",
+                }}
+              >
+                <Pill color={theme.colors.text.secondary} size={22} />
+                <Caption
+                  style={{ color: theme.colors.text.secondary, marginTop: 6 }}
+                >
+                  No active medications
+                </Caption>
               </View>
             ) : (
               medications.map((med) => (
@@ -696,14 +1022,22 @@ export default function PatientDetailScreen() {
                     gap: 10,
                   }}
                 >
-                  <Pill size={16} color="#6366F1" />
+                  <Pill color="#6366F1" size={16} />
                   <View style={{ flex: 1 }}>
-                    <TypographyText style={{ color: theme.colors.text.primary, fontSize: 14, fontWeight: "600" }}>
+                    <TypographyText
+                      style={{
+                        color: theme.colors.text.primary,
+                        fontSize: 14,
+                        fontWeight: "600",
+                      }}
+                    >
                       {med.name}
                     </TypographyText>
-                    {(med.dosage || med.frequency) ? (
+                    {med.dosage || med.frequency ? (
                       <Caption style={{ color: theme.colors.text.secondary }}>
-                        {[med.dosage, med.frequency].filter(Boolean).join(" · ")}
+                        {[med.dosage, med.frequency]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </Caption>
                     ) : null}
                   </View>
@@ -724,9 +1058,22 @@ export default function PatientDetailScreen() {
                     marginBottom: 8,
                   }}
                 >
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                    <Bot size={16} color="#6366F1" />
-                    <TypographyText style={{ color: "#4F46E5", fontSize: 13, fontWeight: "700" }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 8,
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Bot color="#6366F1" size={16} />
+                    <TypographyText
+                      style={{
+                        color: "#4F46E5",
+                        fontSize: 13,
+                        fontWeight: "700",
+                      }}
+                    >
                       Autonomous Monitor
                     </TypographyText>
                     <View style={{ flex: 1 }} />
@@ -746,16 +1093,24 @@ export default function PatientDetailScreen() {
                   <View style={{ flexDirection: "row", gap: 16 }}>
                     {agentState.lastCycleAt && (
                       <View>
-                        <Caption style={{ color: "#6B7280" }}>Last cycle</Caption>
-                        <Caption style={{ color: "#374151", fontWeight: "600" }}>
+                        <Caption style={{ color: "#6B7280" }}>
+                          Last cycle
+                        </Caption>
+                        <Caption
+                          style={{ color: "#374151", fontWeight: "600" }}
+                        >
                           {relativeTime(agentState.lastCycleAt)}
                         </Caption>
                       </View>
                     )}
                     {agentState.nextCycleAt && (
                       <View>
-                        <Caption style={{ color: "#6B7280" }}>Next cycle</Caption>
-                        <Caption style={{ color: "#374151", fontWeight: "600" }}>
+                        <Caption style={{ color: "#6B7280" }}>
+                          Next cycle
+                        </Caption>
+                        <Caption
+                          style={{ color: "#374151", fontWeight: "600" }}
+                        >
                           {relativeTime(agentState.nextCycleAt)}
                         </Caption>
                       </View>
@@ -778,7 +1133,8 @@ export default function PatientDetailScreen() {
                     no_action: "No Action",
                   };
                   const color = actionColors[entry.type] ?? "#6B7280";
-                  const label = actionLabels[entry.type] ?? entry.type.replace(/_/g, " ");
+                  const label =
+                    actionLabels[entry.type] ?? entry.type.replace(/_/g, " ");
 
                   return (
                     <View
@@ -792,8 +1148,21 @@ export default function PatientDetailScreen() {
                         borderLeftColor: color,
                       }}
                     >
-                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                        <Caption style={{ color, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.3 }}>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <Caption
+                          style={{
+                            color,
+                            fontWeight: "700",
+                            textTransform: "uppercase",
+                            letterSpacing: 0.3,
+                          }}
+                        >
                           {label}
                         </Caption>
                         <Caption style={{ color: theme.colors.text.secondary }}>
@@ -801,7 +1170,12 @@ export default function PatientDetailScreen() {
                         </Caption>
                       </View>
                       {entry.reasoning ? (
-                        <Caption style={{ color: theme.colors.text.secondary, marginTop: 3 }}>
+                        <Caption
+                          style={{
+                            color: theme.colors.text.secondary,
+                            marginTop: 3,
+                          }}
+                        >
                           {entry.reasoning}
                         </Caption>
                       ) : null}
@@ -828,9 +1202,15 @@ export default function PatientDetailScreen() {
                       gap: 10,
                     }}
                   >
-                    <GitBranch size={16} color="#6366F1" />
+                    <GitBranch color="#6366F1" size={16} />
                     <View style={{ flex: 1 }}>
-                      <TypographyText style={{ color: theme.colors.text.primary, fontSize: 14, fontWeight: "600" }}>
+                      <TypographyText
+                        style={{
+                          color: theme.colors.text.primary,
+                          fontSize: 14,
+                          fontWeight: "600",
+                        }}
+                      >
                         {p.name}
                       </TypographyText>
                       <Caption style={{ color: theme.colors.text.secondary }}>
@@ -838,8 +1218,8 @@ export default function PatientDetailScreen() {
                       </Caption>
                     </View>
                     <TouchableOpacity
-                      onPress={() => handleEnrollPathway(p)}
                       disabled={enrollingPathwayId === p.id}
+                      onPress={() => handleEnrollPathway(p)}
                       style={{
                         paddingHorizontal: 12,
                         paddingVertical: 6,
@@ -849,9 +1229,13 @@ export default function PatientDetailScreen() {
                       }}
                     >
                       {enrollingPathwayId === p.id ? (
-                        <ActivityIndicator size="small" color="#6366F1" />
+                        <ActivityIndicator color="#6366F1" size="small" />
                       ) : (
-                        <Caption style={{ color: "#6366F1", fontWeight: "600" }}>Enroll</Caption>
+                        <Caption
+                          style={{ color: "#6366F1", fontWeight: "600" }}
+                        >
+                          Enroll
+                        </Caption>
                       )}
                     </TouchableOpacity>
                   </View>
@@ -884,21 +1268,23 @@ export default function PatientDetailScreen() {
             elevation: 8,
           }}
         >
-          <Plus size={18} color="#FFF" />
-          <TypographyText style={{ color: "#FFF", fontWeight: "600", fontSize: 15 }}>
+          <Plus color="#FFF" size={18} />
+          <TypographyText
+            style={{ color: "#FFF", fontWeight: "600", fontSize: 15 }}
+          >
             Create Task
           </TypographyText>
         </TouchableOpacity>
       )}
 
       <CreateTaskModal
-        visible={showCreateTask}
-        orgId={orgId}
-        patientId={userId}
         createdBy={user?.id ?? ""}
-        theme={theme}
         onClose={() => setShowCreateTask(false)}
         onCreated={(t) => setTasks((prev) => [t, ...prev])}
+        orgId={orgId}
+        patientId={userId}
+        theme={theme}
+        visible={showCreateTask}
       />
     </WavyBackground>
   );

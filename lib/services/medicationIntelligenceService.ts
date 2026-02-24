@@ -84,8 +84,7 @@ const DRUG_INTERACTIONS: Array<{
       "دمج الوارفارين مع الأسبرين يزيد بشكل كبير من خطر النزيف الخطير.",
     recommendation:
       "Avoid this combination unless specifically prescribed. Monitor for bleeding signs.",
-    recommendationAr:
-      "تجنب هذا المزيج ما لم يصفه طبيبك. راقب علامات النزيف.",
+    recommendationAr: "تجنب هذا المزيج ما لم يصفه طبيبك. راقب علامات النزيف.",
   },
   {
     drug1: "metformin",
@@ -109,8 +108,7 @@ const DRUG_INTERACTIONS: Array<{
       "الإريثروميسين يثبط استقلاب أتورفاستاتين، مما يزيد مستويات الستاتين وخطر تلف العضلات.",
     recommendation:
       "Avoid this combination. Use a different antibiotic or statin.",
-    recommendationAr:
-      "تجنب هذا المزيج. استخدم مضاد حيوي أو ستاتين مختلف.",
+    recommendationAr: "تجنب هذا المزيج. استخدم مضاد حيوي أو ستاتين مختلف.",
   },
   {
     drug1: "lisinopril",
@@ -209,8 +207,7 @@ const DRUG_INTERACTIONS: Array<{
       "مضادات الالتهاب كالإيبوبروفين تزيد خطر النزيف مع الوارفارين.",
     recommendation:
       "Use paracetamol for pain relief instead. Monitor INR closely.",
-    recommendationAr:
-      "استخدم الباراسيتامول لتخفيف الألم. راقب INR عن كثب.",
+    recommendationAr: "استخدم الباراسيتامول لتخفيف الألم. راقب INR عن كثب.",
   },
   {
     drug1: "lisinopril",
@@ -235,8 +232,7 @@ const DRUG_INTERACTIONS: Array<{
       "أوميبرازول يمكن أن يقلل من التأثير المضاد للصفائح لكلوبيدوجريل.",
     recommendation:
       "Consider switching to pantoprazole, which has less interaction.",
-    recommendationAr:
-      "فكر في التحول إلى بانتوبرازول الذي له تفاعل أقل.",
+    recommendationAr: "فكر في التحول إلى بانتوبرازول الذي له تفاعل أقل.",
   },
   {
     drug1: "metformin",
@@ -244,12 +240,9 @@ const DRUG_INTERACTIONS: Array<{
     severity: "moderate",
     description:
       "Alcohol increases the risk of lactic acidosis in patients taking metformin.",
-    descriptionAr:
-      "الكحول يزيد خطر الحماض اللبني لدى مرضى الميتفورمين.",
-    recommendation:
-      "Avoid excessive alcohol consumption while on metformin.",
-    recommendationAr:
-      "تجنب الإفراط في تناول الكحول أثناء تناول الميتفورمين.",
+    descriptionAr: "الكحول يزيد خطر الحماض اللبني لدى مرضى الميتفورمين.",
+    recommendation: "Avoid excessive alcohol consumption while on metformin.",
+    recommendationAr: "تجنب الإفراط في تناول الكحول أثناء تناول الميتفورمين.",
   },
   {
     drug1: "sertraline",
@@ -310,8 +303,7 @@ const DRUG_INTERACTIONS: Array<{
       "مضادات الالتهاب تقلل التأثير المدر للبول لفيوروسيميد وقد تضعف وظائف الكلى.",
     recommendation:
       "Use paracetamol for pain. Monitor blood pressure and kidney function.",
-    recommendationAr:
-      "استخدم الباراسيتامول. راقب ضغط الدم ووظائف الكلى.",
+    recommendationAr: "استخدم الباراسيتامول. راقب ضغط الدم ووظائف الكلى.",
   },
 ];
 

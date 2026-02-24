@@ -82,48 +82,53 @@ async function sensePatient(
   );
   const vitalCutoff = new Date(Date.now() - VITAL_STALE_HOURS * 60 * 60 * 1000);
 
-  const [anomalySnap, missedMedSnap, recentVitalSnap, rosterSnap, openTaskSnap] =
-    await Promise.all([
-      // New anomalies since last cycle
-      db()
-        .collection("users")
-        .doc(userId)
-        .collection("anomalies")
-        .where("detectedAt", ">=", Timestamp.fromDate(sinceNew))
-        .get(),
+  const [
+    anomalySnap,
+    missedMedSnap,
+    recentVitalSnap,
+    rosterSnap,
+    openTaskSnap,
+  ] = await Promise.all([
+    // New anomalies since last cycle
+    db()
+      .collection("users")
+      .doc(userId)
+      .collection("anomalies")
+      .where("detectedAt", ">=", Timestamp.fromDate(sinceNew))
+      .get(),
 
-      // Medications with missed doses recently
-      db()
-        .collection("medications")
-        .where("userId", "==", userId)
-        .where("status", "==", "active")
-        .where("lastMissedAt", ">=", Timestamp.fromDate(medLookback))
-        .get(),
+    // Medications with missed doses recently
+    db()
+      .collection("medications")
+      .where("userId", "==", userId)
+      .where("status", "==", "active")
+      .where("lastMissedAt", ">=", Timestamp.fromDate(medLookback))
+      .get(),
 
-      // Most recent vital to check staleness
-      db()
-        .collection("vitals")
-        .where("userId", "==", userId)
-        .orderBy("timestamp", "desc")
-        .limit(1)
-        .get(),
+    // Most recent vital to check staleness
+    db()
+      .collection("vitals")
+      .where("userId", "==", userId)
+      .orderBy("timestamp", "desc")
+      .limit(1)
+      .get(),
 
-      // Risk score from roster
-      db()
-        .collection("patient_roster")
-        .doc(`${orgId}_${userId}`)
-        .get(),
+    // Risk score from roster
+    db()
+      .collection("patient_roster")
+      .doc(`${orgId}_${userId}`)
+      .get(),
 
-      // Existing open agent-created tasks for this patient/org
-      db()
-        .collection("tasks")
-        .where("orgId", "==", orgId)
-        .where("patientId", "==", userId)
-        .where("source", "==", "agent")
-        .where("status", "in", ["open", "in_progress"])
-        .limit(1)
-        .get(),
-    ]);
+    // Existing open agent-created tasks for this patient/org
+    db()
+      .collection("tasks")
+      .where("orgId", "==", orgId)
+      .where("patientId", "==", userId)
+      .where("source", "==", "agent")
+      .where("status", "in", ["open", "in_progress"])
+      .limit(1)
+      .get(),
+  ]);
 
   const newAnomalies = anomalySnap.docs.map((d) => {
     const data = d.data();
@@ -173,12 +178,17 @@ async function sensePatient(
         const vals = trendSnap.docs.map((d) => d.data().value as number);
         const first = vals[0];
         const last = vals[vals.length - 1];
-        const changePct = first !== 0 ? Math.abs((last - first) / first) * 100 : 0;
+        const changePct =
+          first !== 0 ? Math.abs((last - first) / first) * 100 : 0;
 
         // Vitals where a higher value is clinically worse
         const higherIsBad = new Set([
-          "heart_rate", "systolic_bp", "diastolic_bp",
-          "blood_glucose", "temperature", "respiratory_rate",
+          "heart_rate",
+          "systolic_bp",
+          "diastolic_bp",
+          "blood_glucose",
+          "temperature",
+          "respiratory_rate",
         ]);
         // Vitals where a lower value is clinically worse
         const lowerIsBad = new Set(["blood_oxygen"]);
@@ -269,7 +279,9 @@ function reasonAndDecide(signals: PatientSignals): AgentDecision {
 
   if (taskReasons.length > 0) {
     const priority =
-      signals.riskScore >= 60 || signals.missedMedCount >= 3 || signals.vitalTrend === "worsening"
+      signals.riskScore >= 60 ||
+      signals.missedMedCount >= 3 ||
+      signals.vitalTrend === "worsening"
         ? "high"
         : "normal";
 
@@ -431,7 +443,10 @@ async function act(
     db()
       .collection("patient_roster")
       .doc(`${orgId}_${userId}`)
-      .set({ riskScore: newRiskScore, updatedAt: FieldValue.serverTimestamp() }, { merge: true })
+      .set(
+        { riskScore: newRiskScore, updatedAt: FieldValue.serverTimestamp() },
+        { merge: true }
+      )
       .catch(() => {}); // fire-and-forget
   }
 

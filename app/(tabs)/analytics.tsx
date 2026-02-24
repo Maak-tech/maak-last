@@ -23,13 +23,13 @@ import { AIInsightsDashboard } from "@/app/components/AIInsightsDashboard";
 import CorrelationChart from "@/app/components/CorrelationChart";
 import HealthChart from "@/app/components/HealthChart";
 import TrendPredictionChart from "@/app/components/TrendPredictionChart";
+import GradientScreen from "@/components/figma/GradientScreen";
+import WavyBackground from "@/components/figma/WavyBackground";
 import HealthRiskCard from "@/components/HealthRiskCard";
 import HealthScoreForecastCard from "@/components/HealthScoreForecastCard";
 import LabInsightsCard from "@/components/LabInsightsCard";
 import PersonalisedHealthInsightsCard from "@/components/PersonalisedHealthInsightsCard";
 import SymptomAnalysisCard from "@/components/SymptomAnalysisCard";
-import GradientScreen from "@/components/figma/GradientScreen";
-import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAIInsights } from "@/hooks/useAIInsights";
 import { chartsService } from "@/lib/services/chartsService";
@@ -378,7 +378,8 @@ export default function AnalyticsScreen() {
 
   // Vital sign chart series — only computed when vitals are available
   const heartRateChartData = useMemo(
-    () => chartsService.prepareVitalTimeSeries(vitals, "heartRate", daysInRange),
+    () =>
+      chartsService.prepareVitalTimeSeries(vitals, "heartRate", daysInRange),
     [vitals, daysInRange]
   );
   const weightChartData = useMemo(
@@ -386,7 +387,8 @@ export default function AnalyticsScreen() {
     [vitals, daysInRange]
   );
   const bloodSugarChartData = useMemo(
-    () => chartsService.prepareVitalTimeSeries(vitals, "bloodSugar", daysInRange),
+    () =>
+      chartsService.prepareVitalTimeSeries(vitals, "bloodSugar", daysInRange),
     [vitals, daysInRange]
   );
 
@@ -790,12 +792,12 @@ export default function AnalyticsScreen() {
 
           {/* Health Score Forecast — Premium Individual+ hero */}
           <View style={styles.section as ViewStyle}>
-            <HealthScoreForecastCard variant="analytics" userId={user?.id} />
+            <HealthScoreForecastCard userId={user?.id} variant="analytics" />
           </View>
 
           {/* Lab Insights — Premium Individual+ */}
           <View style={styles.section as ViewStyle}>
-            <LabInsightsCard variant="analytics" userId={user?.id} />
+            <LabInsightsCard userId={user?.id} variant="analytics" />
           </View>
 
           {/* Health Risk Assessment — ML-powered, Premium Individual+ */}

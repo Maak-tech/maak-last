@@ -10,19 +10,19 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
-import EnrichedDiscoveryCard from "@/components/EnrichedDiscoveryCard";
 import {
   Caption,
   Heading,
   Text as TypographyText,
 } from "@/components/design-system/Typography";
+import EnrichedDiscoveryCard from "@/components/EnrichedDiscoveryCard";
 import GradientScreen from "@/components/figma/GradientScreen";
 import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
-  discoveryService,
   type DiscoveryType,
+  discoveryService,
   type EnrichedDiscovery,
 } from "@/lib/services/discoveryService";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";

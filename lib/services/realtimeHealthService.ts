@@ -70,6 +70,56 @@ class RealtimeHealthService {
   private readonly alertSubscriptions: Map<string, Unsubscribe> = new Map();
   private readonly vitalSubscriptions: Map<string, Unsubscribe> = new Map();
   private eventHandlers: RealtimeHealthEventHandlers = {};
+  private quotaErrorBackoff: Map<string, number> = new Map();
+  private readonly MAX_BACKOFF_MS = 5 * 60 * 1000; // 5 minutes
+  private readonly INITIAL_BACKOFF_MS = 30 * 1000; // 30 seconds
+
+  /**
+   * Check if error is a quota exceeded error
+   */
+  private isQuotaError(error: unknown): boolean {
+    if (error && typeof error === "object" && "code" in error) {
+      return error.code === "resource-exhausted";
+    }
+    return false;
+  }
+
+  /**
+   * Get backoff delay for a subscription key
+   */
+  private getBackoffDelay(key: string): number {
+    const currentBackoff = this.quotaErrorBackoff.get(key) || 0;
+    const nextBackoff = Math.min(
+      currentBackoff === 0 ? this.INITIAL_BACKOFF_MS : currentBackoff * 2,
+      this.MAX_BACKOFF_MS
+    );
+    this.quotaErrorBackoff.set(key, nextBackoff);
+    return nextBackoff;
+  }
+
+  /**
+   * Reset backoff for a subscription key
+   */
+  private resetBackoff(key: string): void {
+    this.quotaErrorBackoff.delete(key);
+  }
+
+  /**
+   * Handle quota error with exponential backoff
+   */
+  private handleQuotaError(
+    key: string,
+    error: Error,
+    retryCallback: () => void
+  ): void {
+    const backoffDelay = this.getBackoffDelay(key);
+    this.eventHandlers.onError?.(error);
+
+    // Schedule retry with exponential backoff
+    setTimeout(() => {
+      retryCallback();
+    }, backoffDelay);
+  }
 
   /**
    * Set event handlers for real-time updates
@@ -233,29 +283,50 @@ class RealtimeHealthService {
       existingUnsubscribe();
     }
 
-    // Subscribe to alerts that are trend-related
-    const q = query(
-      collection(db, "alerts"),
-      where("userId", "==", userId),
-      where("resolved", "==", false),
-      orderBy("timestamp", "desc"),
-      limit(50)
-    );
+    const setupListener = () => {
+      // Subscribe to alerts that are trend-related
+      // Limit to last 7 days to reduce reads
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        for (const change of snapshot.docChanges()) {
-          this.handleTrendAlertChange(change, onAlert);
+      const q = query(
+        collection(db, "alerts"),
+        where("userId", "==", userId),
+        where("resolved", "==", false),
+        where("timestamp", ">=", Timestamp.fromDate(sevenDaysAgo)),
+        orderBy("timestamp", "desc"),
+        limit(30)
+      );
+
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          // Reset backoff on successful read
+          this.resetBackoff(key);
+          for (const change of snapshot.docChanges()) {
+            this.handleTrendAlertChange(change, onAlert);
+          }
+        },
+        (error) => {
+          if (this.isQuotaError(error)) {
+            // Handle quota error with backoff
+            this.handleQuotaError(key, error as Error, setupListener);
+            // Unsubscribe current listener to prevent further quota consumption
+            const currentUnsubscribe = this.trendAlertSubscriptions.get(key);
+            if (currentUnsubscribe) {
+              currentUnsubscribe();
+            }
+          } else {
+            this.eventHandlers.onError?.(error as Error);
+          }
         }
-      },
-      (error) => {
-        this.eventHandlers.onError?.(error as Error);
-      }
-    );
+      );
 
-    this.trendAlertSubscriptions.set(key, unsubscribe);
-    return unsubscribe;
+      this.trendAlertSubscriptions.set(key, unsubscribe);
+      return unsubscribe;
+    };
+
+    return setupListener();
   }
 
   /**
@@ -285,29 +356,68 @@ class RealtimeHealthService {
         chunks.push(memberIds.slice(i, i + 10));
       }
 
-      for (const chunk of chunks) {
-        const alertsQuery = query(
-          collection(db, "alerts"),
-          where("userId", "in", chunk),
-          where("resolved", "==", false),
-          orderBy("timestamp", "desc"),
-          limit(20)
-        );
+      const alertsKey = `family_alerts_${familyId}`;
+      const setupAlertsListeners = () => {
+        const alertsUnsubscribes: Unsubscribe[] = [];
 
-        const unsubscribe = onSnapshot(
-          alertsQuery,
-          (snapshot) => {
-            for (const change of snapshot.docChanges()) {
-              this.handleFamilyAlertChange(change, onUpdate);
+        for (const chunk of chunks) {
+          // Filter to last 7 days to reduce reads
+          const sevenDaysAgo = new Date();
+          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+          const alertsQuery = query(
+            collection(db, "alerts"),
+            where("userId", "in", chunk),
+            where("resolved", "==", false),
+            where("timestamp", ">=", Timestamp.fromDate(sevenDaysAgo)),
+            orderBy("timestamp", "desc"),
+            limit(15) // Reduced from 20 to 15
+          );
+
+          const unsubscribe = onSnapshot(
+            alertsQuery,
+            (snapshot) => {
+              // Reset backoff on successful read
+              this.resetBackoff(alertsKey);
+              for (const change of snapshot.docChanges()) {
+                this.handleFamilyAlertChange(change, onUpdate);
+              }
+            },
+            (error) => {
+              if (this.isQuotaError(error)) {
+                // Handle quota error with backoff
+                this.handleQuotaError(alertsKey, error as Error, () => {
+                  // Unsubscribe all alerts listeners
+                  for (const unsub of alertsUnsubscribes) {
+                    unsub();
+                  }
+                  alertsUnsubscribes.length = 0;
+                  // Retry setup
+                  const newUnsubscribes = setupAlertsListeners();
+                  alertsUnsubscribes.push(...newUnsubscribes);
+                  // Update main unsubscribes array
+                  const index = unsubscribes.findIndex((u) =>
+                    alertsUnsubscribes.includes(u)
+                  );
+                  if (index !== -1) {
+                    unsubscribes.splice(index, alertsUnsubscribes.length);
+                  }
+                  unsubscribes.push(...alertsUnsubscribes);
+                });
+              } else {
+                this.eventHandlers.onError?.(error as Error);
+              }
             }
-          },
-          (error) => {
-            this.eventHandlers.onError?.(error as Error);
-          }
-        );
+          );
 
-        unsubscribes.push(unsubscribe);
-      }
+          alertsUnsubscribes.push(unsubscribe);
+        }
+
+        return alertsUnsubscribes;
+      };
+
+      const alertsUnsubscribes = setupAlertsListeners();
+      unsubscribes.push(...alertsUnsubscribes);
     }
 
     // Subscribe to recent vitals for all family members (last 24 hours)
@@ -316,53 +426,92 @@ class RealtimeHealthService {
       vitalsChunks.push(memberIds.slice(i, i + 10));
     }
 
-    for (const chunk of vitalsChunks) {
-      const vitalsQuery = query(
-        collection(db, "vitals"),
-        where("userId", "in", chunk),
-        orderBy("timestamp", "desc"),
-        limit(50)
-      );
+    const vitalsKey = `family_vitals_${familyId}`;
+    const setupVitalsListeners = () => {
+      const vitalsUnsubscribes: Unsubscribe[] = [];
 
-      const unsubscribe = onSnapshot(
-        vitalsQuery,
-        (snapshot) => {
-          for (const change of snapshot.docChanges()) {
-            if (change.type === "added") {
-              const data = change.doc.data();
-              const update: FamilyMemberUpdate = {
-                memberId: data.userId,
-                updateType: "vital_added",
-                data: {
-                  vitalId: change.doc.id,
+      for (const chunk of vitalsChunks) {
+        // Filter to last 24 hours to reduce reads significantly
+        const twentyFourHoursAgo = new Date();
+        twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+
+        const vitalsQuery = query(
+          collection(db, "vitals"),
+          where("userId", "in", chunk),
+          where("timestamp", ">=", Timestamp.fromDate(twentyFourHoursAgo)),
+          orderBy("timestamp", "desc"),
+          limit(20) // Reduced from 50 to 20
+        );
+
+        const unsubscribe = onSnapshot(
+          vitalsQuery,
+          (snapshot) => {
+            // Reset backoff on successful read
+            this.resetBackoff(vitalsKey);
+            for (const change of snapshot.docChanges()) {
+              if (change.type === "added") {
+                const data = change.doc.data();
+                const update: FamilyMemberUpdate = {
+                  memberId: data.userId,
+                  updateType: "vital_added",
+                  data: {
+                    vitalId: change.doc.id,
+                    type: data.type,
+                    value: data.value,
+                    unit: data.unit,
+                    source: data.source,
+                  },
+                  timestamp: data.timestamp?.toDate() || new Date(),
+                };
+
+                if (onUpdate) {
+                  onUpdate(update);
+                }
+                this.eventHandlers.onFamilyMemberUpdate?.(update);
+                this.eventHandlers.onVitalAdded?.({
+                  userId: data.userId,
                   type: data.type,
                   value: data.value,
-                  unit: data.unit,
-                  source: data.source,
-                },
-                timestamp: data.timestamp?.toDate() || new Date(),
-              };
-
-              if (onUpdate) {
-                onUpdate(update);
+                  timestamp: data.timestamp?.toDate() || new Date(),
+                });
               }
-              this.eventHandlers.onFamilyMemberUpdate?.(update);
-              this.eventHandlers.onVitalAdded?.({
-                userId: data.userId,
-                type: data.type,
-                value: data.value,
-                timestamp: data.timestamp?.toDate() || new Date(),
+            }
+          },
+          (error) => {
+            if (this.isQuotaError(error)) {
+              // Handle quota error with backoff
+              this.handleQuotaError(vitalsKey, error as Error, () => {
+                // Unsubscribe all vitals listeners
+                for (const unsub of vitalsUnsubscribes) {
+                  unsub();
+                }
+                vitalsUnsubscribes.length = 0;
+                // Retry setup
+                const newUnsubscribes = setupVitalsListeners();
+                vitalsUnsubscribes.push(...newUnsubscribes);
+                // Update main unsubscribes array
+                const index = unsubscribes.findIndex((u) =>
+                  vitalsUnsubscribes.includes(u)
+                );
+                if (index !== -1) {
+                  unsubscribes.splice(index, vitalsUnsubscribes.length);
+                }
+                unsubscribes.push(...vitalsUnsubscribes);
               });
+            } else {
+              this.eventHandlers.onError?.(error as Error);
             }
           }
-        },
-        (error) => {
-          this.eventHandlers.onError?.(error as Error);
-        }
-      );
+        );
 
-      unsubscribes.push(unsubscribe);
-    }
+        vitalsUnsubscribes.push(unsubscribe);
+      }
+
+      return vitalsUnsubscribes;
+    };
+
+    const vitalsUnsubscribes = setupVitalsListeners();
+    unsubscribes.push(...vitalsUnsubscribes);
 
     // Create a combined unsubscribe function
     const combinedUnsubscribe = () => {
@@ -390,27 +539,48 @@ class RealtimeHealthService {
       existingUnsubscribe();
     }
 
-    const q = query(
-      collection(db, "alerts"),
-      where("userId", "==", userId),
-      orderBy("timestamp", "desc"),
-      limit(50)
-    );
+    const setupListener = () => {
+      // Filter to last 7 days to reduce reads
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        for (const change of snapshot.docChanges()) {
-          this.handleUserAlertChange(change, onAlertCreated, onAlertResolved);
+      const q = query(
+        collection(db, "alerts"),
+        where("userId", "==", userId),
+        where("timestamp", ">=", Timestamp.fromDate(sevenDaysAgo)),
+        orderBy("timestamp", "desc"),
+        limit(30) // Reduced from 50 to 30
+      );
+
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          // Reset backoff on successful read
+          this.resetBackoff(key);
+          for (const change of snapshot.docChanges()) {
+            this.handleUserAlertChange(change, onAlertCreated, onAlertResolved);
+          }
+        },
+        (error) => {
+          if (this.isQuotaError(error)) {
+            // Handle quota error with backoff
+            this.handleQuotaError(key, error as Error, setupListener);
+            // Unsubscribe current listener to prevent further quota consumption
+            const currentUnsubscribe = this.alertSubscriptions.get(key);
+            if (currentUnsubscribe) {
+              currentUnsubscribe();
+            }
+          } else {
+            this.eventHandlers.onError?.(error as Error);
+          }
         }
-      },
-      (error) => {
-        this.eventHandlers.onError?.(error as Error);
-      }
-    );
+      );
 
-    this.alertSubscriptions.set(key, unsubscribe);
-    return unsubscribe;
+      this.alertSubscriptions.set(key, unsubscribe);
+      return unsubscribe;
+    };
+
+    return setupListener();
   }
 
   /**
@@ -432,40 +602,61 @@ class RealtimeHealthService {
       existingUnsubscribe();
     }
 
-    const q = query(
-      collection(db, "vitals"),
-      where("userId", "==", userId),
-      orderBy("timestamp", "desc"),
-      limit(100)
-    );
+    const setupListener = () => {
+      // Filter to last 24 hours to reduce reads significantly
+      const twentyFourHoursAgo = new Date();
+      twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        for (const change of snapshot.docChanges()) {
-          if (change.type === "added") {
-            const data = change.doc.data();
-            const vital = {
-              userId: data.userId,
-              type: data.type,
-              value: data.value,
-              timestamp: data.timestamp?.toDate() || new Date(),
-            };
+      const q = query(
+        collection(db, "vitals"),
+        where("userId", "==", userId),
+        where("timestamp", ">=", Timestamp.fromDate(twentyFourHoursAgo)),
+        orderBy("timestamp", "desc"),
+        limit(30) // Reduced from 100 to 30
+      );
 
-            if (onVitalAdded) {
-              onVitalAdded(vital);
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          // Reset backoff on successful read
+          this.resetBackoff(key);
+          for (const change of snapshot.docChanges()) {
+            if (change.type === "added") {
+              const data = change.doc.data();
+              const vital = {
+                userId: data.userId,
+                type: data.type,
+                value: data.value,
+                timestamp: data.timestamp?.toDate() || new Date(),
+              };
+
+              if (onVitalAdded) {
+                onVitalAdded(vital);
+              }
+              this.eventHandlers.onVitalAdded?.(vital);
             }
-            this.eventHandlers.onVitalAdded?.(vital);
+          }
+        },
+        (error) => {
+          if (this.isQuotaError(error)) {
+            // Handle quota error with backoff
+            this.handleQuotaError(key, error as Error, setupListener);
+            // Unsubscribe current listener to prevent further quota consumption
+            const currentUnsubscribe = this.vitalSubscriptions.get(key);
+            if (currentUnsubscribe) {
+              currentUnsubscribe();
+            }
+          } else {
+            this.eventHandlers.onError?.(error as Error);
           }
         }
-      },
-      (error) => {
-        this.eventHandlers.onError?.(error as Error);
-      }
-    );
+      );
 
-    this.vitalSubscriptions.set(key, unsubscribe);
-    return unsubscribe;
+      this.vitalSubscriptions.set(key, unsubscribe);
+      return unsubscribe;
+    };
+
+    return setupListener();
   }
 
   /**

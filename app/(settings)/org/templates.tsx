@@ -12,7 +12,13 @@
  */
 
 import { useLocalSearchParams, useNavigation } from "expo-router";
-import { Bell, ChevronLeft, RefreshCw, RotateCcw, Save } from "lucide-react-native";
+import {
+  Bell,
+  ChevronLeft,
+  RefreshCw,
+  RotateCcw,
+  Save,
+} from "lucide-react-native";
 import {
   useCallback,
   useEffect,
@@ -38,9 +44,9 @@ import WavyBackground from "@/components/figma/WavyBackground";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
   DEFAULT_TEMPLATES,
-  notificationTemplateService,
   type NotificationTemplate,
   type NotificationTemplateType,
+  notificationTemplateService,
 } from "@/lib/services/notificationTemplateService";
 import { getTextStyle } from "@/utils/styles";
 
@@ -145,10 +151,14 @@ function TemplateEditor({
           backgroundColor: config.bgColor,
         }}
       >
-        <Bell size={18} color={config.accentColor} />
+        <Bell color={config.accentColor} size={18} />
         <View style={{ flex: 1 }}>
           <TypographyText
-            style={{ color: config.accentColor, fontSize: 14, fontWeight: "700" }}
+            style={{
+              color: config.accentColor,
+              fontSize: 14,
+              fontWeight: "700",
+            }}
           >
             {config.label}
           </TypographyText>
@@ -165,7 +175,9 @@ function TemplateEditor({
               paddingVertical: 2,
             }}
           >
-            <Caption style={{ color: "#FFF", fontWeight: "700" }}>Custom</Caption>
+            <Caption style={{ color: "#FFF", fontWeight: "700" }}>
+              Custom
+            </Caption>
           </View>
         )}
       </View>
@@ -191,18 +203,21 @@ function TemplateEditor({
             }}
           >
             <TextInput
-              value={template.titleTemplate}
+              maxLength={80}
+              multiline={false}
               onChangeText={onTitleChange}
               placeholder={defaults.title}
               placeholderTextColor={theme.colors.text.secondary}
               style={{ color: theme.colors.text.primary, fontSize: 14 }}
-              maxLength={80}
-              multiline={false}
+              value={template.titleTemplate}
             />
           </View>
           <Caption
             style={{
-              color: template.titleTemplate.length > 70 ? "#F97316" : theme.colors.text.secondary,
+              color:
+                template.titleTemplate.length > 70
+                  ? "#F97316"
+                  : theme.colors.text.secondary,
               marginTop: 4,
               textAlign: "right",
             }}
@@ -232,19 +247,22 @@ function TemplateEditor({
             }}
           >
             <TextInput
-              value={template.bodyTemplate}
+              maxLength={240}
+              multiline
+              numberOfLines={3}
               onChangeText={onBodyChange}
               placeholder={defaults.body}
               placeholderTextColor={theme.colors.text.secondary}
               style={{ color: theme.colors.text.primary, fontSize: 14 }}
-              maxLength={240}
-              multiline
-              numberOfLines={3}
+              value={template.bodyTemplate}
             />
           </View>
           <Caption
             style={{
-              color: template.bodyTemplate.length > 200 ? "#F97316" : theme.colors.text.secondary,
+              color:
+                template.bodyTemplate.length > 200
+                  ? "#F97316"
+                  : theme.colors.text.secondary,
               marginTop: 4,
               textAlign: "right",
             }}
@@ -269,16 +287,21 @@ function TemplateEditor({
                 borderColor: theme.colors.background.primary,
               }}
             >
-              <RotateCcw size={14} color={theme.colors.text.secondary} />
-              <Caption style={{ color: theme.colors.text.secondary, fontWeight: "600" }}>
+              <RotateCcw color={theme.colors.text.secondary} size={14} />
+              <Caption
+                style={{
+                  color: theme.colors.text.secondary,
+                  fontWeight: "600",
+                }}
+              >
                 Reset
               </Caption>
             </TouchableOpacity>
           )}
 
           <TouchableOpacity
-            onPress={onSave}
             disabled={saving}
+            onPress={onSave}
             style={{
               flex: 1,
               flexDirection: "row",
@@ -295,7 +318,7 @@ function TemplateEditor({
               <ActivityIndicator color="#FFF" size="small" />
             ) : (
               <>
-                <Save size={14} color="#FFF" />
+                <Save color="#FFF" size={14} />
                 <Caption style={{ color: "#FFF", fontWeight: "700" }}>
                   Save Template
                 </Caption>
@@ -318,7 +341,9 @@ export default function NotificationTemplatesScreen() {
   const orgId = params.orgId ?? "";
   const isRTL = i18n.language === "ar";
 
-  const [templates, setTemplates] = useState<Record<string, NotificationTemplate>>({});
+  const [templates, setTemplates] = useState<
+    Record<string, NotificationTemplate>
+  >({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [savingKey, setSavingKey] = useState<string | null>(null);
@@ -463,14 +488,19 @@ export default function NotificationTemplatesScreen() {
         }}
       >
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => navigation.goBack()}
         >
-          <ChevronLeft size={24} color={theme.colors.text.primary} />
+          <ChevronLeft color={theme.colors.text.primary} size={24} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <TypographyText
-            style={getTextStyle(theme, "heading", "bold", theme.colors.text.primary)}
+            style={getTextStyle(
+              theme,
+              "heading",
+              "bold",
+              theme.colors.text.primary
+            )}
           >
             Notification Templates
           </TypographyText>
@@ -479,12 +509,12 @@ export default function NotificationTemplatesScreen() {
           </Caption>
         </View>
         <TouchableOpacity
-          onPress={() => load(true)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => load(true)}
         >
           <RefreshCw
-            size={18}
             color={theme.colors.text.secondary}
+            size={18}
             style={refreshing ? { opacity: 0.4 } : undefined}
           />
         </TouchableOpacity>
@@ -498,13 +528,13 @@ export default function NotificationTemplatesScreen() {
       ) : (
         <ScrollView
           contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
-          showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
-              refreshing={refreshing}
               onRefresh={() => load(true)}
+              refreshing={refreshing}
             />
           }
+          showsVerticalScrollIndicator={false}
         >
           {/* Token guide */}
           <View
@@ -556,14 +586,14 @@ export default function NotificationTemplatesScreen() {
 
             return (
               <TemplateEditor
-                key={cfg.type}
                 config={cfg}
-                template={template}
-                saving={savingKey === key}
-                onTitleChange={(v) => updateField(key, "titleTemplate", v)}
+                key={cfg.type}
                 onBodyChange={(v) => updateField(key, "bodyTemplate", v)}
-                onSave={() => handleSave(cfg.type, "push")}
                 onReset={() => handleReset(cfg.type, "push")}
+                onSave={() => handleSave(cfg.type, "push")}
+                onTitleChange={(v) => updateField(key, "titleTemplate", v)}
+                saving={savingKey === key}
+                template={template}
                 theme={theme}
               />
             );

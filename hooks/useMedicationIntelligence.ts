@@ -6,8 +6,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   checkInteractions,
-  predictRefills,
   type InteractionWarning,
+  predictRefills,
   type RefillPrediction,
 } from "@/lib/services/medicationIntelligenceService";
 import { medicationService } from "@/lib/services/medicationService";

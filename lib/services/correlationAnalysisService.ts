@@ -649,11 +649,19 @@ class CorrelationAnalysisService {
       ...this.analyzeTemporalPatterns(filteredSymptoms, moods),
       // Sleep cross-correlations
       ...this.analyzeSleepVitalCorrelations(vitals, isArabic),
-      ...this.analyzeSleepSymptomCorrelations(filteredSymptoms, vitals, isArabic),
+      ...this.analyzeSleepSymptomCorrelations(
+        filteredSymptoms,
+        vitals,
+        isArabic
+      ),
       ...this.analyzeSleepMoodCorrelations(moods, vitals, isArabic),
       // Activity cross-correlations
       ...this.analyzeActivityVitalCorrelations(vitals, isArabic),
-      ...this.analyzeActivitySymptomCorrelations(filteredSymptoms, vitals, isArabic),
+      ...this.analyzeActivitySymptomCorrelations(
+        filteredSymptoms,
+        vitals,
+        isArabic
+      ),
       ...this.analyzeActivityMoodCorrelations(moods, vitals, isArabic),
       // HRV (wearable) cross-correlations
       ...this.analyzeHrvSymptomCorrelations(filteredSymptoms, vitals, isArabic),
@@ -1053,16 +1061,21 @@ class CorrelationAnalysisService {
 
   // ─── Wearable vital type name sets ─────────────────────────────────────────
   private readonly SLEEP_TYPES = new Set([
-    "sleep", "sleepDuration", "sleepHours", "sleep_analysis",
+    "sleep",
+    "sleepDuration",
+    "sleepHours",
+    "sleep_analysis",
   ]);
-  private readonly STEPS_TYPES = new Set([
-    "steps", "stepCount", "dailySteps",
-  ]);
+  private readonly STEPS_TYPES = new Set(["steps", "stepCount", "dailySteps"]);
   private readonly HRV_TYPES = new Set([
-    "heart_rate_variability", "heartRateVariability", "hrv",
+    "heart_rate_variability",
+    "heartRateVariability",
+    "hrv",
   ]);
   private readonly ACTIVE_ENERGY_TYPES = new Set([
-    "active_energy", "activeEnergy", "caloriesBurned",
+    "active_energy",
+    "activeEnergy",
+    "caloriesBurned",
   ]);
 
   /**
@@ -1098,7 +1111,10 @@ class CorrelationAnalysisService {
     const result = new Map<string, number>();
     for (const [day, vals] of dailyMap) {
       // Sum steps within the day (multiple syncs)
-      result.set(day, vals.reduce((a, b) => a + b, 0));
+      result.set(
+        day,
+        vals.reduce((a, b) => a + b, 0)
+      );
     }
     return result;
   }
@@ -1120,8 +1136,7 @@ class CorrelationAnalysisService {
         vitals
           .filter(
             (v) =>
-              !this.SLEEP_TYPES.has(v.type) &&
-              !this.STEPS_TYPES.has(v.type)
+              !(this.SLEEP_TYPES.has(v.type) || this.STEPS_TYPES.has(v.type))
           )
           .map((v) => v.type)
       ),
@@ -1152,7 +1167,14 @@ class CorrelationAnalysisService {
       if (Math.abs(r) < 0.3) continue;
 
       const confidence = Math.min(95, Math.round(Math.abs(r) * 100));
-      const direction = r < 0 ? (isArabic ? "ينخفض" : "decreases") : (isArabic ? "يرتفع" : "increases");
+      const direction =
+        r < 0
+          ? isArabic
+            ? "ينخفض"
+            : "decreases"
+          : isArabic
+            ? "يرتفع"
+            : "increases";
       const vLabel = vType.replace(/([A-Z])/g, " $1").trim();
 
       results.push({
@@ -1230,8 +1252,8 @@ class CorrelationAnalysisService {
           ? "النوم لساعات أكثر يرتبط بأعراض أخف في اليوم التالي"
           : "النوم الأقل يرتبط بأعراض أشد في اليوم التالي"
         : protective
-        ? "More sleep is associated with milder symptoms the next day"
-        : "Less sleep is associated with worse symptoms the following day",
+          ? "More sleep is associated with milder symptoms the next day"
+          : "Less sleep is associated with worse symptoms the following day",
       actionable: true,
       recommendation: isArabic
         ? "حافظ على نوم 7–9 ساعات لتخفيف الأعراض"
@@ -1293,8 +1315,8 @@ class CorrelationAnalysisService {
           ? "مزيد من النوم يرتبط بمزاج أفضل"
           : "النوم الأقل يرتبط بانخفاض في المزاج"
         : positive
-        ? "More sleep is associated with better mood"
-        : "Less sleep correlates with lower mood scores",
+          ? "More sleep is associated with better mood"
+          : "Less sleep correlates with lower mood scores",
       actionable: true,
       recommendation: isArabic
         ? "حافظ على روتين نوم منتظم لتحسين مزاجك"
@@ -1328,8 +1350,7 @@ class CorrelationAnalysisService {
         vitals
           .filter(
             (v) =>
-              !this.STEPS_TYPES.has(v.type) &&
-              !this.SLEEP_TYPES.has(v.type)
+              !(this.STEPS_TYPES.has(v.type) || this.SLEEP_TYPES.has(v.type))
           )
           .map((v) => v.type)
       ),
@@ -1360,9 +1381,14 @@ class CorrelationAnalysisService {
 
       const confidence = Math.min(95, Math.round(Math.abs(r) * 100));
       const vLabel = vType.replace(/([A-Z])/g, " $1").trim();
-      const direction = r < 0
-        ? (isArabic ? "ينخفض" : "decreases")
-        : (isArabic ? "يرتفع" : "increases");
+      const direction =
+        r < 0
+          ? isArabic
+            ? "ينخفض"
+            : "decreases"
+          : isArabic
+            ? "يرتفع"
+            : "increases";
 
       results.push({
         type: "activity_vital",
@@ -1432,16 +1458,16 @@ class CorrelationAnalysisService {
           ? "الأيام الأكثر نشاطاً ترتبط بأعراض أخف"
           : "الأيام الأكثر نشاطاً ترتبط بأعراض أشد"
         : protective
-        ? "More active days are associated with milder symptoms"
-        : "Higher step counts correlate with increased symptom severity",
+          ? "More active days are associated with milder symptoms"
+          : "Higher step counts correlate with increased symptom severity",
       actionable: protective,
       recommendation: isArabic
         ? protective
           ? "حافظ على نشاطك البدني — يبدو أنه يقلل أعراضك"
           : "إذا كانت الحركة تزيد أعراضك، ناقش ذلك مع طبيبك"
         : protective
-        ? "Keep up your physical activity — it appears to reduce your symptoms"
-        : "If activity worsens symptoms, discuss with your doctor",
+          ? "Keep up your physical activity — it appears to reduce your symptoms"
+          : "If activity worsens symptoms, discuss with your doctor",
       data: {
         factor1: "Daily Steps",
         factor2: "Symptom Severity",
@@ -1498,16 +1524,16 @@ class CorrelationAnalysisService {
           ? "الأيام الأكثر نشاطاً ترتبط بمزاج أفضل"
           : "الأيام الأكثر نشاطاً ترتبط بانخفاض في المزاج"
         : positive
-        ? "More active days are associated with better mood"
-        : "Higher step counts correlate with lower mood on your active days",
+          ? "More active days are associated with better mood"
+          : "Higher step counts correlate with lower mood on your active days",
       actionable: positive,
       recommendation: isArabic
         ? positive
           ? "النشاط البدني يحسّن مزاجك — استمر!"
           : "راقب كيف يؤثر النشاط على مزاجك وناقش الأمر مع طبيبك"
         : positive
-        ? "Physical activity boosts your mood — keep it up!"
-        : "Monitor how activity affects your mood and discuss with your doctor",
+          ? "Physical activity boosts your mood — keep it up!"
+          : "Monitor how activity affects your mood and discuss with your doctor",
       data: {
         factor1: "Daily Steps",
         factor2: "Mood Intensity",
@@ -1588,16 +1614,16 @@ class CorrelationAnalysisService {
           ? "انخفاض تقلب معدل القلب (HRV) يسبق تفاقم الأعراض في اليوم التالي"
           : "ارتفاع HRV يرتبط بأعراض أشد — قد يعكس جهداً جسدياً"
         : protective
-        ? "Lower HRV often precedes worse symptoms the next day — a sign your body needs recovery"
-        : "Higher HRV days correlate with increased symptom severity",
+          ? "Lower HRV often precedes worse symptoms the next day — a sign your body needs recovery"
+          : "Higher HRV days correlate with increased symptom severity",
       actionable: protective,
       recommendation: isArabic
         ? protective
           ? "في أيام HRV المنخفضة، خذ قسطاً من الراحة وراقب أعراضك"
           : "ناقش نتائج HRV مع طبيبك"
         : protective
-        ? "On low-HRV days, prioritise rest and watch for symptom flares"
-        : "Discuss your HRV patterns with your doctor",
+          ? "On low-HRV days, prioritise rest and watch for symptom flares"
+          : "Discuss your HRV patterns with your doctor",
       data: {
         factor1: "HRV (ms, day D)",
         factor2: "Symptom Severity (day D+1)",
@@ -1655,8 +1681,8 @@ class CorrelationAnalysisService {
           ? "أيام HRV الأعلى ترتبط بمزاج أفضل — جهازك العصبي في حالة جيدة"
           : "انخفاض HRV يرتبط بانخفاض المزاج — إشارة إلى ضغط أو إجهاد"
         : positive
-        ? "Higher HRV days align with better mood — your nervous system is in a recovery state"
-        : "Lower HRV correlates with lower mood — a possible stress signal",
+          ? "Higher HRV days align with better mood — your nervous system is in a recovery state"
+          : "Lower HRV correlates with lower mood — a possible stress signal",
       actionable: true,
       recommendation: isArabic
         ? "مارس التأمل والتنفس العميق لرفع HRV وتحسين مزاجك"
@@ -1685,8 +1711,15 @@ class CorrelationAnalysisService {
     if (hrvMap.size < 5) return results;
 
     // Focus on the most clinically relevant non-HRV vitals
-    const targetVitalTypes = ["heartRate", "heart_rate", "resting_heart_rate",
-      "bloodPressure", "blood_pressure_systolic", "oxygenSaturation", "blood_oxygen"];
+    const targetVitalTypes = [
+      "heartRate",
+      "heart_rate",
+      "resting_heart_rate",
+      "bloodPressure",
+      "blood_pressure_systolic",
+      "oxygenSaturation",
+      "blood_oxygen",
+    ];
 
     for (const vType of targetVitalTypes) {
       const typeVitals = vitals.filter((v) => v.type === vType);
@@ -1714,10 +1747,18 @@ class CorrelationAnalysisService {
       if (Math.abs(r) < 0.35) continue;
 
       const confidence = Math.min(95, Math.round(Math.abs(r) * 100));
-      const vLabel = vType.replace(/[_]/g, " ").replace(/([A-Z])/g, " $1").trim();
-      const direction = r < 0
-        ? (isArabic ? "ينخفض" : "decreases")
-        : (isArabic ? "يرتفع" : "increases");
+      const vLabel = vType
+        .replace(/[_]/g, " ")
+        .replace(/([A-Z])/g, " $1")
+        .trim();
+      const direction =
+        r < 0
+          ? isArabic
+            ? "ينخفض"
+            : "decreases"
+          : isArabic
+            ? "يرتفع"
+            : "increases";
 
       results.push({
         type: "hrv_vital",

@@ -15,7 +15,7 @@
  *   - Max attempts is enforced (default 3) to prevent infinite retry loops.
  */
 
-import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
+import { FieldValue, getFirestore, Timestamp } from "firebase-admin/firestore";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { createTraceId } from "../observability/correlation";
 import { logger } from "../observability/logger";
@@ -132,7 +132,7 @@ export const processEmailQueue = onDocumentCreated(
     const subject = data.subject as string | undefined;
     const bodyHtml = data.bodyHtml as string | undefined;
 
-    if (!to?.length || !subject || !bodyHtml) {
+    if (!(to?.length && subject && bodyHtml)) {
       logger.warn("Email queue: missing required fields", {
         traceId,
         jobId,
@@ -150,8 +150,7 @@ export const processEmailQueue = onDocumentCreated(
     }
 
     const apiKey = SENDGRID_API_KEY.value();
-    const fromEmail =
-      SENDGRID_FROM_EMAIL.value() || "noreply@maakhealth.com";
+    const fromEmail = SENDGRID_FROM_EMAIL.value() || "noreply@maakhealth.com";
 
     logger.info("Email queue: sending", {
       traceId,

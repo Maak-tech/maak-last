@@ -14,11 +14,11 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
-import { FeatureGate } from "@/components/FeatureGate";
 import {
   Caption,
   Text as TypographyText,
 } from "@/components/design-system/Typography";
+import { FeatureGate } from "@/components/FeatureGate";
 import { useTheme } from "@/contexts/ThemeContext";
 import { type DailyBriefing, useDailyBriefing } from "@/hooks/useDailyBriefing";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
@@ -88,12 +88,19 @@ function BriefingContent({
       paddingHorizontal: t.spacing.sm,
       paddingVertical: 4,
     } as ViewStyle,
-    highlightText: getTextStyle(t, "caption", "regular", t.colors.text.secondary),
+    highlightText: getTextStyle(
+      t,
+      "caption",
+      "regular",
+      t.colors.text.secondary
+    ),
     askButton: {
       flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",
       alignItems: "center" as const,
       gap: t.spacing.xs,
-      alignSelf: (isRTL ? "flex-start" : "flex-end") as "flex-start" | "flex-end",
+      alignSelf: (isRTL ? "flex-start" : "flex-end") as
+        | "flex-start"
+        | "flex-end",
       backgroundColor: t.colors.primary.main,
       paddingHorizontal: t.spacing.base,
       paddingVertical: t.spacing.xs,
@@ -120,7 +127,9 @@ function BriefingContent({
       <View style={styles.emptyCard}>
         <ActivityIndicator color={theme.colors.primary.main} size="small" />
         <TypographyText style={styles.emptyText}>
-          {isRTL ? "Ø¬Ø§Ø±ÙŠ ØªØ­Ù…ÙŠÙ„ Ø¥Ø­Ø§Ø·ØªÙƒ Ø§Ù„ÙŠÙˆÙ…ÙŠØ©..." : "Loading your daily briefing..."}
+          {isRTL
+            ? "Ø¬Ø§Ø±ÙŠ ØªØ­Ù…ÙŠÙ„ Ø¥Ø­Ø§Ø·ØªÙƒ Ø§Ù„ÙŠÙˆÙ…ÙŠØ©..."
+            : "Loading your daily briefing..."}
         </TypographyText>
       </View>
     );
@@ -137,14 +146,25 @@ function BriefingContent({
     <View style={styles.card}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Brain size={18} color={theme.colors.primary.main} />
-          <TypographyText style={getTextStyle(theme as typeof theme, "subheading", "bold", theme.colors.text.primary)}>
+          <Brain color={theme.colors.primary.main} size={18} />
+          <TypographyText
+            style={getTextStyle(
+              theme as typeof theme,
+              "subheading",
+              "bold",
+              theme.colors.text.primary
+            )}
+          >
             {isRTL ? "Ø¥Ø­Ø§Ø·ØªÙƒ Ø§Ù„ÙŠÙˆÙ…ÙŠØ©" : "Daily Briefing"}
           </TypographyText>
         </View>
         <View style={styles.chip}>
-          <Sparkles size={10} color={theme.colors.primary.main} />
-          <Caption style={styles.chipText}>{isRTL ? "Ù…Ø¯Ø¹ÙˆÙ… Ø¨Ø§Ù„Ø°ÙƒØ§Ø¡ Ø§Ù„Ø§ØµØ·Ù†Ø§Ø¹ÙŠ" : "AI-powered"}</Caption>
+          <Sparkles color={theme.colors.primary.main} size={10} />
+          <Caption style={styles.chipText}>
+            {isRTL
+              ? "Ù…Ø¯Ø¹ÙˆÙ… Ø¨Ø§Ù„Ø°ÙƒØ§Ø¡ Ø§Ù„Ø§ØµØ·Ù†Ø§Ø¹ÙŠ"
+              : "AI-powered"}
+          </Caption>
         </View>
       </View>
 
@@ -163,14 +183,14 @@ function BriefingContent({
       )}
 
       <TouchableOpacity
-        style={styles.askButton}
-        onPress={() => router.push("/(tabs)/zeina")}
         activeOpacity={0.8}
+        onPress={() => router.push("/(tabs)/zeina")}
+        style={styles.askButton}
       >
         <TypographyText style={styles.askButtonText}>
           {isRTL ? "Ø§Ø³Ø£Ù„ Ø²ÙŠÙ†Ø§" : "Ask Zeina"}
         </TypographyText>
-        <ChevronRight size={14} color="#fff" />
+        <ChevronRight color="#fff" size={14} />
       </TouchableOpacity>
     </View>
   );
@@ -181,11 +201,11 @@ export default function DailyBriefingCard({ userId }: Props) {
   const isRTL = i18n.language === "ar";
   const { briefing, loading, hasBriefing } = useDailyBriefing(userId);
 
-  if (!hasBriefing && !loading) return null;
+  if (!(hasBriefing || loading)) return null;
 
   return (
     <FeatureGate featureId="DAILY_BRIEFING" showUpgradePrompt>
-      <BriefingContent briefing={briefing} loading={loading} isRTL={isRTL} />
+      <BriefingContent briefing={briefing} isRTL={isRTL} loading={loading} />
     </FeatureGate>
   );
 }

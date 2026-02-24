@@ -15,7 +15,14 @@ import {
 } from "firebase/auth";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import type React from "react";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { Alert } from "react-native";
 import { auth, db, isFirebaseReady } from "@/lib/firebase";
 import { familyInviteService } from "@/lib/services/familyInviteService";
@@ -596,76 +603,80 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   // biome-ignore lint/nursery/useMaxParams: Explicit auth args retained for compatibility with existing call sites.
-  const signUp = useCallback(async (
-    email: string,
-    password: string,
-    firstName: string,
-    lastName: string,
-    avatarType?: AvatarType,
-    gender?: "male" | "female" | "other"
-  ) => {
-    setLoading(true);
-    try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-
-      // Ensure user document is created with proper error handling
+  const signUp = useCallback(
+    async (
+      email: string,
+      password: string,
+      firstName: string,
+      lastName: string,
+      avatarType?: AvatarType,
+      gender?: "male" | "female" | "other"
+    ) => {
+      setLoading(true);
       try {
-        await userService.ensureUserDocument(
-          userCredential.user.uid,
-          userCredential.user.email || undefined,
-          firstName,
-          lastName,
-          avatarType,
-          gender
+        const userCredential = await createUserWithEmailAndPassword(
+          auth,
+          email,
+          password
         );
-      } catch (docError: any) {
-        // Provide more specific error messages
-        let docErrorMessage =
-          "Failed to create user profile. Please try again.";
-        if (docError?.code === "permission-denied") {
-          docErrorMessage =
-            "Permission denied. Please check your Firestore security rules.";
-        } else if (docError?.code === "unavailable") {
-          docErrorMessage =
-            "Database unavailable. Please check your internet connection.";
-        } else if (docError?.message) {
-          docErrorMessage = docError.message;
-        }
 
-        // If document creation fails, try to delete the auth user to prevent orphaned accounts
+        // Ensure user document is created with proper error handling
         try {
-          await signOut(auth);
-        } catch (_signOutError) {
-          // Failed to sign out after document creation error
+          await userService.ensureUserDocument(
+            userCredential.user.uid,
+            userCredential.user.email || undefined,
+            firstName,
+            lastName,
+            avatarType,
+            gender
+          );
+        } catch (docError: any) {
+          // Provide more specific error messages
+          let docErrorMessage =
+            "Failed to create user profile. Please try again.";
+          if (docError?.code === "permission-denied") {
+            docErrorMessage =
+              "Permission denied. Please check your Firestore security rules.";
+          } else if (docError?.code === "unavailable") {
+            docErrorMessage =
+              "Database unavailable. Please check your internet connection.";
+          } else if (docError?.message) {
+            docErrorMessage = docError.message;
+          }
+
+          // If document creation fails, try to delete the auth user to prevent orphaned accounts
+          try {
+            await signOut(auth);
+          } catch (_signOutError) {
+            // Failed to sign out after document creation error
+          }
+
+          setLoading(false);
+          throw new Error(docErrorMessage);
+        }
+      } catch (_error: any) {
+        let errorMessage = "Failed to create account. Please try again.";
+
+        if (_error.code === "auth/email-already-in-use") {
+          errorMessage = "An account with this email already exists.";
+        } else if (_error.code === "auth/weak-password") {
+          errorMessage = "Password should be at least 6 characters.";
+        } else if (_error.code === "auth/invalid-email") {
+          errorMessage = "Invalid email address.";
+        } else if (_error.code === "auth/network-request-failed") {
+          errorMessage =
+            "Network _error. Please check your internet connection.";
+        } else if (_error.message) {
+          errorMessage = _error.message;
         }
 
-        setLoading(false);
-        throw new Error(docErrorMessage);
+        setLoading(false); // Only set loading to false on error
+        throw new Error(errorMessage);
       }
-    } catch (_error: any) {
-      let errorMessage = "Failed to create account. Please try again.";
-
-      if (_error.code === "auth/email-already-in-use") {
-        errorMessage = "An account with this email already exists.";
-      } else if (_error.code === "auth/weak-password") {
-        errorMessage = "Password should be at least 6 characters.";
-      } else if (_error.code === "auth/invalid-email") {
-        errorMessage = "Invalid email address.";
-      } else if (_error.code === "auth/network-request-failed") {
-        errorMessage = "Network _error. Please check your internet connection.";
-      } else if (_error.message) {
-        errorMessage = _error.message;
-      }
-
-      setLoading(false); // Only set loading to false on error
-      throw new Error(errorMessage);
-    }
-    // Don't set loading to false here - onAuthStateChanged will handle it
-  }, []);
+      // Don't set loading to false here - onAuthStateChanged will handle it
+    },
+    []
+  );
 
   const logout = useCallback(async () => {
     try {
@@ -702,103 +713,107 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
 
-  const updateUser = useCallback(async (userData: Partial<User>) => {
-    if (!user) return;
+  const updateUser = useCallback(
+    async (userData: Partial<User>) => {
+      if (!user) return;
 
-    try {
-      const userDocRef = doc(db, "users", user.id);
-      await updateDoc(userDocRef, userData);
+      try {
+        const userDocRef = doc(db, "users", user.id);
+        await updateDoc(userDocRef, userData);
 
-      const updatedUser = { ...user, ...userData };
-      setUser(updatedUser);
-    } catch (_error) {
-      throw new Error("Failed to update user. Please try again.");
-    }
-  }, [user]);
+        const updatedUser = { ...user, ...userData };
+        setUser(updatedUser);
+      } catch (_error) {
+        throw new Error("Failed to update user. Please try again.");
+      }
+    },
+    [user]
+  );
 
-  const changePassword = useCallback(async (
-    currentPassword: string,
-    newPassword: string
-  ) => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      throw new Error("No user is currently signed in.");
-    }
-
-    if (!currentUser.email) {
-      throw new Error(
-        "Cannot change password: User account does not have an email address."
-      );
-    }
-
-    // Check if user is signed in with email/password provider
-    // Firebase uses "password" as providerId for email/password accounts
-    const providerData = currentUser.providerData;
-    const hasEmailProvider = providerData.some(
-      (provider) =>
-        provider.providerId === "password" || provider.providerId === "firebase"
-    );
-
-    if (!hasEmailProvider && providerData.length > 0) {
-      throw new Error(
-        "Password change is only available for email/password accounts."
-      );
-    }
-
-    try {
-      // Validate new password before attempting reauthentication
-      if (newPassword.length < 6) {
-        throw new Error("New password must be at least 6 characters long.");
+  const changePassword = useCallback(
+    async (currentPassword: string, newPassword: string) => {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error("No user is currently signed in.");
       }
 
-      // Reauthenticate user with current password
-      // This is required by Firebase for security
-      const credential = EmailAuthProvider.credential(
-        currentUser.email,
-        currentPassword
-      );
-
-      // Reauthenticate - this may throw if password is wrong or user needs recent login
-      await reauthenticateWithCredential(currentUser, credential);
-
-      // Update password after successful reauthentication
-      await updatePassword(currentUser, newPassword);
-    } catch (_error: any) {
-      let errorMessage = "Failed to change password. Please try again.";
-
-      // Handle specific Firebase Auth error codes
-      if (
-        _error.code === "auth/wrong-password" ||
-        _error.code === "auth/invalid-credential" ||
-        _error.code === "auth/invalid-login-credentials"
-      ) {
-        errorMessage =
-          "Current password is incorrect. Please check and try again.";
-      } else if (_error.code === "auth/user-mismatch") {
-        errorMessage =
-          "Authentication _error. Please sign out and sign in again.";
-      } else if (_error.code === "auth/weak-password") {
-        errorMessage = "New password should be at least 6 characters.";
-      } else if (_error.code === "auth/requires-recent-login") {
-        errorMessage =
-          "For security reasons, please sign out and sign in again before changing your password.";
-      } else if (_error.code === "auth/network-request-failed") {
-        errorMessage =
-          "Network _error. Please check your internet connection and try again.";
-      } else if (_error.code === "auth/too-many-requests") {
-        errorMessage = "Too many failed attempts. Please try again later.";
-      } else if (_error.code === "auth/user-not-found") {
-        errorMessage =
-          "User account not found. Please sign out and sign in again.";
-      } else if (_error.code === "auth/invalid-email") {
-        errorMessage = "Invalid email address. Please contact support.";
-      } else if (_error.message) {
-        errorMessage = _error.message;
+      if (!currentUser.email) {
+        throw new Error(
+          "Cannot change password: User account does not have an email address."
+        );
       }
 
-      throw new Error(errorMessage);
-    }
-  }, []);
+      // Check if user is signed in with email/password provider
+      // Firebase uses "password" as providerId for email/password accounts
+      const providerData = currentUser.providerData;
+      const hasEmailProvider = providerData.some(
+        (provider) =>
+          provider.providerId === "password" ||
+          provider.providerId === "firebase"
+      );
+
+      if (!hasEmailProvider && providerData.length > 0) {
+        throw new Error(
+          "Password change is only available for email/password accounts."
+        );
+      }
+
+      try {
+        // Validate new password before attempting reauthentication
+        if (newPassword.length < 6) {
+          throw new Error("New password must be at least 6 characters long.");
+        }
+
+        // Reauthenticate user with current password
+        // This is required by Firebase for security
+        const credential = EmailAuthProvider.credential(
+          currentUser.email,
+          currentPassword
+        );
+
+        // Reauthenticate - this may throw if password is wrong or user needs recent login
+        await reauthenticateWithCredential(currentUser, credential);
+
+        // Update password after successful reauthentication
+        await updatePassword(currentUser, newPassword);
+      } catch (_error: any) {
+        let errorMessage = "Failed to change password. Please try again.";
+
+        // Handle specific Firebase Auth error codes
+        if (
+          _error.code === "auth/wrong-password" ||
+          _error.code === "auth/invalid-credential" ||
+          _error.code === "auth/invalid-login-credentials"
+        ) {
+          errorMessage =
+            "Current password is incorrect. Please check and try again.";
+        } else if (_error.code === "auth/user-mismatch") {
+          errorMessage =
+            "Authentication _error. Please sign out and sign in again.";
+        } else if (_error.code === "auth/weak-password") {
+          errorMessage = "New password should be at least 6 characters.";
+        } else if (_error.code === "auth/requires-recent-login") {
+          errorMessage =
+            "For security reasons, please sign out and sign in again before changing your password.";
+        } else if (_error.code === "auth/network-request-failed") {
+          errorMessage =
+            "Network _error. Please check your internet connection and try again.";
+        } else if (_error.code === "auth/too-many-requests") {
+          errorMessage = "Too many failed attempts. Please try again later.";
+        } else if (_error.code === "auth/user-not-found") {
+          errorMessage =
+            "User account not found. Please sign out and sign in again.";
+        } else if (_error.code === "auth/invalid-email") {
+          errorMessage = "Invalid email address. Please contact support.";
+        } else if (_error.message) {
+          errorMessage = _error.message;
+        }
+
+        throw new Error(errorMessage);
+      }
+    },
+    []
+  );
 
   const resetPassword = useCallback(async (email: string) => {
     try {
@@ -836,7 +851,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       changePassword,
       resetPassword,
     }),
-    [user, loading, signIn, signUp, logout, updateUser, changePassword, resetPassword]
+    [
+      user,
+      loading,
+      signIn,
+      signUp,
+      logout,
+      updateUser,
+      changePassword,
+      resetPassword,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

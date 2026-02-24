@@ -82,9 +82,12 @@ export function useRealtimeHealth(
     // the latest handler without needing to re-subscribe.
     const stableHandlers: RealtimeHealthEventHandlers = {
       onTrendAlert: (...args) => handlersRef.current.onTrendAlert?.(...args),
-      onFamilyMemberUpdate: (...args) => handlersRef.current.onFamilyMemberUpdate?.(...args),
-      onAlertCreated: (...args) => handlersRef.current.onAlertCreated?.(...args),
-      onAlertResolved: (...args) => handlersRef.current.onAlertResolved?.(...args),
+      onFamilyMemberUpdate: (...args) =>
+        handlersRef.current.onFamilyMemberUpdate?.(...args),
+      onAlertCreated: (...args) =>
+        handlersRef.current.onAlertCreated?.(...args),
+      onAlertResolved: (...args) =>
+        handlersRef.current.onAlertResolved?.(...args),
       onVitalAdded: (...args) => handlersRef.current.onVitalAdded?.(...args),
       onError: (...args) => handlersRef.current.onError?.(...args),
     };
@@ -93,7 +96,10 @@ export function useRealtimeHealth(
     // Subscribe to trend alerts for the user
     if (userId) {
       const unsubscribeTrendAlerts =
-        realtimeHealthService.subscribeToTrendAlerts(userId, stableHandlers.onTrendAlert);
+        realtimeHealthService.subscribeToTrendAlerts(
+          userId,
+          stableHandlers.onTrendAlert
+        );
       unsubscribes.push(unsubscribeTrendAlerts);
 
       // Subscribe to user alerts

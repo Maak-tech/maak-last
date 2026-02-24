@@ -105,8 +105,7 @@ class OpenAIProvider implements LLMProvider {
  */
 function getLLMProvider(apiKey?: string): LLMProvider | null {
   // Check passed key first, then ZEINA_API_KEY, then OPENAI_API_KEY (fallback)
-  const key =
-    apiKey || process.env.ZEINA_API_KEY || process.env.OPENAI_API_KEY;
+  const key = apiKey || process.env.ZEINA_API_KEY || process.env.OPENAI_API_KEY;
   if (!key) {
     return null;
   }

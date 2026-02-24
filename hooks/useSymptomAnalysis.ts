@@ -5,8 +5,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  symptomPatternRecognitionService,
   type PatternAnalysisResult,
+  symptomPatternRecognitionService,
 } from "@/lib/services/symptomPatternRecognitionService";
 import { symptomService } from "@/lib/services/symptomService";
 

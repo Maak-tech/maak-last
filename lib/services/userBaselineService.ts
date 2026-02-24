@@ -32,12 +32,12 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import type { Allergy, MedicalHistory, Mood, Symptom } from "@/types";
 import { allergyService } from "./allergyService";
 import { medicalHistoryService } from "./medicalHistoryService";
 import { medicationService } from "./medicationService";
 import { moodService } from "./moodService";
 import { symptomService } from "./symptomService";
-import type { Allergy, MedicalHistory, Mood, Symptom } from "@/types";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -140,19 +140,40 @@ function mean(values: number[]): number {
 function stdDev(values: number[]): number {
   if (values.length < 2) return 0;
   const avg = mean(values);
-  const variance = values.reduce((s, v) => s + (v - avg) ** 2, 0) / (values.length - 1);
+  const variance =
+    values.reduce((s, v) => s + (v - avg) ** 2, 0) / (values.length - 1);
   return Math.sqrt(variance);
 }
 
 function moodPolarity(mood: Mood): "positive" | "neutral" | "negative" {
   const positiveMoods = new Set([
-    "veryHappy", "happy", "excited", "content", "grateful", "energetic",
-    "hopeful", "calm", "peaceful", "proud", "loved",
+    "veryHappy",
+    "happy",
+    "excited",
+    "content",
+    "grateful",
+    "energetic",
+    "hopeful",
+    "calm",
+    "peaceful",
+    "proud",
+    "loved",
   ]);
   const negativeMoods = new Set([
-    "sad", "verySad", "anxious", "veryAnxious", "angry", "frustrated",
-    "depressed", "scared", "hopeless", "exhausted", "overwhelmed",
-    "guilty", "lonely", "disgusted",
+    "sad",
+    "verySad",
+    "anxious",
+    "veryAnxious",
+    "angry",
+    "frustrated",
+    "depressed",
+    "scared",
+    "hopeless",
+    "exhausted",
+    "overwhelmed",
+    "guilty",
+    "lonely",
+    "disgusted",
   ]);
   if (positiveMoods.has(mood.mood)) return "positive";
   if (negativeMoods.has(mood.mood)) return "negative";
@@ -174,7 +195,9 @@ function topN<T>(items: T[], key: (item: T) => string, n: number): string[] {
 async function fetchVitalSamples(
   userId: string,
   days: number
-): Promise<Array<{ type: string; value: number; unit?: string; timestamp: Date }>> {
+): Promise<
+  Array<{ type: string; value: number; unit?: string; timestamp: Date }>
+> {
   const since = new Date();
   since.setDate(since.getDate() - days);
   const q = query(
@@ -239,7 +262,11 @@ async function fetchMedicationAdherence(
         const takenAt = reminder.takenAt as Date | Timestamp | undefined;
         if (!takenAt) continue;
         const takenDate =
-          takenAt instanceof Timestamp ? takenAt.toDate() : takenAt instanceof Date ? takenAt : null;
+          takenAt instanceof Timestamp
+            ? takenAt.toDate()
+            : takenAt instanceof Date
+              ? takenAt
+              : null;
         if (!takenDate || takenDate < since) continue;
         totalReminders++;
         if (reminder.taken) takenReminders++;
@@ -259,7 +286,7 @@ async function fetchPeriodBaseline(
   try {
     const { periodService } = await import("./periodService");
     const cycle = await periodService.getCycleInfo(userId);
-    if (!cycle || !cycle.averageCycleLength) return null;
+    if (!(cycle && cycle.averageCycleLength)) return null;
     return {
       averageCycleLength: cycle.averageCycleLength,
       averagePeriodLength: cycle.averagePeriodLength ?? 5,
@@ -280,17 +307,19 @@ async function buildRiskContext(
     .map((h) => h.condition.toLowerCase());
 
   const severeAllergies = allergies.filter(
-    (a) =>
-      a.severity === "severe" ||
-      a.severity === "severe-life-threatening"
+    (a) => a.severity === "severe" || a.severity === "severe-life-threatening"
   );
 
   return {
     hasCardiacHistory: conditions.some((c) =>
       c.match(/heart|cardiac|arrhythmia|hypertension|coronary/)
     ),
-    hasDiabetes: conditions.some((c) => c.match(/diabetes|diabetic|glucose|insulin/)),
-    hasHypertension: conditions.some((c) => c.match(/hypertension|blood pressure/)),
+    hasDiabetes: conditions.some((c) =>
+      c.match(/diabetes|diabetic|glucose|insulin/)
+    ),
+    hasHypertension: conditions.some((c) =>
+      c.match(/hypertension|blood pressure/)
+    ),
     hasRespiratoryCondition: conditions.some((c) =>
       c.match(/asthma|copd|respiratory|lung|pneumonia/)
     ),
@@ -314,24 +343,33 @@ export const userBaselineService = {
    * Call this on first open, then at most once per 24h.
    */
   async computeBaseline(userId: string): Promise<UserHealthBaseline> {
-    const [vitalsRaw, symptoms, moods, allergies, history, adherence, periodBase] =
-      await Promise.all([
-        fetchVitalSamples(userId, DATA_WINDOW_DAYS).catch(() => []),
-        symptomService.getUserSymptoms(userId, 500).catch(() => [] as Symptom[]),
-        moodService.getUserMoods(userId, 200).catch(() => [] as Mood[]),
-        allergyService.getUserAllergies(userId).catch(() => [] as Allergy[]),
-        medicalHistoryService.getUserMedicalHistory(userId).catch(() => [] as MedicalHistory[]),
-        fetchMedicationAdherence(userId, DATA_WINDOW_DAYS),
-        fetchPeriodBaseline(userId),
-      ]);
+    const [
+      vitalsRaw,
+      symptoms,
+      moods,
+      allergies,
+      history,
+      adherence,
+      periodBase,
+    ] = await Promise.all([
+      fetchVitalSamples(userId, DATA_WINDOW_DAYS).catch(() => []),
+      symptomService.getUserSymptoms(userId, 500).catch(() => [] as Symptom[]),
+      moodService.getUserMoods(userId, 200).catch(() => [] as Mood[]),
+      allergyService.getUserAllergies(userId).catch(() => [] as Allergy[]),
+      medicalHistoryService
+        .getUserMedicalHistory(userId)
+        .catch(() => [] as MedicalHistory[]),
+      fetchMedicationAdherence(userId, DATA_WINDOW_DAYS),
+      fetchPeriodBaseline(userId),
+    ]);
 
     // Vitals
     const vitalBaselines = buildVitalBaselines(vitalsRaw);
-    const sleepSamples = vitalsRaw.filter((v) =>
-      v.type === "sleep" || v.type === "sleepDuration"
+    const sleepSamples = vitalsRaw.filter(
+      (v) => v.type === "sleep" || v.type === "sleepDuration"
     );
-    const stepSamples = vitalsRaw.filter((v) =>
-      v.type === "steps" || v.type === "stepCount"
+    const stepSamples = vitalsRaw.filter(
+      (v) => v.type === "steps" || v.type === "stepCount"
     );
     const averageSleepHours =
       sleepSamples.length >= 3 ? mean(sleepSamples.map((v) => v.value)) : null;
@@ -348,17 +386,22 @@ export const userBaselineService = {
         : negCount > posCount + 5
           ? "negative"
           : "neutral";
-    const averageMoodIntensity = moods.length > 0 ? mean(moods.map((m) => m.intensity)) : 3;
+    const averageMoodIntensity =
+      moods.length > 0 ? mean(moods.map((m) => m.intensity)) : 3;
 
     // Symptoms
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - DATA_WINDOW_DAYS);
     const recentSymptoms = symptoms.filter((s) => s.timestamp >= cutoff);
-    const uniqueDays = new Set(recentSymptoms.map((s) => s.timestamp.toDateString())).size;
+    const uniqueDays = new Set(
+      recentSymptoms.map((s) => s.timestamp.toDateString())
+    ).size;
     const averageDailySymptomCount =
       uniqueDays > 0 ? recentSymptoms.length / Math.max(uniqueDays, 1) : 0;
     const averageSymptomSeverity =
-      recentSymptoms.length > 0 ? mean(recentSymptoms.map((s) => s.severity)) : 0;
+      recentSymptoms.length > 0
+        ? mean(recentSymptoms.map((s) => s.severity))
+        : 0;
     const commonSymptomTypes = topN(recentSymptoms, (s) => s.type, 3);
 
     // Risk context
@@ -385,13 +428,10 @@ export const userBaselineService = {
 
     // Persist to Firestore (best-effort)
     try {
-      await setDoc(
-        doc(db, "users", userId, "health_baseline", "current"),
-        {
-          ...baseline,
-          computedAt: Timestamp.fromDate(baseline.computedAt),
-        }
-      );
+      await setDoc(doc(db, "users", userId, "health_baseline", "current"), {
+        ...baseline,
+        computedAt: Timestamp.fromDate(baseline.computedAt),
+      });
     } catch {
       // Non-critical — proceed with in-memory baseline
     }
@@ -406,7 +446,9 @@ export const userBaselineService = {
   async getCachedBaseline(userId: string): Promise<UserHealthBaseline | null> {
     try {
       const { getDoc } = await import("firebase/firestore");
-      const snap = await getDoc(doc(db, "users", userId, "health_baseline", "current"));
+      const snap = await getDoc(
+        doc(db, "users", userId, "health_baseline", "current")
+      );
       if (!snap.exists()) return null;
       const data = snap.data();
       const computedAt: Date =
@@ -449,7 +491,9 @@ export const userBaselineService = {
 
     try {
       // ── 1. Vital deviations ────────────────────────────────────────────
-      const recentVitals = await fetchVitalSamples(userId, RECENT_DAYS).catch(() => []);
+      const recentVitals = await fetchVitalSamples(userId, RECENT_DAYS).catch(
+        () => []
+      );
       const recentByType: Record<string, number[]> = {};
       for (const v of recentVitals) {
         if (!recentByType[v.type]) recentByType[v.type] = [];
@@ -460,13 +504,18 @@ export const userBaselineService = {
         const recent = recentByType[baseVital.type];
         if (!recent || recent.length < 2) continue;
         const recentAvg = mean(recent);
-        const changeRatio = (recentAvg - baseVital.average) / (baseVital.average || 1);
-        const threshold = Math.max(0.1, baseVital.stdDev / (baseVital.average || 1));
+        const changeRatio =
+          (recentAvg - baseVital.average) / (baseVital.average || 1);
+        const threshold = Math.max(
+          0.1,
+          baseVital.stdDev / (baseVital.average || 1)
+        );
         const absChange = Math.abs(changeRatio);
 
         if (absChange < threshold * 1.5) continue; // within 1.5 std devs — noise
 
-        const direction: "above" | "below" = changeRatio > 0 ? "above" : "below";
+        const direction: "above" | "below" =
+          changeRatio > 0 ? "above" : "below";
         const severity: BaselineDeviation["severity"] =
           absChange > threshold * 3
             ? "significant"
@@ -474,7 +523,9 @@ export const userBaselineService = {
               ? "moderate"
               : "mild";
 
-        const vitalLabel = baseVital.type.replace(/([A-Z])/g, " $1").toLowerCase();
+        const vitalLabel = baseVital.type
+          .replace(/([A-Z])/g, " $1")
+          .toLowerCase();
         const changePct = Math.round(Math.abs(changeRatio) * 100);
 
         deviations.push({
@@ -500,7 +551,9 @@ export const userBaselineService = {
       }
 
       // ── 2. Mood deviation ─────────────────────────────────────────────
-      const recentMoods = await moodService.getUserMoods(userId, 30).catch(() => [] as Mood[]);
+      const recentMoods = await moodService
+        .getUserMoods(userId, 30)
+        .catch(() => [] as Mood[]);
       const recentMoodWindow = recentMoods.filter((m) => {
         const cutoff = new Date();
         cutoff.setDate(cutoff.getDate() - RECENT_DAYS);
@@ -524,10 +577,10 @@ export const userBaselineService = {
             direction: isDecline ? "below" : "above",
             insight: isDecline
               ? `Your mood has been lower than usual this week (${Math.round(recentIntensity * 10) / 10}/5 vs your average ${Math.round(baseline.averageMoodIntensity * 10) / 10}/5).`
-              : `Your mood has been notably positive this week!`,
+              : "Your mood has been notably positive this week!",
             insightAr: isDecline
-              ? `حالتك المزاجية أقل من المعتاد هذا الأسبوع.`
-              : `حالتك المزاجية إيجابية بشكل ملحوظ هذا الأسبوع!`,
+              ? "حالتك المزاجية أقل من المعتاد هذا الأسبوع."
+              : "حالتك المزاجية إيجابية بشكل ملحوظ هذا الأسبوع!",
             actionable: isDecline,
             recommendation: isDecline
               ? "Prioritise rest, social connection, and activities you enjoy. Consider tracking what may be affecting your mood."
@@ -540,13 +593,18 @@ export const userBaselineService = {
       }
 
       // ── 3. Symptom deviation ──────────────────────────────────────────
-      const recentSymptoms = await symptomService.getUserSymptoms(userId, 100).catch(() => [] as Symptom[]);
+      const recentSymptoms = await symptomService
+        .getUserSymptoms(userId, 100)
+        .catch(() => [] as Symptom[]);
       const cutoff = new Date();
       cutoff.setDate(cutoff.getDate() - RECENT_DAYS);
-      const recentSymWindow = recentSymptoms.filter((s) => s.timestamp >= cutoff);
-      const recentSeverityAvg = recentSymWindow.length > 0
-        ? mean(recentSymWindow.map((s) => s.severity))
-        : 0;
+      const recentSymWindow = recentSymptoms.filter(
+        (s) => s.timestamp >= cutoff
+      );
+      const recentSeverityAvg =
+        recentSymWindow.length > 0
+          ? mean(recentSymWindow.map((s) => s.severity))
+          : 0;
 
       if (
         baseline.symptomSampleCount >= 5 &&
@@ -561,17 +619,19 @@ export const userBaselineService = {
           deviations.push({
             dimension: "symptoms",
             metric: "symptomSeverity",
-            baselineValue: Math.round(baseline.averageSymptomSeverity * 10) / 10,
+            baselineValue:
+              Math.round(baseline.averageSymptomSeverity * 10) / 10,
             currentValue: Math.round(recentSeverityAvg * 10) / 10,
             changeRatio: severityChange,
-            severity: Math.abs(severityChange) > 0.5 ? "significant" : "moderate",
+            severity:
+              Math.abs(severityChange) > 0.5 ? "significant" : "moderate",
             direction: isWorse ? "above" : "below",
             insight: isWorse
               ? `Your symptoms have been ${Math.round(Math.abs(severityChange) * 100)}% more severe than your usual pattern this week.`
-              : `Your symptoms are milder than usual this week — a positive sign!`,
+              : "Your symptoms are milder than usual this week — a positive sign!",
             insightAr: isWorse
               ? `أعراضك أشد بنسبة ${Math.round(Math.abs(severityChange) * 100)}% من نمطك المعتاد هذا الأسبوع.`
-              : `أعراضك أخف من المعتاد هذا الأسبوع — مؤشر إيجابي!`,
+              : "أعراضك أخف من المعتاد هذا الأسبوع — مؤشر إيجابي!",
             actionable: isWorse,
             recommendation: isWorse
               ? "Log any new triggers or lifestyle changes. If worsening persists, consider consulting your healthcare provider."
@@ -584,8 +644,14 @@ export const userBaselineService = {
       }
 
       // ── 4. Medication adherence deviation ─────────────────────────────
-      const recentAdherence = await fetchMedicationAdherence(userId, RECENT_DAYS);
-      if (baseline.medicationAdherence >= 70 && recentAdherence < baseline.medicationAdherence - 20) {
+      const recentAdherence = await fetchMedicationAdherence(
+        userId,
+        RECENT_DAYS
+      );
+      if (
+        baseline.medicationAdherence >= 70 &&
+        recentAdherence < baseline.medicationAdherence - 20
+      ) {
         deviations.push({
           dimension: "medication",
           metric: "adherence",
@@ -612,7 +678,8 @@ export const userBaselineService = {
         if (recentSleepSamples.length >= 3) {
           const recentSleep = mean(recentSleepSamples.map((v) => v.value));
           const sleepChange =
-            (recentSleep - baseline.averageSleepHours) / (baseline.averageSleepHours || 1);
+            (recentSleep - baseline.averageSleepHours) /
+            (baseline.averageSleepHours || 1);
           if (Math.abs(sleepChange) >= 0.15) {
             const isLess = sleepChange < 0;
             deviations.push({
@@ -621,14 +688,15 @@ export const userBaselineService = {
               baselineValue: Math.round(baseline.averageSleepHours * 10) / 10,
               currentValue: Math.round(recentSleep * 10) / 10,
               changeRatio: sleepChange,
-              severity: Math.abs(sleepChange) > 0.3 ? "significant" : "moderate",
+              severity:
+                Math.abs(sleepChange) > 0.3 ? "significant" : "moderate",
               direction: isLess ? "below" : "above",
               insight: isLess
                 ? `You're sleeping ${Math.round(Math.abs(baseline.averageSleepHours - recentSleep) * 10) / 10} hours less than your usual ${Math.round(baseline.averageSleepHours * 10) / 10}h average.`
                 : `You're sleeping more than usual — your body may be recovering.`,
               insightAr: isLess
                 ? `تنام ${Math.round(Math.abs(baseline.averageSleepHours - recentSleep) * 10) / 10} ساعات أقل من معدلك المعتاد.`
-                : `تنام أكثر من المعتاد — قد يتعافى جسمك.`,
+                : "تنام أكثر من المعتاد — قد يتعافى جسمك.",
               actionable: isLess,
               recommendation: isLess
                 ? "Aim for 7–9 hours of sleep. Poor sleep affects immune function, mood, and cardiovascular health."
@@ -649,7 +717,8 @@ export const userBaselineService = {
         if (recentStepSamples.length >= 3) {
           const recentSteps = mean(recentStepSamples.map((v) => v.value));
           const stepsChange =
-            (recentSteps - baseline.averageDailySteps) / (baseline.averageDailySteps || 1);
+            (recentSteps - baseline.averageDailySteps) /
+            (baseline.averageDailySteps || 1);
           if (Math.abs(stepsChange) >= 0.2) {
             const isLess = stepsChange < 0;
             deviations.push({
@@ -658,14 +727,15 @@ export const userBaselineService = {
               baselineValue: Math.round(baseline.averageDailySteps),
               currentValue: Math.round(recentSteps),
               changeRatio: stepsChange,
-              severity: Math.abs(stepsChange) > 0.4 ? "significant" : "moderate",
+              severity:
+                Math.abs(stepsChange) > 0.4 ? "significant" : "moderate",
               direction: isLess ? "below" : "above",
               insight: isLess
                 ? `Your daily steps dropped ${Math.round(Math.abs(stepsChange) * 100)}% below your usual ${Math.round(baseline.averageDailySteps).toLocaleString()} steps.`
                 : `You're more active than usual — ${Math.round(recentSteps).toLocaleString()} steps vs your average ${Math.round(baseline.averageDailySteps).toLocaleString()}.`,
               insightAr: isLess
                 ? `خطواتك اليومية انخفضت ${Math.round(Math.abs(stepsChange) * 100)}% عن معدلك المعتاد.`
-                : `أنت أكثر نشاطًا من المعتاد هذا الأسبوع!`,
+                : "أنت أكثر نشاطًا من المعتاد هذا الأسبوع!",
               actionable: isLess,
               recommendation: isLess
                 ? "Try adding a 10-minute walk to your day — even small increases in activity improve health outcomes."
@@ -682,8 +752,14 @@ export const userBaselineService = {
     }
 
     // Sort by severity (significant first)
-    const order: Record<string, number> = { significant: 0, moderate: 1, mild: 2 };
-    deviations.sort((a, b) => (order[a.severity] ?? 3) - (order[b.severity] ?? 3));
+    const order: Record<string, number> = {
+      significant: 0,
+      moderate: 1,
+      mild: 2,
+    };
+    deviations.sort(
+      (a, b) => (order[a.severity] ?? 3) - (order[b.severity] ?? 3)
+    );
 
     return deviations;
   },
@@ -702,7 +778,13 @@ export const userBaselineService = {
     try {
       // Rate-limit: check Firestore for last notification time
       const { getDoc, setDoc: setDocFS } = await import("firebase/firestore");
-      const notifDoc = doc(db, "users", userId, "health_baseline", "last_notification");
+      const notifDoc = doc(
+        db,
+        "users",
+        userId,
+        "health_baseline",
+        "last_notification"
+      );
       const notifSnap = await getDoc(notifDoc).catch(() => null);
       if (notifSnap?.exists()) {
         const lastNotifAt: Date =
@@ -714,18 +796,27 @@ export const userBaselineService = {
       }
 
       const baseline = await this.getBaseline(userId);
-      const deviations = await this.detectDeviations(userId, baseline, isArabic);
-      const significant = deviations.filter((d) => d.severity === "significant");
+      const deviations = await this.detectDeviations(
+        userId,
+        baseline,
+        isArabic
+      );
+      const significant = deviations.filter(
+        (d) => d.severity === "significant"
+      );
       if (significant.length === 0) return;
 
       const top = significant[0];
-      const { pushNotificationService } = await import("./pushNotificationService");
+      const { pushNotificationService } = await import(
+        "./pushNotificationService"
+      );
       await pushNotificationService.sendToUser(userId, {
         title: isArabic ? "تغيير في نمطك الصحي" : "Health Pattern Change",
         body: isArabic ? top.insightAr : top.insight,
         data: {
           type: "vital_alert" as const,
-          clickAction: top.dimension === "medication" ? "medications" : "analytics",
+          clickAction:
+            top.dimension === "medication" ? "medications" : "analytics",
         },
         priority: "high",
       });
@@ -744,12 +835,20 @@ export const userBaselineService = {
    *
    * This complements detectDeviations() which uses ratio-based thresholds.
    */
-  async getZScoreVitalAnomalies(
-    userId: string
-  ): Promise<Array<{ type: string; zScore: number; latest: number; baseline: number; unit?: string }>> {
+  async getZScoreVitalAnomalies(userId: string): Promise<
+    Array<{
+      type: string;
+      zScore: number;
+      latest: number;
+      baseline: number;
+      unit?: string;
+    }>
+  > {
     try {
       const vitalsRaw = await fetchVitalSamples(userId, 30);
-      const { getVitalAnomalySignals } = await import("./healthInsightScoringService");
+      const { getVitalAnomalySignals } = await import(
+        "./healthInsightScoringService"
+      );
       // Convert to VitalSample shape expected by scoring service
       const scoringSamples = vitalsRaw.map((v) => ({
         id: `${v.type}_${v.timestamp.getTime()}`,

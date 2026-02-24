@@ -7,7 +7,13 @@
  */
 
 import { useRouter } from "expo-router";
-import { AlertCircle, ChevronRight, FlaskConical, TrendingDown, TrendingUp } from "lucide-react-native";
+import {
+  AlertCircle,
+  ChevronRight,
+  FlaskConical,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -16,11 +22,11 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
-import { FeatureGate } from "@/components/FeatureGate";
 import {
   Caption,
   Text as TypographyText,
 } from "@/components/design-system/Typography";
+import { FeatureGate } from "@/components/FeatureGate";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useLabInsights } from "@/hooks/useLabInsights";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
@@ -79,7 +85,12 @@ function AnalyticsContent({
       borderBottomColor: t.colors.border.light,
     } as ViewStyle,
     biomarkerName: getTextStyle(t, "body", "medium", t.colors.text.primary),
-    biomarkerValue: getTextStyle(t, "caption", "regular", t.colors.text.secondary),
+    biomarkerValue: getTextStyle(
+      t,
+      "caption",
+      "regular",
+      t.colors.text.secondary
+    ),
     narrativeText: {
       ...getTextStyle(t, "body", "regular", t.colors.text.secondary),
       lineHeight: 20,
@@ -119,9 +130,14 @@ function AnalyticsContent({
     <View style={styles.card}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <FlaskConical size={18} color={theme.colors.primary.main} />
+          <FlaskConical color={theme.colors.primary.main} size={18} />
           <TypographyText
-            style={getTextStyle(theme as typeof theme, "subheading", "bold", theme.colors.text.primary)}
+            style={getTextStyle(
+              theme as typeof theme,
+              "subheading",
+              "bold",
+              theme.colors.text.primary
+            )}
           >
             {isRTL ? "تحليل نتائج المختبر" : "Lab Insights"}
           </TypographyText>
@@ -146,15 +162,29 @@ function AnalyticsContent({
 
       {topFlagged.map((b) => (
         <View key={b.name} style={styles.biomarkerRow}>
-          <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 6 }}>
+          <View
+            style={{
+              flexDirection: isRTL ? "row-reverse" : "row",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
             {b.trend === "rising" ? (
-              <TrendingUp size={14} color="#EF4444" />
+              <TrendingUp color="#EF4444" size={14} />
             ) : b.trend === "falling" ? (
-              <TrendingDown size={14} color="#3B82F6" />
+              <TrendingDown color="#3B82F6" size={14} />
             ) : null}
-            <TypographyText style={styles.biomarkerName}>{b.name}</TypographyText>
+            <TypographyText style={styles.biomarkerName}>
+              {b.name}
+            </TypographyText>
           </View>
-          <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 4 }}>
+          <View
+            style={{
+              flexDirection: isRTL ? "row-reverse" : "row",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
             <TypographyText style={styles.biomarkerValue}>
               {b.latest.value} {b.unit}
             </TypographyText>
@@ -167,8 +197,8 @@ function AnalyticsContent({
                   b.latest.status === "critical"
                     ? "#EF4444"
                     : b.latest.status === "high" || b.latest.status === "low"
-                    ? "#F59E0B"
-                    : "#10B981",
+                      ? "#F59E0B"
+                      : "#10B981",
               }}
             />
           </View>
@@ -177,21 +207,21 @@ function AnalyticsContent({
 
       <TouchableOpacity onPress={() => setExpanded(!expanded)}>
         <TypographyText
-          style={styles.narrativeText}
           numberOfLines={expanded ? undefined : 2}
+          style={styles.narrativeText}
         >
           {narrative}
         </TypographyText>
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={styles.viewAllButton}
         onPress={() => router.push("/lab-results")}
+        style={styles.viewAllButton}
       >
         <TypographyText style={styles.viewAllText}>
           {isRTL ? "عرض التقرير الكامل" : "View Full Report"}
         </TypographyText>
-        <ChevronRight size={14} color={theme.colors.primary.main} />
+        <ChevronRight color={theme.colors.primary.main} size={14} />
       </TouchableOpacity>
     </View>
   );
@@ -234,12 +264,12 @@ function BannerContent({
 
   return (
     <TouchableOpacity
-      style={styles.banner}
-      onPress={() => router.push("/(tabs)/analytics")}
       activeOpacity={0.8}
+      onPress={() => router.push("/(tabs)/analytics")}
+      style={styles.banner}
     >
       <View style={styles.bannerLeft}>
-        <AlertCircle size={16} color="#92400E" />
+        <AlertCircle color="#92400E" size={16} />
         <TypographyText style={styles.bannerText}>
           {isRTL
             ? `${insights.flaggedCount} قيم غير طبيعية · رؤى الذكاء الاصطناعي متاحة`
@@ -263,9 +293,9 @@ export default function LabInsightsCard({
   return (
     <FeatureGate featureId="LAB_INSIGHTS" showUpgradePrompt>
       {variant === "analytics" ? (
-        <AnalyticsContent userId={userId} isRTL={isRTL} />
+        <AnalyticsContent isRTL={isRTL} userId={userId} />
       ) : (
-        <BannerContent userId={userId} isRTL={isRTL} />
+        <BannerContent isRTL={isRTL} userId={userId} />
       )}
     </FeatureGate>
   );

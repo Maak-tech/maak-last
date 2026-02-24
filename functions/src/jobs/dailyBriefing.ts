@@ -148,7 +148,8 @@ Keep each highlight under 8 words. The Arabic fields should be accurate Arabic t
         if (parsed.summary) summary = parsed.summary;
         if (parsed.summaryAr) summaryAr = parsed.summaryAr;
         if (Array.isArray(parsed.highlights)) highlights = parsed.highlights;
-        if (Array.isArray(parsed.highlightsAr)) highlightsAr = parsed.highlightsAr;
+        if (Array.isArray(parsed.highlightsAr))
+          highlightsAr = parsed.highlightsAr;
       }
     } catch {
       // Use defaults
@@ -188,9 +189,7 @@ Keep each highlight under 8 words. The Arabic fields should be accurate Arabic t
         data: { type: "daily_briefing", date: todayKey },
       }));
 
-      await Promise.allSettled(
-        messages.map((m) => admin.messaging().send(m))
-      );
+      await Promise.allSettled(messages.map((m) => admin.messaging().send(m)));
     }
   } catch (err) {
     console.error("Error generating briefing for user", userId, err);

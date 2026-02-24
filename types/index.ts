@@ -476,7 +476,11 @@ export type OrgCohort = {
   patientCount: number;
 };
 
-export type PatientRosterStatus = "active" | "inactive" | "discharged" | "revoked";
+export type PatientRosterStatus =
+  | "active"
+  | "inactive"
+  | "discharged"
+  | "revoked";
 
 export type ConsentScope =
   | "vitals"

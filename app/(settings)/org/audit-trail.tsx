@@ -7,17 +7,17 @@
  * Route: /(settings)/org/audit-trail?orgId=<orgId>
  */
 
+import { useLocalSearchParams, useNavigation } from "expo-router";
 import {
   collection,
+  type DocumentSnapshot,
   getDocs,
   limit,
   orderBy,
   query,
   startAfter,
-  type DocumentSnapshot,
   where,
 } from "firebase/firestore";
-import { useLocalSearchParams, useNavigation } from "expo-router";
 import {
   Activity,
   AlertCircle,
@@ -171,22 +171,22 @@ function actionLabel(action: AuditAction): string {
 
 function actionIcon(action: AuditAction, color: string) {
   const size = 16;
-  if (PHI_ACTIONS.includes(action)) return <Eye size={size} color={color} />;
+  if (PHI_ACTIONS.includes(action)) return <Eye color={color} size={size} />;
   if (["patient_enrolled", "patient_discharged"].includes(action))
-    return <User size={size} color={color} />;
+    return <User color={color} size={size} />;
   if (["consent_granted", "consent_revoked"].includes(action))
-    return <Shield size={size} color={color} />;
+    return <Shield color={color} size={size} />;
   if (["api_key_created", "api_key_revoked", "api_key_used"].includes(action))
-    return <Key size={size} color={color} />;
-  if (action === "role_changed") return <User size={size} color={color} />;
-  if (action === "agent_action") return <Zap size={size} color={color} />;
+    return <Key color={color} size={size} />;
+  if (action === "role_changed") return <User color={color} size={size} />;
+  if (action === "agent_action") return <Zap color={color} size={size} />;
   if (action === "webhook_triggered")
-    return <Webhook size={size} color={color} />;
+    return <Webhook color={color} size={size} />;
   if (["phi_delete", "patient_discharged"].includes(action))
-    return <Trash2 size={size} color={color} />;
+    return <Trash2 color={color} size={size} />;
   if (["alert_created", "alert_resolved"].includes(action))
-    return <AlertCircle size={size} color={color} />;
-  return <Activity size={size} color={color} />;
+    return <AlertCircle color={color} size={size} />;
+  return <Activity color={color} size={size} />;
 }
 
 function outcomeColor(outcome: AuditTrailEntry["outcome"]): string {
@@ -246,13 +246,13 @@ function EntryRow({
           }}
         >
           <TypographyText
+            numberOfLines={1}
             style={{
               color: theme.colors.text.primary,
               fontSize: 13,
               fontWeight: "600",
               flex: 1,
             }}
-            numberOfLines={1}
           >
             {actionLabel(entry.action)}
           </TypographyText>
@@ -392,7 +392,7 @@ export default function AuditTrailScreen() {
   );
 
   const loadMore = useCallback(async () => {
-    if (!orgId || !hasMore || loadingMore || !lastDocRef.current) return;
+    if (!(orgId && hasMore) || loadingMore || !lastDocRef.current) return;
     setLoadingMore(true);
 
     try {
@@ -444,10 +444,10 @@ export default function AuditTrailScreen() {
         }}
       >
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => navigation.goBack()}
         >
-          <ChevronLeft size={24} color={theme.colors.text.primary} />
+          <ChevronLeft color={theme.colors.text.primary} size={24} />
         </TouchableOpacity>
         <TypographyText
           style={getTextStyle(
@@ -461,12 +461,12 @@ export default function AuditTrailScreen() {
         </TypographyText>
         <View style={{ flex: 1 }} />
         <TouchableOpacity
-          onPress={() => load(true)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => load(true)}
         >
           <RefreshCw
-            size={18}
             color={theme.colors.text.secondary}
+            size={18}
             style={refreshing ? { opacity: 0.4 } : undefined}
           />
         </TouchableOpacity>
@@ -474,14 +474,14 @@ export default function AuditTrailScreen() {
 
       {/* Filter chips */}
       <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: 20,
           paddingBottom: 12,
           gap: 8,
           flexDirection: isRTL ? "row-reverse" : "row",
         }}
+        horizontal
+        showsHorizontalScrollIndicator={false}
       >
         {FILTER_CATEGORIES.map((cat) => {
           const active = filter === cat.key;
@@ -514,16 +514,8 @@ export default function AuditTrailScreen() {
       {/* List */}
       <ScrollView
         contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => load(true)}
-          />
-        }
         onScroll={({ nativeEvent }) => {
-          const { layoutMeasurement, contentOffset, contentSize } =
-            nativeEvent;
+          const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
           const nearBottom =
             layoutMeasurement.height + contentOffset.y >=
             contentSize.height - 200;
@@ -531,7 +523,14 @@ export default function AuditTrailScreen() {
             loadMore();
           }
         }}
+        refreshControl={
+          <RefreshControl
+            onRefresh={() => load(true)}
+            refreshing={refreshing}
+          />
+        }
         scrollEventThrottle={400}
+        showsVerticalScrollIndicator={false}
       >
         {/* Error */}
         {error ? (
@@ -543,7 +542,9 @@ export default function AuditTrailScreen() {
               marginBottom: 16,
             }}
           >
-            <TypographyText style={{ color: "#DC2626" }}>{error}</TypographyText>
+            <TypographyText style={{ color: "#DC2626" }}>
+              {error}
+            </TypographyText>
           </View>
         ) : null}
 
@@ -553,10 +554,8 @@ export default function AuditTrailScreen() {
             style={{ marginTop: 48 }}
           />
         ) : entries.length === 0 ? (
-          <View
-            style={{ alignItems: "center", paddingVertical: 48 }}
-          >
-            <Shield size={40} color={theme.colors.text.secondary} />
+          <View style={{ alignItems: "center", paddingVertical: 48 }}>
+            <Shield color={theme.colors.text.secondary} size={40} />
             <TypographyText
               style={{
                 color: theme.colors.text.secondary,
@@ -570,14 +569,14 @@ export default function AuditTrailScreen() {
         ) : (
           <>
             {entries.map((e) => (
-              <EntryRow key={e.id} entry={e} theme={theme} />
+              <EntryRow entry={e} key={e.id} theme={theme} />
             ))}
 
             {/* Load more */}
             {hasMore ? (
               <TouchableOpacity
-                onPress={loadMore}
                 disabled={loadingMore}
+                onPress={loadMore}
                 style={{
                   alignItems: "center",
                   paddingVertical: 16,

@@ -8,6 +8,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { doc, getDoc } from "firebase/firestore";
 import {
   AlertTriangle,
   Mic,
@@ -40,11 +41,10 @@ import GradientScreen from "@/components/figma/GradientScreen";
 import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { db } from "@/lib/firebase";
 import aiConsentService from "@/lib/services/aiConsentService";
 import { discoveryService } from "@/lib/services/discoveryService";
 import { userBaselineService } from "@/lib/services/userBaselineService";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { safeFormatTime } from "@/utils/dateFormat";
 import healthContextService from "../../lib/services/healthContextService";
 import openaiService, {
@@ -341,17 +341,22 @@ export default function ZeinaScreen() {
             const summary = data.summary as string;
             const summaryAr = data.summaryAr as string | undefined;
             const highlights: string[] = (data.highlights as string[]) ?? [];
-            const highlightsAr: string[] = (data.highlightsAr as string[]) ?? [];
+            const highlightsAr: string[] =
+              (data.highlightsAr as string[]) ?? [];
             const displaySummary = isRTL && summaryAr ? summaryAr : summary;
-            const displayHighlights = isRTL && highlightsAr.length ? highlightsAr : highlights;
-            const bulletPoints = displayHighlights.map((h) => `• ${h}`).join("\n");
+            const displayHighlights =
+              isRTL && highlightsAr.length ? highlightsAr : highlights;
+            const bulletPoints = displayHighlights
+              .map((h) => `• ${h}`)
+              .join("\n");
             briefingMessage = {
               id: (Date.now() + 2).toString(),
               role: "assistant",
               content: isRTL
-                ? `🌅 **إحاطتك الصحية اليومية**\n\n${displaySummary}${bulletPoints ? `\n\n${bulletPoints}` : ""}\n\n_كيف يمكنني مساعدتك اليوم؟_`
-                : `🌅 **Your Daily Health Briefing**\n\n${displaySummary}${bulletPoints ? `\n\n${bulletPoints}` : ""}\n\n_How can I help you today?_`,
+                ? `${displaySummary}${bulletPoints ? `\n\n${bulletPoints}` : ""}\n\n_كيف يمكنني مساعدتك اليوم؟_`
+                : `${displaySummary}${bulletPoints ? `\n\n${bulletPoints}` : ""}\n\n_How can I help you today?_`,
               timestamp: new Date(),
+              label: isRTL ? "الإحاطة الصحية اليومية" : "Daily Briefing",
             };
           }
         }
@@ -391,7 +396,10 @@ export default function ZeinaScreen() {
 
           // Fallback to newest discovery across all types
           if (!baselineMessage) {
-            const allDiscoveries = await discoveryService.getAllDiscoveries(userId, isRTL);
+            const allDiscoveries = await discoveryService.getAllDiscoveries(
+              userId,
+              isRTL
+            );
             const sinceDate = lastChatTimestamp
               ? new Date(lastChatTimestamp)
               : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -411,7 +419,9 @@ export default function ZeinaScreen() {
                 : `I noticed something interesting in your health data — ${desc}. Would you like to discuss this?`;
 
               // Dismiss so it won't re-surface on the next Zeina open
-              discoveryService.dismissDiscovery(userId, topDiscovery.id).catch(() => {});
+              discoveryService
+                .dismissDiscovery(userId, topDiscovery.id)
+                .catch(() => {});
             }
           }
 
@@ -833,6 +843,32 @@ export default function ZeinaScreen() {
                             <Sparkles color="#EB9C0C" size={14} />
                             <Text style={styles.figmaMessageSender}>
                               {isRTL ? "زينة" : "Zeina"}
+                            </Text>
+                          </View>
+                        )}
+                        {!isUser && message.label && (
+                          <View
+                            style={{
+                              flexDirection: isRTL ? "row-reverse" : "row",
+                              alignItems: "center",
+                              gap: 4,
+                              backgroundColor: "#FEF3C7",
+                              borderRadius: 20,
+                              paddingHorizontal: 8,
+                              paddingVertical: 3,
+                              alignSelf: "flex-start",
+                              marginBottom: 6,
+                            }}
+                          >
+                            <Sparkles color="#D97706" size={10} />
+                            <Text
+                              style={{
+                                fontSize: 11,
+                                color: "#92400E",
+                                fontWeight: "600",
+                              }}
+                            >
+                              {message.label}
                             </Text>
                           </View>
                         )}

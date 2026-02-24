@@ -211,10 +211,7 @@ Provide a brief 2-3 sentence plain-language interpretation. Focus on what these 
         if (response?.narrative && typeof response.narrative === "string") {
           aiNarrative = response.narrative;
         }
-        if (
-          response?.narrativeAr &&
-          typeof response.narrativeAr === "string"
-        ) {
+        if (response?.narrativeAr && typeof response.narrativeAr === "string") {
           aiNarrativeAr = response.narrativeAr;
         }
       } catch {

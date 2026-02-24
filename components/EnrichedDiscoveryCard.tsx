@@ -26,17 +26,16 @@ import {
 } from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  TouchableOpacity,
-  View,
-  type ViewStyle,
-} from "react-native";
+import { TouchableOpacity, View, type ViewStyle } from "react-native";
 import {
   Caption,
   Text as TypographyText,
 } from "@/components/design-system/Typography";
 import { useTheme } from "@/contexts/ThemeContext";
-import type { EnrichedDiscovery, DiscoveryType } from "@/lib/services/discoveryService";
+import type {
+  DiscoveryType,
+  EnrichedDiscovery,
+} from "@/lib/services/discoveryService";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 type Props = {
@@ -231,7 +230,7 @@ export default function EnrichedDiscoveryCard({ discovery, onDismiss }: Props) {
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
             <View style={styles.iconWrap}>
-              <TypeIcon type={discovery.discoveryType} color={accentColor} />
+              <TypeIcon color={accentColor} type={discovery.discoveryType} />
             </View>
             <View style={styles.titleWrap}>
               <View style={styles.pillRow}>

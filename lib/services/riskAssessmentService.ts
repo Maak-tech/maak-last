@@ -228,10 +228,16 @@ class RiskAssessmentService {
     const [user, medicalHistory, symptoms, vitals, medications, moods] =
       await Promise.all([
         this.getUserProfile(userId),
-        medicalHistoryService.getUserMedicalHistory(userId).catch(() => [] as MedicalHistory[]),
-        symptomService.getUserSymptoms(userId, 100).catch(() => [] as Symptom[]),
+        medicalHistoryService
+          .getUserMedicalHistory(userId)
+          .catch(() => [] as MedicalHistory[]),
+        symptomService
+          .getUserSymptoms(userId, 100)
+          .catch(() => [] as Symptom[]),
         this.getRecentVitals(userId),
-        medicationService.getUserMedications(userId).catch(() => [] as Medication[]),
+        medicationService
+          .getUserMedications(userId)
+          .catch(() => [] as Medication[]),
         this.getRecentMoods(userId),
       ]);
 
@@ -608,7 +614,9 @@ class RiskAssessmentService {
 
       const histories = await Promise.allSettled(
         otherMembers.map((member) =>
-          medicalHistoryService.getUserMedicalHistory(member.id).catch(() => [] as MedicalHistory[])
+          medicalHistoryService
+            .getUserMedicalHistory(member.id)
+            .catch(() => [] as MedicalHistory[])
         )
       );
 
@@ -828,7 +836,11 @@ class RiskAssessmentService {
       createdAt: new Date(),
       role: "admin",
       onboardingCompleted: true,
-      preferences: { language: "en", notifications: true, emergencyContacts: [] },
+      preferences: {
+        language: "en",
+        notifications: true,
+        emergencyContacts: [],
+      },
     };
   }
 

@@ -63,8 +63,8 @@ const db = () => getFirestore();
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
 const KEY_ID = "maak-v1";
-const ACCESS_TOKEN_TTL = 3_600; // 1 hour (seconds)
-const REFRESH_TOKEN_TTL = 30 * 24 * 3_600; // 30 days (seconds)
+const ACCESS_TOKEN_TTL = 3600; // 1 hour (seconds)
+const REFRESH_TOKEN_TTL = 30 * 24 * 3600; // 30 days (seconds)
 const AUTH_CODE_TTL = 600; // 10 minutes (seconds)
 
 // ─── Scope Labels (plain language for consent screen) ──────────────────────────
@@ -462,7 +462,7 @@ async function handleAuthorizeGet(
     .collection("oauth_clients")
     .doc(client_id)
     .get();
-  if (!clientSnap.exists || !clientSnap.data()?.isActive) {
+  if (!(clientSnap.exists && clientSnap.data()?.isActive)) {
     res.status(400).json({ error: "invalid_client" });
     return;
   }
@@ -546,13 +546,11 @@ async function handleAuthorizePost(
     .collection("oauth_clients")
     .doc(client_id)
     .get();
-  if (!clientSnap.exists || !clientSnap.data()?.isActive) {
+  if (!(clientSnap.exists && clientSnap.data()?.isActive)) {
     res.status(400).send("Invalid client");
     return;
   }
-  if (
-    !(clientSnap.data()!.redirectUris as string[]).includes(redirect_uri)
-  ) {
+  if (!(clientSnap.data()!.redirectUris as string[]).includes(redirect_uri)) {
     res.status(400).send("Invalid redirect_uri");
     return;
   }
@@ -598,13 +596,16 @@ async function issueAuthCode(params: {
 }): Promise<string> {
   const code = generateToken(32);
   const expiresAt = Timestamp.fromMillis(Date.now() + AUTH_CODE_TTL * 1000);
-  await db().collection("oauth_auth_codes").doc(code).set({
-    ...params,
-    code,
-    expiresAt,
-    used: false,
-    createdAt: FieldValue.serverTimestamp(),
-  });
+  await db()
+    .collection("oauth_auth_codes")
+    .doc(code)
+    .set({
+      ...params,
+      code,
+      expiresAt,
+      used: false,
+      createdAt: FieldValue.serverTimestamp(),
+    });
   return code;
 }
 
@@ -648,10 +649,7 @@ async function handleAuthCodeGrant(
     return;
   }
 
-  const codeSnap = await db()
-    .collection("oauth_auth_codes")
-    .doc(code)
-    .get();
+  const codeSnap = await db().collection("oauth_auth_codes").doc(code).get();
   if (!codeSnap.exists) {
     res
       .status(400)
@@ -781,11 +779,8 @@ async function handleClientCredentialsGrant(
     return;
   }
 
-  const clientSnap = await db()
-    .collection("oauth_clients")
-    .doc(clientId)
-    .get();
-  if (!clientSnap.exists || !clientSnap.data()?.isActive) {
+  const clientSnap = await db().collection("oauth_clients").doc(clientId).get();
+  if (!(clientSnap.exists && clientSnap.data()?.isActive)) {
     res.status(401).json({ error: "invalid_client" });
     return;
   }
@@ -858,7 +853,8 @@ async function handleRefreshTokenGrant(
     // Token reuse detected — potential replay attack
     res.status(400).json({
       error: "invalid_grant",
-      error_description: "Refresh token already rotated (possible replay attack)",
+      error_description:
+        "Refresh token already rotated (possible replay attack)",
     });
     return;
   }
@@ -946,10 +942,7 @@ async function handleIntrospect(req: ApiRequest, res: Response): Promise<void> {
   }
 
   const jti = payload.jti as string;
-  const tokenSnap = await db()
-    .collection("oauth_access_tokens")
-    .doc(jti)
-    .get();
+  const tokenSnap = await db().collection("oauth_access_tokens").doc(jti).get();
 
   if (!tokenSnap.exists || tokenSnap.data()?.revokedAt) {
     res.json({ active: false });

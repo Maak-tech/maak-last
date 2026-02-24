@@ -49,49 +49,52 @@ import { getTextStyle } from "@/utils/styles";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const ALL_SCOPES: Array<{ key: ApiKeyScope; label: string; description: string }> =
-  [
-    {
-      key: "vitals:read",
-      label: "Vitals — Read",
-      description: "Read vital signs and measurements",
-    },
-    {
-      key: "vitals:write",
-      label: "Vitals — Write",
-      description: "Push vitals from external devices",
-    },
-    {
-      key: "medications:read",
-      label: "Medications — Read",
-      description: "Read medication lists and adherence",
-    },
-    {
-      key: "anomalies:read",
-      label: "Anomalies — Read",
-      description: "Read detected vital anomalies",
-    },
-    {
-      key: "alerts:read",
-      label: "Alerts — Read",
-      description: "Read active and resolved alerts",
-    },
-    {
-      key: "risk:read",
-      label: "Risk Score — Read",
-      description: "Read composite patient risk scores",
-    },
-    {
-      key: "org:read",
-      label: "Org Summary — Read",
-      description: "Read org-level cohort summaries",
-    },
-    {
-      key: "patients:read",
-      label: "Patients — Read",
-      description: "Read patient roster and details",
-    },
-  ];
+const ALL_SCOPES: Array<{
+  key: ApiKeyScope;
+  label: string;
+  description: string;
+}> = [
+  {
+    key: "vitals:read",
+    label: "Vitals — Read",
+    description: "Read vital signs and measurements",
+  },
+  {
+    key: "vitals:write",
+    label: "Vitals — Write",
+    description: "Push vitals from external devices",
+  },
+  {
+    key: "medications:read",
+    label: "Medications — Read",
+    description: "Read medication lists and adherence",
+  },
+  {
+    key: "anomalies:read",
+    label: "Anomalies — Read",
+    description: "Read detected vital anomalies",
+  },
+  {
+    key: "alerts:read",
+    label: "Alerts — Read",
+    description: "Read active and resolved alerts",
+  },
+  {
+    key: "risk:read",
+    label: "Risk Score — Read",
+    description: "Read composite patient risk scores",
+  },
+  {
+    key: "org:read",
+    label: "Org Summary — Read",
+    description: "Read org-level cohort summaries",
+  },
+  {
+    key: "patients:read",
+    label: "Patients — Read",
+    description: "Read patient roster and details",
+  },
+];
 
 const SCOPE_COLORS: Record<string, string> = {
   "vitals:read": "#3B82F6",
@@ -119,8 +122,7 @@ function ApiKeyCard({
   onRevoke: (id: string, name: string) => void;
   onRotate: (id: string, name: string) => void;
 }) {
-  const isExpired =
-    apiKey.expiresAt != null && apiKey.expiresAt < new Date();
+  const isExpired = apiKey.expiresAt != null && apiKey.expiresAt < new Date();
 
   return (
     <View
@@ -130,8 +132,7 @@ function ApiKeyCard({
         padding: 16,
         marginBottom: 12,
         borderLeftWidth: 4,
-        borderLeftColor:
-          !apiKey.isActive || isExpired ? "#9CA3AF" : "#22C55E",
+        borderLeftColor: !apiKey.isActive || isExpired ? "#9CA3AF" : "#22C55E",
       }}
     >
       {/* Name + status */}
@@ -154,9 +155,9 @@ function ApiKeyCard({
           {apiKey.name}
         </TypographyText>
         {apiKey.isActive && !isExpired ? (
-          <CheckCircle2 size={16} color="#22C55E" />
+          <CheckCircle2 color="#22C55E" size={16} />
         ) : (
-          <ShieldOff size={16} color="#9CA3AF" />
+          <ShieldOff color="#9CA3AF" size={16} />
         )}
       </View>
 
@@ -173,7 +174,7 @@ function ApiKeyCard({
           gap: 6,
         }}
       >
-        <Key size={12} color={theme.colors.text.secondary} />
+        <Key color={theme.colors.text.secondary} size={12} />
         <Caption
           style={{
             color: theme.colors.text.secondary,
@@ -197,16 +198,13 @@ function ApiKeyCard({
           <View
             key={scope}
             style={{
-              backgroundColor:
-                `${SCOPE_COLORS[scope] ?? "#6B7280"}18`,
+              backgroundColor: `${SCOPE_COLORS[scope] ?? "#6B7280"}18`,
               borderRadius: 6,
               paddingHorizontal: 7,
               paddingVertical: 3,
             }}
           >
-            <Caption
-              style={{ color: SCOPE_COLORS[scope] ?? "#6B7280" }}
-            >
+            <Caption style={{ color: SCOPE_COLORS[scope] ?? "#6B7280" }}>
               {scope}
             </Caption>
           </View>
@@ -235,9 +233,7 @@ function ApiKeyCard({
 
       {/* Actions — only for active, non-expired keys */}
       {apiKey.isActive && !isExpired ? (
-        <View
-          style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 8 }}
-        >
+        <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 8 }}>
           <TouchableOpacity
             onPress={() => onRotate(apiKey.id, apiKey.name)}
             style={{
@@ -251,7 +247,7 @@ function ApiKeyCard({
               paddingVertical: 8,
             }}
           >
-            <RotateCcw size={14} color={theme.colors.text.secondary} />
+            <RotateCcw color={theme.colors.text.secondary} size={14} />
             <Caption style={{ color: theme.colors.text.secondary }}>
               Rotate
             </Caption>
@@ -269,7 +265,7 @@ function ApiKeyCard({
               paddingVertical: 8,
             }}
           >
-            <ShieldOff size={14} color="#DC2626" />
+            <ShieldOff color="#DC2626" size={14} />
             <Caption style={{ color: "#DC2626" }}>Revoke</Caption>
           </TouchableOpacity>
         </View>
@@ -331,7 +327,9 @@ function CreateKeyModal({
     try {
       await onSave(name.trim(), Array.from(selectedScopes), rate);
       setName("");
-      setSelectedScopes(new Set(["vitals:read", "anomalies:read", "alerts:read"]));
+      setSelectedScopes(
+        new Set(["vitals:read", "anomalies:read", "alerts:read"])
+      );
       setRateLimit("100");
       onClose();
     } finally {
@@ -341,10 +339,10 @@ function CreateKeyModal({
 
   return (
     <Modal
-      visible={visible}
-      transparent
       animationType="slide"
       onRequestClose={onClose}
+      transparent
+      visible={visible}
     >
       <View
         style={{
@@ -385,7 +383,6 @@ function CreateKeyModal({
               Key name
             </Caption>
             <TextInput
-              value={name}
               onChangeText={setName}
               placeholder="e.g. Epic EHR Integration"
               placeholderTextColor={theme.colors.text.secondary}
@@ -397,6 +394,7 @@ function CreateKeyModal({
                 marginBottom: 16,
                 fontSize: 15,
               }}
+              value={name}
             />
 
             {/* Rate limit */}
@@ -406,9 +404,8 @@ function CreateKeyModal({
               Rate limit (requests per minute)
             </Caption>
             <TextInput
-              value={rateLimit}
-              onChangeText={setRateLimit}
               keyboardType="number-pad"
+              onChangeText={setRateLimit}
               placeholder="100"
               placeholderTextColor={theme.colors.text.secondary}
               style={{
@@ -420,6 +417,7 @@ function CreateKeyModal({
                 fontSize: 15,
                 width: 120,
               }}
+              value={rateLimit}
             />
 
             {/* Scopes */}
@@ -456,18 +454,18 @@ function CreateKeyModal({
                   </Caption>
                 </View>
                 <Switch
-                  value={selectedScopes.has(key)}
                   onValueChange={() => toggleScope(key)}
-                  trackColor={{ false: "#E5E7EB", true: "#6366F1" }}
                   thumbColor="#FFFFFF"
+                  trackColor={{ false: "#E5E7EB", true: "#6366F1" }}
+                  value={selectedScopes.has(key)}
                 />
               </TouchableOpacity>
             ))}
 
             {/* Save */}
             <TouchableOpacity
-              onPress={handleSave}
               disabled={saving}
+              onPress={handleSave}
               style={{
                 backgroundColor: "#6366F1",
                 borderRadius: 12,
@@ -546,8 +544,7 @@ export default function ApiKeysScreen() {
         const data = await apiKeyService.listApiKeys(orgId);
         // Sort: active first, then by createdAt desc
         data.sort((a, b) => {
-          if (a.isActive !== b.isActive)
-            return a.isActive ? -1 : 1;
+          if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
           return b.createdAt.getTime() - a.createdAt.getTime();
         });
         if (isMountedRef.current) setApiKeys(data);
@@ -573,7 +570,7 @@ export default function ApiKeysScreen() {
 
   const handleCreate = useCallback(
     async (name: string, scopes: ApiKeyScope[], rateLimit: number) => {
-      if (!orgId || !user?.id) return;
+      if (!(orgId && user?.id)) return;
       const { key, plaintext } = await apiKeyService.createApiKey({
         orgId,
         name,
@@ -624,7 +621,7 @@ export default function ApiKeysScreen() {
 
   const handleRotate = useCallback(
     (keyId: string, keyName: string) => {
-      if (!orgId || !user?.id) return;
+      if (!(orgId && user?.id)) return;
       Alert.alert(
         "Rotate API Key",
         `"${keyName}" will be revoked and a new key created with the same permissions. Update your integration before rotating.`,
@@ -638,14 +635,12 @@ export default function ApiKeysScreen() {
                 const { key: newKey, plaintext } =
                   await apiKeyService.rotateApiKey(orgId, keyId, user.id);
                 if (isMountedRef.current) {
-                  setApiKeys((prev) =>
-                    [
-                      newKey,
-                      ...prev.map((k) =>
-                        k.id === keyId ? { ...k, isActive: false } : k
-                      ),
-                    ]
-                  );
+                  setApiKeys((prev) => [
+                    newKey,
+                    ...prev.map((k) =>
+                      k.id === keyId ? { ...k, isActive: false } : k
+                    ),
+                  ]);
                 }
                 Alert.alert(
                   "New API Key",
@@ -681,10 +676,10 @@ export default function ApiKeysScreen() {
         }}
       >
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => navigation.goBack()}
         >
-          <ChevronLeft size={24} color={theme.colors.text.primary} />
+          <ChevronLeft color={theme.colors.text.primary} size={24} />
         </TouchableOpacity>
         <TypographyText
           style={getTextStyle(
@@ -698,12 +693,12 @@ export default function ApiKeysScreen() {
         </TypographyText>
         <View style={{ flex: 1 }} />
         <TouchableOpacity
-          onPress={() => load(true)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => load(true)}
         >
           <RefreshCw
-            size={18}
             color={theme.colors.text.secondary}
+            size={18}
             style={refreshing ? { opacity: 0.4 } : undefined}
           />
         </TouchableOpacity>
@@ -711,13 +706,13 @@ export default function ApiKeysScreen() {
 
       <ScrollView
         contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
-        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
             onRefresh={() => load(true)}
+            refreshing={refreshing}
           />
         }
+        showsVerticalScrollIndicator={false}
       >
         {/* Summary + create */}
         <View
@@ -743,7 +738,7 @@ export default function ApiKeysScreen() {
               paddingVertical: 7,
             }}
           >
-            <Key size={14} color="#FFFFFF" />
+            <Key color="#FFFFFF" size={14} />
             <Caption style={{ color: "#FFFFFF", fontWeight: "600" }}>
               New Key
             </Caption>
@@ -774,7 +769,7 @@ export default function ApiKeysScreen() {
           />
         ) : apiKeys.length === 0 ? (
           <View style={{ alignItems: "center", paddingVertical: 48 }}>
-            <Key size={40} color={theme.colors.text.secondary} />
+            <Key color={theme.colors.text.secondary} size={40} />
             <TypographyText
               style={{
                 color: theme.colors.text.secondary,
@@ -783,18 +778,20 @@ export default function ApiKeysScreen() {
                 lineHeight: 22,
               }}
             >
-              {"No API keys yet.\nCreate one to connect EHRs, analytics\nplatforms, and other integrations."}
+              {
+                "No API keys yet.\nCreate one to connect EHRs, analytics\nplatforms, and other integrations."
+              }
             </TypographyText>
           </View>
         ) : (
           apiKeys.map((k) => (
             <ApiKeyCard
-              key={k.id}
               apiKey={k}
               isRTL={isRTL}
-              theme={theme}
+              key={k.id}
               onRevoke={handleRevoke}
               onRotate={handleRotate}
+              theme={theme}
             />
           ))
         )}
@@ -817,11 +814,11 @@ export default function ApiKeysScreen() {
       </ScrollView>
 
       <CreateKeyModal
-        visible={showCreateModal}
         isRTL={isRTL}
-        theme={theme}
         onClose={() => setShowCreateModal(false)}
         onSave={handleCreate}
+        theme={theme}
+        visible={showCreateModal}
       />
     </WavyBackground>
   );

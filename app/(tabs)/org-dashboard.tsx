@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import {
   AlertTriangle,
@@ -12,6 +11,7 @@ import {
   UserPlus,
   Users,
 } from "lucide-react-native";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -123,7 +123,11 @@ export default function OrgDashboardScreen() {
 
   // Prefer orgId from route params (when navigated from org hub),
   // fall back to the user's first active org membership.
-  const params = useLocalSearchParams<{ orgId?: string; cohortId?: string; cohortName?: string }>();
+  const params = useLocalSearchParams<{
+    orgId?: string;
+    cohortId?: string;
+    cohortName?: string;
+  }>();
   const { org: myOrg } = useMyOrganization();
   const orgId: string | undefined = params.orgId || myOrg?.id;
   const cohortId: string | undefined = params.cohortId || undefined;
@@ -167,7 +171,7 @@ export default function OrgDashboardScreen() {
   const [enrolling, setEnrolling] = useState(false);
 
   const handleEnroll = async () => {
-    if (!orgId || !enrollUserId.trim() || !user?.id) return;
+    if (!(orgId && enrollUserId.trim() && user?.id)) return;
     setEnrolling(true);
     try {
       await organizationService.enrollPatient(orgId, enrollUserId.trim(), {
@@ -182,7 +186,10 @@ export default function OrgDashboardScreen() {
         { text: "OK", onPress: () => refresh() },
       ]);
     } catch (err) {
-      Alert.alert("Error", err instanceof Error ? err.message : "Failed to enroll patient.");
+      Alert.alert(
+        "Error",
+        err instanceof Error ? err.message : "Failed to enroll patient."
+      );
     } finally {
       setEnrolling(false);
     }
@@ -311,13 +318,13 @@ export default function OrgDashboardScreen() {
               {org?.name ?? txt("Population Dashboard", "لوحة صحة المرضى")}
             </TypographyText>
             <TouchableOpacity
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               onPress={() =>
                 router.push(
                   `/(tabs)/tasks?orgId=${encodeURIComponent(orgId ?? "")}` as never
                 )
               }
               style={{ marginRight: 12 }}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <ClipboardList color="#fff" size={20} />
             </TouchableOpacity>
@@ -589,9 +596,9 @@ export default function OrgDashboardScreen() {
                       `/(settings)/org/patient-detail?orgId=${encodeURIComponent(orgId ?? "")}&userId=${encodeURIComponent(p.roster.userId)}${p.roster.displayName ? `&patientName=${encodeURIComponent(p.roster.displayName)}` : ""}` as never
                     );
                   }}
+                  patientDisplayName={p.roster.displayName}
                   roster={p.roster}
                   snapshot={p.snapshot}
-                  patientDisplayName={p.roster.displayName}
                 />
               ))}
               {hasMorePatients && (
@@ -607,7 +614,12 @@ export default function OrgDashboardScreen() {
                   }}
                 >
                   <TypographyText
-                    style={getTextStyle(theme, "body", "semibold", theme.colors.primary.main)}
+                    style={getTextStyle(
+                      theme,
+                      "body",
+                      "semibold",
+                      theme.colors.primary.main
+                    )}
                   >
                     {isRTL
                       ? `تحميل المزيد (${filteredPatients.length - visibleCount})`
@@ -642,8 +654,10 @@ export default function OrgDashboardScreen() {
             elevation: 8,
           }}
         >
-          <UserPlus size={17} color="#FFF" />
-          <TypographyText style={{ color: "#FFF", fontWeight: "600", fontSize: 14 }}>
+          <UserPlus color="#FFF" size={17} />
+          <TypographyText
+            style={{ color: "#FFF", fontWeight: "600", fontSize: 14 }}
+          >
             Enroll Patient
           </TypographyText>
         </TouchableOpacity>
@@ -651,24 +665,53 @@ export default function OrgDashboardScreen() {
 
       {/* Enroll Modal */}
       <Modal
-        visible={showEnroll}
         animationType="slide"
+        onRequestClose={() => {
+          setShowEnroll(false);
+          setEnrollUserId("");
+          setEnrollDisplayName("");
+        }}
         presentationStyle="pageSheet"
-        onRequestClose={() => { setShowEnroll(false); setEnrollUserId(""); setEnrollDisplayName(""); }}
+        visible={showEnroll}
       >
-        <View style={{ flex: 1, backgroundColor: theme.colors.background.primary, padding: 24, paddingTop: 48 }}>
-          <TypographyText style={getTextStyle(theme, "heading", "bold", theme.colors.text.primary)}>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: theme.colors.background.primary,
+            padding: 24,
+            paddingTop: 48,
+          }}
+        >
+          <TypographyText
+            style={getTextStyle(
+              theme,
+              "heading",
+              "bold",
+              theme.colors.text.primary
+            )}
+          >
             Enroll Patient
           </TypographyText>
-          <Caption style={{ color: theme.colors.text.secondary, marginTop: 4, marginBottom: 24 }}>
-            Patient must already have a Maak account and will be granted
-            default consent scope (vitals, meds, symptoms, AI analysis).
+          <Caption
+            style={{
+              color: theme.colors.text.secondary,
+              marginTop: 4,
+              marginBottom: 24,
+            }}
+          >
+            Patient must already have a Maak account and will be granted default
+            consent scope (vitals, meds, symptoms, AI analysis).
           </Caption>
 
-          <Caption style={{ color: theme.colors.text.secondary, marginBottom: 6 }}>
+          <Caption
+            style={{ color: theme.colors.text.secondary, marginBottom: 6 }}
+          >
             PATIENT DISPLAY NAME (optional)
           </Caption>
           <TextInput
+            onChangeText={setEnrollDisplayName}
+            placeholder="e.g. John Smith"
+            placeholderTextColor={theme.colors.text.secondary}
             style={{
               backgroundColor: theme.colors.background.secondary,
               borderRadius: 10,
@@ -677,16 +720,20 @@ export default function OrgDashboardScreen() {
               fontSize: 15,
               marginBottom: 16,
             }}
-            placeholder="e.g. John Smith"
-            placeholderTextColor={theme.colors.text.secondary}
             value={enrollDisplayName}
-            onChangeText={setEnrollDisplayName}
           />
 
-          <Caption style={{ color: theme.colors.text.secondary, marginBottom: 6 }}>
+          <Caption
+            style={{ color: theme.colors.text.secondary, marginBottom: 6 }}
+          >
             PATIENT USER ID *
           </Caption>
           <TextInput
+            autoCapitalize="none"
+            autoCorrect={false}
+            onChangeText={setEnrollUserId}
+            placeholder="Firebase UID"
+            placeholderTextColor={theme.colors.text.secondary}
             style={{
               backgroundColor: theme.colors.background.secondary,
               borderRadius: 10,
@@ -695,38 +742,41 @@ export default function OrgDashboardScreen() {
               fontSize: 15,
               marginBottom: 24,
             }}
-            placeholder="Firebase UID"
-            placeholderTextColor={theme.colors.text.secondary}
             value={enrollUserId}
-            onChangeText={setEnrollUserId}
-            autoCapitalize="none"
-            autoCorrect={false}
           />
 
           <TouchableOpacity
-            onPress={handleEnroll}
             disabled={enrolling || !enrollUserId.trim()}
+            onPress={handleEnroll}
             style={{
               backgroundColor: "#6366F1",
               borderRadius: 12,
               padding: 16,
               alignItems: "center",
-              opacity: (enrolling || !enrollUserId.trim()) ? 0.5 : 1,
+              opacity: enrolling || !enrollUserId.trim() ? 0.5 : 1,
             }}
           >
             {enrolling ? (
               <ActivityIndicator color="#FFF" />
             ) : (
-              <TypographyText style={{ color: "#FFF", fontWeight: "600", fontSize: 16 }}>
+              <TypographyText
+                style={{ color: "#FFF", fontWeight: "600", fontSize: 16 }}
+              >
                 Enroll
               </TypographyText>
             )}
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => { setShowEnroll(false); setEnrollUserId(""); setEnrollDisplayName(""); }}
+            onPress={() => {
+              setShowEnroll(false);
+              setEnrollUserId("");
+              setEnrollDisplayName("");
+            }}
             style={{ alignItems: "center", padding: 14 }}
           >
-            <Caption style={{ color: theme.colors.text.secondary }}>Cancel</Caption>
+            <Caption style={{ color: theme.colors.text.secondary }}>
+              Cancel
+            </Caption>
           </TouchableOpacity>
         </View>
       </Modal>

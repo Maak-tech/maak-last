@@ -322,7 +322,8 @@ async function processOrg(
       return {
         name,
         riskLevel: riskLevelFromScore(entry.riskScore),
-        lastSync: lastSyncDate.getTime() === 0 ? "Never" : formatRelative(lastSyncDate),
+        lastSync:
+          lastSyncDate.getTime() === 0 ? "Never" : formatRelative(lastSyncDate),
         anomalyCount: anomalySnap.size,
       };
     })
@@ -343,7 +344,8 @@ async function processOrg(
     const userId = memberData.userId as string;
     // Get email from user profile
     const userSnap = await db().collection("users").doc(userId).get();
-    const email = (userSnap.data()?.email as string | undefined) ??
+    const email =
+      (userSnap.data()?.email as string | undefined) ??
       (memberData.email as string | undefined);
     if (!email) continue;
 
@@ -391,18 +393,20 @@ async function processOrg(
       });
 
       // Log delivery in email_queue collection for diagnostics
-      await db().collection("email_queue").add({
-        to: [member.email],
-        subject,
-        channel: "weekly_report",
-        orgId,
-        status: "sent",
-        attempts: 1,
-        sentAt: FieldValue.serverTimestamp(),
-        error: null,
-        bodyHtml: null, // omit from log to save space
-        createdAt: FieldValue.serverTimestamp(),
-      });
+      await db()
+        .collection("email_queue")
+        .add({
+          to: [member.email],
+          subject,
+          channel: "weekly_report",
+          orgId,
+          status: "sent",
+          attempts: 1,
+          sentAt: FieldValue.serverTimestamp(),
+          error: null,
+          bodyHtml: null, // omit from log to save space
+          createdAt: FieldValue.serverTimestamp(),
+        });
 
       sent++;
       logger.info("weeklyDigest: sent to provider", {
@@ -413,16 +417,12 @@ async function processOrg(
       });
     } catch (err) {
       skipped++;
-      logger.error(
-        "weeklyDigest: failed to send to provider",
-        err as Error,
-        {
-          traceId,
-          orgId,
-          email: member.email,
-          fn: "processOrg",
-        }
-      );
+      logger.error("weeklyDigest: failed to send to provider", err as Error, {
+        traceId,
+        orgId,
+        email: member.email,
+        fn: "processOrg",
+      });
     }
   }
 
@@ -451,7 +451,11 @@ export const weeklyProviderDigest = onSchedule(
       year: "numeric",
     });
 
-    logger.info("weeklyDigest: started", { traceId, weekOf, fn: "weeklyProviderDigest" });
+    logger.info("weeklyDigest: started", {
+      traceId,
+      weekOf,
+      fn: "weeklyProviderDigest",
+    });
 
     try {
       const orgsSnap = await db().collection("organizations").get();
@@ -477,7 +481,9 @@ export const weeklyProviderDigest = onSchedule(
 
         if (notifSnap.exists) {
           const notifData = notifSnap.data()!;
-          const notifChannels = notifData.channels as Record<string, boolean> | undefined;
+          const notifChannels = notifData.channels as
+            | Record<string, boolean>
+            | undefined;
           if (notifChannels && notifChannels["weekly_report"] === false) {
             logger.debug("weeklyDigest: weekly_report disabled for org", {
               traceId,

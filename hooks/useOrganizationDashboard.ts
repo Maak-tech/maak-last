@@ -76,7 +76,10 @@ export function useOrganizationDashboard(
       try {
         const [organization, roster] = await Promise.all([
           organizationService.getOrganization(orgId),
-          organizationService.listPatientRoster(orgId, { status: "active", cohortId }),
+          organizationService.listPatientRoster(orgId, {
+            status: "active",
+            cohortId,
+          }),
         ]);
 
         if (!isMountedRef.current) return;

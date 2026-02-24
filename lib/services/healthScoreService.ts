@@ -10,8 +10,8 @@ import {
 import type { Medication, Symptom } from "@/types";
 import { coerceToDate } from "@/utils/dateCoercion";
 import { db } from "../firebase";
-import type { VitalSample } from "./healthPatternDetectionService";
 import { getVitalAnomalySignals } from "./healthInsightScoringService";
+import type { VitalSample } from "./healthPatternDetectionService";
 import { medicationService } from "./medicationService";
 import { symptomService } from "./symptomService";
 
@@ -306,7 +306,8 @@ export async function calculateHealthScore(
       calculateCompliancePercentage(todaysMedications);
 
     // Compute vital anomaly signals and penalty
-    const vitalAnomalies = vitals.length >= 5 ? getVitalAnomalySignals(vitals) : [];
+    const vitalAnomalies =
+      vitals.length >= 5 ? getVitalAnomalySignals(vitals) : [];
     const vitalPenalty = calculateVitalPenalty(vitalAnomalies.length);
 
     // Calculate components
@@ -319,7 +320,8 @@ export async function calculateHealthScore(
     );
 
     // Calculate final score (clamped between 0 and 100)
-    const rawScore = baseScore - symptomPenalty + medicationBonus - vitalPenalty;
+    const rawScore =
+      baseScore - symptomPenalty + medicationBonus - vitalPenalty;
     const score = Math.max(0, Math.min(100, Math.round(rawScore)));
 
     return {
@@ -403,7 +405,8 @@ export function calculateHealthScoreFromData(
       calculateCompliancePercentage(todaysMedications);
 
     // Compute vital anomaly signals and penalty
-    const vitalAnomalies = vitals.length >= 5 ? getVitalAnomalySignals(vitals) : [];
+    const vitalAnomalies =
+      vitals.length >= 5 ? getVitalAnomalySignals(vitals) : [];
     const vitalPenalty = calculateVitalPenalty(vitalAnomalies.length);
 
     // Calculate components
@@ -416,7 +419,8 @@ export function calculateHealthScoreFromData(
     );
 
     // Calculate final score (clamped between 0 and 100)
-    const rawScore = baseScore - symptomPenalty + medicationBonus - vitalPenalty;
+    const rawScore =
+      baseScore - symptomPenalty + medicationBonus - vitalPenalty;
     const score = Math.max(0, Math.min(100, Math.round(rawScore)));
 
     return {

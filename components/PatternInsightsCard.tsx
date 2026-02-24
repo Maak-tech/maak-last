@@ -143,10 +143,15 @@ export default function PatternInsightsCard({ userId }: Props) {
     return (
       <View style={styles.card}>
         <View style={styles.center}>
-          <ActivityIndicator size="small" color={theme.colors.primary.main} />
+          <ActivityIndicator color={theme.colors.primary.main} size="small" />
           <TypographyText
             style={[
-              getTextStyle(theme, "caption", "semibold", theme.colors.text.secondary),
+              getTextStyle(
+                theme,
+                "caption",
+                "semibold",
+                theme.colors.text.secondary
+              ),
               { marginTop: 8 },
             ]}
           >
@@ -173,10 +178,15 @@ export default function PatternInsightsCard({ userId }: Props) {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.iconWrap}>
-            <Lightbulb size={18} color="#6366F1" />
+            <Lightbulb color="#6366F1" size={18} />
           </View>
           <TypographyText
-            style={getTextStyle(theme, "body", "bold", theme.colors.text.primary)}
+            style={getTextStyle(
+              theme,
+              "body",
+              "bold",
+              theme.colors.text.primary
+            )}
           >
             {isRTL ? "أنماط صحية" : "Health Patterns"}
           </TypographyText>
@@ -217,7 +227,12 @@ export default function PatternInsightsCard({ userId }: Props) {
               </View>
               <TypographyText
                 style={[
-                  getTextStyle(theme, "caption", "semibold", theme.colors.text.primary),
+                  getTextStyle(
+                    theme,
+                    "caption",
+                    "semibold",
+                    theme.colors.text.primary
+                  ),
                   { flex: 1 },
                 ]}
               >
@@ -237,9 +252,7 @@ export default function PatternInsightsCard({ userId }: Props) {
 
             {insight.actionable && insight.recommendation && (
               <View style={styles.actionRow}>
-                <Caption
-                  style={{ color: "#0F766E", lineHeight: 16, flex: 1 }}
-                >
+                <Caption style={{ color: "#0F766E", lineHeight: 16, flex: 1 }}>
                   {isRTL ? "💡 " : "💡 "}
                   {insight.recommendation}
                 </Caption>
@@ -252,9 +265,9 @@ export default function PatternInsightsCard({ userId }: Props) {
       {/* Show more / less toggle */}
       {hasMore && (
         <TouchableOpacity
-          style={styles.toggleRow}
-          onPress={() => setExpanded((v) => !v)}
           activeOpacity={0.7}
+          onPress={() => setExpanded((v) => !v)}
+          style={styles.toggleRow}
         >
           <Caption style={{ color: theme.colors.primary.main }}>
             {expanded
@@ -266,9 +279,9 @@ export default function PatternInsightsCard({ userId }: Props) {
                 : `Show ${insights.length - 3} more`}
           </Caption>
           {expanded ? (
-            <ChevronUp size={14} color={theme.colors.primary.main} />
+            <ChevronUp color={theme.colors.primary.main} size={14} />
           ) : (
-            <ChevronDown size={14} color={theme.colors.primary.main} />
+            <ChevronDown color={theme.colors.primary.main} size={14} />
           )}
         </TouchableOpacity>
       )}

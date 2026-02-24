@@ -23,10 +23,7 @@ import type {
 import { alertService } from "./alertService";
 import { allergyService } from "./allergyService";
 import { calendarService } from "./calendarService";
-import {
-  discoveryService,
-  type EnrichedDiscovery,
-} from "./discoveryService";
+import { discoveryService, type EnrichedDiscovery } from "./discoveryService";
 import healthContextService, {
   type HealthContext,
 } from "./healthContextService";
@@ -1125,16 +1122,44 @@ class ProactiveHealthSuggestionsService {
     // Drug-class synonym map: allergy keyword → related medication name fragments.
     // Catches cross-class matches (e.g. penicillin allergy + amoxicillin prescription).
     const DRUG_CLASS_MAP: Record<string, string[]> = {
-      penicillin: ["penicillin", "amoxicillin", "ampicillin", "augmentin", "oxacillin"],
+      penicillin: [
+        "penicillin",
+        "amoxicillin",
+        "ampicillin",
+        "augmentin",
+        "oxacillin",
+      ],
       aspirin: ["aspirin", "acetylsalicylic"],
       ibuprofen: ["ibuprofen", "advil", "motrin", "nurofen"],
       sulfa: ["sulfa", "sulfamethoxazole", "trimethoprim", "bactrim"],
       codeine: ["codeine", "dihydrocodeine"],
-      nsaid: ["ibuprofen", "naproxen", "diclofenac", "indomethacin", "celecoxib", "aspirin"],
-      cephalosporin: ["cephalosporin", "cefazolin", "cephalexin", "cefdinir", "ceftriaxone"],
+      nsaid: [
+        "ibuprofen",
+        "naproxen",
+        "diclofenac",
+        "indomethacin",
+        "celecoxib",
+        "aspirin",
+      ],
+      cephalosporin: [
+        "cephalosporin",
+        "cefazolin",
+        "cephalexin",
+        "cefdinir",
+        "ceftriaxone",
+      ],
       amoxicillin: ["amoxicillin", "penicillin", "ampicillin", "augmentin"],
-      antibiotic: ["amoxicillin", "penicillin", "ampicillin", "azithromycin", "doxycycline",
-        "ciprofloxacin", "levofloxacin", "clindamycin", "metronidazole"],
+      antibiotic: [
+        "amoxicillin",
+        "penicillin",
+        "ampicillin",
+        "azithromycin",
+        "doxycycline",
+        "ciprofloxacin",
+        "levofloxacin",
+        "clindamycin",
+        "metronidazole",
+      ],
     };
 
     const activeMedications = medications.filter((m) => m.isActive);
@@ -1154,8 +1179,8 @@ class ProactiveHealthSuggestionsService {
 
       for (const med of activeMedications) {
         const medLower = med.name.toLowerCase();
-        const conflicts = relatedFragments.some((frag) =>
-          medLower.includes(frag) || frag.includes(medLower)
+        const conflicts = relatedFragments.some(
+          (frag) => medLower.includes(frag) || frag.includes(medLower)
         );
 
         if (conflicts) {
@@ -1192,7 +1217,9 @@ class ProactiveHealthSuggestionsService {
     const severeAllergies = allergies.filter(
       (a) => a.severity === "severe" || a.severity === "severe-life-threatening"
     );
-    const medicationKeywords = Object.keys(DRUG_CLASS_MAP).concat(["antihistamine"]);
+    const medicationKeywords = Object.keys(DRUG_CLASS_MAP).concat([
+      "antihistamine",
+    ]);
 
     for (const allergy of severeAllergies.slice(0, 2)) {
       const allergyLower = allergy.name.toLowerCase();
@@ -2636,21 +2663,57 @@ class ProactiveHealthSuggestionsService {
       string,
       { type: HealthSuggestion["type"]; route: string; icon: string }
     > = {
-      symptom_medication: { type: "medication",  route: "/(tabs)/medications", icon: "Pill" },
-      symptom_mood:       { type: "lifestyle",   route: "/(tabs)/mood",        icon: "Heart" },
-      symptom_vital:      { type: "wellness",    route: "/(tabs)/vitals",      icon: "Activity" },
-      medication_vital:   { type: "medication",  route: "/(tabs)/medications", icon: "Pill" },
-      mood_vital:         { type: "wellness",    route: "/(tabs)/vitals",      icon: "TrendingUp" },
-      temporal_pattern:   { type: "lifestyle",   route: "/(tabs)/track",       icon: "Clock" },
-      sleep_vital:        { type: "wellness",    route: "/(tabs)/track",       icon: "Moon" },
-      sleep_symptom:      { type: "symptom",     route: "/(tabs)/symptoms",    icon: "Moon" },
-      sleep_mood:         { type: "lifestyle",   route: "/(tabs)/mood",        icon: "Moon" },
-      activity_vital:     { type: "wellness",    route: "/(tabs)/vitals",      icon: "Zap" },
-      activity_symptom:   { type: "symptom",     route: "/(tabs)/symptoms",    icon: "Zap" },
-      activity_mood:      { type: "lifestyle",   route: "/(tabs)/mood",        icon: "Zap" },
-      hrv_symptom:        { type: "wellness",    route: "/(tabs)/vitals",      icon: "Heart" },
-      hrv_mood:           { type: "lifestyle",   route: "/(tabs)/mood",        icon: "Heart" },
-      hrv_vital:          { type: "wellness",    route: "/(tabs)/vitals",      icon: "Activity" },
+      symptom_medication: {
+        type: "medication",
+        route: "/(tabs)/medications",
+        icon: "Pill",
+      },
+      symptom_mood: { type: "lifestyle", route: "/(tabs)/mood", icon: "Heart" },
+      symptom_vital: {
+        type: "wellness",
+        route: "/(tabs)/vitals",
+        icon: "Activity",
+      },
+      medication_vital: {
+        type: "medication",
+        route: "/(tabs)/medications",
+        icon: "Pill",
+      },
+      mood_vital: {
+        type: "wellness",
+        route: "/(tabs)/vitals",
+        icon: "TrendingUp",
+      },
+      temporal_pattern: {
+        type: "lifestyle",
+        route: "/(tabs)/track",
+        icon: "Clock",
+      },
+      sleep_vital: { type: "wellness", route: "/(tabs)/track", icon: "Moon" },
+      sleep_symptom: {
+        type: "symptom",
+        route: "/(tabs)/symptoms",
+        icon: "Moon",
+      },
+      sleep_mood: { type: "lifestyle", route: "/(tabs)/mood", icon: "Moon" },
+      activity_vital: {
+        type: "wellness",
+        route: "/(tabs)/vitals",
+        icon: "Zap",
+      },
+      activity_symptom: {
+        type: "symptom",
+        route: "/(tabs)/symptoms",
+        icon: "Zap",
+      },
+      activity_mood: { type: "lifestyle", route: "/(tabs)/mood", icon: "Zap" },
+      hrv_symptom: { type: "wellness", route: "/(tabs)/vitals", icon: "Heart" },
+      hrv_mood: { type: "lifestyle", route: "/(tabs)/mood", icon: "Heart" },
+      hrv_vital: {
+        type: "wellness",
+        route: "/(tabs)/vitals",
+        icon: "Activity",
+      },
     };
 
     // Only actionable, non-dismissed, sorted highest-confidence first

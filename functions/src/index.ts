@@ -1067,16 +1067,16 @@ export { analyzeHealthTrends } from "./jobs/healthTrends";
  */
 // Removed deprecated sendVitalAlertToAdmins export - use processVitalReading from modules/vitals/pipeline.ts instead
 
+// Consent revocation → archive roster + audit trail + patient confirmation email
+export { onConsentRevoked } from "./triggers/consentRevocation";
+// Critical alert → email fallback for org providers
+export { criticalAlertEmail } from "./triggers/criticalAlertEmail";
 // Re-export medical history trigger
 export { checkMedicalHistoryBenchmarks } from "./triggers/medicalHistory";
 // Re-export symptoms trigger
 export { checkSymptomBenchmarks } from "./triggers/symptoms";
 // Re-export vitals trigger
 export { checkVitalBenchmarks } from "./triggers/vitals";
-// Critical alert → email fallback for org providers
-export { criticalAlertEmail } from "./triggers/criticalAlertEmail";
-// Consent revocation → archive roster + audit trail + patient confirmation email
-export { onConsentRevoked } from "./triggers/consentRevocation";
 
 // ─── Sprint 3: Integration Surface ────────────────────────────────────────────
 
@@ -1102,28 +1102,23 @@ export { smartAuth } from "./auth/smartAuth";
 
 // ─── Sprint 6: Care Pathways + Email ──────────────────────────────────────────
 
+export { caregiverDailySummary } from "./jobs/caregiverDailySummary";
+export { dailyBriefing } from "./jobs/dailyBriefing";
+// Data retention archival job (every Saturday 02:00 UTC)
+export { dataRetentionJob } from "./jobs/dataRetention";
+// Weekly org admin ops summary (every Friday 06:00 UTC)
+export { weeklyOrgSummary } from "./jobs/orgSummaryDigest";
 // Care pathway step executor (every 10 minutes)
 export { pathwayEngine } from "./jobs/pathwayEngine";
-
+// Weekly patient digest (every Sunday 08:00 UTC)
+export { weeklyPatientDigest } from "./jobs/patientDigest";
+// Weekly provider digest (every Monday 07:00 UTC)
+export { weeklyProviderDigest } from "./jobs/weeklyDigest";
 // Email queue processor (Firestore trigger → SendGrid) + hourly retry scheduler
 export {
   processEmailQueue,
   retryFailedEmails,
 } from "./triggers/emailQueue";
-
-// Weekly provider digest (every Monday 07:00 UTC)
-export { weeklyProviderDigest } from "./jobs/weeklyDigest";
-
-// Weekly patient digest (every Sunday 08:00 UTC)
-export { weeklyPatientDigest } from "./jobs/patientDigest";
-
-// Weekly org admin ops summary (every Friday 06:00 UTC)
-export { weeklyOrgSummary } from "./jobs/orgSummaryDigest";
-
-// Data retention archival job (every Saturday 02:00 UTC)
-export { dataRetentionJob } from "./jobs/dataRetention";
-export { dailyBriefing } from "./jobs/dailyBriefing";
-export { caregiverDailySummary } from "./jobs/caregiverDailySummary";
 
 /**
  * Fitbit Webhook Handler

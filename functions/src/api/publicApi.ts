@@ -63,8 +63,7 @@ function parseRoute(path: string): ParsedRoute {
       return { route: "patient_risk_score", patientId: id };
     if (action === "medications")
       return { route: "patient_medications", patientId: id };
-    if (action === "tasks")
-      return { route: "patient_tasks", patientId: id };
+    if (action === "tasks") return { route: "patient_tasks", patientId: id };
   }
 
   if (resource === "cohorts" && action === "summary") {
@@ -551,15 +550,8 @@ async function handlePostTask(
   if (!assertScope(req, res, "tasks:write")) return;
   if (!(await assertPatientAccess(res, req.apiAuth!.orgId, patientId))) return;
 
-  const {
-    title,
-    description,
-    type,
-    priority,
-    dueAt,
-    assignedTo,
-    context,
-  } = req.body as Record<string, unknown>;
+  const { title, description, type, priority, dueAt, assignedTo, context } =
+    req.body as Record<string, unknown>;
 
   if (!title || typeof title !== "string" || !title.trim()) {
     res.status(400).json({
@@ -598,9 +590,7 @@ async function handlePostTask(
   }
 
   const orgId = req.apiAuth!.orgId;
-  const dueAtTs = dueAt
-    ? Timestamp.fromDate(new Date(dueAt as string))
-    : null;
+  const dueAtTs = dueAt ? Timestamp.fromDate(new Date(dueAt as string)) : null;
 
   const taskDoc: Record<string, unknown> = {
     orgId,

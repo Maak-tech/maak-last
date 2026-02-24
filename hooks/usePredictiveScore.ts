@@ -30,7 +30,8 @@ export function usePredictiveScore(
     async (force = false) => {
       if (!userId) return;
       const now = Date.now();
-      if (!force && now - lastLoadRef.current < CACHE_TTL_MS && forecast) return;
+      if (!force && now - lastLoadRef.current < CACHE_TTL_MS && forecast)
+        return;
 
       setLoading(true);
       setError(null);

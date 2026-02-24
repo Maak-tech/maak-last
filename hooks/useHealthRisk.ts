@@ -5,8 +5,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  riskAssessmentService,
   type HealthRiskAssessment,
+  riskAssessmentService,
 } from "@/lib/services/riskAssessmentService";
 
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour

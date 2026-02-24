@@ -560,10 +560,19 @@ export function detectMedicationCorrelations(
         //  - Add up to 15pts for longer observation window (each week after the first → +3pts)
         //  - Add up to 10pts for more pre-medication data points (larger before-sample → more reliable baseline)
         //  - Cap at 90% (observational data cannot provide certainty)
-        const improvementBonus = Math.min(20, Math.round((improvement - 30) / 10) * 5);
+        const improvementBonus = Math.min(
+          20,
+          Math.round((improvement - 30) / 10) * 5
+        );
         const durationBonus = Math.min(15, Math.round((daysAfter - 7) / 7) * 3);
-        const sampleBonus = Math.min(10, Math.floor(symptomsBefore.length / 5) * 2);
-        const confidence = Math.min(90, 50 + improvementBonus + durationBonus + sampleBonus);
+        const sampleBonus = Math.min(
+          10,
+          Math.floor(symptomsBefore.length / 5) * 2
+        );
+        const confidence = Math.min(
+          90,
+          50 + improvementBonus + durationBonus + sampleBonus
+        );
 
         insights.push({
           type: "correlation",
@@ -755,7 +764,10 @@ export function detectVitalTrends(
     //  - Cap at 90% (physiological measurements still have noise and context factors)
     const changePct = Math.abs(trendAnalysis.changePercent);
     const magnitudeBonus = Math.min(40, Math.floor(changePct / 5) * 10);
-    const readingBonus = Math.min(20, Math.floor((readings.length - 3) / 5) * 5);
+    const readingBonus = Math.min(
+      20,
+      Math.floor((readings.length - 3) / 5) * 5
+    );
     const vitalConfidence = Math.min(90, 35 + magnitudeBonus + readingBonus);
 
     insights.push({

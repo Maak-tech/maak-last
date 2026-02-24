@@ -74,6 +74,10 @@ import { useRunOnJS, useSharedValue } from "react-native-worklets-core";
 import { useTheme } from "@/contexts/ThemeContext";
 import { auth, db } from "@/lib/firebase";
 import {
+  type EmbeddingSimilarityResult,
+  ppgEmbeddingsService,
+} from "@/lib/services/ppgEmbeddingsService";
+import {
   type PPGResult,
   processPPGSignalWithML,
 } from "@/lib/utils/BiometricUtils";
@@ -81,10 +85,6 @@ import {
   calculateRealTimeSignalQuality,
   extractRedChannelAverage,
 } from "@/lib/utils/PPGPixelExtractor";
-import {
-  ppgEmbeddingsService,
-  type EmbeddingSimilarityResult,
-} from "@/lib/services/ppgEmbeddingsService";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 interface PPGVitalMonitorProps {
@@ -754,7 +754,10 @@ export default function PPGVitalMonitorVisionCamera({
     if (status !== "success" || !userId) return;
     const timer = setTimeout(async () => {
       try {
-        const recent = await ppgEmbeddingsService.getRecentEmbeddings(userId, 1);
+        const recent = await ppgEmbeddingsService.getRecentEmbeddings(
+          userId,
+          1
+        );
         if (recent.length === 0 || recent[0].embeddings.length === 0) return;
         const result = await ppgEmbeddingsService.compareToBaseline(
           userId,
@@ -2755,25 +2758,33 @@ export default function PPGVitalMonitorVisionCamera({
                     }}
                   >
                     <Text
-                      style={[
-                        getTextStyle(theme, "caption", "semibold",
-                          cardiacBaseline.isAnomaly
-                            ? theme.colors.accent.warning
-                            : theme.colors.accent.success),
-                        { marginBottom: 2 },
-                      ] as StyleProp<TextStyle>}
+                      style={
+                        [
+                          getTextStyle(
+                            theme,
+                            "caption",
+                            "semibold",
+                            cardiacBaseline.isAnomaly
+                              ? theme.colors.accent.warning
+                              : theme.colors.accent.success
+                          ),
+                          { marginBottom: 2 },
+                        ] as StyleProp<TextStyle>
+                      }
                     >
                       {cardiacBaseline.isAnomaly
                         ? "⚠️  Unusual cardiac pattern detected"
                         : "✓  Cardiac pattern within your normal range"}
                     </Text>
                     <Text
-                      style={getTextStyle(
-                        theme,
-                        "caption",
-                        "regular",
-                        theme.colors.text.secondary
-                      ) as StyleProp<TextStyle>}
+                      style={
+                        getTextStyle(
+                          theme,
+                          "caption",
+                          "regular",
+                          theme.colors.text.secondary
+                        ) as StyleProp<TextStyle>
+                      }
                     >
                       {cardiacBaseline.isAnomaly
                         ? `Similarity to your baseline: ${Math.round(cardiacBaseline.similarity * 100)}% (below normal). Consider logging symptoms or consulting a professional if this persists.`

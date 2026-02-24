@@ -13,10 +13,10 @@
  */
 
 import {
+  collection,
   doc,
   getDoc,
   getDocs,
-  collection,
   serverTimestamp,
   setDoc,
 } from "firebase/firestore";
@@ -50,7 +50,10 @@ export type NotificationTemplate = {
   updatedAt?: Date;
 };
 
-export type SaveTemplateParams = Omit<NotificationTemplate, "orgId" | "updatedAt">;
+export type SaveTemplateParams = Omit<
+  NotificationTemplate,
+  "orgId" | "updatedAt"
+>;
 
 // ─── Default Templates ────────────────────────────────────────────────────────
 
@@ -196,10 +199,7 @@ class NotificationTemplateService {
   /**
    * Save (upsert) a notification template.
    */
-  async saveTemplate(
-    orgId: string,
-    params: SaveTemplateParams
-  ): Promise<void> {
+  async saveTemplate(orgId: string, params: SaveTemplateParams): Promise<void> {
     const ref = templateDocRef(orgId, params.type, params.channel);
     await setDoc(ref, {
       orgId,
@@ -240,7 +240,10 @@ class NotificationTemplateService {
     }
   ): string {
     return template
-      .replace(/\{\{patient\.firstName\}\}/g, tokens.patientFirstName ?? "there")
+      .replace(
+        /\{\{patient\.firstName\}\}/g,
+        tokens.patientFirstName ?? "there"
+      )
       .replace(/\{\{vital\.type\}\}/g, tokens.vitalType ?? "vital sign")
       .replace(/\{\{value\}\}/g, tokens.value?.toString() ?? "—")
       .replace(/\{\{orgName\}\}/g, tokens.orgName ?? "your care team");

@@ -58,8 +58,8 @@ import { db } from "@/lib/firebase";
 import { alertService } from "@/lib/services/alertService";
 import { allergyService } from "@/lib/services/allergyService";
 import {
-  caregiverNotesService,
   type CaregiverNote,
+  caregiverNotesService,
 } from "@/lib/services/caregiverNotesService";
 import healthContextService from "@/lib/services/healthContextService";
 import {
@@ -465,14 +465,16 @@ export default function FamilyMemberHealthView() {
   }, [memberId, user?.role]);
 
   const handleAddNote = useCallback(async () => {
-    if (!memberId || !user?.id || !newNoteText.trim()) return;
+    if (!(memberId && user?.id && newNoteText.trim())) return;
     setSubmittingNote(true);
     try {
       const note = await caregiverNotesService.addNote(
         memberId,
         user.id,
         newNoteText.trim(),
-        user.firstName ? `${user.firstName} ${user.lastName ?? ""}`.trim() : undefined
+        user.firstName
+          ? `${user.firstName} ${user.lastName ?? ""}`.trim()
+          : undefined
       );
       setCaregiverNotes((prev) => [note, ...prev]);
       setNewNoteText("");
@@ -486,18 +488,21 @@ export default function FamilyMemberHealthView() {
     }
   }, [memberId, user?.id, user?.firstName, user?.lastName, newNoteText, isRTL]);
 
-  const handleDeleteNote = useCallback(async (noteId: string) => {
-    if (!memberId) return;
-    try {
-      await caregiverNotesService.deleteNote(memberId, noteId);
-      setCaregiverNotes((prev) => prev.filter((n) => n.id !== noteId));
-    } catch {
-      Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "فشل حذف الملاحظة" : "Failed to delete note"
-      );
-    }
-  }, [memberId, isRTL]);
+  const handleDeleteNote = useCallback(
+    async (noteId: string) => {
+      if (!memberId) return;
+      try {
+        await caregiverNotesService.deleteNote(memberId, noteId);
+        setCaregiverNotes((prev) => prev.filter((n) => n.id !== noteId));
+      } catch {
+        Alert.alert(
+          isRTL ? "خطأ" : "Error",
+          isRTL ? "فشل حذف الملاحظة" : "Failed to delete note"
+        );
+      }
+    },
+    [memberId, isRTL]
+  );
 
   useEffect(() => {
     loadCaregiverNotes();
@@ -1737,7 +1742,9 @@ export default function FamilyMemberHealthView() {
                 onPress={handleAddNote}
                 style={{
                   backgroundColor:
-                    submittingNote || !newNoteText.trim() ? "#CBD5E1" : "#7C3AED",
+                    submittingNote || !newNoteText.trim()
+                      ? "#CBD5E1"
+                      : "#7C3AED",
                   borderRadius: 10,
                   paddingVertical: 10,
                   paddingHorizontal: 16,
@@ -1769,7 +1776,11 @@ export default function FamilyMemberHealthView() {
 
             {/* Notes list */}
             {loadingNotes ? (
-              <ActivityIndicator color="#7C3AED" size="small" style={{ marginVertical: 16 }} />
+              <ActivityIndicator
+                color="#7C3AED"
+                size="small"
+                style={{ marginVertical: 16 }}
+              />
             ) : caregiverNotes.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
@@ -1796,7 +1807,8 @@ export default function FamilyMemberHealthView() {
                     key={note.id}
                     style={{
                       padding: 14,
-                      borderBottomWidth: idx < caregiverNotes.length - 1 ? 1 : 0,
+                      borderBottomWidth:
+                        idx < caregiverNotes.length - 1 ? 1 : 0,
                       borderBottomColor: "#F3F4F6",
                     }}
                   >
@@ -1852,7 +1864,8 @@ export default function FamilyMemberHealthView() {
                               color: "#4E5661",
                             }}
                           >
-                            {note.caregiverName || (isRTL ? "مقدم رعاية" : "Caregiver")}
+                            {note.caregiverName ||
+                              (isRTL ? "مقدم رعاية" : "Caregiver")}
                           </Text>
                           <Text
                             style={{
@@ -1864,13 +1877,19 @@ export default function FamilyMemberHealthView() {
                             {safeFormatDate(
                               note.createdAt,
                               isRTL ? "ar-u-ca-gregory" : "en-US",
-                              { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }
+                              {
+                                month: "short",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              }
                             )}
                           </Text>
                         </View>
                       </View>
                       {/* Delete button — only own notes or admin */}
-                      {(note.caregiverId === user?.id || user?.role === "admin") && (
+                      {(note.caregiverId === user?.id ||
+                        user?.role === "admin") && (
                         <TouchableOpacity
                           activeOpacity={0.7}
                           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -1881,7 +1900,10 @@ export default function FamilyMemberHealthView() {
                                 ? "هل أنت متأكد من حذف هذه الملاحظة؟"
                                 : "Are you sure you want to delete this note?",
                               [
-                                { text: isRTL ? "إلغاء" : "Cancel", style: "cancel" },
+                                {
+                                  text: isRTL ? "إلغاء" : "Cancel",
+                                  style: "cancel",
+                                },
                                 {
                                   text: isRTL ? "حذف" : "Delete",
                                   style: "destructive",

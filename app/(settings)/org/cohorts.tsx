@@ -8,7 +8,7 @@
  * Route: /(settings)/org/cohorts?orgId=<orgId>&orgName=<orgName>
  */
 
-import { useLocalSearchParams, useNavigation, router } from "expo-router";
+import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import {
   ChevronLeft,
   ChevronRight,
@@ -106,7 +106,13 @@ function CohortFormModal({
           condition: condition.trim() || undefined,
           program: program.trim() || undefined,
         });
-        onSaved({ ...editing, name: trimmedName, description: description.trim() || undefined, condition: condition.trim() || undefined, program: program.trim() || undefined });
+        onSaved({
+          ...editing,
+          name: trimmedName,
+          description: description.trim() || undefined,
+          condition: condition.trim() || undefined,
+          program: program.trim() || undefined,
+        });
       } else {
         const cohort = await organizationService.createCohort(orgId, {
           name: trimmedName,
@@ -119,7 +125,10 @@ function CohortFormModal({
       }
       handleClose();
     } catch (err) {
-      Alert.alert("Error", err instanceof Error ? err.message : "Failed to save cohort.");
+      Alert.alert(
+        "Error",
+        err instanceof Error ? err.message : "Failed to save cohort."
+      );
     } finally {
       setSaving(false);
     }
@@ -138,10 +147,10 @@ function CohortFormModal({
 
   return (
     <Modal
-      visible={visible}
       animationType="slide"
-      presentationStyle="pageSheet"
       onRequestClose={handleClose}
+      presentationStyle="pageSheet"
+      visible={visible}
     >
       <View
         style={{
@@ -161,64 +170,80 @@ function CohortFormModal({
           }}
         >
           <TypographyText
-            style={getTextStyle(theme, "heading", "bold", theme.colors.text.primary)}
+            style={getTextStyle(
+              theme,
+              "heading",
+              "bold",
+              theme.colors.text.primary
+            )}
           >
             {editing ? "Edit Cohort" : "New Cohort"}
           </TypographyText>
-          <TouchableOpacity onPress={handleClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <X size={22} color={theme.colors.text.secondary} />
+          <TouchableOpacity
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={handleClose}
+          >
+            <X color={theme.colors.text.secondary} size={22} />
           </TouchableOpacity>
         </View>
 
-        <Caption style={{ color: theme.colors.text.secondary, marginBottom: 8 }}>
+        <Caption
+          style={{ color: theme.colors.text.secondary, marginBottom: 8 }}
+        >
           NAME *
         </Caption>
         <TextInput
-          style={inputStyle}
+          autoFocus={!editing}
+          onChangeText={setName}
           placeholder="e.g. Diabetes — High Risk"
           placeholderTextColor={theme.colors.text.secondary}
+          style={inputStyle}
           value={name}
-          onChangeText={setName}
-          autoFocus={!editing}
         />
 
-        <Caption style={{ color: theme.colors.text.secondary, marginBottom: 8 }}>
+        <Caption
+          style={{ color: theme.colors.text.secondary, marginBottom: 8 }}
+        >
           DESCRIPTION
         </Caption>
         <TextInput
-          style={[inputStyle, { height: 72, textAlignVertical: "top" }]}
+          multiline
+          onChangeText={setDescription}
           placeholder="Brief description of this patient group…"
           placeholderTextColor={theme.colors.text.secondary}
+          style={[inputStyle, { height: 72, textAlignVertical: "top" }]}
           value={description}
-          onChangeText={setDescription}
-          multiline
         />
 
-        <Caption style={{ color: theme.colors.text.secondary, marginBottom: 8 }}>
+        <Caption
+          style={{ color: theme.colors.text.secondary, marginBottom: 8 }}
+        >
           CONDITION / DIAGNOSIS
         </Caption>
         <TextInput
-          style={inputStyle}
+          onChangeText={setCondition}
           placeholder="e.g. Type 2 Diabetes, CHF, COPD"
           placeholderTextColor={theme.colors.text.secondary}
+          style={inputStyle}
           value={condition}
-          onChangeText={setCondition}
         />
 
-        <Caption style={{ color: theme.colors.text.secondary, marginBottom: 8 }}>
+        <Caption
+          style={{ color: theme.colors.text.secondary, marginBottom: 8 }}
+        >
           PROGRAM
         </Caption>
         <TextInput
-          style={inputStyle}
+          onChangeText={setProgram}
           placeholder="e.g. Post-discharge, Annual Wellness"
           placeholderTextColor={theme.colors.text.secondary}
+          style={inputStyle}
           value={program}
-          onChangeText={setProgram}
         />
 
         <TouchableOpacity
-          onPress={handleSave}
           disabled={saving}
+          onPress={handleSave}
           style={{
             backgroundColor: "#6366F1",
             borderRadius: 12,
@@ -231,14 +256,21 @@ function CohortFormModal({
           {saving ? (
             <ActivityIndicator color="#FFF" />
           ) : (
-            <TypographyText style={{ color: "#FFF", fontWeight: "600", fontSize: 16 }}>
+            <TypographyText
+              style={{ color: "#FFF", fontWeight: "600", fontSize: 16 }}
+            >
               {editing ? "Save Changes" : "Create Cohort"}
             </TypographyText>
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={handleClose} style={{ alignItems: "center", padding: 14 }}>
-          <Caption style={{ color: theme.colors.text.secondary }}>Cancel</Caption>
+        <TouchableOpacity
+          onPress={handleClose}
+          style={{ alignItems: "center", padding: 14 }}
+        >
+          <Caption style={{ color: theme.colors.text.secondary }}>
+            Cancel
+          </Caption>
         </TouchableOpacity>
       </View>
     </Modal>
@@ -283,24 +315,35 @@ function CohortCard({
       >
         <View style={{ flex: 1, marginRight: 12 }}>
           <TypographyText
-            style={{ color: theme.colors.text.primary, fontSize: 15, fontWeight: "700" }}
+            style={{
+              color: theme.colors.text.primary,
+              fontSize: 15,
+              fontWeight: "700",
+            }}
           >
             {cohort.name}
           </TypographyText>
           {cohort.description ? (
             <Caption
-              style={{ color: theme.colors.text.secondary, marginTop: 2 }}
               numberOfLines={2}
+              style={{ color: theme.colors.text.secondary, marginTop: 2 }}
             >
               {cohort.description}
             </Caption>
           ) : null}
         </View>
-        <ChevronRight size={18} color={theme.colors.text.secondary} />
+        <ChevronRight color={theme.colors.text.secondary} size={18} />
       </View>
 
       {/* Meta chips */}
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+      <View
+        style={{
+          flexDirection: "row",
+          flexWrap: "wrap",
+          gap: 6,
+          marginBottom: 10,
+        }}
+      >
         {cohort.condition ? (
           <View
             style={{
@@ -336,14 +379,14 @@ function CohortCard({
         }}
       >
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-          <Users size={13} color={theme.colors.text.secondary} />
+          <Users color={theme.colors.text.secondary} size={13} />
           <Caption style={{ color: theme.colors.text.secondary }}>
             {cohort.patientCount} patient{cohort.patientCount !== 1 ? "s" : ""}
           </Caption>
         </View>
         <TouchableOpacity
-          onPress={() => onEdit(cohort)}
           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          onPress={() => onEdit(cohort)}
           style={{
             paddingHorizontal: 10,
             paddingVertical: 5,
@@ -351,7 +394,9 @@ function CohortCard({
             backgroundColor: theme.colors.background.primary,
           }}
         >
-          <Caption style={{ color: theme.colors.text.secondary, fontWeight: "600" }}>
+          <Caption
+            style={{ color: theme.colors.text.secondary, fontWeight: "600" }}
+          >
             Edit
           </Caption>
         </TouchableOpacity>
@@ -384,30 +429,40 @@ export default function CohortsScreen() {
 
   useEffect(() => {
     isMountedRef.current = true;
-    return () => { isMountedRef.current = false; };
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
-  const load = useCallback(async (isRefresh = false) => {
-    if (!orgId) return;
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
-    try {
-      const data = await organizationService.getCohorts(orgId);
-      // Sort by patient count desc
-      data.sort((a, b) => b.patientCount - a.patientCount);
-      if (isMountedRef.current) setCohorts(data);
-    } catch (err) {
-      if (isMountedRef.current)
-        Alert.alert("Error", err instanceof Error ? err.message : "Failed to load cohorts.");
-    } finally {
-      if (isMountedRef.current) {
-        setLoading(false);
-        setRefreshing(false);
+  const load = useCallback(
+    async (isRefresh = false) => {
+      if (!orgId) return;
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
+      try {
+        const data = await organizationService.getCohorts(orgId);
+        // Sort by patient count desc
+        data.sort((a, b) => b.patientCount - a.patientCount);
+        if (isMountedRef.current) setCohorts(data);
+      } catch (err) {
+        if (isMountedRef.current)
+          Alert.alert(
+            "Error",
+            err instanceof Error ? err.message : "Failed to load cohorts."
+          );
+      } finally {
+        if (isMountedRef.current) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
-    }
-  }, [orgId]);
+    },
+    [orgId]
+  );
 
-  useEffect(() => { load(false); }, [load]);
+  useEffect(() => {
+    load(false);
+  }, [load]);
 
   const handleSaved = useCallback((saved: OrgCohort) => {
     setCohorts((prev) => {
@@ -447,30 +502,35 @@ export default function CohortsScreen() {
         }}
       >
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => navigation.goBack()}
         >
-          <ChevronLeft size={24} color={theme.colors.text.primary} />
+          <ChevronLeft color={theme.colors.text.primary} size={24} />
         </TouchableOpacity>
         <TypographyText
-          style={getTextStyle(theme, "heading", "bold", theme.colors.text.primary)}
+          style={getTextStyle(
+            theme,
+            "heading",
+            "bold",
+            theme.colors.text.primary
+          )}
         >
           Patient Cohorts
         </TypographyText>
         <View style={{ flex: 1 }} />
         <TouchableOpacity
-          onPress={() => load(true)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => load(true)}
         >
           <RefreshCw
-            size={18}
             color={theme.colors.text.secondary}
+            size={18}
             style={refreshing ? { opacity: 0.4 } : undefined}
           />
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={openCreate}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={openCreate}
           style={{
             backgroundColor: "#6366F1",
             borderRadius: 20,
@@ -481,17 +541,20 @@ export default function CohortsScreen() {
             gap: 6,
           }}
         >
-          <Plus size={15} color="#FFF" />
+          <Plus color="#FFF" size={15} />
           <Caption style={{ color: "#FFF", fontWeight: "600" }}>New</Caption>
         </TouchableOpacity>
       </View>
 
       <ScrollView
         contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
-        showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />
+          <RefreshControl
+            onRefresh={() => load(true)}
+            refreshing={refreshing}
+          />
         }
+        showsVerticalScrollIndicator={false}
       >
         {/* Summary banner */}
         {!loading && cohorts.length > 0 && (
@@ -506,9 +569,10 @@ export default function CohortsScreen() {
               gap: 10,
             }}
           >
-            <Users size={18} color="#4F46E5" />
+            <Users color="#4F46E5" size={18} />
             <Caption style={{ color: "#3730A3", flex: 1 }}>
-              {cohorts.length} cohort{cohorts.length !== 1 ? "s" : ""} · {totalPatients} enrolled patient{totalPatients !== 1 ? "s" : ""}
+              {cohorts.length} cohort{cohorts.length !== 1 ? "s" : ""} ·{" "}
+              {totalPatients} enrolled patient{totalPatients !== 1 ? "s" : ""}
             </Caption>
           </View>
         )}
@@ -520,7 +584,7 @@ export default function CohortsScreen() {
           />
         ) : cohorts.length === 0 ? (
           <View style={{ alignItems: "center", paddingVertical: 48 }}>
-            <Users size={40} color={theme.colors.text.secondary} />
+            <Users color={theme.colors.text.secondary} size={40} />
             <TypographyText
               style={{
                 color: theme.colors.text.secondary,
@@ -531,9 +595,14 @@ export default function CohortsScreen() {
               No cohorts yet.
             </TypographyText>
             <Caption
-              style={{ color: theme.colors.text.secondary, marginTop: 6, textAlign: "center" }}
+              style={{
+                color: theme.colors.text.secondary,
+                marginTop: 6,
+                textAlign: "center",
+              }}
             >
-              Create your first cohort to group patients by condition or program.
+              Create your first cohort to group patients by condition or
+              program.
             </Caption>
             <TouchableOpacity
               onPress={openCreate}
@@ -553,11 +622,11 @@ export default function CohortsScreen() {
         ) : (
           cohorts.map((c) => (
             <CohortCard
-              key={c.id}
               cohort={c}
+              key={c.id}
+              onEdit={openEdit}
               orgId={orgId}
               theme={theme}
-              onEdit={openEdit}
             />
           ))
         )}
@@ -574,20 +643,21 @@ export default function CohortsScreen() {
           >
             <Caption style={{ color: "#166534" }}>
               Tap a cohort to view its patients on the monitoring dashboard.
-              Cohorts can be used to target care pathways and filter the patient roster.
+              Cohorts can be used to target care pathways and filter the patient
+              roster.
             </Caption>
           </View>
         )}
       </ScrollView>
 
       <CohortFormModal
-        visible={showForm}
-        orgId={orgId}
         createdBy={user?.id ?? ""}
         editing={editingCohort}
-        theme={theme}
         onClose={() => setShowForm(false)}
         onSaved={handleSaved}
+        orgId={orgId}
+        theme={theme}
+        visible={showForm}
       />
     </WavyBackground>
   );

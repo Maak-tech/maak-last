@@ -43,10 +43,10 @@ import {
 } from "@/components/design-system/Typography";
 import WavyBackground from "@/components/figma/WavyBackground";
 import { useTheme } from "@/contexts/ThemeContext";
-import { emailService, type EmailJob } from "@/lib/services/emailService";
+import { type EmailJob, emailService } from "@/lib/services/emailService";
 import { organizationService } from "@/lib/services/organizationService";
-import { getTextStyle } from "@/utils/styles";
 import type { EmailChannel } from "@/types";
+import { getTextStyle } from "@/utils/styles";
 
 // ─── Channel Config ───────────────────────────────────────────────────────────
 
@@ -93,16 +93,20 @@ function EmailLogItem({
       }}
     >
       {isSent ? (
-        <CheckCircle2 size={16} color="#10B981" style={{ marginTop: 2 }} />
+        <CheckCircle2 color="#10B981" size={16} style={{ marginTop: 2 }} />
       ) : isFailed ? (
-        <XCircle size={16} color="#EF4444" style={{ marginTop: 2 }} />
+        <XCircle color="#EF4444" size={16} style={{ marginTop: 2 }} />
       ) : (
-        <Clock size={16} color="#F59E0B" style={{ marginTop: 2 }} />
+        <Clock color="#F59E0B" size={16} style={{ marginTop: 2 }} />
       )}
       <View style={{ flex: 1 }}>
         <TypographyText
-          style={{ color: theme.colors.text.primary, fontSize: 13, fontWeight: "600" }}
           numberOfLines={1}
+          style={{
+            color: theme.colors.text.primary,
+            fontSize: 13,
+            fontWeight: "600",
+          }}
         >
           {job.subject}
         </TypographyText>
@@ -112,7 +116,7 @@ function EmailLogItem({
           </Caption>
         </View>
         {isFailed && job.error ? (
-          <Caption style={{ color: "#EF4444", marginTop: 2 }} numberOfLines={1}>
+          <Caption numberOfLines={1} style={{ color: "#EF4444", marginTop: 2 }}>
             {job.error}
           </Caption>
         ) : null}
@@ -155,7 +159,9 @@ export default function OrgNotificationsScreen() {
 
   useEffect(() => {
     isMountedRef.current = true;
-    return () => { isMountedRef.current = false; };
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   const CHANNEL_CONFIGS: ChannelConfig[] = [
@@ -163,67 +169,75 @@ export default function OrgNotificationsScreen() {
       key: "weekly_report",
       label: "Weekly Provider Digest",
       description: "Summary email to all providers every Monday at 07:00 UTC",
-      icon: <Mail size={18} color="#2563EB" />,
+      icon: <Mail color="#2563EB" size={18} />,
     },
     {
       key: "critical_alert",
       label: "Critical Alert Fallback",
-      description: "Email providers when push notification fails for critical events",
-      icon: <Bell size={18} color="#EF4444" />,
+      description:
+        "Email providers when push notification fails for critical events",
+      icon: <Bell color="#EF4444" size={18} />,
     },
     {
       key: "patient_digest",
       label: "Patient Weekly Digest",
       description: "Summary email sent to individual patients each week",
-      icon: <Mail size={18} color="#10B981" />,
+      icon: <Mail color="#10B981" size={18} />,
     },
     {
       key: "org_summary",
       label: "Org Admin Summary",
       description: "Weekly operations summary for org administrators",
-      icon: <Mail size={18} color="#8B5CF6" />,
+      icon: <Mail color="#8B5CF6" size={18} />,
     },
     {
       key: "consent_revocation",
       label: "Consent Revocation Notice",
-      description: "Email patient when they revoke an organization's data access",
-      icon: <BellOff size={18} color="#64748B" />,
+      description:
+        "Email patient when they revoke an organization's data access",
+      icon: <BellOff color="#64748B" size={18} />,
     },
   ];
 
-  const load = useCallback(async (isRefresh = false) => {
-    if (!orgId) return;
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
+  const load = useCallback(
+    async (isRefresh = false) => {
+      if (!orgId) return;
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
 
-    try {
-      const [settingsSnap, log] = await Promise.allSettled([
-        organizationService.getNotificationSettings(orgId),
-        emailService.listRecentJobs(orgId, 15),
-      ]);
+      try {
+        const [settingsSnap, log] = await Promise.allSettled([
+          organizationService.getNotificationSettings(orgId),
+          emailService.listRecentJobs(orgId, 15),
+        ]);
 
-      if (!isMountedRef.current) return;
+        if (!isMountedRef.current) return;
 
-      if (settingsSnap.status === "fulfilled" && settingsSnap.value) {
-        const saved = settingsSnap.value as Record<string, unknown>;
-        setChannels((prev) => ({
-          ...prev,
-          ...(saved.channels as Partial<Record<EmailChannel, boolean>> ?? {}),
-        }));
+        if (settingsSnap.status === "fulfilled" && settingsSnap.value) {
+          const saved = settingsSnap.value as Record<string, unknown>;
+          setChannels((prev) => ({
+            ...prev,
+            ...((saved.channels as Partial<Record<EmailChannel, boolean>>) ??
+              {}),
+          }));
+        }
+
+        if (log.status === "fulfilled") {
+          setEmailLog(log.value);
+        }
+      } finally {
+        if (isMountedRef.current) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
+    },
+    [orgId]
+  );
 
-      if (log.status === "fulfilled") {
-        setEmailLog(log.value);
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    }
-  }, [orgId]);
-
-  useEffect(() => { load(false); }, [load]);
+  useEffect(() => {
+    load(false);
+  }, [load]);
 
   const handleToggle = (channel: EmailChannel, value: boolean) => {
     setChannels((prev) => ({ ...prev, [channel]: value }));
@@ -236,7 +250,10 @@ export default function OrgNotificationsScreen() {
       await organizationService.saveNotificationSettings(orgId, { channels });
       Alert.alert("Saved", "Notification settings updated.");
     } catch (err) {
-      Alert.alert("Error", err instanceof Error ? err.message : "Failed to save settings.");
+      Alert.alert(
+        "Error",
+        err instanceof Error ? err.message : "Failed to save settings."
+      );
     } finally {
       setSaving(false);
     }
@@ -261,24 +278,29 @@ export default function OrgNotificationsScreen() {
         }}
       >
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => navigation.goBack()}
         >
-          <ChevronLeft size={24} color={theme.colors.text.primary} />
+          <ChevronLeft color={theme.colors.text.primary} size={24} />
         </TouchableOpacity>
         <TypographyText
-          style={getTextStyle(theme, "heading", "bold", theme.colors.text.primary)}
+          style={getTextStyle(
+            theme,
+            "heading",
+            "bold",
+            theme.colors.text.primary
+          )}
         >
           Notifications
         </TypographyText>
         <View style={{ flex: 1 }} />
         <TouchableOpacity
-          onPress={() => load(true)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => load(true)}
         >
           <RefreshCw
-            size={18}
             color={theme.colors.text.secondary}
+            size={18}
             style={refreshing ? { opacity: 0.4 } : undefined}
           />
         </TouchableOpacity>
@@ -292,16 +314,28 @@ export default function OrgNotificationsScreen() {
       ) : (
         <ScrollView
           contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
-          showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />
+            <RefreshControl
+              onRefresh={() => load(true)}
+              refreshing={refreshing}
+            />
           }
+          showsVerticalScrollIndicator={false}
         >
           {/* Channel toggles */}
           <TypographyText
             style={[
-              getTextStyle(theme, "caption", "semibold", theme.colors.text.secondary),
-              { textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 12 },
+              getTextStyle(
+                theme,
+                "caption",
+                "semibold",
+                theme.colors.text.secondary
+              ),
+              {
+                textTransform: "uppercase",
+                letterSpacing: 0.8,
+                marginBottom: 12,
+              },
             ]}
           >
             Email Channels
@@ -335,27 +369,36 @@ export default function OrgNotificationsScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <TypographyText
-                  style={{ color: theme.colors.text.primary, fontSize: 14, fontWeight: "600" }}
+                  style={{
+                    color: theme.colors.text.primary,
+                    fontSize: 14,
+                    fontWeight: "600",
+                  }}
                 >
                   {cfg.label}
                 </TypographyText>
-                <Caption style={{ color: theme.colors.text.secondary, marginTop: 2 }}>
+                <Caption
+                  style={{ color: theme.colors.text.secondary, marginTop: 2 }}
+                >
                   {cfg.description}
                 </Caption>
               </View>
               <Switch
-                value={channels[cfg.key]}
                 onValueChange={(v) => handleToggle(cfg.key, v)}
-                trackColor={{ false: theme.colors.background.primary, true: "#6366F1" }}
                 thumbColor="#FFF"
+                trackColor={{
+                  false: theme.colors.background.primary,
+                  true: "#6366F1",
+                }}
+                value={channels[cfg.key]}
               />
             </View>
           ))}
 
           {/* Save button */}
           <TouchableOpacity
-            onPress={handleSave}
             disabled={saving}
+            onPress={handleSave}
             style={{
               backgroundColor: "#6366F1",
               borderRadius: 12,
@@ -369,7 +412,9 @@ export default function OrgNotificationsScreen() {
             {saving ? (
               <ActivityIndicator color="#FFF" />
             ) : (
-              <TypographyText style={{ color: "#FFF", fontWeight: "600", fontSize: 15 }}>
+              <TypographyText
+                style={{ color: "#FFF", fontWeight: "600", fontSize: 15 }}
+              >
                 Save Settings
               </TypographyText>
             )}
@@ -386,7 +431,12 @@ export default function OrgNotificationsScreen() {
           >
             <TypographyText
               style={[
-                getTextStyle(theme, "caption", "semibold", theme.colors.text.secondary),
+                getTextStyle(
+                  theme,
+                  "caption",
+                  "semibold",
+                  theme.colors.text.secondary
+                ),
                 { textTransform: "uppercase", letterSpacing: 0.8 },
               ]}
             >
@@ -395,7 +445,9 @@ export default function OrgNotificationsScreen() {
             <View style={{ flexDirection: "row", gap: 10 }}>
               <Caption style={{ color: "#10B981" }}>{sentCount} sent</Caption>
               {failedCount > 0 && (
-                <Caption style={{ color: "#EF4444" }}>{failedCount} failed</Caption>
+                <Caption style={{ color: "#EF4444" }}>
+                  {failedCount} failed
+                </Caption>
               )}
             </View>
           </View>
@@ -411,15 +463,19 @@ export default function OrgNotificationsScreen() {
             >
               {channels.weekly_report || channels.critical_alert ? (
                 <>
-                  <BellOff size={24} color={theme.colors.text.secondary} />
-                  <Caption style={{ color: theme.colors.text.secondary, marginTop: 8 }}>
+                  <BellOff color={theme.colors.text.secondary} size={24} />
+                  <Caption
+                    style={{ color: theme.colors.text.secondary, marginTop: 8 }}
+                  >
                     No emails sent yet. The weekly digest runs every Monday.
                   </Caption>
                 </>
               ) : (
                 <>
-                  <BellOff size={24} color={theme.colors.text.secondary} />
-                  <Caption style={{ color: theme.colors.text.secondary, marginTop: 8 }}>
+                  <BellOff color={theme.colors.text.secondary} size={24} />
+                  <Caption
+                    style={{ color: theme.colors.text.secondary, marginTop: 8 }}
+                  >
                     All channels are disabled. Enable at least one above.
                   </Caption>
                 </>
@@ -427,7 +483,7 @@ export default function OrgNotificationsScreen() {
             </View>
           ) : (
             emailLog.map((job) => (
-              <EmailLogItem key={job.id} job={job} theme={theme} />
+              <EmailLogItem job={job} key={job.id} theme={theme} />
             ))
           )}
 

@@ -26,6 +26,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import type { HealthDiscovery } from "@/types/discoveries";
 import { correlationDiscoveryService } from "./correlationDiscoveryService";
 import {
   detectIntegrationSpecificInsights,
@@ -40,7 +41,6 @@ import { medicationService } from "./medicationService";
 import { moodService } from "./moodService";
 import { symptomPatternRecognitionService } from "./symptomPatternRecognitionService";
 import { symptomService } from "./symptomService";
-import type { HealthDiscovery } from "@/types/discoveries";
 
 export type DiscoveryType =
   | "correlation"
@@ -91,7 +91,11 @@ async function fetchRecentVitals(
  * Build a stable discovery ID from its content so that dismiss persists
  * across app sessions. IDs are deterministic per (userId, type, title).
  */
-function stableDiscoveryId(type: DiscoveryType, userId: string, key: string): string {
+function stableDiscoveryId(
+  type: DiscoveryType,
+  userId: string,
+  key: string
+): string {
   // Simple djb2-style hash — no crypto needed, just collision-resistance
   let hash = 5381;
   const str = `${type}:${userId}:${key}`;
@@ -111,7 +115,10 @@ function patternInsightToDiscovery(
   idx: number
 ): EnrichedDiscovery {
   // Map DiscoveryType → the closest DiscoveryCategory for colour/label rendering
-  const categoryMap: Record<DiscoveryType, import("@/types/discoveries").DiscoveryCategory> = {
+  const categoryMap: Record<
+    DiscoveryType,
+    import("@/types/discoveries").DiscoveryCategory
+  > = {
     vital_trend: "symptom_vital",
     temporal_pattern: "temporal_pattern",
     medication_pattern: "medication_vital",
@@ -166,38 +173,48 @@ async function fetchSymptomPatternDiscoveries(
   isArabic: boolean
 ): Promise<EnrichedDiscovery[]> {
   try {
-    const symptoms = await symptomService.getUserSymptoms(userId, 200).catch(() => []);
+    const symptoms = await symptomService
+      .getUserSymptoms(userId, 200)
+      .catch(() => []);
     if (symptoms.length < 3) return [];
 
-    const analysis = await symptomPatternRecognitionService.analyzeSymptomPatterns(
-      userId,
-      symptoms,
-      undefined,
-      undefined,
-      isArabic
-    );
+    const analysis =
+      await symptomPatternRecognitionService.analyzeSymptomPatterns(
+        userId,
+        symptoms,
+        undefined,
+        undefined,
+        isArabic
+      );
 
     return analysis.patterns
       .filter((p) => p.confidence >= 40) // Only reasonably confident patterns
-      .map((p, _idx): EnrichedDiscovery => ({
-        id: stableDiscoveryId("symptom_pattern", userId, p.name),
-        userId,
-        category: "temporal_pattern",
-        title: p.name,
-        description: p.description,
-        strength: p.severity === "severe" ? 0.9 : p.severity === "moderate" ? 0.65 : 0.4,
-        confidence: p.confidence,
-        actionable: true,
-        recommendation: undefined,
-        dataPoints: p.symptoms.length,
-        periodDays: 30,
-        factor1: "symptom",
-        factor2: p.name,
-        status: "new",
-        discoveredAt: new Date(),
-        lastUpdatedAt: new Date(),
-        discoveryType: "symptom_pattern",
-      }));
+      .map(
+        (p, _idx): EnrichedDiscovery => ({
+          id: stableDiscoveryId("symptom_pattern", userId, p.name),
+          userId,
+          category: "temporal_pattern",
+          title: p.name,
+          description: p.description,
+          strength:
+            p.severity === "severe"
+              ? 0.9
+              : p.severity === "moderate"
+                ? 0.65
+                : 0.4,
+          confidence: p.confidence,
+          actionable: true,
+          recommendation: undefined,
+          dataPoints: p.symptoms.length,
+          periodDays: 30,
+          factor1: "symptom",
+          factor2: p.name,
+          status: "new",
+          discoveredAt: new Date(),
+          lastUpdatedAt: new Date(),
+          discoveryType: "symptom_pattern",
+        })
+      );
   } catch {
     return [];
   }
@@ -228,40 +245,50 @@ async function fetchMedicationEffectivenessDiscoveries(
   isArabic: boolean
 ): Promise<EnrichedDiscovery[]> {
   try {
-    const medications = await medicationService.getUserMedications(userId).catch(() => []);
+    const medications = await medicationService
+      .getUserMedications(userId)
+      .catch(() => []);
     if (medications.length === 0) return [];
 
     const insights = await Promise.all(
-      medications.slice(0, 5).map((med) =>
-        getEffectivenessInsights(userId, med.id, med.name).catch(() => null)
-      )
+      medications
+        .slice(0, 5)
+        .map((med) =>
+          getEffectivenessInsights(userId, med.id, med.name).catch(() => null)
+        )
     );
 
     return insights
       .filter((i): i is NonNullable<typeof i> => i !== null)
-      .map((insight, _idx): EnrichedDiscovery => ({
-        id: stableDiscoveryId("medication_effectiveness", userId, insight.medicationName),
-        userId,
-        category: "medication_vital",
-        title: isArabic
-          ? `فعالية ${insight.medicationName}`
-          : `${insight.medicationName} Effectiveness`,
-        description: isArabic ? insight.insightAr : insight.insight,
-        strength: insight.takenAvg > insight.missedAvg ? 0.7 : -0.5,
-        confidence: 75,
-        actionable: true,
-        recommendation: isArabic
-          ? `استمر في تناول ${insight.medicationName} كما هو موصوف`
-          : `Continue taking ${insight.medicationName} as prescribed`,
-        dataPoints: 0,
-        periodDays: 30,
-        factor1: insight.medicationName,
-        factor2: isArabic ? insight.metricAr : insight.metric,
-        status: "new",
-        discoveredAt: new Date(),
-        lastUpdatedAt: new Date(),
-        discoveryType: "medication_effectiveness",
-      }));
+      .map(
+        (insight, _idx): EnrichedDiscovery => ({
+          id: stableDiscoveryId(
+            "medication_effectiveness",
+            userId,
+            insight.medicationName
+          ),
+          userId,
+          category: "medication_vital",
+          title: isArabic
+            ? `فعالية ${insight.medicationName}`
+            : `${insight.medicationName} Effectiveness`,
+          description: isArabic ? insight.insightAr : insight.insight,
+          strength: insight.takenAvg > insight.missedAvg ? 0.7 : -0.5,
+          confidence: 75,
+          actionable: true,
+          recommendation: isArabic
+            ? `استمر في تناول ${insight.medicationName} كما هو موصوف`
+            : `Continue taking ${insight.medicationName} as prescribed`,
+          dataPoints: 0,
+          periodDays: 30,
+          factor1: insight.medicationName,
+          factor2: isArabic ? insight.metricAr : insight.metric,
+          status: "new",
+          discoveredAt: new Date(),
+          lastUpdatedAt: new Date(),
+          discoveryType: "medication_effectiveness",
+        })
+      );
   } catch {
     return [];
   }
@@ -300,7 +327,11 @@ async function fetchMedicationPatternDiscoveries(
     ]);
     if (symptoms.length < 5 || medications.length === 0) return [];
 
-    const insights = detectMedicationCorrelations(symptoms, medications, isArabic);
+    const insights = detectMedicationCorrelations(
+      symptoms,
+      medications,
+      isArabic
+    );
     return insights
       .filter((i) => i.confidence >= 50)
       .map((insight, idx) =>
@@ -409,7 +440,9 @@ export async function getAllDiscoveries(
   ]);
 
   const dismissedIds =
-    dismissedResult.status === "fulfilled" ? dismissedResult.value : new Set<string>();
+    dismissedResult.status === "fulfilled"
+      ? dismissedResult.value
+      : new Set<string>();
 
   const all: EnrichedDiscovery[] = [
     ...(correlations.status === "fulfilled" ? correlations.value : []),
@@ -417,8 +450,12 @@ export async function getAllDiscoveries(
     ...(vitalTrends.status === "fulfilled" ? vitalTrends.value : []),
     ...(medEffectiveness.status === "fulfilled" ? medEffectiveness.value : []),
     ...(temporalPatterns.status === "fulfilled" ? temporalPatterns.value : []),
-    ...(medicationPatterns.status === "fulfilled" ? medicationPatterns.value : []),
-    ...(integrationInsights.status === "fulfilled" ? integrationInsights.value : []),
+    ...(medicationPatterns.status === "fulfilled"
+      ? medicationPatterns.value
+      : []),
+    ...(integrationInsights.status === "fulfilled"
+      ? integrationInsights.value
+      : []),
   ].filter((d) => !dismissedIds.has(d.id));
 
   // Sort: new status first, then by confidence descending

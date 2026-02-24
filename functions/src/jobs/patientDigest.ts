@@ -131,13 +131,17 @@ function buildPatientDigestHtml(params: {
 
       ${vitalRows}
 
-      ${summary.missedMedCount > 0 ? `
+      ${
+        summary.missedMedCount > 0
+          ? `
       <div style="background:#FEF3C7;border-radius:10px;padding:12px;margin:12px 0">
         <p style="margin:0;font-size:13px;color:#92400E">
           <strong>Reminder:</strong> You missed ${summary.missedMedCount} medication dose${summary.missedMedCount > 1 ? "s" : ""} this week.
           Staying on schedule helps your care team better support you.
         </p>
-      </div>` : ""}
+      </div>`
+          : ""
+      }
 
       <div style="margin-top:20px;padding:14px;background:#EFF6FF;border-radius:10px">
         <p style="margin:0;font-size:13px;color:#1D4ED8">
@@ -178,9 +182,7 @@ async function processPatient(
   if (!email) return false;
 
   const patientName: string =
-    (userData.displayName as string) ??
-    (userData.name as string) ??
-    email;
+    (userData.displayName as string) ?? (userData.name as string) ?? email;
 
   // Gather week's health data in parallel
   const [vitalSnap, anomalySnap, medSnap, rosterSnap] = await Promise.all([
@@ -203,10 +205,7 @@ async function processPatient(
       .where("isActive", "==", true)
       .get(),
 
-    db()
-      .collection("patient_roster")
-      .doc(`${orgId}_${userId}`)
-      .get(),
+    db().collection("patient_roster").doc(`${orgId}_${userId}`).get(),
   ]);
 
   // Skip if no activity this week
@@ -244,7 +243,8 @@ async function processPatient(
     anomalyCount: anomalySnap.size,
     missedMedCount: missedMedSnap.size,
     activeMedCount: medSnap.size,
-    avgHeartRate: heartRateCount > 0 ? heartRateSum / heartRateCount : undefined,
+    avgHeartRate:
+      heartRateCount > 0 ? heartRateSum / heartRateCount : undefined,
     avgSpO2: spO2Count > 0 ? spO2Sum / spO2Count : undefined,
     riskLevel: riskLevelFromScore(riskScore),
   };
@@ -258,19 +258,21 @@ async function processPatient(
   });
 
   // Queue to email_queue → processEmailQueue Cloud Function sends it
-  await db().collection("email_queue").add({
-    to: [email],
-    subject,
-    bodyHtml: html,
-    channel: "patient_digest",
-    orgId,
-    patientId: userId,
-    status: "pending",
-    attempts: 0,
-    sentAt: null,
-    error: null,
-    createdAt: FieldValue.serverTimestamp(),
-  });
+  await db()
+    .collection("email_queue")
+    .add({
+      to: [email],
+      subject,
+      bodyHtml: html,
+      channel: "patient_digest",
+      orgId,
+      patientId: userId,
+      status: "pending",
+      attempts: 0,
+      sentAt: null,
+      error: null,
+      createdAt: FieldValue.serverTimestamp(),
+    });
 
   logger.info("patientDigest: queued for patient", {
     traceId,
@@ -306,7 +308,11 @@ export const weeklyPatientDigest = onSchedule(
       year: "numeric",
     });
 
-    logger.info("patientDigest: started", { traceId, weekOf, fn: "weeklyPatientDigest" });
+    logger.info("patientDigest: started", {
+      traceId,
+      weekOf,
+      fn: "weeklyPatientDigest",
+    });
 
     try {
       // Query all active roster entries
@@ -339,7 +345,9 @@ export const weeklyPatientDigest = onSchedule(
           .get();
 
         if (notifSnap.exists) {
-          const channels = notifSnap.data()!.channels as Record<string, boolean> | undefined;
+          const channels = notifSnap.data()!.channels as
+            | Record<string, boolean>
+            | undefined;
           if (channels && channels["patient_digest"] === false) {
             totalSkipped += userIds.length;
             continue;
@@ -354,7 +362,8 @@ export const weeklyPatientDigest = onSchedule(
         const orgSnap = await db().collection("organizations").doc(orgId).get();
         const orgName = (orgSnap.data()?.name as string) ?? orgId;
         const primaryColor =
-          (orgSnap.data()?.settings?.branding?.primaryColor as string) ?? "#2563EB";
+          (orgSnap.data()?.settings?.branding?.primaryColor as string) ??
+          "#2563EB";
 
         // Process patients with limited concurrency
         const CONCURRENCY = 10;

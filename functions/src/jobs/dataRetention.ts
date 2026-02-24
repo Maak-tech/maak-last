@@ -41,7 +41,7 @@ const db = () => getFirestore();
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const BATCH_SIZE = 200;
-const MAX_DOCS_PER_ORG = 1_000; // safety cap per org per run
+const MAX_DOCS_PER_ORG = 1000; // safety cap per org per run
 const MIN_RETENTION_YEARS = 1; // prevent accidental immediate deletion
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -116,7 +116,10 @@ async function archiveOrgVitals(
 
     if (snap.empty) continue;
 
-    total += await archiveDocs(snap.docs.map((d) => d.ref), traceId);
+    total += await archiveDocs(
+      snap.docs.map((d) => d.ref),
+      traceId
+    );
   }
 
   logger.info("dataRetention: vitals archived", {
@@ -145,7 +148,10 @@ async function archiveOrgAlerts(
 
   if (snap.empty) return 0;
 
-  const count = await archiveDocs(snap.docs.map((d) => d.ref), traceId);
+  const count = await archiveDocs(
+    snap.docs.map((d) => d.ref),
+    traceId
+  );
 
   logger.info("dataRetention: alerts archived", {
     traceId,
@@ -184,7 +190,10 @@ async function archiveOrgAnomalies(
         .get();
 
       if (!snap.empty) {
-        total += await archiveDocs(snap.docs.map((d) => d.ref), traceId);
+        total += await archiveDocs(
+          snap.docs.map((d) => d.ref),
+          traceId
+        );
       }
     } catch (err) {
       logger.warn("dataRetention: failed to archive anomalies for patient", {
@@ -287,8 +296,9 @@ export const dataRetentionJob = onSchedule(
       for (const orgDoc of orgsSnap.docs) {
         const orgId = orgDoc.id;
         const orgData = orgDoc.data();
-        const retentionYears =
-          orgData.settings?.retentionYears as number | undefined;
+        const retentionYears = orgData.settings?.retentionYears as
+          | number
+          | undefined;
 
         // Skip orgs without explicit retention policy
         if (!retentionYears || retentionYears < MIN_RETENTION_YEARS) {

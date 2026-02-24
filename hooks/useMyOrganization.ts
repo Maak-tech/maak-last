@@ -11,7 +11,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { organizationService } from "@/lib/services/organizationService";
-import type { OrgMember, Organization } from "@/types";
+import type { Organization, OrgMember } from "@/types";
 
 export type MyOrganizationResult = {
   /** The first active organization this user belongs to (null while loading or none found). */

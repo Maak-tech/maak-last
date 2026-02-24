@@ -241,7 +241,7 @@ class OfflineService {
     this.ensureInitialized().catch(() => {
       // Silently handle initialization errors
     });
-    
+
     if (!this.syncListeners) {
       this.syncListeners = [];
     }

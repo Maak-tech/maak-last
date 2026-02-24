@@ -295,7 +295,9 @@ export default function FamilyScreen() {
   >("today");
   const [markingTaken, setMarkingTaken] = useState<string | null>(null);
   const [resolvingAlertId, setResolvingAlertId] = useState<string | null>(null);
-  const [acknowledgingAlertId, setAcknowledgingAlertId] = useState<string | null>(null);
+  const [acknowledgingAlertId, setAcknowledgingAlertId] = useState<
+    string | null
+  >(null);
 
   const { isEnabled: fallDetectionEnabled, toggleFallDetection } =
     useFallDetectionContext();
@@ -898,7 +900,10 @@ export default function FamilyScreen() {
       await loadActiveAlerts(true);
     } catch (error) {
       logger.error("Failed to acknowledge alert", error, "FamilyScreen");
-      Alert.alert(t("error"), isRTL ? "فشل الإقرار بالتنبيه" : "Failed to mark alert as handled");
+      Alert.alert(
+        t("error"),
+        isRTL ? "فشل الإقرار بالتنبيه" : "Failed to mark alert as handled"
+      );
     } finally {
       setAcknowledgingAlertId(null);
     }
@@ -3347,11 +3352,27 @@ export default function FamilyScreen() {
                           </View>
                           <View style={{ gap: 6, alignItems: "flex-end" }}>
                             {/* Mark Handled button — only shown if not yet acknowledged */}
-                            {!item.alert.acknowledgedBy ? (
+                            {item.alert.acknowledgedBy ? (
+                              <View style={{ alignItems: "flex-end" }}>
+                                <Text
+                                  style={{
+                                    fontSize: 10,
+                                    color: "#0F766E",
+                                    fontFamily: "Inter-Medium",
+                                  }}
+                                >
+                                  {isRTL ? "✓ تمت المعالجة" : "✓ Handled"}
+                                </Text>
+                              </View>
+                            ) : (
                               <TouchableOpacity
                                 activeOpacity={0.7}
-                                disabled={acknowledgingAlertId === item.alert.id}
-                                onPress={() => handleAcknowledgeAlert(item.alert.id)}
+                                disabled={
+                                  acknowledgingAlertId === item.alert.id
+                                }
+                                onPress={() =>
+                                  handleAcknowledgeAlert(item.alert.id)
+                                }
                                 style={[
                                   styles.resolveAlertButton,
                                   { backgroundColor: "#0F766E", minWidth: 100 },
@@ -3371,12 +3392,6 @@ export default function FamilyScreen() {
                                   </Text>
                                 )}
                               </TouchableOpacity>
-                            ) : (
-                              <View style={{ alignItems: "flex-end" }}>
-                                <Text style={{ fontSize: 10, color: "#0F766E", fontFamily: "Inter-Medium" }}>
-                                  {isRTL ? "✓ تمت المعالجة" : "✓ Handled"}
-                                </Text>
-                              </View>
                             )}
                             <TouchableOpacity
                               activeOpacity={0.7}

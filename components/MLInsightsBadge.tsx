@@ -73,9 +73,9 @@ export default function MLInsightsBadge({ userId, onPress }: Props) {
 
   return (
     <TouchableOpacity
-      style={styles.touchable}
-      onPress={onPress ?? (() => router.push("/analytics" as never))}
       activeOpacity={0.8}
+      onPress={onPress ?? (() => router.push("/analytics" as never))}
+      style={styles.touchable}
     >
       <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
         <View style={[styles.badge, { backgroundColor: bgColor }]}>
