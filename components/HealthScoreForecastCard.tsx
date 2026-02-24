@@ -33,6 +33,7 @@ import { createThemedStyles, getTextStyle } from "@/utils/styles";
 type Props = {
   userId: string | undefined;
   variant?: "home" | "analytics";
+  gated?: boolean;
 };
 
 const TREND_ICONS = {
@@ -283,6 +284,7 @@ function ForecastBarChart({
 export default function HealthScoreForecastCard({
   userId,
   variant = "home",
+  gated = true,
 }: Props) {
   const { i18n } = useTranslation();
   const { theme } = useTheme();
@@ -418,8 +420,9 @@ export default function HealthScoreForecastCard({
   }
 
   // analytics variant
-  return (
-    <FeatureGate featureId="PREDICTIVE_SCORE" showUpgradePrompt>
+  if (gated) {
+    return (
+      <FeatureGate featureId="PREDICTIVE_SCORE" showUpgradePrompt>
       <View style={styles.card}>
         <View style={styles.header}>
           <TypographyText
@@ -484,5 +487,73 @@ export default function HealthScoreForecastCard({
         )}
       </View>
     </FeatureGate>
+    );
+  }
+
+  // analytics variant — ungated
+  return (
+    <View style={styles.card}>
+      <View style={styles.header}>
+        <TypographyText
+          style={getTextStyle(
+            theme as Parameters<typeof getTextStyle>[0],
+            "subheading",
+            "bold",
+            theme.colors.text.primary
+          )}
+        >
+          {isRTL ? "توقع مؤشر الصحة - 7 أيام" : "7-Day Health Forecast"}
+        </TypographyText>
+        <View
+          style={[styles.trendBadge, { backgroundColor: trendColor + "20" }]}
+        >
+          <TrendIcon color={trendColor} size={12} />
+          <Caption
+            style={getTextStyle(
+              theme as Parameters<typeof getTextStyle>[0],
+              "caption",
+              "semibold",
+              trendColor
+            )}
+          >
+            {trendLabel}
+          </Caption>
+        </View>
+      </View>
+
+      <ForecastBarChart
+        forecast={forecast.forecast}
+        historical={forecast.historicalScores}
+        isRTL={isRTL}
+      />
+
+      <TypographyText style={styles.insightText}>{insight}</TypographyText>
+
+      {forecast.lowestDay && (
+        <View
+          style={{
+            marginTop: 8,
+            padding: 8,
+            backgroundColor: "#F59E0B15",
+            borderRadius: 8,
+            borderLeftWidth: 3,
+            borderLeftColor: "#F59E0B",
+          }}
+        >
+          <Caption
+            style={getTextStyle(
+              theme as Parameters<typeof getTextStyle>[0],
+              "caption",
+              "medium",
+              "#92400E"
+            )}
+          >
+            {isRTL
+              ? `⚠️ ${DAY_SHORT_AR[forecast.lowestDay.date.getDay()]} قد يكون أصعب يوم — راقب الأعراض`
+              : `⚠️ ${DAY_SHORT_EN[forecast.lowestDay.date.getDay()]} may be your toughest day — monitor your symptoms`}
+          </Caption>
+        </View>
+      )}
+    </View>
   );
 }

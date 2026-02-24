@@ -34,6 +34,7 @@ import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 type Props = {
   userId: string | undefined;
+  gated?: boolean;
 };
 
 function urgencyColor(
@@ -504,9 +505,13 @@ function AnalysisContent({
   );
 }
 
-export default function SymptomAnalysisCard({ userId }: Props) {
+export default function SymptomAnalysisCard({ userId, gated = true }: Props) {
   const { i18n } = useTranslation();
   const isRTL = i18n.language === "ar";
+
+  if (!gated) {
+    return <AnalysisContent isRTL={isRTL} userId={userId} />;
+  }
 
   return (
     <FeatureGate featureId="SYMPTOM_ANALYSIS">

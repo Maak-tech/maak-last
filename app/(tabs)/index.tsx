@@ -2304,9 +2304,19 @@ export default function DashboardScreen() {
           {/* Render widgets dynamically */}
           {enabledWidgets.map((widgetId) => renderWidget(widgetId))}
 
+          {/* Proactive health suggestions */}
+          <View style={styles.section as ViewStyle}>
+            <ProactiveHealthSuggestions maxSuggestions={5} />
+          </View>
           {/* Personalised health insights */}
           <View style={styles.section as ViewStyle}>
             <PersonalisedHealthInsightsCard userId={user?.id} />
+          </View>
+          <View style={styles.section as ViewStyle}>
+            <AnomalyDashboardSection />
+          </View>
+          <View style={styles.section as ViewStyle}>
+            <PatternInsightsCard userId={user?.id} />
           </View>
           <View style={styles.section as ViewStyle}>
             {/* ML Insights badge row — navigates to Analytics for full detail */}

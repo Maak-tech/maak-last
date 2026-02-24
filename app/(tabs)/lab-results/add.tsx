@@ -18,6 +18,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import TagInput from "@/app/components/TagInput";
 import { Button } from "@/components/design-system";
 import {
@@ -222,6 +223,8 @@ export default function AddLabResultScreen() {
   const { user } = useAuth();
   const { theme: currentTheme } = useTheme();
   const isRTL = i18n.language === "ar";
+  const insets = useSafeAreaInsets();
+  const headerTopPadding = Math.max(20, insets.top + 12);
 
   const [testName, setTestName] = useState("");
   const [selectedCommonLab, setSelectedCommonLab] = useState<string | null>(
@@ -247,12 +250,12 @@ export default function AddLabResultScreen() {
     },
     figmaLabHeaderWrap: {
       marginHorizontal: -20,
-      marginTop: -20,
+      marginTop: 0,
       marginBottom: 12,
     },
     figmaLabHeaderContent: {
       paddingHorizontal: 24,
-      paddingTop: 20,
+      paddingTop: headerTopPadding,
       paddingBottom: 16,
     },
     figmaLabHeaderRow: {
@@ -285,7 +288,7 @@ export default function AddLabResultScreen() {
     figmaLabSubtitle: {
       fontSize: 12,
       fontFamily: "Inter-SemiBold",
-      color: "rgba(0, 53, 67, 0.85)",
+      color: "rgba(255, 255, 255, 0.85)",
     },
     figmaLabCloseButton: {
       width: 36,
@@ -604,7 +607,12 @@ export default function AddLabResultScreen() {
       style={styles.container}
     >
       <View style={styles.figmaLabHeaderWrap}>
-        <WavyBackground curve="home" height={190} variant="teal">
+        <WavyBackground
+          contentPosition="top"
+          curve="home"
+          height={240}
+          variant="teal"
+        >
           <View style={styles.figmaLabHeaderContent}>
             <View style={styles.figmaLabHeaderRow}>
               <TouchableOpacity
@@ -615,7 +623,7 @@ export default function AddLabResultScreen() {
               </TouchableOpacity>
               <View style={styles.figmaLabHeaderTitle}>
                 <View style={styles.figmaLabTitleRow}>
-                  <TestTube color="#0F766E" size={20} />
+                  <TestTube color="#EB9C0C" size={20} />
                   <Text style={styles.figmaLabTitle}>Add Lab Result</Text>
                 </View>
                 <Text style={styles.figmaLabSubtitle}>

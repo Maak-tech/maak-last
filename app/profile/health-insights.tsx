@@ -40,7 +40,6 @@ export default function HealthInsightsScreen() {
       backgroundColor: "transparent",
     },
     headerWrap: {
-      marginHorizontal: -24,
       marginBottom: -20,
     },
     headerContent: {
@@ -51,7 +50,7 @@ export default function HealthInsightsScreen() {
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
-      marginTop: 40,
+      marginTop: 48,
     },
     backButton: {
       width: 40,
@@ -82,9 +81,11 @@ export default function HealthInsightsScreen() {
       marginTop: 4,
     },
     content: {
-      paddingHorizontal: 24,
       paddingTop: 40,
       paddingBottom: 40,
+    },
+    contentInner: {
+      paddingHorizontal: 24,
     },
     rtlText: {
       textAlign: "right",
@@ -176,13 +177,15 @@ export default function HealthInsightsScreen() {
           </WavyBackground>
         </View>
 
-        <AIInsightsDashboard
-          compact={false}
-          embedded={true}
-          key={`health-insights-dashboard-${refreshKey}`}
-          onInsightPress={() => router.push("/(tabs)/analytics")}
-        />
-        <HealthInsightsCard key={`health-insights-card-${refreshKey}`} />
+        <View style={styles.contentInner}>
+          <AIInsightsDashboard
+            compact={false}
+            embedded={true}
+            key={`health-insights-dashboard-${refreshKey}`}
+            onInsightPress={() => router.push("/(tabs)/analytics")}
+          />
+          <HealthInsightsCard key={`health-insights-card-${refreshKey}`} />
+        </View>
       </ScrollView>
     </GradientScreen>
   );

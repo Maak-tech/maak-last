@@ -790,24 +790,24 @@ export default function AnalyticsScreen() {
             </View>
           )}
 
-          {/* Health Score Forecast — Premium Individual+ hero */}
+          {/* Health Score Forecast */}
           <View style={styles.section as ViewStyle}>
-            <HealthScoreForecastCard userId={user?.id} variant="analytics" />
+            <HealthScoreForecastCard userId={user?.id} variant="analytics" gated={false} />
           </View>
 
-          {/* Lab Insights — Premium Individual+ */}
+          {/* Lab Insights */}
           <View style={styles.section as ViewStyle}>
-            <LabInsightsCard userId={user?.id} variant="analytics" />
+            <LabInsightsCard userId={user?.id} variant="analytics" gated={false} />
           </View>
 
-          {/* Health Risk Assessment — ML-powered, Premium Individual+ */}
+          {/* Health Risk Assessment — ML-powered */}
           <View style={styles.section as ViewStyle}>
-            <HealthRiskCard userId={user?.id} />
+            <HealthRiskCard userId={user?.id} gated={false} />
           </View>
 
-          {/* Symptom Pattern Analysis — ML-powered, Premium Individual+ */}
+          {/* Symptom Pattern Analysis — ML-powered */}
           <View style={styles.section as ViewStyle}>
-            <SymptomAnalysisCard userId={user?.id} />
+            <SymptomAnalysisCard userId={user?.id} gated={false} />
           </View>
 
           {/* Personalised Baseline Monitoring — all users */}

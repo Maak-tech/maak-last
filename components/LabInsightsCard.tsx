@@ -34,6 +34,7 @@ import { createThemedStyles, getTextStyle } from "@/utils/styles";
 type Props = {
   userId: string | undefined;
   variant?: "analytics" | "banner";
+  gated?: boolean;
 };
 
 function AnalyticsContent({
@@ -286,17 +287,25 @@ function BannerContent({
 export default function LabInsightsCard({
   userId,
   variant = "analytics",
+  gated = true,
 }: Props) {
   const { i18n } = useTranslation();
   const isRTL = i18n.language === "ar";
 
+  const content =
+    variant === "analytics" ? (
+      <AnalyticsContent isRTL={isRTL} userId={userId} />
+    ) : (
+      <BannerContent isRTL={isRTL} userId={userId} />
+    );
+
+  if (!gated) {
+    return content;
+  }
+
   return (
     <FeatureGate featureId="LAB_INSIGHTS" showUpgradePrompt>
-      {variant === "analytics" ? (
-        <AnalyticsContent isRTL={isRTL} userId={userId} />
-      ) : (
-        <BannerContent isRTL={isRTL} userId={userId} />
-      )}
+      {content}
     </FeatureGate>
   );
 }

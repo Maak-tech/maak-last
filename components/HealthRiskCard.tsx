@@ -33,6 +33,7 @@ import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 type Props = {
   userId: string | undefined;
+  gated?: boolean;
 };
 
 function riskColor(level: "low" | "moderate" | "high" | "very_high"): string {
@@ -456,9 +457,13 @@ function RiskContent({
   );
 }
 
-export default function HealthRiskCard({ userId }: Props) {
+export default function HealthRiskCard({ userId, gated = true }: Props) {
   const { i18n } = useTranslation();
   const isRTL = i18n.language === "ar";
+
+  if (!gated) {
+    return <RiskContent isRTL={isRTL} userId={userId} />;
+  }
 
   return (
     <FeatureGate featureId="HEALTH_RISK_ASSESSMENT">

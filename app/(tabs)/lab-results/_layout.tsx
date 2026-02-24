@@ -17,7 +17,7 @@ export default function LabResultsLayout() {
         name="add"
         options={{
           headerShown: false,
-          presentation: "modal",
+          presentation: "fullScreenModal",
         }}
       />
     </Stack>
