@@ -687,4 +687,81 @@ export const userBaselineService = {
 
     return deviations;
   },
+
+  /**
+   * Check for significant baseline deviations and send a local push notification
+   * if the user hasn't been notified in the last 8 hours.
+   *
+   * Called by the vitalSyncService after every vital save, and by the daily
+   * briefing scheduled job — fire-and-forget, never throws.
+   */
+  async checkAndNotifySignificantDeviations(
+    userId: string,
+    isArabic = false
+  ): Promise<void> {
+    try {
+      // Rate-limit: check Firestore for last notification time
+      const { getDoc, setDoc: setDocFS } = await import("firebase/firestore");
+      const notifDoc = doc(db, "users", userId, "health_baseline", "last_notification");
+      const notifSnap = await getDoc(notifDoc).catch(() => null);
+      if (notifSnap?.exists()) {
+        const lastNotifAt: Date =
+          notifSnap.data().notifiedAt instanceof Timestamp
+            ? notifSnap.data().notifiedAt.toDate()
+            : new Date(notifSnap.data().notifiedAt);
+        const hoursAgo = (Date.now() - lastNotifAt.getTime()) / 3_600_000;
+        if (hoursAgo < 8) return; // Don't spam
+      }
+
+      const baseline = await this.getBaseline(userId);
+      const deviations = await this.detectDeviations(userId, baseline, isArabic);
+      const significant = deviations.filter((d) => d.severity === "significant");
+      if (significant.length === 0) return;
+
+      const top = significant[0];
+      const { pushNotificationService } = await import("./pushNotificationService");
+      await pushNotificationService.sendToUser(userId, {
+        title: isArabic ? "تغيير في نمطك الصحي" : "Health Pattern Change",
+        body: isArabic ? top.insightAr : top.insight,
+        data: {
+          type: "vital_alert" as const,
+          clickAction: top.dimension === "medication" ? "medications" : "analytics",
+        },
+        priority: "high",
+      });
+
+      // Record notification time
+      await setDocFS(notifDoc, { notifiedAt: Timestamp.now() }).catch(() => {});
+    } catch {
+      // Non-critical — silently ignore
+    }
+  },
+
+  /**
+   * Uses healthInsightScoringService z-scores for more statistically robust
+   * vital anomaly detection. Returns vitals with z-score > 2.0 from a larger
+   * sample window (30 days) compared to the recent latest value.
+   *
+   * This complements detectDeviations() which uses ratio-based thresholds.
+   */
+  async getZScoreVitalAnomalies(
+    userId: string
+  ): Promise<Array<{ type: string; zScore: number; latest: number; baseline: number; unit?: string }>> {
+    try {
+      const vitalsRaw = await fetchVitalSamples(userId, 30);
+      const { getVitalAnomalySignals } = await import("./healthInsightScoringService");
+      // Convert to VitalSample shape expected by scoring service
+      const scoringSamples = vitalsRaw.map((v) => ({
+        id: `${v.type}_${v.timestamp.getTime()}`,
+        type: v.type,
+        value: v.value,
+        unit: v.unit,
+        timestamp: v.timestamp,
+        source: undefined as string | undefined,
+      }));
+      return getVitalAnomalySignals(scoringSamples);
+    } catch {
+      return [];
+    }
+  },
 };

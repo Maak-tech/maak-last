@@ -164,6 +164,14 @@ async function saveVitalSample(
         // Silently handle import errors
       });
   }
+
+  // Fire-and-forget: check personalised baseline deviations and notify if significant
+  // Rate-limited to once per 8h inside the method — safe to call on every vital save
+  import("./userBaselineService")
+    .then(({ userBaselineService }) => {
+      userBaselineService.checkAndNotifySignificantDeviations(userId).catch(() => {});
+    })
+    .catch(() => {});
 }
 
 /**
