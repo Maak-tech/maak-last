@@ -24,7 +24,6 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
-  InteractionManager,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -128,11 +127,9 @@ export default function ZeinaScreen() {
 
   /* biome-ignore lint/correctness/useExhaustiveDependencies: Initialization side effects are intended to run once on mount. */
   useEffect(() => {
-    const task = InteractionManager.runAfterInteractions(() => {
-      initializeChat();
-      checkVoiceAvailability();
-      checkRecognitionAvailability();
-    });
+    initializeChat();
+    checkVoiceAvailability();
+    checkRecognitionAvailability();
 
     // Initialize voice settings from local storage
     const loadVoiceSettings = async () => {
@@ -160,10 +157,6 @@ export default function ZeinaScreen() {
     };
 
     loadVoiceSettings();
-
-    return () => {
-      task.cancel?.();
-    };
   }, []);
 
   const checkRecognitionAvailability = async () => {
@@ -297,28 +290,11 @@ export default function ZeinaScreen() {
       setSelectedModel(model);
       setTempModel(model);
 
-      // Load health context — pass current language so the system prompt is
-      // generated in the user's language (Arabic users get Arabic instructions).
-      const prompt = await healthContextService.getContextualPrompt(
-        undefined,
-        i18n.language
-      );
-      if (!isMountedRef.current) {
-        return;
-      }
-      setSystemPrompt(prompt);
-
-      // Add system message
-      const systemMessage: AIMessage = {
-        id: Date.now().toString(),
-        role: "system",
-        content: prompt,
-        timestamp: new Date(),
-      };
-
-      // Add welcome message
+      // Show welcome message immediately — health context loads in background
+      const welcomeId = Date.now().toString();
+      const systemId = (Date.now() + 1).toString();
       const welcomeMessage: AIMessage = {
-        id: (Date.now() + 1).toString(),
+        id: welcomeId,
         role: "assistant",
         content: t(
           "zeinaWelcome",
@@ -326,130 +302,167 @@ export default function ZeinaScreen() {
         ),
         timestamp: new Date(),
       };
+      const systemMessage: AIMessage = {
+        id: systemId,
+        role: "system",
+        content: "",
+        timestamp: new Date(),
+      };
 
-      // Inject today's daily briefing as first Zeina message (Premium Individual+)
-      let briefingMessage: AIMessage | undefined;
-      try {
-        const userId = user?.id;
-        if (userId) {
-          const d = new Date();
-          const todayKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-          const briefingRef = doc(db, "users", userId, "briefings", todayKey);
-          const briefingSnap = await getDoc(briefingRef);
-          if (briefingSnap.exists()) {
-            const data = briefingSnap.data();
-            const summary = data.summary as string;
-            const summaryAr = data.summaryAr as string | undefined;
-            const highlights: string[] = (data.highlights as string[]) ?? [];
-            const highlightsAr: string[] =
-              (data.highlightsAr as string[]) ?? [];
-            const displaySummary = isRTL && summaryAr ? summaryAr : summary;
-            const displayHighlights =
-              isRTL && highlightsAr.length ? highlightsAr : highlights;
-            const bulletPoints = displayHighlights
-              .map((h) => `• ${h}`)
-              .join("\n");
-            briefingMessage = {
-              id: (Date.now() + 2).toString(),
-              role: "assistant",
-              content: isRTL
-                ? `${displaySummary}${bulletPoints ? `\n\n${bulletPoints}` : ""}\n\n_كيف يمكنني مساعدتك اليوم؟_`
-                : `${displaySummary}${bulletPoints ? `\n\n${bulletPoints}` : ""}\n\n_How can I help you today?_`,
-              timestamp: new Date(),
-              label: isRTL ? "الإحاطة الصحية اليومية" : "Daily Briefing",
-            };
-          }
-        }
-      } catch {
-        // Silently fail — briefing is optional
-      }
-
-      // Check for new health discoveries (all types) + baseline deviations to surface
-      let proactiveMessage: AIMessage | undefined;
-      try {
-        const userId = user?.id;
-        if (userId) {
-          const lastChatKey = `zeina_last_chat_${userId}`;
-          const lastChatTimestamp = await AsyncStorage.getItem(lastChatKey);
-
-          // Try baseline deviations first — most personalised signal
-          let baselineMessage: string | undefined;
-          try {
-            const baseline = await userBaselineService.getBaseline(userId);
-            const deviations = await userBaselineService.detectDeviations(
-              userId,
-              baseline,
-              isRTL
-            );
-            const significant = deviations.filter(
-              (d) => d.severity === "significant"
-            );
-            if (significant.length > 0) {
-              const top = significant[0];
-              baselineMessage = isRTL
-                ? `لاحظت تغيراً في ${top.insightAr} هل تريد مناقشة ذلك؟`
-                : `I noticed a change in your health patterns: ${top.insight} Would you like to talk about it?`;
-            }
-          } catch {
-            // Non-critical
-          }
-
-          // Fallback to newest discovery across all types
-          if (!baselineMessage) {
-            const allDiscoveries = await discoveryService.getAllDiscoveries(
-              userId,
-              isRTL
-            );
-            const sinceDate = lastChatTimestamp
-              ? new Date(lastChatTimestamp)
-              : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-            const recentNew = allDiscoveries.filter(
-              (d) => d.status === "new" && new Date(d.discoveredAt) >= sinceDate
-            );
-
-            if (recentNew.length > 0 && isMountedRef.current) {
-              const topDiscovery = recentNew[0];
-              const desc = isRTL
-                ? (topDiscovery as { descriptionAr?: string }).descriptionAr ||
-                  topDiscovery.description
-                : topDiscovery.description;
-
-              baselineMessage = isRTL
-                ? `لاحظت شيئاً مثيراً للاهتمام في بياناتك الصحية — ${desc}. هل تريد مناقشة هذا؟`
-                : `I noticed something interesting in your health data — ${desc}. Would you like to discuss this?`;
-
-              // Dismiss so it won't re-surface on the next Zeina open
-              discoveryService
-                .dismissDiscovery(userId, topDiscovery.id)
-                .catch(() => {});
-            }
-          }
-
-          if (baselineMessage && isMountedRef.current) {
-            proactiveMessage = {
-              id: (Date.now() + 3).toString(),
-              role: "assistant",
-              content: baselineMessage,
-              timestamp: new Date(),
-            };
-          }
-
-          await AsyncStorage.setItem(lastChatKey, new Date().toISOString());
-        }
-      } catch {
-        // Silently fail - proactive insights are optional
-      }
-
-      setMessages([
-        systemMessage,
-        welcomeMessage,
-        ...(briefingMessage ? [briefingMessage] : []),
-        ...(proactiveMessage ? [proactiveMessage] : []),
-      ]);
+      setMessages([systemMessage, welcomeMessage]);
 
       if (isMountedRef.current) {
         setIsLoading(false);
       }
+
+      // Load heavy context in background — updates system prompt silently
+      Promise.resolve().then(async () => {
+        try {
+          // Load health context — pass current language so the system prompt is
+          // generated in the user's language (Arabic users get Arabic instructions).
+          const prompt = await healthContextService.getContextualPrompt(
+            undefined,
+            i18n.language
+          );
+          if (!isMountedRef.current) {
+            return;
+          }
+          setSystemPrompt(prompt);
+          // Update the system message content in-place
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === systemId ? { ...m, content: prompt } : m
+            )
+          );
+
+          // Inject today's daily briefing as a follow-up Zeina message
+          let briefingMessage: AIMessage | undefined;
+          try {
+            const userId = user?.id;
+            if (userId) {
+              const d = new Date();
+              const todayKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+              const briefingRef = doc(db, "users", userId, "briefings", todayKey);
+              const briefingSnap = await getDoc(briefingRef);
+              if (briefingSnap.exists()) {
+                const data = briefingSnap.data();
+                const summary = data.summary as string;
+                const summaryAr = data.summaryAr as string | undefined;
+                const highlights: string[] = (data.highlights as string[]) ?? [];
+                const highlightsAr: string[] =
+                  (data.highlightsAr as string[]) ?? [];
+                const displaySummary = isRTL && summaryAr ? summaryAr : summary;
+                const displayHighlights =
+                  isRTL && highlightsAr.length ? highlightsAr : highlights;
+                const bulletPoints = displayHighlights
+                  .map((h) => `• ${h}`)
+                  .join("\n");
+                briefingMessage = {
+                  id: (Date.now() + 2).toString(),
+                  role: "assistant",
+                  content: isRTL
+                    ? `${displaySummary}${bulletPoints ? `\n\n${bulletPoints}` : ""}\n\n_كيف يمكنني مساعدتك اليوم؟_`
+                    : `${displaySummary}${bulletPoints ? `\n\n${bulletPoints}` : ""}\n\n_How can I help you today?_`,
+                  timestamp: new Date(),
+                  label: isRTL ? "الإحاطة الصحية اليومية" : "Daily Briefing",
+                };
+              }
+            }
+          } catch {
+            // Silently fail — briefing is optional
+          }
+
+          // Check for new health discoveries (all types) + baseline deviations to surface
+          let proactiveMessage: AIMessage | undefined;
+          try {
+            const userId = user?.id;
+            if (userId) {
+              const lastChatKey = `zeina_last_chat_${userId}`;
+              const lastChatTimestamp = await AsyncStorage.getItem(lastChatKey);
+
+              // Try baseline deviations first — most personalised signal
+              let baselineMessage: string | undefined;
+              try {
+                const baseline = await userBaselineService.getBaseline(userId);
+                const deviations = await userBaselineService.detectDeviations(
+                  userId,
+                  baseline,
+                  isRTL
+                );
+                const significant = deviations.filter(
+                  (d) => d.severity === "significant"
+                );
+                if (significant.length > 0) {
+                  const top = significant[0];
+                  baselineMessage = isRTL
+                    ? `لاحظت تغيراً في ${top.insightAr} هل تريد مناقشة ذلك؟`
+                    : `I noticed a change in your health patterns: ${top.insight} Would you like to talk about it?`;
+                }
+              } catch {
+                // Non-critical
+              }
+
+              // Fallback to newest discovery across all types
+              if (!baselineMessage) {
+                const allDiscoveries = await discoveryService.getAllDiscoveries(
+                  userId,
+                  isRTL
+                );
+                const sinceDate = lastChatTimestamp
+                  ? new Date(lastChatTimestamp)
+                  : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+                const recentNew = allDiscoveries.filter(
+                  (d) => d.status === "new" && new Date(d.discoveredAt) >= sinceDate
+                );
+
+                if (recentNew.length > 0 && isMountedRef.current) {
+                  const topDiscovery = recentNew[0];
+                  const desc = isRTL
+                    ? (topDiscovery as { descriptionAr?: string }).descriptionAr ||
+                      topDiscovery.description
+                    : topDiscovery.description;
+
+                  baselineMessage = isRTL
+                    ? `لاحظت شيئاً مثيراً للاهتمام في بياناتك الصحية — ${desc}. هل تريد مناقشة هذا؟`
+                    : `I noticed something interesting in your health data — ${desc}. Would you like to discuss this?`;
+
+                  // Dismiss so it won't re-surface on the next Zeina open
+                  discoveryService
+                    .dismissDiscovery(userId, topDiscovery.id)
+                    .catch(() => {});
+                }
+              }
+
+              if (baselineMessage && isMountedRef.current) {
+                proactiveMessage = {
+                  id: (Date.now() + 3).toString(),
+                  role: "assistant",
+                  content: baselineMessage,
+                  timestamp: new Date(),
+                };
+              }
+
+              await AsyncStorage.setItem(lastChatKey, new Date().toISOString());
+            }
+          } catch {
+            // Silently fail - proactive insights are optional
+          }
+
+          // Append briefing + proactive messages after welcome (if any)
+          if (
+            isMountedRef.current &&
+            (briefingMessage || proactiveMessage)
+          ) {
+            setMessages((prev) => [
+              ...prev,
+              ...(briefingMessage ? [briefingMessage] : []),
+              ...(proactiveMessage ? [proactiveMessage] : []),
+            ]);
+          }
+        } catch {
+          // Background load failure is non-critical
+        }
+      });
     } catch (_error) {
       // Silently handle error
       if (isMountedRef.current) {

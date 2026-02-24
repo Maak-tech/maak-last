@@ -313,6 +313,13 @@ type EmergencyContactsResult =
   | { error: string };
 
 class HealthContextService {
+  private _contextCache = new Map<string, { context: HealthContext; timestamp: number }>();
+  private readonly CONTEXT_CACHE_TTL = 300_000; // 5 minutes
+
+  invalidateCache(userId: string) {
+    this._contextCache.delete(userId);
+  }
+
   async getUserHealthContext(
     userId?: string,
     options?: { includeFamilyInsights?: boolean; language?: string }
@@ -321,6 +328,12 @@ class HealthContextService {
     if (!uid) {
       throw new Error("No user ID provided");
     }
+
+    const cached = this._contextCache.get(uid);
+    if (cached && Date.now() - cached.timestamp < this.CONTEXT_CACHE_TTL) {
+      return cached.context;
+    }
+
     // Fetch user profile first (needed for familyId)
     const userDoc = await getDoc(doc(db, "users", uid));
     const userData = userDoc.data() || {};
@@ -377,7 +390,7 @@ class HealthContextService {
           collection(db, "vitals"),
           where("userId", "==", uid),
           orderBy("timestamp", "desc"),
-          limit(500)
+          limit(100)
         )
       ),
       healthInsightsService.getWeeklySummary(uid, undefined, isArabic),
@@ -1116,6 +1129,7 @@ class HealthContextService {
       periodTracking,
     };
 
+    this._contextCache.set(uid, { context: healthContext, timestamp: Date.now() });
     return healthContext;
   }
 

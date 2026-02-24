@@ -16,11 +16,19 @@ import {
 import { db } from "@/lib/firebase";
 import type { MedicalHistory } from "@/types";
 
+const _medHistoryCache = new Map<string, { history: MedicalHistory[]; timestamp: number }>();
+const MED_HISTORY_CACHE_TTL = 120_000; // 2 minutes
+
 export const medicalHistoryService = {
   async getUserMedicalHistory(
     userId: string,
     limitCount?: number
   ): Promise<MedicalHistory[]> {
+    const cached = _medHistoryCache.get(userId);
+    if (cached && Date.now() - cached.timestamp < MED_HISTORY_CACHE_TTL) {
+      return cached.history;
+    }
+
     const queryConstraints: QueryConstraint[] = [
       where("userId", "==", userId),
       orderBy("diagnosedDate", "desc"),
@@ -44,6 +52,7 @@ export const medicalHistoryService = {
       } as MedicalHistory);
     }
 
+    _medHistoryCache.set(userId, { history: medicalHistory, timestamp: Date.now() });
     return medicalHistory;
   },
 
@@ -114,6 +123,7 @@ export const medicalHistoryService = {
     }
 
     const docRef = await addDoc(collection(db, "medicalHistory"), cleanedData);
+    _medHistoryCache.delete(userId);
     return docRef.id;
   },
 

@@ -32,6 +32,12 @@ service cloud.firestore {
         getUserData().role == 'admin';
     }
 
+    function isFamilyCaregiver() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        getUserData().role == 'caregiver';
+    }
+
     // Helper function to check if user is signed in
     function isSignedIn() {
       return request.auth != null;
@@ -41,7 +47,10 @@ service cloud.firestore {
     function canReadPHI(patientUserId) {
       return isSignedIn() && (
         request.auth.uid == patientUserId || // User can read their own PHI
-        (isFamilyAdmin() && isSameFamily(patientUserId)) // Family admin can read same-family PHI
+        (
+          (isFamilyAdmin() || isFamilyCaregiver()) &&
+          isSameFamily(patientUserId)
+        ) // Family admin/caregiver can read same-family PHI
       );
     }
 
@@ -165,9 +174,40 @@ service cloud.firestore {
       match /caregiver_notes/{noteId} {
         // Caregiver observation notes — owner (member) and caregivers can read/write
         allow read: if canReadPHI(userId);
-        allow create: if request.auth != null;
-        allow update, delete: if request.auth != null &&
-          (request.auth.uid == userId || request.auth.uid == resource.data.caregiverId);
+        // Only caregivers/admins in the same family can create notes, and they must author as themselves.
+        allow create: if isSignedIn() &&
+          isSameFamily(userId) &&
+          (isFamilyAdmin() || isFamilyCaregiver()) &&
+          request.resource.data.keys().hasOnly([
+            "note",
+            "caregiverId",
+            "caregiverName",
+            "createdAt",
+            "tags"
+          ]) &&
+          request.resource.data.note is string &&
+          request.resource.data.caregiverId == request.auth.uid &&
+          request.resource.data.createdAt is timestamp &&
+          (
+            !("caregiverName" in request.resource.data) ||
+            request.resource.data.caregiverName is string ||
+            request.resource.data.caregiverName == null
+          ) &&
+          (
+            !("tags" in request.resource.data) ||
+            request.resource.data.tags is list
+          );
+        // Admins can manage any note; caregivers can manage their own notes only.
+        // Do not allow changing immutable author fields.
+        allow update: if isSignedIn() &&
+          isSameFamily(userId) &&
+          (isFamilyAdmin() || request.auth.uid == resource.data.caregiverId) &&
+          request.resource.data.caregiverId == resource.data.caregiverId &&
+          request.resource.data.createdAt == resource.data.createdAt;
+
+        allow delete: if isSignedIn() &&
+          isSameFamily(userId) &&
+          (isFamilyAdmin() || request.auth.uid == resource.data.caregiverId);
       }
     }
 

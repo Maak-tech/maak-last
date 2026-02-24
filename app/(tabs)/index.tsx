@@ -2071,6 +2071,8 @@ export default function DashboardScreen() {
             <DailyBriefingCard userId={user?.id} />
             {/* Health Score with 7-day forecast teaser */}
             <HealthScoreForecastCard userId={user?.id} variant="home" />
+            {/* Vital anomaly monitoring — grouped with health status */}
+            <AnomalyDashboardSection />
             {/* ML pattern insights (temporal, vital-trend, wearable) */}
             <PatternInsightsCard userId={user?.id} />
             <ProactiveHealthSuggestions maxSuggestions={5} />
@@ -2302,18 +2304,9 @@ export default function DashboardScreen() {
           {/* Render widgets dynamically */}
           {enabledWidgets.map((widgetId) => renderWidget(widgetId))}
 
-          {/* Health Insights - each card manages its own data loading */}
-          <View style={styles.section as ViewStyle}>
-            <ProactiveHealthSuggestions maxSuggestions={5} />
-          </View>
+          {/* Personalised health insights */}
           <View style={styles.section as ViewStyle}>
             <PersonalisedHealthInsightsCard userId={user?.id} />
-          </View>
-          <View style={styles.section as ViewStyle}>
-            <AnomalyDashboardSection />
-          </View>
-          <View style={styles.section as ViewStyle}>
-            <PatternInsightsCard userId={user?.id} />
           </View>
           <View style={styles.section as ViewStyle}>
             {/* ML Insights badge row — navigates to Analytics for full detail */}

@@ -58,6 +58,9 @@ const severityFromStore = (value: unknown): Allergy["severity"] | undefined => {
   return;
 };
 
+const _allergyCache = new Map<string, { allergies: Allergy[]; timestamp: number }>();
+const ALLERGY_CACHE_TTL = 120_000; // 2 minutes
+
 export const allergyService = {
   // Add new allergy (offline-first)
   async addAllergy(allergyData: Omit<Allergy, "id">): Promise<string> {
@@ -77,6 +80,7 @@ export const allergyService = {
 
       if (isOnline) {
         const docRef = await addDoc(collection(db, "allergies"), cleanedData);
+        _allergyCache.delete(allergyData.userId);
         // Cache the result for offline access
         const newAllergy = { id: docRef.id, ...allergyData };
         const currentAllergies =
@@ -128,6 +132,11 @@ export const allergyService = {
   // Get user allergies (offline-first)
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This method intentionally combines online query, parsing, offline cache fallback, and sorting.
   async getUserAllergies(userId: string, limitCount = 50): Promise<Allergy[]> {
+    const cached = _allergyCache.get(userId);
+    if (cached && Date.now() - cached.timestamp < ALLERGY_CACHE_TTL) {
+      return cached.allergies;
+    }
+
     const isOnline = offlineService.isDeviceOnline();
 
     try {
@@ -209,6 +218,7 @@ export const allergyService = {
         });
 
         const result = allergies.slice(0, limitCount);
+        _allergyCache.set(userId, { allergies: result, timestamp: Date.now() });
         // Cache for offline access
         await offlineService.storeOfflineData("allergies", result);
         return result;

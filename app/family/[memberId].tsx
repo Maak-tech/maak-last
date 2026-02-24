@@ -1,6 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { doc, getDoc } from "firebase/firestore";
 import {
   Activity,
   AlertTriangle,
@@ -54,7 +53,6 @@ import GradientScreen from "@/components/figma/GradientScreen";
 import StatusBadge from "@/components/figma/StatusBadge";
 import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
-import { db } from "@/lib/firebase";
 import { alertService } from "@/lib/services/alertService";
 import { allergyService } from "@/lib/services/allergyService";
 import {
@@ -247,28 +245,27 @@ export default function FamilyMemberHealthView() {
 
         // Load member user doc + all health data in parallel
         const [
-          userDocResult,
+          userDataResult,
           memberSymptomsResult,
           memberMedicalHistoryResult,
           memberMedicationsResult,
           memberAllergiesResult,
           memberAlertsResult,
-          healthContextResult,
         ] = await Promise.allSettled([
-          getDoc(doc(db, "users", memberId)),
+          userService.getUser(memberId),
           symptomService.getUserSymptoms(memberId, 30),
           medicalHistoryService.getUserMedicalHistory(memberId),
           medicationService.getUserMedications(memberId),
           allergyService.getUserAllergies(memberId),
           alertService.getActiveAlerts(memberId),
-          healthContextService.getUserHealthContext(memberId),
         ]);
 
-        // Set member data from user doc
-        if (userDocResult.status === "fulfilled" && userDocResult.value.exists()) {
-          const userData = userDocResult.value.data();
-          setMember({ id: memberId, ...userData } as User);
-          setRelationship(userData.relationship || userData.relation || "");
+        // Set member data
+        if (userDataResult.status === "fulfilled" && userDataResult.value) {
+          const userData = userDataResult.value;
+          setMember(userData);
+          const raw = userData as unknown as Record<string, unknown>;
+          setRelationship((raw.relationship as string) || (raw.relation as string) || "");
         }
 
         const memberSymptoms =
@@ -291,10 +288,6 @@ export default function FamilyMemberHealthView() {
           memberAlertsResult.status === "fulfilled"
             ? memberAlertsResult.value
             : [];
-        const healthContext =
-          healthContextResult.status === "fulfilled"
-            ? healthContextResult.value
-            : null;
 
         setSymptoms(memberSymptoms);
         setMedicalHistory(memberMedicalHistory);
@@ -302,54 +295,56 @@ export default function FamilyMemberHealthView() {
         setAllergies(memberAllergies);
         setAlerts(memberAlerts);
 
-        // Extract vitals from health context
-        let loadedVitals: VitalSigns | null = null;
-
-        if (healthContext?.vitalSigns) {
-          const vs = healthContext.vitalSigns;
-          loadedVitals = {
-            heartRate: vs.heartRate,
-            restingHeartRate: vs.restingHeartRate,
-            walkingHeartRateAverage: vs.walkingHeartRateAverage,
-            heartRateVariability: vs.heartRateVariability,
-            bloodPressure: vs.bloodPressure
-              ? (() => {
-                  const bp = vs.bloodPressure.split("/");
-                  if (bp.length === 2) {
-                    return {
-                      systolic: Number.parseFloat(bp[0]),
-                      diastolic: Number.parseFloat(bp[1]),
-                    };
-                  }
-                  return;
-                })()
-              : undefined,
-            respiratoryRate: vs.respiratoryRate,
-            bodyTemperature: vs.temperature,
-            oxygenSaturation: vs.oxygenLevel,
-            bloodGlucose: vs.glucoseLevel,
-            weight: vs.weight,
-            height: vs.height,
-            bodyFatPercentage: vs.bodyFatPercentage,
-            steps: vs.steps,
-            sleepHours: vs.sleepHours,
-            activeEnergy: vs.activeEnergy,
-            distanceWalkingRunning: vs.distanceWalkingRunning,
-            waterIntake: vs.waterIntake,
-            timestamp: vs.lastUpdated || new Date(),
-          };
-        }
-
-        setVitals(loadedVitals);
-
-        // Defer slow secondary vitals fetches to background after UI renders
+        // Defer all vitals fetching to background — healthContext, Firestore, Apple Health
         Promise.resolve().then(async () => {
-          let bgVitals = loadedVitals;
+          let bgVitals: VitalSigns | null = null;
 
-          if (!bgVitals || Object.keys(bgVitals).length === 0) {
+          // Try health context first (heavy call — sequential user doc + 6 queries)
+          try {
+            const healthContext = await healthContextService.getUserHealthContext(memberId);
+            if (healthContext?.vitalSigns) {
+              const vs = healthContext.vitalSigns;
+              bgVitals = {
+                heartRate: vs.heartRate,
+                restingHeartRate: vs.restingHeartRate,
+                walkingHeartRateAverage: vs.walkingHeartRateAverage,
+                heartRateVariability: vs.heartRateVariability,
+                bloodPressure: vs.bloodPressure
+                  ? (() => {
+                      const bp = vs.bloodPressure.split("/");
+                      if (bp.length === 2) {
+                        return {
+                          systolic: Number.parseFloat(bp[0]),
+                          diastolic: Number.parseFloat(bp[1]),
+                        };
+                      }
+                      return;
+                    })()
+                  : undefined,
+                respiratoryRate: vs.respiratoryRate,
+                bodyTemperature: vs.temperature,
+                oxygenSaturation: vs.oxygenLevel,
+                bloodGlucose: vs.glucoseLevel,
+                weight: vs.weight,
+                height: vs.height,
+                bodyFatPercentage: vs.bodyFatPercentage,
+                steps: vs.steps,
+                sleepHours: vs.sleepHours,
+                activeEnergy: vs.activeEnergy,
+                distanceWalkingRunning: vs.distanceWalkingRunning,
+                waterIntake: vs.waterIntake,
+                timestamp: vs.lastUpdated || new Date(),
+              };
+              setVitals(bgVitals);
+            }
+          } catch {
+            // Fall through to Firestore vitals
+          }
+
+          // Fallback to Firestore vitals collection if health context had no vitals
+          if (!bgVitals) {
             try {
-              const latestVitals =
-                await healthDataService.getLatestVitalsFromFirestore(memberId);
+              const latestVitals = await healthDataService.getLatestVitalsFromFirestore(memberId);
               if (latestVitals) {
                 bgVitals = latestVitals;
                 setVitals(bgVitals);
@@ -359,19 +354,17 @@ export default function FamilyMemberHealthView() {
             }
           }
 
+          // Overlay live Apple Health data when viewing own profile
           if (memberId === user?.id && bgVitals) {
             try {
-              const liveVitals =
-                await healthDataService.getLatestVitalsFromProviders();
+              const liveVitals = await healthDataService.getLatestVitalsFromProviders();
               if (liveVitals?.steps !== undefined && liveVitals.steps !== null) {
                 setVitals({
                   ...bgVitals,
                   steps: liveVitals.steps,
-                  activeEnergy:
-                    liveVitals.activeEnergy ?? bgVitals.activeEnergy,
+                  activeEnergy: liveVitals.activeEnergy ?? bgVitals.activeEnergy,
                   distanceWalkingRunning:
-                    liveVitals.distanceWalkingRunning ??
-                    bgVitals.distanceWalkingRunning,
+                    liveVitals.distanceWalkingRunning ?? bgVitals.distanceWalkingRunning,
                   timestamp: liveVitals.timestamp ?? bgVitals.timestamp,
                 });
               }
