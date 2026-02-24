@@ -167,6 +167,15 @@ export type HealthContext = {
       riskLevel: string;
     }>;
   };
+  /** Body Recovery Score — trajectory/momentum signal (HRV, sleep, RHR, resp. rate, temp.) */
+  recoveryScore?: {
+    score: number;
+    state: string;
+    primaryInsight: string;
+    weakestFactor: string;
+    dataConfidence: number;
+    insufficientData: boolean;
+  };
   recentAlerts: Array<{
     type: string;
     timestamp: Date;
@@ -479,6 +488,17 @@ class HealthContextService {
           return null;
         }
       })(),
+      // Recovery Score — trajectory/momentum signal (fire-and-forget, never blocks context)
+      (async () => {
+        try {
+          const { recoveryScoreService } = await import(
+            "./recoveryScoreService"
+          );
+          return await recoveryScoreService.calculateRecoveryScore(uid);
+        } catch {
+          return null;
+        }
+      })(),
     ]);
 
     const [
@@ -496,6 +516,7 @@ class HealthContextService {
       labResultsResult,
       symptomPatternsResult,
       riskAssessmentResult,
+      recoveryScoreResult,
     ] = results;
 
     // Process medications
@@ -749,6 +770,23 @@ class HealthContextService {
                 condition: c.condition,
                 riskLevel: c.riskLevel,
               })),
+          }
+        : undefined;
+
+    // Process Recovery Score result
+    const recoveryScoreData: HealthContext["recoveryScore"] =
+      recoveryScoreResult?.status === "fulfilled" &&
+      recoveryScoreResult.value !== null &&
+      !recoveryScoreResult.value.insufficientData
+        ? {
+            score: recoveryScoreResult.value.score,
+            state: recoveryScoreResult.value.state,
+            primaryInsight: isArabic
+              ? recoveryScoreResult.value.primaryInsight.ar
+              : recoveryScoreResult.value.primaryInsight.en,
+            weakestFactor: recoveryScoreResult.value.breakdown.weakestFactor,
+            dataConfidence: recoveryScoreResult.value.dataConfidence,
+            insufficientData: recoveryScoreResult.value.insufficientData,
           }
         : undefined;
 
@@ -1124,6 +1162,7 @@ class HealthContextService {
       labResults,
       symptomPatterns,
       riskAssessment,
+      recoveryScore: recoveryScoreData,
       recentAlerts,
       vitalSigns: latestVitals,
       periodTracking,
@@ -1399,6 +1438,18 @@ ${context.riskAssessment.topConditionRisks
     : ""
 }
 
+${
+  context.recoveryScore
+    ? `
+${isArabic ? "درجة التعافي (مؤشر الاتجاه والزخم):" : "RECOVERY SCORE (trajectory & momentum signal):"}
+• ${isArabic ? "الدرجة" : "Score"}: ${context.recoveryScore.score}/100 (${context.recoveryScore.state.replace(/_/g, " ")})
+• ${isArabic ? "الرؤية الأساسية" : "Primary insight"}: ${context.recoveryScore.primaryInsight}
+• ${isArabic ? "العامل الأضعف" : "Weakest factor"}: ${context.recoveryScore.weakestFactor.replace(/([A-Z])/g, " $1").toLowerCase()}
+• ${isArabic ? "ثقة البيانات" : "Data confidence"}: ${context.recoveryScore.dataConfidence}%
+`
+    : ""
+}
+
 ${isArabic ? "أفراد العائلة:" : "FAMILY MEMBERS:"}
 ${
   context.familyMembers.length > 0
@@ -1533,6 +1584,7 @@ ${
 13. أشر إلى اكتشافات الأنماط الصحية عند الاقتضاء — هذه ارتباطات فريدة مكتشفة بالذكاء الاصطناعي من بيانات المستخدم (مثل: أنماط الأدوية والأعراض، وصلات المزاج بالمؤشرات الحيوية)
 14. عند وجود أنماط أعراض مكتشفة، اذكرها بشكل استباقي عندما يصف المستخدم أعراضاً مطابقة — دائماً قدّمها كاحتمالات لمناقشتها مع الطبيب، وليس كتشخيصات
 15. عند توفر ملف المخاطر الصحية، استخدمه لتخصيص النصائح بعمق — إذا كانت المخاطر القلبية مرتفعة، اذكر الفحوصات المنتظمة والحمية والنشاط البدني بشكل استباقي؛ إذا كانت عوامل الخطر قابلة للتعديل، قدّم تغييرات حياتية قابلة للتطبيق. لا تخوّف المستخدم، بل قدّم المعلومات بشكل بنّاء ومشجّع
+16. عند توفر درجة التعافي، استخدمها للإجابة عن أسئلة مثل "هل أتحسن؟" أو "كيف حال جسمي؟" أو "هل يجب أن أتمرن اليوم؟". تقيس الدرجة الاتجاه والزخم — هل الجسم يتحسن أم مستقر أم يتراجع — وليس فقط الحالة الراهنة. أشر إلى العامل الأضعف عند اقتراح ما ينبغي التركيز عليه. قدّم دائماً هذا كمؤشر اتجاه وليس تشخيصاً
 
 تذكر: أنت مساعد ذكي تقدم معلومات ودعماً، وليس بديلاً عن النصيحة الطبية المهنية. شجع دائماً المستخدمين على طلب المساعدة الطبية المهنية للاهتمامات الخطيرة.`
     : `1. Provide personalized health insights based on the complete medical profile
@@ -1554,6 +1606,7 @@ ${
 17. Wearable data (HRV, resting heart rate, sleep duration, steps, SpO2) is included in vital signs — use it to provide recovery, stress, and activity-level insights when asked. A low HRV suggests stress or poor recovery; consistently short sleep warrants a sleep hygiene conversation
 18. When SYMPTOM PATTERNS DETECTED are present, proactively mention them when the user describes symptoms that match — e.g. if a migraine pattern is detected and the user mentions a headache, note the pattern and its matched triggers. Always frame these as possibilities to discuss with a doctor, not diagnoses
 19. When a HEALTH RISK PROFILE is present, use it to deeply personalise advice — if cardiovascular risk is high, proactively mention regular checkups, diet, and activity; if risk factors are modifiable, offer concrete lifestyle changes. Frame this constructively and encouragingly, never alarmingly. Highlight modifiable factors as empowering opportunities
+20. When a RECOVERY SCORE is present, use it to answer questions like "Am I getting better?", "How is my body doing?", or "Should I exercise today?". The score measures trajectory — is the body improving, holding steady, or declining — not just current state. Cite the weakest factor when suggesting what to focus on next. Always frame this as a momentum signal, never a diagnosis. If the score is low, encourage rest, consistency, and medical consultation for persistent issues
 
 Remember: You are an AI assistant providing information and support, not a replacement for professional medical advice. Always encourage users to seek professional medical help for serious concerns.`
 }`;

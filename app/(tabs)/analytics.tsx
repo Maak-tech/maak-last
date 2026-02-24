@@ -28,6 +28,7 @@ import WavyBackground from "@/components/figma/WavyBackground";
 import HealthRiskCard from "@/components/HealthRiskCard";
 import HealthScoreForecastCard from "@/components/HealthScoreForecastCard";
 import LabInsightsCard from "@/components/LabInsightsCard";
+import RecoveryScoreCard from "@/components/RecoveryScoreCard";
 import PersonalisedHealthInsightsCard from "@/components/PersonalisedHealthInsightsCard";
 import SymptomAnalysisCard from "@/components/SymptomAnalysisCard";
 import { useAuth } from "@/contexts/AuthContext";
@@ -793,6 +794,11 @@ export default function AnalyticsScreen() {
           {/* Health Score Forecast */}
           <View style={styles.section as ViewStyle}>
             <HealthScoreForecastCard userId={user?.id} variant="analytics" gated={false} />
+          </View>
+
+          {/* Recovery Score — trajectory breakdown */}
+          <View style={styles.section as ViewStyle}>
+            <RecoveryScoreCard userId={user?.id} variant="analytics" />
           </View>
 
           {/* Lab Insights */}

@@ -52,6 +52,7 @@ import { Heading, Text } from "@/components/design-system/Typography";
 import GradientScreen from "@/components/figma/GradientScreen";
 import WavyBackground from "@/components/figma/WavyBackground";
 import HealthScoreForecastCard from "@/components/HealthScoreForecastCard";
+import RecoveryScoreCard from "@/components/RecoveryScoreCard";
 import MLInsightsBadge from "@/components/MLInsightsBadge";
 import PatternInsightsCard from "@/components/PatternInsightsCard";
 import PersonalisedHealthInsightsCard from "@/components/PersonalisedHealthInsightsCard";
@@ -2071,6 +2072,8 @@ export default function DashboardScreen() {
             <DailyBriefingCard userId={user?.id} />
             {/* Health Score with 7-day forecast teaser */}
             <HealthScoreForecastCard userId={user?.id} variant="home" />
+            {/* Recovery Score — trajectory/momentum signal (HRV, sleep, RHR, resp. rate, temp.) */}
+            <RecoveryScoreCard userId={user?.id} variant="home" />
             {/* Vital anomaly monitoring — grouped with health status */}
             <AnomalyDashboardSection />
             {/* ML pattern insights (temporal, vital-trend, wearable) */}

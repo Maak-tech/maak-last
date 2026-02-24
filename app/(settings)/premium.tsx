@@ -94,7 +94,7 @@ const FEATURE_ROWS: FeatureRow[] = [
     icon: TrendingUp,
     labelEn: "Advanced vitals & PPG",
     labelAr: "العلامات الحيوية المتقدمة",
-    free: false,
+    free: true,
     individual: true,
     family: true,
   },

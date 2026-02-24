@@ -62,17 +62,17 @@ export const FEATURES = {
     description: "Automatic fall detection", // Translated in components using this feature
   },
 
-  // Premium Individual Features
+  // Advanced Features
   PPG_HEART_RATE: {
     id: "ppg_heart_rate",
     name: "PPG Heart Rate Monitoring",
-    accessLevel: FeatureAccessLevel.PREMIUM_INDIVIDUAL,
+    accessLevel: FeatureAccessLevel.FREE,
     description: "Real-time heart rate monitoring using camera",
   },
   ADVANCED_VITALS: {
     id: "advanced_vitals",
     name: "Advanced Vitals",
-    accessLevel: FeatureAccessLevel.PREMIUM_INDIVIDUAL,
+    accessLevel: FeatureAccessLevel.FREE,
     description: "Advanced vital signs tracking and analysis",
   },
   AI_ASSISTANT: {
