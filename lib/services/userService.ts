@@ -103,6 +103,12 @@ export const userService = {
         id: userDoc.id,
         ...data,
         createdAt: data.createdAt?.toDate() || new Date(),
+        // Parse dateOfBirth Timestamp → Date if present
+        ...(data.dateOfBirth instanceof Timestamp
+          ? { dateOfBirth: data.dateOfBirth.toDate() }
+          : data.dateOfBirth
+          ? { dateOfBirth: new Date(data.dateOfBirth) }
+          : {}),
         preferences: {
           language: preferences.language || "en",
           notifications:

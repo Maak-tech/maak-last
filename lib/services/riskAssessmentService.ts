@@ -235,10 +235,14 @@ class RiskAssessmentService {
         this.getRecentMoods(userId),
       ]);
 
+    // Fetch family medical history now that we have the user (and thus familyId)
+    const familyHistory = await this.getFamilyMedicalHistory(user);
+
     // Assess individual risk factors
     const riskFactors = this.assessRiskFactors(
       user,
       medicalHistory,
+      familyHistory,
       symptoms,
       vitals,
       medications,
@@ -288,6 +292,7 @@ class RiskAssessmentService {
   private assessRiskFactors(
     user: User,
     medicalHistory: MedicalHistory[],
+    familyHistory: MedicalHistory[],
     symptoms: Symptom[],
     vitals: VitalSign[],
     medications: Medication[],
@@ -312,8 +317,7 @@ class RiskAssessmentService {
       );
     }
 
-    // Family history risks
-    const familyHistory = this.getFamilyMedicalHistory(user);
+    // Family history risks (pre-fetched from family members' medical histories)
     const familyRisks = this.assessFamilyHistoryRisks(familyHistory);
     riskFactors.push(...familyRisks);
 
@@ -463,9 +467,21 @@ class RiskAssessmentService {
   // Helper methods
 
   private calculateAge(user: User): number {
-    // The User type doesn't have a dateOfBirth field yet.
-    // Use avatarType as a proxy: grandma/grandpa → 65+; boy/girl → 18.
-    // Otherwise fall back to a conservative 40 (mid-life, non-zero risk tier).
+    // Use actual dateOfBirth when available (added to User type Feb 2026)
+    if (user.dateOfBirth instanceof Date) {
+      const now = new Date();
+      let age = now.getFullYear() - user.dateOfBirth.getFullYear();
+      const monthDiff = now.getMonth() - user.dateOfBirth.getMonth();
+      if (
+        monthDiff < 0 ||
+        (monthDiff === 0 && now.getDate() < user.dateOfBirth.getDate())
+      ) {
+        age -= 1; // birthday hasn't occurred yet this year
+      }
+      if (age > 0 && age < 130) return age; // sanity guard
+    }
+
+    // Fallback: use avatarType as a rough age-group proxy
     const avatar = user.avatarType;
     if (avatar === "grandma" || avatar === "grandpa") return 68;
     if (avatar === "boy" || avatar === "girl") return 16;
@@ -582,10 +598,26 @@ class RiskAssessmentService {
     return recommendations[id];
   }
 
-  private getFamilyMedicalHistory(_user: User): MedicalHistory[] {
-    // This would need to be implemented to get family member medical history
-    // For now, return empty array
-    return [];
+  private async getFamilyMedicalHistory(user: User): Promise<MedicalHistory[]> {
+    if (!user.familyId) return [];
+    try {
+      const members = await userService.getFamilyMembers(user.familyId);
+      // Exclude the user's own records — those are already in personalmedicalHistory
+      const otherMembers = members.filter((m) => m.id !== user.id);
+      if (otherMembers.length === 0) return [];
+
+      const histories = await Promise.allSettled(
+        otherMembers.map((member) =>
+          medicalHistoryService.getUserMedicalHistory(member.id).catch(() => [] as MedicalHistory[])
+        )
+      );
+
+      return histories.flatMap((result) =>
+        result.status === "fulfilled" ? result.value : []
+      );
+    } catch {
+      return [];
+    }
   }
 
   private assessFamilyHistoryRisks(

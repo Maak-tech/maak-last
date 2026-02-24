@@ -29,6 +29,8 @@ export type User = {
   avatar?: string;
   avatarType?: AvatarType;
   gender?: "male" | "female" | "other";
+  /** Date of birth — used for accurate age-based risk assessment. Optional for backwards compatibility. */
+  dateOfBirth?: Date;
   familyId?: string;
   role: "admin" | "member" | "caregiver";
   createdAt: Date;
