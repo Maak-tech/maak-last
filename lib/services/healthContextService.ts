@@ -488,17 +488,6 @@ class HealthContextService {
           return null;
         }
       })(),
-      // Recovery Score — trajectory/momentum signal (fire-and-forget, never blocks context)
-      (async () => {
-        try {
-          const { recoveryScoreService } = await import(
-            "./recoveryScoreService"
-          );
-          return await recoveryScoreService.calculateRecoveryScore(uid);
-        } catch {
-          return null;
-        }
-      })(),
     ]);
 
     const [
@@ -516,7 +505,6 @@ class HealthContextService {
       labResultsResult,
       symptomPatternsResult,
       riskAssessmentResult,
-      recoveryScoreResult,
     ] = results;
 
     // Process medications
@@ -770,23 +758,6 @@ class HealthContextService {
                 condition: c.condition,
                 riskLevel: c.riskLevel,
               })),
-          }
-        : undefined;
-
-    // Process Recovery Score result
-    const recoveryScoreData: HealthContext["recoveryScore"] =
-      recoveryScoreResult?.status === "fulfilled" &&
-      recoveryScoreResult.value !== null &&
-      !recoveryScoreResult.value.insufficientData
-        ? {
-            score: recoveryScoreResult.value.score,
-            state: recoveryScoreResult.value.state,
-            primaryInsight: isArabic
-              ? recoveryScoreResult.value.primaryInsight.ar
-              : recoveryScoreResult.value.primaryInsight.en,
-            weakestFactor: recoveryScoreResult.value.breakdown.weakestFactor,
-            dataConfidence: recoveryScoreResult.value.dataConfidence,
-            insufficientData: recoveryScoreResult.value.insufficientData,
           }
         : undefined;
 
@@ -1162,7 +1133,6 @@ class HealthContextService {
       labResults,
       symptomPatterns,
       riskAssessment,
-      recoveryScore: recoveryScoreData,
       recentAlerts,
       vitalSigns: latestVitals,
       periodTracking,

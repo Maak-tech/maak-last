@@ -125,7 +125,7 @@ export default function HealthInsightsScreen() {
             contentPosition="top"
             curve="home"
             height={280}
-            variant="teal"
+            variant="gold"
           >
             <View
               style={[

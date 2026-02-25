@@ -478,8 +478,8 @@ export default function AnalyticsScreen() {
       pointerEvents="box-none"
       style={styles.container as ViewStyle}
     >
-      <WavyBackground contentPosition="top" curve="home" height={180} variant="light">
-        <View style={[styles.headerContent as ViewStyle, { paddingTop: insets.top + 12 }]}>
+      <WavyBackground contentPosition="top" curve="home" height={200} variant="light">
+        <View style={[styles.headerContent as ViewStyle, { paddingTop: insets.top + 28 }]}>
           <View
             style={[
               styles.headerRow,
