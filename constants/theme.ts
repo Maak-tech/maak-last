@@ -1,22 +1,22 @@
 export const Colors = {
-  // Primary Colors (Maak Teal)
+  // Primary Colors (Maak Gold)
   primary: {
-    main: "#003543", // Maak teal primary
+    main: "#EB9C0C", // Maak gold primary
+    light: "#F1D8A3", // Soft gold for highlights
+    dark: "#D68A0A", // Darker gold
+    50: "#FFF9EF", // Warm background tint
+    100: "#FDF1D8", // Light gold tint
+    200: "#F1D8A3", // Medium light gold tint
+  },
+
+  // Secondary Colors (Maak Teal — accent)
+  secondary: {
+    main: "#003543", // Maak teal accent
     light: "#00667A", // Lighter teal for highlights
     dark: "#03303C", // Darker teal
     50: "#F0FAFB", // Very light teal tint
     100: "#E6F7F9", // Light teal tint
     200: "#D4F1F4", // Medium light teal tint
-  },
-
-  // Secondary Colors (Maak Gold)
-  secondary: {
-    main: "#EB9C0C", // Maak gold accent
-    light: "#F1D8A3", // Soft gold
-    dark: "#D68A0A", // Darker gold
-    50: "#FFF9EF", // Warm background tint
-    100: "#FDF1D8", // Light gold tint
-    200: "#F1D8A3", // Medium light gold tint
   },
 
   // Accent Colors
@@ -44,7 +44,7 @@ export const Colors = {
 
   // Semantic Colors
   background: {
-    primary: "#F9FDFE", // Main app background
+    primary: "#FFFDF5", // Main app background (warm gold tint)
     secondary: "#FFFFFF", // Card background
     tertiary: "#FFF9EF", // Warm section background
   },

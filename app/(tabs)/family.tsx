@@ -3095,7 +3095,7 @@ export default function FamilyScreen() {
             },
           ]}
         >
-          <WavyBackground curve="home" height={240} variant="teal">
+          <WavyBackground curve="home" height={240} variant="gold">
             <View
               style={[
                 styles.familyHeader,

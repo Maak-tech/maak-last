@@ -176,6 +176,26 @@ export const FEATURES = {
     description:
       "AI-powered symptom pattern recognition and differential suggestions",
   },
+  PATTERN_INSIGHTS: {
+    id: "pattern_insights",
+    name: "Pattern Insights",
+    accessLevel: FeatureAccessLevel.PREMIUM_INDIVIDUAL,
+    description:
+      "ML-powered temporal, vital-trend, and wearable pattern detection",
+  },
+  RECOVERY_SCORE: {
+    id: "recovery_score",
+    name: "Recovery Score",
+    accessLevel: FeatureAccessLevel.PREMIUM_INDIVIDUAL,
+    description:
+      "Clinically-grounded body recovery trajectory across HRV, sleep, and vitals",
+  },
+  PERSONALISED_INSIGHTS: {
+    id: "personalised_insights",
+    name: "Personalised Health Insights",
+    accessLevel: FeatureAccessLevel.PREMIUM_INDIVIDUAL,
+    description: "AI-generated personalised baseline monitoring and insights",
+  },
 } as const;
 
 export type FeatureId = keyof typeof FEATURES;

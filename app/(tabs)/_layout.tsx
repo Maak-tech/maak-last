@@ -2,7 +2,7 @@ import { Tabs } from "expo-router";
 import {
   Activity,
   Home,
-  MessageCircle,
+  Sparkles,
   User,
   Users,
 } from "lucide-react-native";
@@ -68,7 +68,7 @@ export default function TabLayout() {
         options={{
           title: getText("zeina"),
           tabBarIcon: ({ size, color }: { size?: number; color: string }) => (
-            <MessageCircle color={color} size={size || 24} />
+            <Sparkles color={color} size={size || 24} />
           ),
         }}
       />

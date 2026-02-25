@@ -4,7 +4,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import {
   Activity,
   Home,
-  MessageCircle,
+  Sparkles,
   User,
   Users,
 } from "lucide-react-native";
@@ -41,7 +41,7 @@ const getTabConfig = (
     key: "zeina",
     label: getText("zeina", "Zeina"),
     icon: (color: string, size: number) => (
-      <MessageCircle color={color} size={size} />
+      <Sparkles color={color} size={size} />
     ),
   },
   family: {

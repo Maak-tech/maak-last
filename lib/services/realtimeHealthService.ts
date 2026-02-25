@@ -286,17 +286,17 @@ class RealtimeHealthService {
 
     const setupListener = () => {
       // Subscribe to alerts that are trend-related
-      // Limit to last 7 days to reduce reads
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      // Limit to last 24 hours (was 7 days) to reduce Firestore reads
+      const twentyFourHoursAgo = new Date();
+      twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
 
       const q = query(
         collection(db, "alerts"),
         where("userId", "==", userId),
         where("resolved", "==", false),
-        where("timestamp", ">=", Timestamp.fromDate(sevenDaysAgo)),
+        where("timestamp", ">=", Timestamp.fromDate(twentyFourHoursAgo)),
         orderBy("timestamp", "desc"),
-        limit(30)
+        limit(20)
       );
 
       const unsubscribe = onSnapshot(
@@ -541,16 +541,16 @@ class RealtimeHealthService {
     }
 
     const setupListener = () => {
-      // Filter to last 7 days to reduce reads
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      // Filter to last 24 hours (was 7 days) to reduce Firestore reads
+      const twentyFourHoursAgo = new Date();
+      twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
 
       const q = query(
         collection(db, "alerts"),
         where("userId", "==", userId),
-        where("timestamp", ">=", Timestamp.fromDate(sevenDaysAgo)),
+        where("timestamp", ">=", Timestamp.fromDate(twentyFourHoursAgo)),
         orderBy("timestamp", "desc"),
-        limit(30) // Reduced from 50 to 30
+        limit(20)
       );
 
       const unsubscribe = onSnapshot(

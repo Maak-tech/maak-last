@@ -35,9 +35,9 @@ const WEB_VARIANT_COLORS: Record<
     accent: "#F5A623",
   },
   light: {
-    primary: "#F0FAFB",
-    secondary: "#E6F7F9",
-    accent: "#D4F1F4",
+    primary: "#FFF9EF",
+    secondary: "#FDF1D8",
+    accent: "#F1D8A3",
   },
 };
 

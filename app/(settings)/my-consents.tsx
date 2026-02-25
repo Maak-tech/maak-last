@@ -88,7 +88,7 @@ function ConsentCard({
         padding: 16,
         marginBottom: 12,
         borderLeftWidth: 4,
-        borderLeftColor: isActive ? "#22C55E" : "#9CA3AF",
+        borderLeftColor: isActive ? "#EB9C0C" : "#9CA3AF",
       }}
     >
       {/* Header row */}
@@ -128,17 +128,17 @@ function ConsentCard({
             paddingHorizontal: 10,
             paddingVertical: 4,
             borderRadius: 12,
-            backgroundColor: isActive ? "#DCFCE7" : "#F1F5F9",
+            backgroundColor: isActive ? "#FFF9EF" : "#F1F5F9",
           }}
         >
           {isActive ? (
-            <CheckCircle2 color="#16A34A" size={13} />
+            <CheckCircle2 color="#EB9C0C" size={13} />
           ) : (
             <XCircle color="#9CA3AF" size={13} />
           )}
           <Caption
             style={{
-              color: isActive ? "#16A34A" : "#9CA3AF",
+              color: isActive ? "#D68A0A" : "#9CA3AF",
               fontWeight: "600",
             }}
           >
@@ -161,16 +161,18 @@ function ConsentCard({
             key={s}
             style={{
               backgroundColor: isActive
-                ? "#EFF6FF"
+                ? "#FFF9EF"
                 : theme.colors.background.primary,
               borderRadius: 6,
               paddingHorizontal: 8,
               paddingVertical: 3,
+              borderWidth: 1,
+              borderColor: isActive ? "#EB9C0C" : theme.colors.border.light,
             }}
           >
             <Caption
               style={{
-                color: isActive ? "#2563EB" : theme.colors.text.secondary,
+                color: isActive ? "#D68A0A" : theme.colors.text.secondary,
               }}
             >
               {SCOPE_LABELS[s] ?? s}
@@ -339,46 +341,51 @@ export default function MyConsentsScreen() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <WavyBackground>
-      {/* Header */}
-      <View
-        style={{
-          flexDirection: isRTL ? "row-reverse" : "row",
-          alignItems: "center",
-          paddingTop: 56,
-          paddingHorizontal: 20,
-          paddingBottom: 12,
-          gap: 12,
-        }}
+    <View style={{ flex: 1, backgroundColor: theme.colors.background.primary }}>
+      {/* Wavy Header */}
+      <WavyBackground
+        contentPosition="top"
+        curve="home"
+        height={160}
+        variant="gold"
       >
-        <TouchableOpacity
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          onPress={() => navigation.goBack()}
+        <View
+          style={{
+            flexDirection: isRTL ? "row-reverse" : "row",
+            alignItems: "center",
+            paddingTop: 56,
+            paddingHorizontal: 20,
+            paddingBottom: 16,
+            gap: 12,
+          }}
         >
-          <ChevronLeft color={theme.colors.text.primary} size={24} />
-        </TouchableOpacity>
-        <TypographyText
-          style={getTextStyle(
-            theme,
-            "heading",
-            "bold",
-            theme.colors.text.primary
-          )}
-        >
-          Data Access
-        </TypographyText>
-        <View style={{ flex: 1 }} />
-        <TouchableOpacity
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          onPress={() => load(true)}
-        >
-          <RefreshCw
-            color={theme.colors.text.secondary}
-            size={18}
-            style={refreshing ? { opacity: 0.4 } : undefined}
-          />
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={() => navigation.goBack()}
+          >
+            <ChevronLeft color="#FFFFFF" size={24} />
+          </TouchableOpacity>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Shield color="#FFFFFF" size={20} />
+            <TypographyText
+              style={getTextStyle(theme, "heading", "bold", "#FFFFFF")}
+            >
+              Data Access
+            </TypographyText>
+          </View>
+          <View style={{ flex: 1 }} />
+          <TouchableOpacity
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={() => load(true)}
+          >
+            <RefreshCw
+              color="rgba(255,255,255,0.8)"
+              size={18}
+              style={refreshing ? { opacity: 0.4 } : undefined}
+            />
+          </TouchableOpacity>
+        </View>
+      </WavyBackground>
 
       <ScrollView
         contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
@@ -394,22 +401,24 @@ export default function MyConsentsScreen() {
         {!loading && consents.length > 0 ? (
           <View
             style={{
-              backgroundColor: activeCount > 0 ? "#EFF6FF" : "#F1F5F9",
+              backgroundColor: activeCount > 0 ? "#FFF9EF" : "#F1F5F9",
               borderRadius: 12,
               padding: 14,
               marginBottom: 20,
               flexDirection: "row",
               alignItems: "center",
               gap: 10,
+              borderLeftWidth: 3,
+              borderLeftColor: activeCount > 0 ? "#EB9C0C" : "#9CA3AF",
             }}
           >
             <AlertCircle
-              color={activeCount > 0 ? "#2563EB" : "#64748B"}
+              color={activeCount > 0 ? "#EB9C0C" : "#64748B"}
               size={18}
             />
             <Caption
               style={{
-                color: activeCount > 0 ? "#1D4ED8" : "#64748B",
+                color: activeCount > 0 ? "#D68A0A" : "#64748B",
                 flex: 1,
               }}
             >
@@ -438,7 +447,7 @@ export default function MyConsentsScreen() {
 
         {loading ? (
           <ActivityIndicator
-            color={theme.colors.text.primary}
+            color={theme.colors.primary.main}
             style={{ marginTop: 48 }}
           />
         ) : consents.length === 0 ? (
@@ -470,13 +479,15 @@ export default function MyConsentsScreen() {
         {!loading && (
           <View
             style={{
-              backgroundColor: "#F0FDF4",
+              backgroundColor: "#F0FAFB",
               borderRadius: 10,
               padding: 14,
               marginTop: 8,
+              borderLeftWidth: 3,
+              borderLeftColor: "#003543",
             }}
           >
-            <Caption style={{ color: "#166534" }}>
+            <Caption style={{ color: "#003543" }}>
               Revoking access is immediate and permanent. Organizations retain
               records they already generated per their data retention policy.
               Your Maak data is never sold or shared without explicit consent.
@@ -484,6 +495,6 @@ export default function MyConsentsScreen() {
           </View>
         )}
       </ScrollView>
-    </WavyBackground>
+    </View>
   );
 }

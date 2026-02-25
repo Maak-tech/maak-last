@@ -1382,7 +1382,7 @@ export default function MedicationsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.figmaMedicationHeaderWrap}>
-          <WavyBackground curve="home" height={160} variant="teal">
+          <WavyBackground curve="home" height={200} variant="teal">
             <View style={styles.figmaMedicationHeaderContent}>
               <View style={styles.figmaMedicationHeaderRow}>
                 <TouchableOpacity
@@ -2404,7 +2404,7 @@ const styles = StyleSheet.create({
   },
   figmaMedicationHeaderContent: {
     paddingHorizontal: 24,
-    paddingTop: 56,
+    paddingTop: 72,
     paddingBottom: 12,
   },
   figmaMedicationHeaderRow: {

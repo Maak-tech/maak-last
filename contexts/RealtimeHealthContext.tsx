@@ -258,7 +258,8 @@ export const RealtimeHealthProvider: React.FC<{
     onFamilyMemberUpdate: handleFamilyUpdate,
     onAlertCreated: handleAlertCreated,
     onAlertResolved: handleAlertResolved,
-    onVitalAdded: handleVitalAdded,
+    // onVitalAdded disabled — vitals listener consumes high Firestore quota
+    // and vitalAddedEvent is not consumed by any screen. Re-enable if needed.
     onError: handleError,
     enabled: !!user?.id,
   });

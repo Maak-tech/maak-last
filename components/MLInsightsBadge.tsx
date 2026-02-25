@@ -10,6 +10,7 @@
  */
 
 import { useRouter } from "expo-router";
+import { Bell } from "lucide-react-native";
 import { useEffect, useRef } from "react";
 import { Animated, TouchableOpacity, View, type ViewStyle } from "react-native";
 import { Caption } from "@/components/design-system/Typography";
@@ -59,17 +60,30 @@ export default function MLInsightsBadge({ userId, onPress }: Props) {
     touchable: {
       alignSelf: "center" as const,
     } as ViewStyle,
-    badge: {
-      minWidth: 20,
-      height: 20,
-      borderRadius: 10,
-      paddingHorizontal: 5,
+    bellWrap: {
+      position: "relative" as const,
+      width: 28,
+      height: 28,
       alignItems: "center" as const,
       justifyContent: "center" as const,
     } as ViewStyle,
+    redDot: {
+      position: "absolute" as const,
+      top: 0,
+      right: 0,
+      minWidth: 15,
+      height: 15,
+      borderRadius: 8,
+      paddingHorizontal: 3,
+      backgroundColor: "#EF4444",
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+      borderWidth: 1.5,
+      borderColor: t.colors.background.primary,
+    } as ViewStyle,
   }))(theme);
 
-  const bgColor = hasCritical ? "#EF4444" : theme.colors.primary.main;
+  const bellColor = hasCritical ? "#EF4444" : theme.colors.text.secondary;
 
   return (
     <TouchableOpacity
@@ -78,10 +92,13 @@ export default function MLInsightsBadge({ userId, onPress }: Props) {
       style={styles.touchable}
     >
       <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-        <View style={[styles.badge, { backgroundColor: bgColor }]}>
-          <Caption style={{ color: "#fff", fontSize: 10, fontWeight: "700" }}>
-            {badgeCount > 99 ? "99+" : badgeCount}
-          </Caption>
+        <View style={styles.bellWrap}>
+          <Bell color={bellColor} size={20} />
+          <View style={styles.redDot}>
+            <Caption style={{ color: "#fff", fontSize: 9, fontWeight: "700", lineHeight: 13 }}>
+              {badgeCount > 99 ? "99+" : badgeCount}
+            </Caption>
+          </View>
         </View>
       </Animated.View>
     </TouchableOpacity>

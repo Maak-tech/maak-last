@@ -432,7 +432,7 @@ export default function TrackScreen() {
           backgroundColor: "#FFFFFF",
           borderRadius: 16,
           padding: 16,
-          marginBottom: 16,
+          marginBottom: 44,
           flexDirection: "row" as const,
           alignItems: "center" as const,
           gap: 12,
@@ -1112,7 +1112,7 @@ export default function TrackScreen() {
             contentPosition="top"
             curve="home"
             height={280}
-            variant="teal"
+            variant="gold"
           >
             <View
               style={[
@@ -1177,6 +1177,49 @@ export default function TrackScreen() {
             </View>
           ) : (
             <>
+              {/* Analytics & Insights entry card - visible to all, gated content inside analytics screen */}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() =>
+                  router.push(
+                    "/(tabs)/analytics" as Parameters<typeof router.push>[0]
+                  )
+                }
+                style={[
+                  styles.analyticsBox as ViewStyle,
+                  isRTL && styles.analyticsBoxRTL,
+                ]}
+              >
+                <View style={styles.analyticsIconWrap as ViewStyle}>
+                  <BarChart2 color="#0D9488" size={22} />
+                </View>
+                <View style={styles.analyticsTextWrap as ViewStyle}>
+                  <Text
+                    style={[
+                      styles.analyticsTitle,
+                      isRTL && styles.analyticsTitleRTL,
+                    ]}
+                  >
+                    {isRTL ? "التحليلات والرؤى" : "Analytics & Insights"}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.analyticsSubtitle,
+                      isRTL && styles.analyticsSubtitleRTL,
+                    ]}
+                  >
+                    {isRTL
+                      ? "الرسوم البيانية والاتجاهات والتنبؤات"
+                      : "Charts, trends, and AI predictions"}
+                  </Text>
+                </View>
+                <ChevronRight
+                  color="#94A3B8"
+                  size={18}
+                  style={{ transform: [{ scaleX: isRTL ? -1 : 1 }] }}
+                />
+              </TouchableOpacity>
+
               {loading ? (
                 <View style={styles.inlineLoadingContainer as ViewStyle}>
                   <ActivityIndicator
@@ -1276,43 +1319,6 @@ export default function TrackScreen() {
                   </View>
                 </View>
               ) : null}
-
-              {/* Analytics & Insights entry card — visible to all, gated content inside analytics screen */}
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => router.push("/(tabs)/analytics" as Parameters<typeof router.push>[0])}
-                style={[
-                  styles.analyticsBox as ViewStyle,
-                  isRTL && styles.analyticsBoxRTL,
-                ]}
-              >
-                <View style={styles.analyticsIconWrap as ViewStyle}>
-                  <BarChart2 color="#0D9488" size={22} />
-                </View>
-                <View style={styles.analyticsTextWrap as ViewStyle}>
-                  <Text
-                    style={[
-                      styles.analyticsTitle,
-                      isRTL && styles.analyticsTitleRTL,
-                    ]}
-                  >
-                    {isRTL ? "التحليلات والرؤى" : "Analytics & Insights"}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.analyticsSubtitle,
-                      isRTL && styles.analyticsSubtitleRTL,
-                    ]}
-                  >
-                    {isRTL ? "الرسوم البيانية والاتجاهات والتنبؤات" : "Charts, trends, and AI predictions"}
-                  </Text>
-                </View>
-                <ChevronRight
-                  color="#94A3B8"
-                  size={18}
-                  style={{ transform: [{ scaleX: isRTL ? -1 : 1 }] }}
-                />
-              </TouchableOpacity>
 
               <View
                 style={[

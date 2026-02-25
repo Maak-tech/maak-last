@@ -14,6 +14,7 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
   Activity,
   AlertCircle,
+  Bell,
   Check,
   ChevronRight,
   Heart,
@@ -194,7 +195,7 @@ export default function DashboardScreen() {
           paddingTop: 10,
         },
         dateText: {
-          ...getTextStyle(theme, "body", "bold", theme.colors.primary.main),
+          ...getTextStyle(theme, "body", "bold", theme.colors.secondary.main),
           fontSize: 18,
           lineHeight: 28,
         },
@@ -236,22 +237,24 @@ export default function DashboardScreen() {
           marginTop: theme.spacing.xl + theme.spacing.xl,
         },
         alertBadgeButton: {
-          width: 44,
-          height: 44,
-          borderRadius: 22,
-          backgroundColor: theme.colors.secondary.main,
+          width: 36,
+          height: 36,
           alignItems: "center" as const,
           justifyContent: "center" as const,
-          ...theme.shadows.md,
         },
-        alertBadgeText: {
-          ...getTextStyle(theme, "body", "bold", theme.colors.neutral.white),
-          fontSize: 16,
-          lineHeight: 20,
-          paddingTop: isRTL ? 2 : 0,
-          ...(isRTL && Platform.OS === "ios"
-            ? { transform: [{ translateY: 1 }] }
-            : {}),
+        alertBadgeDot: {
+          position: "absolute" as const,
+          top: 0,
+          right: 0,
+          minWidth: 16,
+          height: 16,
+          borderRadius: 8,
+          paddingHorizontal: 3,
+          backgroundColor: "#EF4444",
+          alignItems: "center" as const,
+          justifyContent: "center" as const,
+          borderWidth: 1.5,
+          borderColor: theme.colors.primary.main,
         },
         statsSection: {
           marginTop: -theme.spacing.lg,
@@ -389,7 +392,7 @@ export default function DashboardScreen() {
             theme,
             "subheading",
             "bold",
-            theme.colors.primary.main
+            theme.colors.secondary.main
           ),
           marginBottom: theme.spacing.base,
         },
@@ -408,7 +411,7 @@ export default function DashboardScreen() {
           gap: 4,
         },
         viewAllText: {
-          ...getTextStyle(theme, "body", "medium", theme.colors.primary.main),
+          ...getTextStyle(theme, "body", "medium", theme.colors.secondary.main),
           fontSize: 14,
         },
         sectionHeaderRow: {
@@ -422,7 +425,7 @@ export default function DashboardScreen() {
             theme,
             "subheading",
             "bold",
-            theme.colors.primary.main
+            theme.colors.secondary.main
           ),
         },
         sectionTitlePrimaryRTL: {
@@ -1819,7 +1822,7 @@ export default function DashboardScreen() {
                 <Text style={[styles.viewAllText, isRTL && styles.rtlText]}>
                   {isRTL ? "عرض الكل" : "View All"}
                 </Text>
-                <ChevronRight color={theme.colors.primary.main} size={16} />
+                <ChevronRight color={theme.colors.secondary.main} size={16} />
               </TouchableOpacity>
             </View>
 
@@ -1885,6 +1888,7 @@ export default function DashboardScreen() {
                         onPress={() => handleMarkMedicationTaken(medication)}
                         style={[
                           styles.medicationAction,
+                          allTaken && { backgroundColor: theme.colors.accent.success },
                           markingMedication === medication.id &&
                             styles.medicationActionDisabled,
                         ]}
@@ -1964,7 +1968,7 @@ export default function DashboardScreen() {
                 <Text style={[styles.viewAllText, isRTL && styles.rtlText]}>
                   {isRTL ? "عرض الكل" : "View All"}
                 </Text>
-                <ChevronRight color={theme.colors.primary.main} size={16} />
+                <ChevronRight color={theme.colors.secondary.main} size={16} />
               </TouchableOpacity>
             </View>
 
@@ -2221,7 +2225,7 @@ export default function DashboardScreen() {
               contentPosition="top"
               curve="home"
               height={228}
-              variant="teal"
+              variant="gold"
             >
               <View
                 style={[
@@ -2286,20 +2290,28 @@ export default function DashboardScreen() {
                       onPress={handleAlertsBadgePress}
                       style={styles.alertBadgeButton as ViewStyle}
                     >
-                      <Text
-                        color={theme.colors.neutral.white}
-                        style={styles.alertBadgeText as StyleProp<TextStyle>}
-                        weight="bold"
-                      >
-                        {alertsCount}
-                      </Text>
+                      <Bell color={theme.colors.neutral.white} size={22} />
+                      {alertsCount > 0 && (
+                        <View style={styles.alertBadgeDot as ViewStyle}>
+                          <Text
+                            style={{
+                              color: "#fff",
+                              fontSize: 9,
+                              fontWeight: "700",
+                              lineHeight: 13,
+                            }}
+                          >
+                            {alertsCount > 99 ? "99+" : alertsCount}
+                          </Text>
+                        </View>
+                      )}
                     </TouchableOpacity>
                   </View>
                 </View>
 
                 <View style={styles.headerDateRow as ViewStyle}>
                   <Text
-                    color={theme.colors.primary.main}
+                    color={theme.colors.secondary.main}
                     numberOfLines={isRTL ? 2 : 1}
                     size="medium"
                     style={[styles.dateText, isRTL && styles.rtlText]}

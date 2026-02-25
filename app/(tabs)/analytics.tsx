@@ -19,6 +19,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AIInsightsDashboard } from "@/app/components/AIInsightsDashboard";
 import CorrelationChart from "@/app/components/CorrelationChart";
 import HealthChart from "@/app/components/HealthChart";
@@ -32,6 +33,7 @@ import RecoveryScoreCard from "@/components/RecoveryScoreCard";
 import PatternInsightsCard from "@/components/PatternInsightsCard";
 import PersonalisedHealthInsightsCard from "@/components/PersonalisedHealthInsightsCard";
 import SymptomAnalysisCard from "@/components/SymptomAnalysisCard";
+import { FeatureGate } from "@/components/FeatureGate";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAIInsights } from "@/hooks/useAIInsights";
 import { chartsService } from "@/lib/services/chartsService";
@@ -47,6 +49,7 @@ export default function AnalyticsScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const isRTL = i18n.language === "ar";
+  const insets = useSafeAreaInsets();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -74,14 +77,8 @@ export default function AnalyticsScreen() {
           flex: 1,
           backgroundColor: "transparent",
         },
-        headerWrap: {
-          marginHorizontal: -20,
-          marginTop: -20,
-          marginBottom: 12,
-        },
         headerContent: {
           paddingHorizontal: 24,
-          paddingTop: 20,
           paddingBottom: 16,
         },
         headerRow: {
@@ -462,7 +459,7 @@ export default function AnalyticsScreen() {
   if (!user) {
     return (
       <GradientScreen
-        edges={["top"]}
+        edges={[]}
         pointerEvents="box-none"
         style={styles.container as ViewStyle}
       >
@@ -477,61 +474,59 @@ export default function AnalyticsScreen() {
 
   return (
     <GradientScreen
-      edges={["top"]}
+      edges={[]}
       pointerEvents="box-none"
       style={styles.container as ViewStyle}
     >
-      <View style={styles.headerWrap as ViewStyle}>
-        <WavyBackground curve="home" height={180} variant="light">
-          <View style={styles.headerContent as ViewStyle}>
-            <View
-              style={[
-                styles.headerRow,
-                isRTL && { flexDirection: "row-reverse" as const },
-              ]}
+      <WavyBackground contentPosition="top" curve="home" height={180} variant="light">
+        <View style={[styles.headerContent as ViewStyle, { paddingTop: insets.top + 12 }]}>
+          <View
+            style={[
+              styles.headerRow,
+              isRTL && { flexDirection: "row-reverse" as const },
+            ]}
+          >
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={styles.backButton as ViewStyle}
             >
-              <TouchableOpacity
-                onPress={() => router.back()}
-                style={styles.backButton as ViewStyle}
+              <ArrowLeft
+                color="#003543"
+                size={20}
+                style={
+                  isRTL ? { transform: [{ rotate: "180deg" }] } : undefined
+                }
+              />
+            </TouchableOpacity>
+            <View style={styles.headerTitle as ViewStyle}>
+              <View
+                style={[
+                  styles.headerTitleRow,
+                  isRTL && { flexDirection: "row-reverse" as const },
+                ]}
               >
-                <ArrowLeft
-                  color="#003543"
-                  size={20}
-                  style={
-                    isRTL ? { transform: [{ rotate: "180deg" }] } : undefined
-                  }
-                />
-              </TouchableOpacity>
-              <View style={styles.headerTitle as ViewStyle}>
-                <View
-                  style={[
-                    styles.headerTitleRow,
-                    isRTL && { flexDirection: "row-reverse" as const },
-                  ]}
-                >
-                  <Brain color="#EB9C0C" size={20} />
-                  <Text
-                    style={[
-                      styles.headerTitleText as TextStyle,
-                      { color: "#003543" },
-                    ]}
-                  >
-                    {isRTL ? "التحليلات الصحية والاتجاهات" : "Analytics"}
-                  </Text>
-                </View>
+                <Brain color="#EB9C0C" size={20} />
                 <Text
                   style={[
-                    styles.headerSubtitle as TextStyle,
-                    isRTL && styles.rtlText,
+                    styles.headerTitleText as TextStyle,
+                    { color: "#003543" },
                   ]}
                 >
-                  {t("trendsAndInsights", "Trends and insights")}
+                  {isRTL ? "التحليلات الصحية والاتجاهات" : "Analytics"}
                 </Text>
               </View>
+              <Text
+                style={[
+                  styles.headerSubtitle as TextStyle,
+                  isRTL && styles.rtlText,
+                ]}
+              >
+                {t("trendsAndInsights", "Trends and insights")}
+              </Text>
             </View>
           </View>
-        </WavyBackground>
-      </View>
+        </View>
+      </WavyBackground>
 
       {loading ? (
         <View style={styles.emptyContainer as ViewStyle}>
@@ -581,7 +576,9 @@ export default function AnalyticsScreen() {
           </View>
           {/* Pattern Insights — ML-powered temporal, vital-trend, and wearable patterns */}
           <View style={styles.section as ViewStyle}>
-            <PatternInsightsCard userId={user?.id} />
+            <FeatureGate featureId="PATTERN_INSIGHTS" showUpgradePrompt>
+              <PatternInsightsCard userId={user?.id} />
+            </FeatureGate>
           </View>
 
           {/* Vital Signs Charts */}
@@ -678,16 +675,16 @@ export default function AnalyticsScreen() {
                       <HealthChart
                         data={symptomComparisonData.current}
                         title={isRTL ? "الفترة الحالية" : "Current Period"}
-                        yAxisLabel="Severity"
-                        yAxisSuffix=""
+                        yAxisLabel=""
+                        yAxisSuffix="/5"
                       />
                     </View>
                     <View style={styles.chartCard as ViewStyle}>
                       <HealthChart
                         data={symptomComparisonData.previous}
                         title={isRTL ? "الفترة السابقة" : "Previous Period"}
-                        yAxisLabel="Severity"
-                        yAxisSuffix=""
+                        yAxisLabel=""
+                        yAxisSuffix="/5"
                       />
                     </View>
                     <View style={styles.comparisonNote as ViewStyle}>
@@ -712,14 +709,14 @@ export default function AnalyticsScreen() {
                   </>
                 ) : (
                   <View style={styles.chartCard as ViewStyle}>
-                    <HealthChart
-                      data={symptomChartData}
-                      title=""
-                      yAxisLabel="Severity"
-                      yAxisSuffix=""
-                    />
-                  </View>
-                )}
+                  <HealthChart
+                    data={symptomChartData}
+                    title=""
+                    yAxisLabel=""
+                    yAxisSuffix="/5"
+                  />
+                </View>
+              )}
               </View>
             </View>
           )}
@@ -736,7 +733,8 @@ export default function AnalyticsScreen() {
                 <TrendPredictionChart
                   prediction={symptomTrend}
                   title=""
-                  yAxisLabel="Severity"
+                  yAxisLabel=""
+                  yAxisSuffix="/5"
                 />
               </View>
             </View>
@@ -799,103 +797,109 @@ export default function AnalyticsScreen() {
 
           {/* Health Score Forecast */}
           <View style={styles.section as ViewStyle}>
-            <HealthScoreForecastCard userId={user?.id} variant="analytics" gated={false} />
+            <HealthScoreForecastCard userId={user?.id} variant="analytics" />
           </View>
 
           {/* Recovery Score — trajectory breakdown */}
           <View style={styles.section as ViewStyle}>
-            <RecoveryScoreCard userId={user?.id} variant="analytics" />
+            <FeatureGate featureId="RECOVERY_SCORE" showUpgradePrompt>
+              <RecoveryScoreCard userId={user?.id} variant="analytics" />
+            </FeatureGate>
           </View>
 
           {/* Lab Insights */}
           <View style={styles.section as ViewStyle}>
-            <LabInsightsCard userId={user?.id} variant="analytics" gated={false} />
+            <LabInsightsCard userId={user?.id} variant="analytics" />
           </View>
 
           {/* Health Risk Assessment — ML-powered */}
           <View style={styles.section as ViewStyle}>
-            <HealthRiskCard userId={user?.id} gated={false} />
+            <HealthRiskCard userId={user?.id} />
           </View>
 
           {/* Symptom Pattern Analysis — ML-powered */}
           <View style={styles.section as ViewStyle}>
-            <SymptomAnalysisCard userId={user?.id} gated={false} />
+            <SymptomAnalysisCard userId={user?.id} />
           </View>
 
-          {/* Personalised Baseline Monitoring — all users */}
+          {/* Personalised Baseline Monitoring */}
           <View style={styles.section as ViewStyle}>
-            <PersonalisedHealthInsightsCard userId={user?.id} />
+            <FeatureGate featureId="PERSONALISED_INSIGHTS" showUpgradePrompt>
+              <PersonalisedHealthInsightsCard userId={user?.id} />
+            </FeatureGate>
           </View>
 
           {/* AI Insights Section */}
           <View style={styles.section as ViewStyle}>
-            <View style={styles.sectionHeader as ViewStyle}>
-              <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-                {isRTL ? "رؤى الذكاء الاصطناعي" : "AI Insights"}
-              </Text>
-              <TouchableOpacity
-                onPress={() => setShowAIInsights(!showAIInsights)}
-                style={[
-                  styles.sectionAction,
-                  isRTL && { flexDirection: "row-reverse" as const },
-                ]}
-              >
-                <Brain
-                  color={showAIInsights ? "#0F766E" : "#94A3B8"}
-                  size={16}
-                />
-                <Text
+            <FeatureGate featureId="HEALTH_INSIGHTS" showUpgradePrompt>
+              <View style={styles.sectionHeader as ViewStyle}>
+                <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+                  {isRTL ? "رؤى الذكاء الاصطناعي" : "AI Insights"}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setShowAIInsights(!showAIInsights)}
                   style={[
-                    styles.sectionActionText,
-                    { color: showAIInsights ? "#0F766E" : "#94A3B8" },
+                    styles.sectionAction,
+                    isRTL && { flexDirection: "row-reverse" as const },
                   ]}
                 >
-                  {isRTL
-                    ? showAIInsights
-                      ? "إخفاء"
-                      : "عرض"
-                    : showAIInsights
-                      ? "Hide"
-                      : "Show"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {Boolean(showAIInsights) && (
-              <View style={styles.aiCard as ViewStyle}>
-                {aiInsights.loading ? (
-                  <View style={styles.aiState as ViewStyle}>
-                    <ActivityIndicator color="#0F766E" size="small" />
-                    <Text style={styles.aiStateText as TextStyle}>
-                      {isRTL ? "تحليل بياناتك..." : "Analyzing your data..."}
-                    </Text>
-                  </View>
-                ) : aiInsights.error ? (
-                  <View>
-                    <Text style={styles.errorText as TextStyle}>
-                      {isRTL
-                        ? "فشل في تحميل الرؤى الذكية"
-                        : "Failed to load AI insights"}
-                    </Text>
-                    <TouchableOpacity
-                      onPress={aiInsights.refresh}
-                      style={styles.primaryButton as ViewStyle}
-                    >
-                      <Text style={styles.primaryButtonText as TextStyle}>
-                        {isRTL ? "إعادة المحاولة" : "Retry"}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <AIInsightsDashboard
-                    compact={true}
-                    onInsightPress={(_insight: unknown) => {
-                      router.push("/profile/health-insights");
-                    }}
+                  <Brain
+                    color={showAIInsights ? "#0F766E" : "#94A3B8"}
+                    size={16}
                   />
-                )}
+                  <Text
+                    style={[
+                      styles.sectionActionText,
+                      { color: showAIInsights ? "#0F766E" : "#94A3B8" },
+                    ]}
+                  >
+                    {isRTL
+                      ? showAIInsights
+                        ? "إخفاء"
+                        : "عرض"
+                      : showAIInsights
+                        ? "Hide"
+                        : "Show"}
+                  </Text>
+                </TouchableOpacity>
               </View>
-            )}
+
+              {Boolean(showAIInsights) && (
+                <View style={styles.aiCard as ViewStyle}>
+                  {aiInsights.loading ? (
+                    <View style={styles.aiState as ViewStyle}>
+                      <ActivityIndicator color="#0F766E" size="small" />
+                      <Text style={styles.aiStateText as TextStyle}>
+                        {isRTL ? "تحليل بياناتك..." : "Analyzing your data..."}
+                      </Text>
+                    </View>
+                  ) : aiInsights.error ? (
+                    <View>
+                      <Text style={styles.errorText as TextStyle}>
+                        {isRTL
+                          ? "فشل في تحميل الرؤى الذكية"
+                          : "Failed to load AI insights"}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={aiInsights.refresh}
+                        style={styles.primaryButton as ViewStyle}
+                      >
+                        <Text style={styles.primaryButtonText as TextStyle}>
+                          {isRTL ? "إعادة المحاولة" : "Retry"}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <AIInsightsDashboard
+                      compact={true}
+                      onInsightPress={(_insight: unknown) => {
+                        router.push("/profile/health-insights");
+                      }}
+                    />
+                  )}
+                </View>
+              )}
+            </FeatureGate>
           </View>
 
           {/* Summary Stats */}
