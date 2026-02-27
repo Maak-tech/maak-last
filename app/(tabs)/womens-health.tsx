@@ -924,7 +924,7 @@ export default function WomensHealthScreen() {
           ? Colors.accent.success
           : phase === "ovulation"
             ? Colors.accent.warning
-            : Colors.primary.main;
+            : "#EC4899";
 
     return {
       dayInCycle,
@@ -1258,7 +1258,7 @@ export default function WomensHealthScreen() {
           <RefreshControl
             onRefresh={handleRefresh}
             refreshing={refreshing}
-            tintColor={Colors.primary.main}
+            tintColor="#EC4899"
           />
         }
       >
@@ -1272,7 +1272,7 @@ export default function WomensHealthScreen() {
             contentPosition="top"
             curve="home"
             height={200 + insets.top}
-            variant="teal"
+            variant="pink"
           >
             <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
               <View
@@ -1319,7 +1319,7 @@ export default function WomensHealthScreen() {
         </View>
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator color={Colors.primary.main} size="large" />
+            <ActivityIndicator color="#EC4899" size="large" />
             <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
               {isRTL ? "جاري التحميل..." : "Loading..."}
             </Text>
@@ -1355,7 +1355,7 @@ export default function WomensHealthScreen() {
                   onPress={handleAddPeriod}
                   style={styles.predictionButton}
                 >
-                  <Plus color={Colors.primary.main} size={20} />
+                  <Plus color="#EC4899" size={20} />
                   <Text
                     style={[
                       styles.predictionButtonText,
@@ -1373,7 +1373,7 @@ export default function WomensHealthScreen() {
               <View style={styles.predictionCard}>
                 <View style={styles.predictionHeader}>
                   <View style={styles.predictionIconContainer}>
-                    <Calendar color={Colors.primary.main} size={28} />
+                    <Calendar color="#EC4899" size={28} />
                   </View>
                   <View style={styles.predictionTitleContainer}>
                     <Text style={styles.predictionTitle}>
@@ -1752,7 +1752,7 @@ export default function WomensHealthScreen() {
                           ]}
                         >
                           <View style={styles.reminderIconContainer}>
-                            <Pill color={Colors.primary.main} size={18} />
+                            <Pill color="#EC4899" size={18} />
                           </View>
                           <View style={styles.reminderTitleContainer}>
                             <Text
@@ -2026,7 +2026,7 @@ export default function WomensHealthScreen() {
             <View style={styles.infoCard}>
               <View style={styles.infoCardHeader}>
                 <View style={styles.infoIconContainer}>
-                  <Calendar color={Colors.primary.main} size={24} />
+                  <Calendar color="#EC4899" size={24} />
                 </View>
                 <Text style={styles.infoCardTitle}>
                   {isRTL ? "التقويم الشهري" : "Monthly Calendar"}
@@ -2195,7 +2195,7 @@ export default function WomensHealthScreen() {
               <View style={styles.infoCard}>
                 <View style={styles.infoCardHeader}>
                   <View style={styles.infoIconContainer}>
-                    <Calendar color={Colors.primary.main} size={24} />
+                    <Calendar color="#EC4899" size={24} />
                   </View>
                   <Text style={styles.infoCardTitle}>
                     {isRTL ? "معلومات الدورة" : "Cycle Information"}
@@ -2260,7 +2260,7 @@ export default function WomensHealthScreen() {
               <View style={styles.infoCard}>
                 <View style={styles.infoCardHeader}>
                   <View style={styles.infoIconContainer}>
-                    <Droplet color={Colors.primary.main} size={24} />
+                    <Droplet color="#EC4899" size={24} />
                   </View>
                   <Text style={styles.infoCardTitle}>
                     {isRTL ? "ارتباطات الأعراض" : "Symptom Correlations"}
@@ -2313,7 +2313,7 @@ export default function WomensHealthScreen() {
                     onPress={handleAddPeriod}
                     style={styles.emptyButton}
                   >
-                    <Plus color={Colors.primary.main} size={20} />
+                    <Plus color="#EC4899" size={20} />
                     <Text style={styles.emptyButtonText}>
                       {isRTL ? "إضافة سجل" : "Add Entry"}
                     </Text>
@@ -2325,7 +2325,7 @@ export default function WomensHealthScreen() {
                     <View style={styles.entryHeader}>
                       <View style={styles.entryDateContainer}>
                         <View style={styles.entryIconContainer}>
-                          <Calendar color={Colors.primary.main} size={20} />
+                          <Calendar color="#EC4899" size={20} />
                         </View>
                         <View>
                           <Text style={styles.entryDate}>
@@ -2423,7 +2423,7 @@ export default function WomensHealthScreen() {
                   onPress={() => openDailyLog(today)}
                   style={styles.dailyLogsAddButton}
                 >
-                  <Plus color={Colors.primary.main} size={18} />
+                  <Plus color="#EC4899" size={18} />
                   <Text style={styles.dailyLogsAddText}>
                     {isRTL ? "اليوم" : "Today"}
                   </Text>
@@ -2441,7 +2441,7 @@ export default function WomensHealthScreen() {
                     onPress={() => openDailyLog(today)}
                     style={styles.emptyButton}
                   >
-                    <Plus color={Colors.primary.main} size={20} />
+                    <Plus color="#EC4899" size={20} />
                     <Text style={styles.emptyButtonText}>
                       {isRTL ? "تسجيل اليوم" : "Log Today"}
                     </Text>
@@ -2453,7 +2453,7 @@ export default function WomensHealthScreen() {
                     <View style={styles.entryHeader}>
                       <View style={styles.entryDateContainer}>
                         <View style={styles.entryIconContainer}>
-                          <Calendar color={Colors.primary.main} size={20} />
+                          <Calendar color="#EC4899" size={20} />
                         </View>
                         <View>
                           <Text style={styles.entryDate}>
@@ -2562,7 +2562,7 @@ export default function WomensHealthScreen() {
       <TouchableOpacity
         accessibilityLabel={isRTL ? "إضافة سجل" : "Add entry"}
         onPress={handleAddPeriod}
-        style={[styles.fabButton, { bottom: insets.bottom + 24 }]}
+        style={[styles.fabButton, { bottom: insets.bottom + 80 }]}
       >
         <Plus color={Colors.text.inverse} size={26} />
       </TouchableOpacity>
@@ -3600,7 +3600,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: Colors.secondary.main,
+    backgroundColor: "#7C3AED",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
@@ -3626,9 +3626,10 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
   },
   predictionCard: {
-    backgroundColor: Colors.primary.main,
+    backgroundColor: "#F06292",
     borderRadius: 20,
     padding: 24,
+    marginTop: -36,
     marginBottom: 24,
     ...Shadows.lg,
   },
@@ -3694,7 +3695,7 @@ const styles = StyleSheet.create({
   },
   countdownContainer: {
     alignItems: "center",
-    backgroundColor: Colors.secondary.main,
+    backgroundColor: "#7C3AED",
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -3864,7 +3865,7 @@ const styles = StyleSheet.create({
   predictionButtonText: {
     fontSize: 16,
     fontFamily: "Inter-SemiBold",
-    color: Colors.primary.main,
+    color: "#EC4899",
   },
   infoCard: {
     backgroundColor: Colors.background.secondary,
@@ -3883,7 +3884,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: Colors.primary[50],
+    backgroundColor: "#F5F3FF",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -3972,13 +3973,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.primary.main,
-    backgroundColor: Colors.primary[50],
+    borderColor: "#EC4899",
+    backgroundColor: "#FDF2F8",
   },
   emptyButtonText: {
     fontSize: 16,
     fontFamily: "Inter-SemiBold",
-    color: Colors.primary.main,
+    color: "#EC4899",
   },
   entryCard: {
     backgroundColor: Colors.background.secondary,
@@ -4003,7 +4004,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.primary[50],
+    backgroundColor: "#F5F3FF",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -4060,12 +4061,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
-    backgroundColor: Colors.secondary[50],
+    backgroundColor: "#F5F3FF",
   },
   symptomTagText: {
     fontSize: 12,
     fontFamily: "Inter-Medium",
-    color: Colors.secondary.dark,
+    color: "#7C3AED",
   },
   entryNotes: {
     fontSize: 14,
@@ -4175,9 +4176,9 @@ const styles = StyleSheet.create({
     opacity: 0.35,
   },
   dayCellSelected: {
-    backgroundColor: Colors.primary[50],
+    backgroundColor: "#FDF2F8",
     borderWidth: 1,
-    borderColor: Colors.primary.main,
+    borderColor: "#EC4899",
   },
   dayCellPeriod: {
     backgroundColor: "rgba(239, 68, 68, 0.14)",
@@ -4204,7 +4205,7 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
   },
   dayTextSelected: {
-    color: Colors.primary.main,
+    color: "#EC4899",
   },
   dayTextHighlighted: {
     color: Colors.text.primary,
@@ -4220,7 +4221,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: Colors.primary.main,
+    backgroundColor: "#EC4899",
     alignItems: "center",
   },
   calendarPrimaryButtonText: {
@@ -4278,8 +4279,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.neutral[50],
   },
   flowOptionSelected: {
-    borderColor: Colors.primary.main,
-    backgroundColor: Colors.primary[50],
+    borderColor: "#EC4899",
+    backgroundColor: "#FDF2F8",
   },
   dailyOptionsGrid: {
     flexDirection: "row",
@@ -4295,8 +4296,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background.secondary,
   },
   dailyOptionChipSelected: {
-    borderColor: Colors.primary.main,
-    backgroundColor: Colors.primary[50],
+    borderColor: "#EC4899",
+    backgroundColor: "#FDF2F8",
   },
   dailyOptionText: {
     fontSize: 13,
@@ -4304,7 +4305,7 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
   },
   dailyOptionTextSelected: {
-    color: Colors.primary.main,
+    color: "#EC4899",
     fontFamily: "Inter-SemiBold",
   },
   flowEmojiLarge: {
@@ -4317,7 +4318,7 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
   },
   flowLabelSelected: {
-    color: Colors.primary.main,
+    color: "#EC4899",
     fontFamily: "Inter-SemiBold",
   },
   symptomsGrid: {
@@ -4334,8 +4335,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background.secondary,
   },
   symptomChipSelected: {
-    borderColor: Colors.primary.main,
-    backgroundColor: Colors.primary[50],
+    borderColor: "#EC4899",
+    backgroundColor: "#FDF2F8",
   },
   symptomText: {
     fontSize: 14,
@@ -4343,7 +4344,7 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
   },
   symptomTextSelected: {
-    color: Colors.primary.main,
+    color: "#EC4899",
     fontFamily: "Inter-SemiBold",
   },
   formInput: {
@@ -4385,7 +4386,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     borderRadius: 12,
-    backgroundColor: Colors.primary.main,
+    backgroundColor: "#EC4899",
     alignItems: "center",
   },
   saveButtonText: {
@@ -4442,7 +4443,7 @@ const styles = StyleSheet.create({
   todayButtonText: {
     fontSize: 14,
     fontFamily: "Inter-SemiBold",
-    color: Colors.primary.main,
+    color: "#EC4899",
   },
   phaseBadge: {
     paddingHorizontal: 10,
@@ -4557,14 +4558,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: Colors.primary[50],
+    backgroundColor: "#F5F3FF",
     borderWidth: 1,
-    borderColor: Colors.primary[100],
+    borderColor: "#DDD6FE",
   },
   insightBadgeText: {
     fontSize: 12,
     fontFamily: "Inter-SemiBold",
-    color: Colors.primary.main,
+    color: "#7C3AED",
   },
   disclaimerText: {
     marginTop: 6,
@@ -4586,14 +4587,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: Colors.primary[50],
+    backgroundColor: "#FDF2F8",
     borderWidth: 1,
-    borderColor: Colors.primary[100],
+    borderColor: "#FBCFE8",
   },
   dailyLogsAddText: {
     fontSize: 12,
     fontFamily: "Inter-SemiBold",
-    color: Colors.primary.main,
+    color: "#EC4899",
   },
   dailyEmptyContainer: {
     paddingVertical: 12,
@@ -4647,8 +4648,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   ratingChipSelected: {
-    backgroundColor: Colors.primary[50],
-    borderColor: Colors.primary.main,
+    backgroundColor: "#FDF2F8",
+    borderColor: "#EC4899",
   },
   ratingChipText: {
     fontSize: 14,
@@ -4656,7 +4657,7 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
   },
   ratingChipTextSelected: {
-    color: Colors.primary.main,
+    color: "#EC4899",
   },
   ratingClearChip: {
     paddingHorizontal: 12,
@@ -4687,8 +4688,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   toggleChipSelected: {
-    backgroundColor: Colors.primary[50],
-    borderColor: Colors.primary.main,
+    backgroundColor: "#FDF2F8",
+    borderColor: "#EC4899",
   },
   toggleChipText: {
     fontSize: 13,
@@ -4696,7 +4697,7 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
   },
   toggleChipTextSelected: {
-    color: Colors.primary.main,
+    color: "#EC4899",
   },
   deleteButton: {
     flex: 1,

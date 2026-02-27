@@ -51,8 +51,9 @@ export const testHello = functions.https.onRequest((_req, res) => {
 });
 
 // Vitals ingestion endpoint
-export const ingestVitalReading = functions.https.onCall(
-  async (data: any, context: any) => ingestVital(data, context)
+export const ingestVitalReading = onCall(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async (request) => ingestVital(request.data, { auth: request.auth } as any)
 );
 
 // Alternative HTTP endpoint for push notifications (no auth required)
@@ -110,11 +111,10 @@ export const sendPushNotificationHttp = functions.https.onRequest(
 );
 
 // Enhanced push notification function with preference checking
-// Using v1 for now to avoid Cloud Run auth issues
-export const sendPushNotification = functions.https.onCall(
-  async (data: any, context: any) => {
+export const sendPushNotification = onCall(
+  async (request) => {
     const traceId = createTraceId();
-    const { userIds, notification, notificationType = "general" } = data;
+    const { userIds, notification, notificationType = "general" } = request.data;
 
     if (!(userIds && notification)) {
       throw new functions.https.HttpsError(
@@ -130,14 +130,14 @@ export const sendPushNotification = functions.https.onCall(
         notification,
         notificationType,
         requireAuth: true,
-        callerUid: context.auth?.uid,
+        callerUid: request.auth?.uid,
       });
 
       return result;
     } catch (error) {
       logger.error("Error sending push notification", error as Error, {
         traceId,
-        uid: context.auth?.uid,
+        uid: request.auth?.uid,
         fn: "sendPushNotification",
       });
       throw new functions.https.HttpsError(
@@ -151,12 +151,12 @@ export const sendPushNotification = functions.https.onCall(
 // Note: cleanupInvalidTokens moved to services/notifications/index.ts
 
 // Enhanced FCM token management with device tracking
-export const saveFCMToken = functions.https.onCall(
-  async (data: any, context: any) => {
-    const { token, deviceInfo, userId } = data;
+export const saveFCMToken = onCall(
+  async (request) => {
+    const { token, deviceInfo, userId } = request.data;
 
     // Require authentication or userId for production security
-    const targetUserId = context.auth?.uid || userId;
+    const targetUserId = request.auth?.uid || userId;
 
     if (!targetUserId) {
       throw new functions.https.HttpsError(
@@ -211,20 +211,20 @@ export const saveFCMToken = functions.https.onCall(
 );
 
 // Function to create alert server-side (bypasses Firestore permission issues)
-export const createAlert = functions.https.onCall(
-  async (data: any, context: any) => {
+export const createAlert = onCall(
+  async (request) => {
     const traceId = createTraceId();
-    const { alertData } = data;
+    const { alertData } = request.data;
 
     logger.info("Creating alert via Cloud Function", {
       traceId,
-      uid: context.auth?.uid,
+      uid: request.auth?.uid,
       userId: alertData?.userId,
       alertType: alertData?.type,
       fn: "createAlert",
     });
 
-    if (!context.auth) {
+    if (!request.auth) {
       throw new functions.https.HttpsError(
         "unauthenticated",
         "User must be authenticated"
@@ -234,11 +234,11 @@ export const createAlert = functions.https.onCall(
     const db = admin.firestore();
 
     // Verify the user is creating alert for themselves or is admin
-    if (alertData.userId !== context.auth.uid) {
+    if (alertData.userId !== request.auth.uid) {
       // Check if user is admin/caregiver in same family
       const callerDoc = await db
         .collection("users")
-        .doc(context.auth.uid)
+        .doc(request.auth.uid)
         .get();
       const targetDoc = await db
         .collection("users")
@@ -312,19 +312,19 @@ export const createAlert = functions.https.onCall(
 );
 
 // Function to resolve alert server-side (bypasses Firestore permission issues)
-export const resolveAlert = functions.https.onCall(
-  async (data: any, context: any) => {
+export const resolveAlert = onCall(
+  async (request) => {
     const traceId = createTraceId();
-    const { alertId } = data;
+    const { alertId } = request.data;
 
     logger.info("Resolving alert via Cloud Function", {
       traceId,
-      uid: context.auth?.uid,
+      uid: request.auth?.uid,
       alertId,
       fn: "resolveAlert",
     });
 
-    if (!context.auth) {
+    if (!request.auth) {
       throw new functions.https.HttpsError(
         "unauthenticated",
         "User must be authenticated"
@@ -332,7 +332,7 @@ export const resolveAlert = functions.https.onCall(
     }
 
     const db = admin.firestore();
-    const resolverId = context.auth.uid;
+    const resolverId = request.auth.uid;
 
     try {
       // Get the alert document
@@ -525,20 +525,20 @@ export const resolveAlert = functions.https.onCall(
 );
 
 // Function to send fall detection alert to family members and admins
-export const sendFallAlert = functions.https.onCall(
-  async (data: any, context: any) => {
+export const sendFallAlert = onCall(
+  async (request) => {
     const traceId = createTraceId();
-    const { alertId, userId, userName, location } = data;
+    const { alertId, userId, userName, location } = request.data;
 
     logger.info("Fall alert triggered", {
       traceId,
-      uid: context.auth?.uid,
+      uid: request.auth?.uid,
       patientId: userId,
       alertId,
       fn: "sendFallAlert",
     });
 
-    if (!context.auth) {
+    if (!request.auth) {
       throw new functions.https.HttpsError(
         "unauthenticated",
         "User must be authenticated"
@@ -595,7 +595,7 @@ export const sendFallAlert = functions.https.onCall(
         notification,
         notificationType: "fall",
         requireAuth: true,
-        callerUid: context.auth?.uid,
+        callerUid: request.auth?.uid,
       });
 
       // Log the alert with admin information
@@ -695,8 +695,8 @@ export const sendEmergencySms = onCall(
 );
 
 // Function to send medication reminder
-export const sendMedicationReminder = functions.https.onCall(
-  async (data: any, context: any) => {
+export const sendMedicationReminder = onCall(
+  async (request) => {
     const {
       medicationId,
       medicationName,
@@ -704,9 +704,9 @@ export const sendMedicationReminder = functions.https.onCall(
       userId,
       reminderId,
       reminderTime,
-    } = data;
+    } = request.data;
 
-    if (!context.auth) {
+    if (!request.auth) {
       throw new functions.https.HttpsError(
         "unauthenticated",
         "User must be authenticated"
@@ -739,7 +739,7 @@ export const sendMedicationReminder = functions.https.onCall(
         notification,
         notificationType: "medication",
         requireAuth: true,
-        callerUid: context.auth?.uid,
+        callerUid: request.auth?.uid,
       });
 
       return result;
@@ -756,11 +756,11 @@ export const sendMedicationReminder = functions.https.onCall(
 );
 
 // Function to send symptom alert to family admins
-export const sendSymptomAlert = functions.https.onCall(
-  async (data: any, context: any) => {
-    const { symptomType, severity, userId, userName } = data;
+export const sendSymptomAlert = onCall(
+  async (request) => {
+    const { symptomType, severity, userId, userName } = request.data;
 
-    if (!context.auth) {
+    if (!request.auth) {
       throw new functions.https.HttpsError(
         "unauthenticated",
         "User must be authenticated"
@@ -814,7 +814,7 @@ export const sendSymptomAlert = functions.https.onCall(
         notification,
         notificationType: "symptom",
         requireAuth: true,
-        callerUid: context.auth?.uid,
+        callerUid: request.auth?.uid,
       });
 
       // Log the alert
@@ -927,11 +927,11 @@ export const analyzePPGWithML = onCall(
 );
 
 // Function to update notification preferences
-export const updateNotificationPreferences = functions.https.onCall(
-  async (data: any, context: any) => {
-    const { preferences } = data;
+export const updateNotificationPreferences = onCall(
+  async (request) => {
+    const { preferences } = request.data;
 
-    if (!context.auth) {
+    if (!request.auth) {
       throw new functions.https.HttpsError(
         "unauthenticated",
         "User must be authenticated"
@@ -940,7 +940,7 @@ export const updateNotificationPreferences = functions.https.onCall(
 
     try {
       const db = admin.firestore();
-      await db.collection("users").doc(context.auth.uid).update({
+      await db.collection("users").doc(request.auth.uid).update({
         "preferences.notifications": preferences,
         "preferences.notificationsUpdatedAt": FieldValue.serverTimestamp(),
       });
@@ -959,9 +959,9 @@ export const updateNotificationPreferences = functions.https.onCall(
 );
 
 // Function to generate custom token for biometric authentication
-export const generateBiometricToken = functions.https.onCall(
-  async (data: any, _context: any) => {
-    const { userId, authLogId } = data;
+export const generateBiometricToken = onCall(
+  async (request) => {
+    const { userId, authLogId } = request.data;
 
     if (!userId) {
       throw new functions.https.HttpsError(

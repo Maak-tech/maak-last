@@ -3,7 +3,7 @@ import type React from "react";
 import { Dimensions, StyleSheet, View } from "react-native";
 import Svg, { Defs, LinearGradient, Path, Stop } from "react-native-svg";
 
-type WavyBackgroundVariant = "teal" | "gold" | "light";
+type WavyBackgroundVariant = "teal" | "gold" | "light" | "pink" | "pink-light";
 type WavyBackgroundCurve = "default" | "home";
 
 type WavyBackgroundProps = {
@@ -39,6 +39,16 @@ const WEB_VARIANT_COLORS: Record<
     secondary: "#FDF1D8",
     accent: "#F1D8A3",
   },
+  pink: {
+    primary: "#7C3AED",
+    secondary: "#9333EA",
+    accent: "#EC4899",
+  },
+  "pink-light": {
+    primary: "#FDF2F8",
+    secondary: "#FCE7F3",
+    accent: "#FBCFE8",
+  },
 };
 
 // Legacy variant colors (for default curve)
@@ -60,6 +70,16 @@ const VARIANT_COLORS: Record<
     gradient: ["#F4FBFC", "#EEF8FA", "#E6F4F6"],
     waveMid: "#E6F4F6",
     waveLight: "#F9FEFF",
+  },
+  pink: {
+    gradient: ["#7C3AED", "#9333EA", "#C026D3"],
+    waveMid: "#F0ABFC",
+    waveLight: "#FDF4FF",
+  },
+  "pink-light": {
+    gradient: ["#FDF2F8", "#FCE7F3", "#FBD2E8"],
+    waveMid: "#FBCFE8",
+    waveLight: "#FFF1F7",
   },
 };
 
