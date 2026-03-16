@@ -153,22 +153,6 @@ async function hasActiveFamilyPlanEntitlement(
   }
 }
 
-async function requireFamilyPlan(request: { auth?: { uid?: string } | null }) {
-  requireAuth(request);
-  const uid = request.auth?.uid;
-  if (!uid) {
-    throw new https.HttpsError("unauthenticated", "User must be authenticated");
-  }
-  const traceId = createTraceId();
-
-  const hasAccess = await hasActiveFamilyPlanEntitlement(uid, traceId);
-  if (!hasAccess) {
-    throw new https.HttpsError(
-      "permission-denied",
-      "This feature requires an active Family Plan subscription."
-    );
-  }
-}
 
 function selectOpenAIKey(usePremiumKey: boolean): string {
   const zeinaKey = getSecretValue(ZEINA_API_KEY, process.env.ZEINA_API_KEY);
@@ -341,7 +325,7 @@ export const openaiChatCompletion = onCall(
     secrets: [OPENAI_API_KEY, ZEINA_API_KEY, REVENUECAT_SECRET_API_KEY],
   },
   async (request) => {
-    await requireFamilyPlan(request);
+    requireAuth(request);
     const traceId = createTraceId();
 
     const data = request.data || {};
@@ -402,7 +386,7 @@ export const openaiTranscribeAudio = onCall(
     memory: "512MiB",
   },
   async (request) => {
-    await requireFamilyPlan(request);
+    requireAuth(request);
     const traceId = createTraceId();
 
     const data = request.data || {};
@@ -490,7 +474,7 @@ export const openaiRealtimeClientSecret = onCall(
     secrets: [OPENAI_API_KEY, ZEINA_API_KEY, REVENUECAT_SECRET_API_KEY],
   },
   async (request) => {
-    await requireFamilyPlan(request);
+    requireAuth(request);
     const traceId = createTraceId();
 
     const data = request.data || {};
