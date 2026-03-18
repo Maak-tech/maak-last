@@ -1,0 +1,694 @@
+/* biome-ignore-all lint/complexity/noForEach: Legacy offline queue/listener iteration will be refactored in a separate pass. */
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Offline sync orchestration intentionally handles many operation-specific branches in one module. */
+/* biome-ignore-all lint/style/noNestedTernary: Existing severity mapping logic in offline sync uses compact conditional expressions pending refactor. */
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { api } from "@/lib/apiClient";
+import { healthTimelineService } from "@/lib/observability";
+import type {
+  Allergy,
+  CycleDailyEntry,
+  LabResult,
+  Medication,
+  Mood,
+  Symptom,
+  VitalSign,
+} from "@/types";
+
+const OFFLINE_QUEUE_KEY = "@nuralix_offline_queue";
+const OFFLINE_DATA_KEY = "@nuralix_offline_data";
+const _SYNC_STATUS_KEY = "@nuralix_sync_status";
+const NETWORK_CHECK_INTERVAL_MS = 30_000;
+const AUTO_SYNC_INTERVAL_MS = 60_000;
+
+type OfflineOperationData = {
+  id?: string;
+  userId?: string;
+  type?: string;
+  description?: string;
+  severity?: number;
+  timestamp?: Date | string;
+  startDate?: Date | string;
+  endDate?: Date | string;
+  date?: Date | string;
+  [key: string]: unknown;
+};
+
+const asDate = (value: Date | string | undefined): Date => {
+  if (!value) return new Date();
+  if (value instanceof Date) return value;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+};
+
+/** Convert any Date / string to ISO-8601 string for REST API */
+const toISO = (value: unknown): string | undefined => {
+  if (!value) return undefined;
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === "string") {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString();
+  }
+  return undefined;
+};
+
+export type OfflineOperation = {
+  id: string;
+  type: "create" | "update" | "delete";
+  collection: string;
+  data: OfflineOperationData;
+  timestamp: Date;
+  retries: number;
+};
+
+export type OfflineData = {
+  symptoms: Symptom[];
+  medications: Medication[];
+  moods: Mood[];
+  allergies: Allergy[];
+  vitals: VitalSign[];
+  labResults: LabResult[];
+  cycleDailyEntries: CycleDailyEntry[];
+  lastSync: Date | null;
+};
+
+class OfflineService {
+  private isOnline = true;
+  private syncListeners: Array<(isOnline: boolean) => void> = [];
+  private networkCheckInterval: ReturnType<typeof setInterval> | null = null;
+  private autoSyncInterval: ReturnType<typeof setInterval> | null = null;
+  private isSyncing = false;
+  private isInitialized = false;
+  private initializationPromise: Promise<void> | null = null;
+
+  constructor() {
+    // Defer initialization to avoid blocking main thread during module load
+    // Use setTimeout to ensure this runs after the current call stack clears
+    setTimeout(() => {
+      this.initializeLazy().catch(() => {
+        // Silently handle initialization errors to prevent blocking app startup
+      });
+    }, 0);
+  }
+
+  /**
+   * Check network connectivity
+   */
+  private async checkNetworkStatus(): Promise<boolean> {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+      const response = await fetch("https://www.google.com", {
+        method: "HEAD",
+        cache: "no-store",
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Lazy initialization - ensures initialization happens asynchronously
+   * and only once, even if called multiple times
+   */
+  private async initializeLazy(): Promise<void> {
+    if (this.isInitialized) {
+      return;
+    }
+
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
+    this.initializationPromise = this.initializeNetworkListener();
+    await this.initializationPromise;
+    this.isInitialized = true;
+  }
+
+  /**
+   * Ensure service is initialized before use
+   * This is called lazily when methods are invoked
+   */
+  private async ensureInitialized(): Promise<void> {
+    if (!this.isInitialized) {
+      await this.initializeLazy();
+    }
+  }
+
+  /**
+   * Initialize network status listener
+   * This now runs asynchronously after app startup to avoid blocking main thread
+   */
+  private async initializeNetworkListener(): Promise<void> {
+    // Defer the initial network check to avoid blocking during startup
+    // Use a small delay to allow Firestore listeners and other initialization to complete first
+    await new Promise<void>((resolve) => {
+      setTimeout(async () => {
+        // Check initial network status asynchronously
+        this.isOnline = await this.checkNetworkStatus();
+        resolve();
+      }, 100); // Small delay to let app bootstrap complete
+    });
+
+    // Poll network status periodically
+    this.networkCheckInterval = setInterval(async () => {
+      const wasOnline = this.isOnline;
+      this.isOnline = await this.checkNetworkStatus();
+
+      if (!wasOnline && this.isOnline) {
+        // Just came online, trigger sync
+        this.syncAll();
+      }
+
+      // Notify listeners if status changed
+      if (
+        wasOnline !== this.isOnline &&
+        this.syncListeners &&
+        Array.isArray(this.syncListeners)
+      ) {
+        this.syncListeners.forEach((listener) => {
+          try {
+            listener(this.isOnline);
+          } catch (_error) {
+            // Error in sync listener
+          }
+        });
+      }
+    }, NETWORK_CHECK_INTERVAL_MS); // Check every 30 seconds
+
+    // Start automatic sync interval
+    this.startAutoSync();
+  }
+
+  /**
+   * Start automatic sync interval
+   */
+  private startAutoSync() {
+    // Clear existing interval if any
+    if (this.autoSyncInterval) {
+      clearInterval(this.autoSyncInterval);
+    }
+
+    // Auto-sync every 15 seconds when online and there are pending items
+    this.autoSyncInterval = setInterval(async () => {
+      if (this.isOnline && !this.isSyncing) {
+        const queue = await this.getOfflineQueue();
+        if (queue.length > 0) {
+          this.syncAll();
+        }
+      }
+    }, AUTO_SYNC_INTERVAL_MS); // Check every 60 seconds
+  }
+
+  /**
+   * Cleanup network listener
+   */
+  cleanup() {
+    if (this.networkCheckInterval) {
+      clearInterval(this.networkCheckInterval);
+      this.networkCheckInterval = null;
+    }
+    if (this.autoSyncInterval) {
+      clearInterval(this.autoSyncInterval);
+      this.autoSyncInterval = null;
+    }
+    // Clear listeners to prevent memory leaks
+    if (this.syncListeners) {
+      this.syncListeners = [];
+    }
+  }
+
+  /**
+   * Check if device is online
+   */
+  isDeviceOnline(): boolean {
+    return this.isOnline;
+  }
+
+  /**
+   * Subscribe to network status changes
+   */
+  onNetworkStatusChange(listener: (isOnline: boolean) => void): () => void {
+    // Trigger lazy initialization when someone subscribes
+    this.ensureInitialized().catch(() => {
+      // Silently handle initialization errors
+    });
+
+    if (!this.syncListeners) {
+      this.syncListeners = [];
+    }
+    this.syncListeners.push(listener);
+    return () => {
+      if (this.syncListeners && Array.isArray(this.syncListeners)) {
+        this.syncListeners = this.syncListeners.filter((l) => l !== listener);
+      }
+    };
+  }
+
+  /**
+   * Add operation to offline queue
+   */
+  async queueOperation(
+    operation: Omit<OfflineOperation, "id" | "timestamp" | "retries">
+  ): Promise<string> {
+    // Ensure initialization is complete before using the service
+    await this.ensureInitialized();
+    const queue = await this.getOfflineQueue();
+    const newOperation: OfflineOperation = {
+      ...operation,
+      id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: new Date(),
+      retries: 0,
+    };
+
+    queue.push(newOperation);
+    await AsyncStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+
+    // If online, try to sync immediately (don't await to avoid blocking)
+    if (this.isOnline && !this.isSyncing) {
+      // Use setTimeout to avoid blocking the current operation
+      setTimeout(() => {
+        this.syncOperation(newOperation).catch(() => {
+          // Error syncing operation immediately
+        });
+      }, 100);
+    }
+
+    return newOperation.id;
+  }
+
+  /**
+   * Get offline queue
+   */
+  async getOfflineQueue(): Promise<OfflineOperation[]> {
+    try {
+      const queueJson = await AsyncStorage.getItem(OFFLINE_QUEUE_KEY);
+      if (!queueJson) {
+        return [];
+      }
+
+      const queue = JSON.parse(queueJson);
+      return queue.map((op: OfflineOperation) => {
+        // Restore Date objects from strings
+        const restoredOp = {
+          ...op,
+          timestamp: op.timestamp ? new Date(op.timestamp) : new Date(),
+        };
+
+        // Also restore Date objects in operation.data if they exist
+        if (restoredOp.data) {
+          if (
+            restoredOp.data.timestamp &&
+            typeof restoredOp.data.timestamp === "string"
+          ) {
+            restoredOp.data.timestamp = new Date(restoredOp.data.timestamp);
+          }
+          if (
+            restoredOp.data.startDate &&
+            typeof restoredOp.data.startDate === "string"
+          ) {
+            restoredOp.data.startDate = new Date(restoredOp.data.startDate);
+          }
+          if (
+            restoredOp.data.endDate &&
+            typeof restoredOp.data.endDate === "string"
+          ) {
+            restoredOp.data.endDate = new Date(restoredOp.data.endDate);
+          }
+          if (
+            restoredOp.data.date &&
+            typeof restoredOp.data.date === "string"
+          ) {
+            restoredOp.data.date = new Date(restoredOp.data.date);
+          }
+        }
+
+        return restoredOp;
+      });
+    } catch (_error) {
+      return [];
+    }
+  }
+
+  /**
+   * Store data locally for offline access
+   */
+  async storeOfflineData<T>(
+    dataCollection: Exclude<keyof OfflineData, "lastSync">,
+    data: T[]
+  ): Promise<void> {
+    try {
+      const offlineData = await this.getOfflineData();
+      (offlineData as Record<string, unknown>)[dataCollection] = data;
+      offlineData.lastSync = new Date();
+
+      await AsyncStorage.setItem(OFFLINE_DATA_KEY, JSON.stringify(offlineData));
+    } catch (_error) {
+      // Handle error silently
+    }
+  }
+
+  /**
+   * Get offline data
+   */
+  async getOfflineData(): Promise<OfflineData> {
+    try {
+      const dataJson = await AsyncStorage.getItem(OFFLINE_DATA_KEY);
+      if (!dataJson) {
+        return {
+          symptoms: [],
+          medications: [],
+          moods: [],
+          allergies: [],
+          vitals: [],
+          labResults: [],
+          cycleDailyEntries: [],
+          lastSync: null,
+        };
+      }
+
+      const data = JSON.parse(dataJson);
+      return {
+        ...data,
+        lastSync: data.lastSync ? new Date(data.lastSync) : null,
+      };
+    } catch (_error) {
+      return {
+        symptoms: [],
+        medications: [],
+        moods: [],
+        allergies: [],
+        vitals: [],
+        labResults: [],
+        cycleDailyEntries: [],
+        lastSync: null,
+      };
+    }
+  }
+
+  /**
+   * Get data from specific collection (offline-first)
+   */
+  async getOfflineCollection<T>(
+    dataCollection: Exclude<keyof OfflineData, "lastSync">
+  ): Promise<T[]> {
+    const offlineData = await this.getOfflineData();
+    return (offlineData[dataCollection] || []) as T[];
+  }
+
+  /**
+   * Sync a single operation to the REST API.
+   *
+   * Collection → API path mapping:
+   *   symptoms         → /api/health/symptoms
+   *   medications      → /api/health/medications
+   *   moods            → /api/health/moods
+   *   allergies        → /api/health/allergies
+   *   labResults       → /api/health/labs
+   *   cycleDailyEntries→ /api/health/cycle-daily
+   */
+  private async syncOperation(operation: OfflineOperation): Promise<boolean> {
+    if (!this.isOnline) {
+      return false;
+    }
+
+    try {
+      const apiPathMap: Record<string, string> = {
+        symptoms: "/api/health/symptoms",
+        medications: "/api/health/medications",
+        moods: "/api/health/moods",
+        allergies: "/api/health/allergies",
+        labResults: "/api/health/labs",
+        cycleDailyEntries: "/api/health/cycle-daily",
+      };
+
+      const basePath = apiPathMap[operation.collection];
+      if (!basePath) {
+        // Unsupported collection — skip silently
+        return false;
+      }
+
+      switch (operation.type) {
+        case "create": {
+          const data = operation.data;
+
+          // Build the REST body, converting any Date/string date fields to ISO strings
+          const body: Record<string, unknown> = { ...data };
+          if (body.timestamp) body.timestamp = toISO(body.timestamp as Date | string);
+          if (body.startDate) body.startDate = toISO(body.startDate as Date | string);
+          if (body.endDate) body.endDate = toISO(body.endDate as Date | string);
+          if (body.date) body.date = toISO(body.date as Date | string);
+
+          // Collection-specific field remapping
+          if (operation.collection === "symptoms") {
+            if (!body.userId) throw new Error("Missing userId in symptom data");
+            if (!body.type) throw new Error("Missing type in symptom data");
+            // API expects recordedAt, not timestamp
+            if (!body.recordedAt) body.recordedAt = body.timestamp;
+            delete body.timestamp;
+          } else if (operation.collection === "moods") {
+            // API expects recordedAt, not timestamp
+            if (!body.recordedAt) body.recordedAt = body.timestamp;
+            delete body.timestamp;
+          } else if (operation.collection === "cycleDailyEntries") {
+            // Accept both canonical and aliased field names
+            if (!body.flowIntensity && body.flow) body.flowIntensity = body.flow;
+            if (body.crampsSeverity === undefined && body.cramps !== undefined)
+              body.crampsSeverity = body.cramps;
+            if (body.energyLevel === undefined && body.energy !== undefined)
+              body.energyLevel = body.energy;
+          }
+
+          // Remove undefined / null entries before sending
+          const cleanBody = Object.fromEntries(
+            Object.entries(body).filter(([, v]) => v !== undefined && v !== null)
+          );
+
+          const result = await api.post<{ id?: string }>(basePath, cleanBody);
+          const newEntityId = result?.id;
+
+          // Mirror symptom creation in the health timeline
+          if (operation.collection === "symptoms" && data.userId) {
+            try {
+              await healthTimelineService.addEvent({
+                userId: data.userId as string,
+                eventType: "symptom_logged",
+                title: `Symptom logged: ${data.type || "Unknown"}`,
+                description:
+                  (data.description as string | undefined) ||
+                  `Severity: ${data.severity ?? "N/A"}/5`,
+                timestamp: asDate(data.timestamp),
+                severity:
+                  ((data.severity as number) ?? 0) >= 4
+                    ? "error"
+                    : ((data.severity as number) ?? 0) >= 3
+                      ? "warn"
+                      : "info",
+                icon: "thermometer",
+                metadata: {
+                  symptomId: newEntityId,
+                  symptomType: data.type,
+                  severity: data.severity,
+                },
+                relatedEntityId: newEntityId,
+                relatedEntityType: "symptom",
+                actorType: "user",
+              });
+            } catch {
+              // Don't fail sync if timeline update fails
+            }
+          }
+          break;
+        }
+
+        case "update": {
+          if (!operation.data.id) return false;
+
+          const updates: Record<string, unknown> = { ...operation.data };
+          delete updates.id; // id goes in URL, not body
+
+          // Normalise date fields
+          if (updates.timestamp) updates.timestamp = toISO(updates.timestamp as Date | string);
+          if (updates.startDate) updates.startDate = toISO(updates.startDate as Date | string);
+          if (updates.endDate) updates.endDate = toISO(updates.endDate as Date | string);
+          if (updates.date) updates.date = toISO(updates.date as Date | string);
+
+          const cleanUpdates = Object.fromEntries(
+            Object.entries(updates).filter(([, v]) => v !== undefined)
+          );
+
+          await api.patch(`${basePath}/${operation.data.id}`, cleanUpdates);
+          break;
+        }
+
+        case "delete": {
+          if (!operation.data.id) return false;
+
+          if (operation.collection === "medications") {
+            // Soft-delete: mark inactive instead of removing the row
+            await api.patch(`${basePath}/${operation.data.id}`, { isActive: false });
+          } else {
+            await api.delete(`${basePath}/${operation.data.id}`);
+          }
+          break;
+        }
+
+        default:
+          return false;
+      }
+
+      await this.removeOperationFromQueue(operation.id);
+      return true;
+    } catch (error) {
+      const errorDetails: {
+        operationId: string;
+        retries: number;
+        operationType: "create" | "update" | "delete";
+        collection: string;
+        errorMessage: string;
+        errorStack?: string;
+        operationDataPreview?: unknown;
+        operationDataError?: string;
+      } = {
+        operationId: operation.id,
+        retries: operation.retries,
+        operationType: operation.type,
+        collection: operation.collection,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+      };
+
+      try {
+        const dataPreview = { ...operation.data };
+        if (dataPreview.description) {
+          dataPreview.description = (dataPreview.description as string).substring(0, 50);
+        }
+        errorDetails.operationDataPreview = dataPreview;
+      } catch {
+        errorDetails.operationDataError = "Could not serialize operation data";
+      }
+
+      operation.retries += 1;
+      if (operation.retries < 5) {
+        await this.updateOperationInQueue(operation);
+      } else {
+        // Too many retries — drop the operation
+        await this.removeOperationFromQueue(operation.id);
+      }
+      return false;
+    }
+  }
+
+  /**
+   * Remove operation from queue
+   */
+  private async removeOperationFromQueue(operationId: string): Promise<void> {
+    const queue = await this.getOfflineQueue();
+    const filtered = queue.filter((op) => op.id !== operationId);
+    await AsyncStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(filtered));
+  }
+
+  /**
+   * Update operation in queue
+   */
+  private async updateOperationInQueue(
+    operation: OfflineOperation
+  ): Promise<void> {
+    const queue = await this.getOfflineQueue();
+    const index = queue.findIndex((op) => op.id === operation.id);
+    if (index !== -1) {
+      queue[index] = operation;
+      await AsyncStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+    }
+  }
+
+  /**
+   * Sync all queued operations
+   */
+  async syncAll(): Promise<{ success: number; failed: number }> {
+    // Ensure initialization is complete before syncing
+    await this.ensureInitialized();
+    if (!this.isOnline) {
+      return { success: 0, failed: 0 };
+    }
+
+    // Prevent concurrent syncs
+    if (this.isSyncing) {
+      return { success: 0, failed: 0 };
+    }
+
+    this.isSyncing = true;
+
+    try {
+      const queue = await this.getOfflineQueue();
+      if (queue.length === 0) {
+        return { success: 0, failed: 0 };
+      }
+
+      let success = 0;
+      let failed = 0;
+
+      for (const operation of queue) {
+        const result = await this.syncOperation(operation);
+        if (result) {
+          success += 1;
+        } else {
+          failed += 1;
+        }
+      }
+
+      return { success, failed };
+    } finally {
+      this.isSyncing = false;
+    }
+  }
+
+  /**
+   * Clear offline queue
+   */
+  async clearQueue(): Promise<void> {
+    await AsyncStorage.removeItem(OFFLINE_QUEUE_KEY);
+  }
+
+  /**
+   * Get sync status
+   */
+  async getSyncStatus(): Promise<{
+    isOnline: boolean;
+    queueLength: number;
+    lastSync: Date | null;
+  }> {
+    // Ensure initialization is complete before getting status
+    await this.ensureInitialized();
+    const queue = await this.getOfflineQueue();
+    const offlineData = await this.getOfflineData();
+
+    return {
+      isOnline: this.isOnline,
+      queueLength: queue.length,
+      lastSync: offlineData.lastSync,
+    };
+  }
+
+  /**
+   * Get detailed queue information for debugging
+   */
+  getQueueDetails(): Promise<OfflineOperation[]> {
+    return this.getOfflineQueue();
+  }
+
+  /**
+   * Mark data as synced
+   */
+  async markSynced(): Promise<void> {
+    const offlineData = await this.getOfflineData();
+    offlineData.lastSync = new Date();
+    await AsyncStorage.setItem(OFFLINE_DATA_KEY, JSON.stringify(offlineData));
+  }
+}
+
+export const offlineService = new OfflineService();

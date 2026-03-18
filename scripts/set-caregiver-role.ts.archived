@@ -1,0 +1,97 @@
+import { userService } from "../lib/services/userService";
+import type { User } from "../types";
+
+type TimestampLike = {
+  toDate: () => Date;
+};
+
+const getAllUsers = async (): Promise<User[]> => {
+  const { collection, getDocs } = await import("firebase/firestore");
+  const { db } = await import("../lib/firebase");
+
+  const querySnapshot = await getDocs(collection(db, "users"));
+  const users: User[] = [];
+
+  for (const doc of querySnapshot.docs) {
+    const data = doc.data() as Omit<User, "id">;
+    const createdAtRaw = (data as { createdAt?: unknown }).createdAt;
+    const createdAt =
+      createdAtRaw &&
+      typeof createdAtRaw === "object" &&
+      "toDate" in createdAtRaw &&
+      typeof (createdAtRaw as TimestampLike).toDate === "function"
+        ? (createdAtRaw as TimestampLike).toDate()
+        : (createdAtRaw as Date) || new Date();
+
+    users.push({
+      id: doc.id,
+      ...data,
+      createdAt,
+    });
+  }
+
+  return users;
+};
+
+async function setNoraAsCaregiver() {
+  try {
+    // Find user with firstName "Nora"
+    const users = await getAllUsers();
+    const nora = users.find(
+      (user) => user.firstName?.toLowerCase() === "nora"
+    );
+
+    if (!nora) {
+      console.log(
+        "Nora not found. Please ensure Nora is registered in the system."
+      );
+      return;
+    }
+
+    if (!nora.familyId) {
+      console.log(
+        "Nora is not part of a family. Please add her to a family first."
+      );
+      return;
+    }
+
+    // Find admin of the family
+    const familyMembers = await userService.getFamilyMembers(nora.familyId);
+    const admin = familyMembers.find((member) => member.role === "admin");
+
+    if (!admin) {
+      console.log(
+        "No admin found in Nora's family. Cannot assign caregiver role."
+      );
+      return;
+    }
+
+    // Set Nora as caregiver (admin can do this)
+    await userService.setUserAsCaregiver(nora.id, admin.id);
+
+    console.log(
+      `✅ Nora has been successfully set as a caregiver for family: ${nora.familyId}`
+    );
+    console.log("She now has access to:");
+    console.log(
+      "- Full family medical information (symptoms, medications, moods)"
+    );
+    console.log("- Family health reports and analytics");
+    console.log("- Ability to send notifications to admins");
+    console.log("- Caregiver dashboard functionality");
+  } catch (error) {
+    console.error("❌ Error setting Nora as caregiver:", error);
+    process.exit(1);
+  }
+}
+
+// Run the script
+setNoraAsCaregiver()
+  .then(() => {
+    console.log("Script completed.");
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error("Script failed:", error);
+    process.exit(1);
+  });

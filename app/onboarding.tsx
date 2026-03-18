@@ -300,7 +300,220 @@ export default function OnboardingScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+<<<<<<< Updated upstream
       </View>
     </SafeAreaView>
+=======
+
+        {/* Progress indicators — 5 dots total (4 content + 1 premium) */}
+        <View style={styles.progressRow}>
+          {[
+            ...STEPS,
+            { icon: "star" as const, color: "#EB9C0C", image: STEPS[0].image },
+          ].map((stepConfig, index) => (
+            <View
+              key={`${stepConfig.icon}-${index}`}
+              style={[
+                styles.progressDot,
+                index === step && styles.progressDotActive,
+                index < step && styles.progressDotCompleted,
+              ]}
+            />
+          ))}
+        </View>
+
+        {isPremiumStep ? (
+          /* ── Premium Upsell Step ─────────────────────────────────────── */
+          <>
+            <View style={styles.content}>
+              {/* Header */}
+              <View
+                style={[
+                  styles.iconContainer,
+                  { backgroundColor: "rgba(235,156,12,0.12)" },
+                ]}
+              >
+                <Ionicons color="#EB9C0C" name="star" size={48} />
+              </View>
+              <Text style={[styles.title, isRTL && styles.rtlText]}>
+                {isRTL
+                  ? "أطلق إمكانياتك الكاملة"
+                  : "Unlock Your Full Potential"}
+              </Text>
+              <Text
+                style={[
+                  styles.subtitle,
+                  { marginBottom: 24 },
+                  isRTL && styles.rtlText,
+                ]}
+              >
+                {isRTL
+                  ? "ترقّ إلى ماك بريميوم واحصل على رؤى صحية مدعومة بالذكاء الاصطناعي"
+                  : "Upgrade to Nuralix Premium for AI-powered health insights"}
+              </Text>
+
+              {/* Feature list */}
+              <View style={{ width: "100%", gap: 10 }}>
+                {PREMIUM_FEATURES.map((f) => (
+                  <View
+                    key={f.labelEn}
+                    style={{
+                      flexDirection: isRTL ? "row-reverse" : "row",
+                      alignItems: "center",
+                      gap: 12,
+                      backgroundColor: "rgba(0,53,67,0.04)",
+                      borderRadius: 12,
+                      paddingHorizontal: 14,
+                      paddingVertical: 10,
+                    }}
+                  >
+                    <Text style={{ fontSize: 20 }}>{f.iconEn}</Text>
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontWeight: "500",
+                        color: "#1A1D1F",
+                        textAlign: isRTL ? "right" : "left",
+                        flex: 1,
+                      }}
+                    >
+                      {isRTL ? f.labelAr : f.labelEn}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            {/* Actions */}
+            <View style={styles.actions}>
+              {/* Primary — open paywall */}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                disabled={isCompleting}
+                onPress={handleUpgradePress}
+                style={[styles.primaryButton, { backgroundColor: "#EB9C0C" }]}
+              >
+                <Ionicons color="#FFFFFF" name="star" size={18} />
+                <Text style={styles.primaryButtonText}>
+                  {isRTL ? "ابدأ التجربة المجانية" : "Start Free Trial"}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Secondary — skip to dashboard */}
+              <TouchableOpacity
+                activeOpacity={0.7}
+                disabled={isCompleting}
+                onPress={handleNext}
+                style={styles.skipButton}
+              >
+                <Text style={styles.skipText}>
+                  {isRTL ? "ربما لاحقاً" : "Maybe Later"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : (
+          /* ── Regular content steps ───────────────────────────────────── */
+          <>
+            <View style={styles.content}>
+              {/* Icon */}
+              <View
+                style={[
+                  styles.iconContainer,
+                  {
+                    backgroundColor: getIconBackgroundColor(currentStep.color),
+                  },
+                ]}
+              >
+                <Ionicons
+                  color={currentStep.color}
+                  name={currentStep.icon}
+                  size={48}
+                />
+              </View>
+
+              {/* Logo for first step */}
+              {step === 0 && (
+                <View style={styles.logoRow}>
+                  <View style={styles.logoDots}>
+                    <View
+                      style={[styles.dot, { backgroundColor: "#003543" }]}
+                    />
+                    <View
+                      style={[styles.dot, { backgroundColor: "#EB9C0C" }]}
+                    />
+                  </View>
+                  <Text style={styles.logoText}>{t("app.name")}</Text>
+                </View>
+              )}
+
+              {/* Title and subtitle */}
+              <Text
+                numberOfLines={2}
+                style={[styles.title, isRTL && styles.rtlText]}
+              >
+                {t(titleKey)}
+              </Text>
+              <Text
+                numberOfLines={3}
+                style={[styles.subtitle, isRTL && styles.rtlText]}
+              >
+                {t(subtitleKey)}
+              </Text>
+
+              {/* Illustration */}
+              <View style={styles.illustrationPlaceholder}>
+                <Image
+                  accessibilityIgnoresInvertColors
+                  accessibilityLabel={t(titleKey)}
+                  resizeMode="contain"
+                  source={currentStep.image}
+                  style={styles.illustrationImage}
+                />
+              </View>
+            </View>
+
+            {/* Actions */}
+            <View style={styles.actions}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                disabled={isCompleting}
+                onPress={handleNext}
+                style={styles.primaryButton}
+              >
+                <Text style={styles.primaryButtonText}>
+                  {isLastContentStep
+                    ? t("onboarding.next")
+                    : t("onboarding.next")}
+                </Text>
+                <Ionicons color="#FFFFFF" name="chevron-forward" size={20} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={handleSkip}
+                style={styles.skipButton}
+              >
+                <Text style={styles.skipText}>{t("onboarding.skip")}</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+      </SafeAreaView>
+
+      {/* RevenueCat Paywall Modal */}
+      <Modal
+        animationType="slide"
+        onRequestClose={handlePaywallDismiss}
+        presentationStyle="pageSheet"
+        visible={showPaywall}
+      >
+        <RevenueCatPaywall
+          onDismiss={handlePaywallDismiss}
+          onPurchaseComplete={handlePurchaseComplete}
+        />
+      </Modal>
+    </View>
+>>>>>>> Stashed changes
   );
 }

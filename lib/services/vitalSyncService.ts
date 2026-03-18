@@ -1,0 +1,775 @@
+/**
+ * Service to save vitals from integrations to the Nuralix API (Neon / PostgreSQL).
+ * Replaces direct Firestore writes — vitals are now persisted via
+ * `POST /api/health/vitals` and `POST /api/health/vitals/batch`.
+ *
+ * Client-side side-effects (rules engine, anomaly detection, alerts) are kept
+ * in-place and will be migrated to server-side triggers in Infra-D.
+ */
+
+import { authClient } from "@/lib/authClient";
+import { api } from "@/lib/apiClient";
+import type { MetricSample } from "@/lib/health/healthTypes";
+import {
+  escalationService,
+  healthRulesEngine,
+  healthTimelineService,
+  observabilityEmitter,
+  type VitalReading,
+} from "@/lib/observability";
+import { createHealthEvent } from "@/src/health/events/createHealthEvent";
+import { alertService } from "./alertService";
+import { dexcomService } from "./dexcomService";
+import { freestyleLibreService } from "./freestyleLibreService";
+import { userService } from "./userService";
+
+/**
+ * Map metric keys to vital types for Firestore
+ */
+const METRIC_TO_VITAL_TYPE: Record<string, string> = {
+  heart_rate: "heartRate",
+  resting_heart_rate: "restingHeartRate",
+  heart_rate_variability: "heartRateVariability",
+  walking_heart_rate_average: "walkingHeartRateAverage",
+  blood_pressure: "bloodPressure",
+  blood_pressure_systolic: "bloodPressureSystolic",
+  blood_pressure_diastolic: "bloodPressureDiastolic",
+  respiratory_rate: "respiratoryRate",
+  blood_oxygen: "oxygenSaturation",
+  body_temperature: "bodyTemperature",
+  weight: "weight",
+  height: "height",
+  body_mass_index: "bodyMassIndex",
+  body_fat_percentage: "bodyFatPercentage",
+  steps: "steps",
+  active_energy: "activeEnergy",
+  basal_energy: "basalEnergy",
+  distance_walking_running: "distanceWalkingRunning",
+  flights_climbed: "flightsClimbed",
+  sleep_analysis: "sleepHours",
+  water_intake: "waterIntake",
+  blood_glucose: "bloodGlucose",
+  glucose_trend: "glucoseTrend",
+  glucose_trend_arrow: "glucoseTrendArrow",
+  time_in_range: "timeInRange",
+};
+
+/**
+ * Get unit for a vital type
+ */
+function getVitalUnit(vitalType: string): string {
+  const unitMap: Record<string, string> = {
+    heartRate: "bpm",
+    restingHeartRate: "bpm",
+    heartRateVariability: "ms",
+    walkingHeartRateAverage: "bpm",
+    bloodPressure: "mmHg",
+    bloodPressureSystolic: "mmHg",
+    bloodPressureDiastolic: "mmHg",
+    respiratoryRate: "bpm",
+    oxygenSaturation: "%",
+    bodyTemperature: "°C",
+    weight: "kg",
+    height: "cm",
+    bodyMassIndex: "kg/m²",
+    bodyFatPercentage: "%",
+    steps: "count",
+    activeEnergy: "kcal",
+    basalEnergy: "kcal",
+    distanceWalkingRunning: "km",
+    flightsClimbed: "count",
+    sleepHours: "hours",
+    waterIntake: "ml",
+    bloodGlucose: "mg/dL",
+    glucoseTrend: "trend",
+    glucoseTrendArrow: "arrow",
+    timeInRange: "boolean",
+  };
+  return unitMap[vitalType] || "unknown";
+}
+
+/**
+ * Save a single vital sample to Firestore
+ */
+/* biome-ignore lint/nursery/useMaxParams: Vital sample persistence requires explicit normalized fields to preserve provider-agnostic write semantics. */
+async function saveVitalSample(
+  userId: string,
+  vitalType: string,
+  value: number,
+  unit: string,
+  timestamp: Date,
+  source: string,
+  metadata?: Record<string, unknown>
+): Promise<void> {
+  // Persist vital to Neon via API (replaces direct Firestore addDoc)
+  void userId; // userId is authenticated server-side via session cookie
+  await api.post("/api/health/vitals", {
+    type: vitalType,
+    value,
+    valueSecondary: typeof metadata?.diastolic === "number" ? metadata.diastolic : undefined,
+    unit,
+    source,
+    recordedAt: timestamp.toISOString(),
+    metadata: metadata ?? undefined,
+  });
+
+  // Evaluate vitals for health events (only for critical vitals)
+  // We'll collect vitals and evaluate them in batches to avoid too many evaluations
+  await evaluateAndCreateHealthEventIfNeeded(
+    userId,
+    vitalType,
+    value,
+    timestamp,
+    source,
+    metadata
+  );
+
+  // Check for concerning trends and create alerts (non-blocking)
+  // This will be picked up by the real-time WebSocket service
+  import("./trendAlertService")
+    .then(({ checkTrendsForNewVital }) => {
+      checkTrendsForNewVital(userId, vitalType, unit).catch(() => {
+        // Silently handle errors - trend checking is non-critical
+      });
+    })
+    .catch(() => {
+      // Silently handle import errors
+    });
+
+  // Run personalized anomaly detection (non-blocking)
+  const anomalyVitalType = VITAL_TYPE_TO_RULES_FORMAT[vitalType];
+  if (anomalyVitalType) {
+    import("./anomalyDetectionService")
+      .then(({ anomalyDetectionService }) => {
+        anomalyDetectionService
+          .checkAndPersistAnomaly(userId, {
+            type: anomalyVitalType,
+            value,
+            unit,
+            timestamp,
+            userId,
+          })
+          .catch(() => {
+            // Silently handle errors - anomaly detection is non-critical
+          });
+      })
+      .catch(() => {
+        // Silently handle import errors
+      });
+  }
+
+  // Fire-and-forget: check personalised baseline deviations and notify if significant
+  // Rate-limited to once per 8h inside the method — safe to call on every vital save
+  import("./userBaselineService")
+    .then(({ userBaselineService }) => {
+      userBaselineService
+        .checkAndNotifySignificantDeviations(userId)
+        .catch(() => {});
+    })
+    .catch(() => {});
+}
+
+/**
+ * Map internal vital types to rules engine format
+ */
+const VITAL_TYPE_TO_RULES_FORMAT: Record<string, string> = {
+  heartRate: "heart_rate",
+  restingHeartRate: "heart_rate",
+  oxygenSaturation: "blood_oxygen",
+  bloodPressure: "systolic_bp",
+  bloodPressureSystolic: "systolic_bp",
+  bloodPressureDiastolic: "diastolic_bp",
+  bodyTemperature: "temperature",
+  bloodGlucose: "blood_glucose",
+  respiratoryRate: "respiratory_rate",
+};
+
+/**
+ * Evaluate collected vitals using the health rules engine
+ * Creates alerts and timeline events when thresholds are breached
+ */
+/* biome-ignore lint/nursery/useMaxParams: Health event evaluation receives normalized vital context fields from multiple integration sources. */
+/* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This evaluator intentionally combines rules-engine, alerting, and timeline side effects in one guarded workflow. */
+async function evaluateAndCreateHealthEventIfNeeded(
+  userId: string,
+  vitalType: string,
+  value: number,
+  timestamp: Date,
+  source: string,
+  _metadata?: Record<string, unknown>
+): Promise<void> {
+  try {
+    const rulesVitalType = VITAL_TYPE_TO_RULES_FORMAT[vitalType];
+    if (!rulesVitalType) {
+      return;
+    }
+
+    const reading: VitalReading = {
+      type: rulesVitalType,
+      value,
+      unit: getVitalUnit(vitalType),
+      timestamp,
+      userId,
+    };
+
+    const evaluation = healthRulesEngine.evaluateVital(reading);
+
+    let timelineSeverity: "critical" | "error" | "warn" | "info" = "info";
+    if (evaluation.triggered) {
+      if (evaluation.severity === "critical") {
+        timelineSeverity = "critical";
+      } else if (evaluation.severity === "error") {
+        timelineSeverity = "error";
+      } else {
+        timelineSeverity = "warn";
+      }
+    }
+
+    await healthTimelineService.addEvent({
+      userId,
+      eventType: evaluation.triggered ? "vital_abnormal" : "vital_recorded",
+      title: evaluation.triggered
+        ? evaluation.message || `Abnormal ${vitalType} detected`
+        : `${vitalType} recorded`,
+      description: evaluation.triggered
+        ? evaluation.recommendedAction
+        : `${value} ${reading.unit} from ${source}`,
+      timestamp,
+      severity: timelineSeverity,
+      icon: evaluation.triggered ? "alert-circle" : "heart-pulse",
+      metadata: {
+        vitalType,
+        value,
+        unit: reading.unit,
+        source,
+        thresholdBreached: evaluation.thresholdBreached,
+      },
+      actorType: "system",
+    });
+
+    if (
+      evaluation.triggered &&
+      (evaluation.severity === "error" || evaluation.severity === "critical")
+    ) {
+      await observabilityEmitter.emitHealthEvent(
+        "vital_threshold_breach",
+        evaluation.message || `${vitalType} out of range`,
+        {
+          userId,
+          vitalType: rulesVitalType,
+          value,
+          unit: reading.unit,
+          isAbnormal: true,
+          thresholdBreached: evaluation.thresholdBreached,
+        }
+      );
+
+      const alertType: "vital_critical" | "vital_error" =
+        evaluation.severity === "critical" ? "vital_critical" : "vital_error";
+
+      const alertId = await alertService.createAlert({
+        userId,
+        type: alertType,
+        severity: evaluation.severity === "critical" ? "critical" : "high",
+        message:
+          evaluation.message ||
+          `Abnormal ${vitalType} detected: ${value} ${reading.unit}`,
+        timestamp: new Date(),
+        resolved: false,
+        responders: [],
+        metadata: {
+          vitalType,
+          value,
+          unit: reading.unit,
+          source,
+          thresholdBreached: evaluation.thresholdBreached,
+          recommendedAction: evaluation.recommendedAction,
+        },
+      });
+
+      // Create a HealthEvent so it appears in Recent Events on the Family screen
+      const eventSource =
+        source === "manual"
+          ? "manual"
+          : source === "clinic"
+            ? "clinic"
+            : source === "wearable"
+              ? "wearable"
+              : "system";
+      try {
+        await createHealthEvent({
+          userId,
+          type: "VITAL_ALERT",
+          severity: evaluation.severity === "critical" ? "critical" : "high",
+          reasons: [
+            evaluation.message ||
+              `Abnormal ${vitalType} detected: ${value} ${reading.unit}`,
+          ],
+          source: eventSource,
+          vitalValues: {
+            [vitalType]: value,
+          },
+          metadata: {
+            alertId,
+            vitalType,
+            thresholdBreached: evaluation.thresholdBreached,
+          },
+        });
+      } catch {
+        // Non-blocking: alert was created; health event is for display
+      }
+
+      const user = await userService.getUser(userId);
+      await escalationService.startEscalation(
+        alertId,
+        alertType,
+        userId,
+        user?.familyId
+      );
+    }
+
+    if (evaluation.triggered && evaluation.severity === "warn") {
+      await observabilityEmitter.emitHealthEvent(
+        "vital_warning",
+        evaluation.message || `${vitalType} slightly abnormal`,
+        {
+          userId,
+          vitalType: rulesVitalType,
+          value,
+          unit: reading.unit,
+          isAbnormal: true,
+          thresholdBreached: evaluation.thresholdBreached,
+        }
+      );
+    }
+  } catch (error) {
+    observabilityEmitter.emit({
+      eventType: "vital_evaluation_error",
+      domain: "health_data",
+      source: "vitalSyncService",
+      message: "Failed to evaluate vital for health event",
+      severity: "error",
+      status: "failure",
+      error: {
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
+      metadata: { userId, vitalType, value },
+    });
+  }
+}
+
+function getSampleMetadata(
+  sample: MetricSample
+): Record<string, unknown> | undefined {
+  if (
+    typeof sample === "object" &&
+    sample !== null &&
+    "metadata" in sample &&
+    typeof sample.metadata === "object" &&
+    sample.metadata !== null
+  ) {
+    return sample.metadata as Record<string, unknown>;
+  }
+  return;
+}
+
+/**
+ * Save vitals from health metrics to Firestore
+ * Processes samples from integrations (HealthKit, Fitbit, Google Health Connect)
+ */
+/* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Integration sync loops across provider metrics, normalizes samples, and coordinates alert side effects. */
+export async function saveIntegrationVitals(
+  userId: string,
+  metrics: Array<{
+    metricKey: string;
+    samples: MetricSample[];
+  }>,
+  provider: string
+): Promise<number> {
+  if (!userId) {
+    throw new Error("User ID is required");
+  }
+
+  const syncId = `health-sync-${Date.now()}-${Math.random()
+    .toString(36)
+    .substring(2, 9)}`;
+  const syncStart = Date.now();
+  const totalSamples = metrics.reduce(
+    (count, metric) => count + metric.samples.length,
+    0
+  );
+
+  await observabilityEmitter.emitHealthEvent(
+    "health_sync_started",
+    "Health metrics sync started",
+    {
+      userId,
+      status: "pending",
+      metadata: {
+        provider,
+        metricCount: metrics.length,
+        sampleCount: totalSamples,
+        syncId,
+      },
+    }
+  );
+
+  let savedCount = 0;
+  let invalidCount = 0;
+  let skippedMetricCount = 0;
+
+  try {
+    for (const metric of metrics) {
+      const vitalType = METRIC_TO_VITAL_TYPE[metric.metricKey];
+      if (!vitalType) {
+        // Skip metrics that don't map to vital types
+        skippedMetricCount += 1;
+        continue;
+      }
+
+      const unit = getVitalUnit(vitalType);
+
+      // Process each sample
+      for (const sample of metric.samples) {
+        try {
+          // Handle different value types
+          let value: number;
+          if (typeof sample.value === "number") {
+            value = sample.value;
+          } else if (typeof sample.value === "string") {
+            value = Number.parseFloat(sample.value);
+            if (Number.isNaN(value)) {
+              invalidCount += 1;
+              continue; // Skip invalid values
+            }
+          } else {
+            invalidCount += 1;
+            continue; // Skip non-numeric values
+          }
+
+          // Handle blood pressure separately (has systolic/diastolic)
+          const sampleMetadata = getSampleMetadata(sample);
+          const timestamp = sample.startDate
+            ? new Date(sample.startDate)
+            : new Date();
+
+          if (vitalType === "bloodPressure" && sampleMetadata) {
+            const systolic =
+              typeof sampleMetadata.systolic === "number"
+                ? sampleMetadata.systolic
+                : value;
+            const diastolic =
+              typeof sampleMetadata.diastolic === "number"
+                ? sampleMetadata.diastolic
+                : undefined;
+
+            if (diastolic !== undefined) {
+              // Save systolic as separate vital sample for anomaly detection
+              await saveVitalSample(
+                userId,
+                "bloodPressureSystolic",
+                systolic,
+                getVitalUnit("bloodPressureSystolic"),
+                timestamp,
+                provider,
+                {
+                  systolic,
+                  diastolic,
+                  ...sampleMetadata,
+                }
+              );
+              savedCount += 1;
+
+              // Save diastolic as separate vital sample for anomaly detection
+              await saveVitalSample(
+                userId,
+                "bloodPressureDiastolic",
+                diastolic,
+                getVitalUnit("bloodPressureDiastolic"),
+                timestamp,
+                provider,
+                {
+                  systolic,
+                  diastolic,
+                  ...sampleMetadata,
+                }
+              );
+              savedCount += 1;
+            } else {
+              // Only systolic available, save as systolic
+              await saveVitalSample(
+                userId,
+                "bloodPressureSystolic",
+                systolic,
+                getVitalUnit("bloodPressureSystolic"),
+                timestamp,
+                provider,
+                {
+                  systolic,
+                  ...sampleMetadata,
+                }
+              );
+              savedCount += 1;
+            }
+          } else if (vitalType === "bloodPressureSystolic") {
+            // Handle systolic-only metric
+            await saveVitalSample(
+              userId,
+              "bloodPressureSystolic",
+              value,
+              unit,
+              timestamp,
+              provider,
+              sampleMetadata
+            );
+            savedCount += 1;
+          } else if (vitalType === "bloodPressureDiastolic") {
+            // Handle diastolic-only metric
+            await saveVitalSample(
+              userId,
+              "bloodPressureDiastolic",
+              value,
+              unit,
+              timestamp,
+              provider,
+              sampleMetadata
+            );
+            savedCount += 1;
+          } else {
+            // Regular vital sign
+            await saveVitalSample(
+              userId,
+              vitalType,
+              value,
+              unit,
+              timestamp,
+              provider,
+              sampleMetadata
+            );
+            savedCount += 1;
+          }
+        } catch (_error) {
+          // Continue with next sample
+        }
+      }
+    }
+  } catch (error) {
+    const durationMs = Date.now() - syncStart;
+    await observabilityEmitter.emitHealthEvent(
+      "health_sync_failed",
+      "Health metrics sync failed",
+      {
+        userId,
+        severity: "error",
+        status: "failure",
+        metadata: {
+          provider,
+          metricCount: metrics.length,
+          sampleCount: totalSamples,
+          savedCount,
+          invalidCount,
+          skippedMetricCount,
+          durationMs,
+          syncId,
+        },
+      }
+    );
+    await observabilityEmitter.recordMetric(
+      "health_sync_latency",
+      durationMs,
+      "ms",
+      "health_data",
+      { provider, status: "failure" }
+    );
+    throw error;
+  }
+
+  const durationMs = Date.now() - syncStart;
+  await observabilityEmitter.emitHealthEvent(
+    "health_sync_completed",
+    "Health metrics sync completed",
+    {
+      userId,
+      status: "success",
+      metadata: {
+        provider,
+        metricCount: metrics.length,
+        sampleCount: totalSamples,
+        savedCount,
+        invalidCount,
+        skippedMetricCount,
+        durationMs,
+        syncId,
+      },
+    }
+  );
+  await observabilityEmitter.recordMetric(
+    "health_sync_latency",
+    durationMs,
+    "ms",
+    "health_data",
+    { provider, status: "success" }
+  );
+  await observabilityEmitter.recordMetric(
+    "health_sync_samples_total",
+    totalSamples,
+    "count",
+    "health_data",
+    { provider }
+  );
+  await observabilityEmitter.recordMetric(
+    "health_sync_samples_saved",
+    savedCount,
+    "count",
+    "health_data",
+    { provider }
+  );
+  if (invalidCount > 0) {
+    await observabilityEmitter.recordMetric(
+      "health_sync_samples_invalid",
+      invalidCount,
+      "count",
+      "health_data",
+      { provider }
+    );
+  }
+  if (skippedMetricCount > 0) {
+    await observabilityEmitter.recordMetric(
+      "health_sync_metrics_skipped",
+      skippedMetricCount,
+      "count",
+      "health_data",
+      { provider }
+    );
+  }
+
+  return savedCount;
+}
+
+/**
+ * Save vitals from sync payload.
+ * Called after successful health data sync from HealthKit / Health Connect / wearable.
+ */
+export async function saveSyncVitals(payload: {
+  provider: string;
+  metrics: Array<{
+    metricKey: string;
+    samples: MetricSample[];
+  }>;
+}): Promise<number> {
+  const session = await authClient.getSession();
+  const userId = session?.data?.user?.id;
+  if (!userId) {
+    throw new Error("User must be authenticated");
+  }
+
+  return await saveIntegrationVitals(
+    userId,
+    payload.metrics,
+    payload.provider
+  );
+}
+
+/**
+ * Sync CGM data from Dexcom for real-time glucose monitoring
+ */
+export async function syncDexcomCGMData(userId: string): Promise<void> {
+  try {
+    const currentGlucose = await dexcomService.getCurrentGlucose();
+    if (currentGlucose) {
+      // Save current glucose reading
+      await saveVitalSample(
+        userId,
+        "bloodGlucose",
+        currentGlucose.value,
+        getVitalUnit("bloodGlucose"),
+        new Date(currentGlucose.timestamp),
+        "Dexcom CGM",
+        {
+          trend: currentGlucose.trend,
+          trendArrow: currentGlucose.trendArrow,
+          unit: currentGlucose.unit,
+        }
+      );
+    }
+  } catch (_error) {
+    // Don't throw error - CGM sync failures shouldn't break other operations
+  }
+}
+
+/**
+ * Sync CGM data from Freestyle Libre for real-time glucose monitoring
+ */
+export async function syncFreestyleLibreCGMData(userId: string): Promise<void> {
+  try {
+    const currentGlucose = await freestyleLibreService.getCurrentGlucose();
+    if (currentGlucose) {
+      // Save current glucose reading
+      await saveVitalSample(
+        userId,
+        "bloodGlucose",
+        currentGlucose.value,
+        getVitalUnit("bloodGlucose"),
+        new Date(currentGlucose.timestamp),
+        "Freestyle Libre",
+        {
+          trend: currentGlucose.trend,
+          unit: currentGlucose.unit,
+        }
+      );
+    }
+  } catch (_error) {
+    // Don't throw error - CGM sync failures shouldn't break other operations
+  }
+}
+
+/**
+ * Get latest glucose reading from all connected CGM devices
+ */
+export async function getLatestGlucoseReading(_userId: string): Promise<{
+  value: number;
+  unit: string;
+  timestamp: Date;
+  source: string;
+  trend?: string;
+  trendArrow?: string;
+} | null> {
+  try {
+    // Try Dexcom first
+    try {
+      const dexcomReading = await dexcomService.getCurrentGlucose();
+      if (dexcomReading) {
+        return {
+          value: dexcomReading.value,
+          unit: dexcomReading.unit,
+          timestamp: new Date(dexcomReading.timestamp),
+          source: "Dexcom CGM",
+          trend: dexcomReading.trend,
+          trendArrow: dexcomReading.trendArrow,
+        };
+      }
+    } catch (_error) {
+      // Dexcom not available or failed
+    }
+
+    // Try Freestyle Libre as fallback
+    try {
+      const libreReading = await freestyleLibreService.getCurrentGlucose();
+      if (libreReading) {
+        return {
+          value: libreReading.value,
+          unit: libreReading.unit,
+          timestamp: new Date(libreReading.timestamp),
+          source: "Freestyle Libre",
+          trend: libreReading.trend,
+        };
+      }
+    } catch (_error) {
+      // Freestyle Libre not available or failed
+    }
+
+    return null;
+  } catch (_error) {
+    return null;
+  }
+}

@@ -1,4 +1,21 @@
+<<<<<<< Updated upstream
 import AsyncStorage from '@react-native-async-storage/async-storage';
+=======
+/**
+ * OpenAI service — Firebase-free replacement.
+ *
+ * Replaced:
+ *   - httpsCallable(firebaseFunctions, "openaiChatCompletion") → api.post("/api/ai/complete", {...})
+ *   - httpsCallable(firebaseFunctions, "openaiHealthCheck")    → api.get("/api/nora/health")
+ *
+ * All other behaviour (consent check, PII redaction, streaming shim, generateHealthInsights,
+ * model selection, error classification) is preserved exactly.
+ */
+
+import { api } from "@/lib/apiClient";
+import { aiInstrumenter } from "@/lib/observability";
+import aiConsentService from "@/lib/services/aiConsentService";
+>>>>>>> Stashed changes
 
 export interface ChatMessage {
   id: string;
@@ -14,6 +31,7 @@ export const AI_MODELS = {
   'gpt-4o': 'GPT-4o (Latest)',
 };
 
+<<<<<<< Updated upstream
 export interface ChatCompletionChunk {
   id: string;
   object: string;
@@ -43,6 +61,74 @@ class OpenAIService {
       }
     } catch (error) {
       console.error('Error loading OpenAI settings:', error);
+=======
+type ExpectedApiError = Error & {
+  isExpectedError?: boolean;
+  isApiKeyError?: boolean;
+};
+
+const markExpectedApiError = (message: string): ExpectedApiError => {
+  const error = new Error(message) as ExpectedApiError;
+  error.isExpectedError = true;
+  error.isApiKeyError = true;
+  return error;
+};
+
+const markExpectedUserActionError = (message: string): ExpectedApiError => {
+  const error = new Error(message) as ExpectedApiError;
+  error.isExpectedError = true;
+  error.isApiKeyError = false;
+  return error;
+};
+
+const MARKDOWN_JSON_BLOCK_REGEX = /```(?:json)?\s*(\{[\s\S]*\})\s*```/;
+
+const redactOutboundText = (value: string): string => {
+  const emailRedacted = value.replace(
+    /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,
+    "[REDACTED]"
+  );
+  const phoneRedacted = emailRedacted.replace(
+    /(\+?\d[\d\s().-]{7,}\d)/g,
+    "[REDACTED]"
+  );
+  return phoneRedacted;
+};
+
+class OpenAIService {
+  private model = "gpt-3.5-turbo";
+  private cachedHealth: {
+    configured: boolean;
+    hasAccess: boolean;
+    checkedAtMs: number;
+  } | null = null;
+
+  async initialize(): Promise<void> {
+    // No-op: OpenAI secrets live only in the Nuralix API server.
+  }
+
+  async getAccessStatus(): Promise<{
+    configured: boolean;
+    hasAccess: boolean;
+  }> {
+    const now = Date.now();
+    if (this.cachedHealth && now - this.cachedHealth.checkedAtMs < 60_000) {
+      return {
+        configured: this.cachedHealth.configured,
+        hasAccess: this.cachedHealth.hasAccess,
+      };
+    }
+
+    try {
+      const result = await api.get<{ configured: boolean }>("/api/nora/health");
+      const configured = Boolean(result?.configured);
+      // hasAccess is true whenever configured — subscription gating is done at the route level
+      this.cachedHealth = { configured, hasAccess: configured, checkedAtMs: now };
+      return { configured, hasAccess: configured };
+    } catch {
+      this.cachedHealth = { configured: false, hasAccess: false, checkedAtMs: now };
+      return { configured: false, hasAccess: false };
+>>>>>>> Stashed changes
     }
   }
 
@@ -104,6 +190,7 @@ class OpenAIService {
     if (!this.apiKey) {
       throw new Error('OpenAI API key not configured');
     }
+<<<<<<< Updated upstream
 
     try {
       console.log(`Making OpenAI API call with model: ${this.model}`);
@@ -151,6 +238,68 @@ class OpenAIService {
         }
         
         throw new Error(`OpenAI API error: ${errorMessage}`);
+=======
+  }
+
+  private async requestChatCompletion(
+    messages: ChatMessage[],
+    usePremiumKey: boolean
+  ): Promise<string> {
+    const consent = await aiConsentService.getConsent();
+    if (!consent.consented) {
+      throw markExpectedUserActionError(
+        "AI Data Sharing is disabled. Enable it in Profile > AI Data Sharing to use Nora and AI insights."
+      );
+    }
+
+    const sanitizedMessages = messages.map((m) => ({
+      ...m,
+      content: redactOutboundText(m.content),
+    }));
+
+    try {
+      const result = await api.post<{ content?: string; error?: string }>(
+        "/api/ai/complete",
+        {
+          messages: sanitizedMessages.map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+          model: this.model,
+          temperature: 0.7,
+          maxTokens: 1000,
+          usePremiumKey,
+        }
+      );
+
+      const content = result?.content;
+      if (typeof content !== "string") {
+        throw new Error("Invalid response format from AI service");
+      }
+      return content;
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Unknown AI service error";
+
+      // Map HTTP-style errors from our API to the same user-facing messages
+      if (message.includes("not configured") || message.includes("503")) {
+        throw markExpectedApiError(
+          "AI service is not configured. Set OPENAI_API_KEY and redeploy."
+        );
+      }
+      if (message.includes("quota") || message.includes("429")) {
+        throw new Error("AI quota exceeded. Please try again later.");
+      }
+      if (message.includes("signed in") || message.includes("401")) {
+        throw markExpectedApiError(
+          "You must be signed in to use the AI assistant."
+        );
+      }
+      if (message.includes("subscription") || message.includes("403")) {
+        throw markExpectedApiError(
+          "This feature requires an active subscription."
+        );
+>>>>>>> Stashed changes
       }
 
       const data = await response.json();

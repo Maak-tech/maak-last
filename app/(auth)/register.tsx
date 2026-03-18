@@ -138,7 +138,7 @@ export default function RegisterScreen() {
                 resizeMode="contain"
               />
             </View>
-            <Text style={[styles.appName, isRTL && styles.rtlText]}>Maak</Text>
+            <Text style={[styles.appName, isRTL && styles.rtlText]}>Nuralix</Text>
             <Text style={[styles.tagline, isRTL && styles.rtlText]}>
               {isRTL
                 ? 'انضم إلى مجتمع الصحة العائلية'

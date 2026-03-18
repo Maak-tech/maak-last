@@ -1028,7 +1028,11 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     textAlign: 'center',
   },
+<<<<<<< Updated upstream
   // Modal styles
+=======
+  // Modal styles - Figma design & Nuralix theme (#003543 primary, #EB9C0C accent)
+>>>>>>> Stashed changes
   modalContainer: {
     flex: 1,
     backgroundColor: '#F8FAFC',

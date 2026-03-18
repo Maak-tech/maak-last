@@ -1,0 +1,36 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile"
+  },
+  "deploy": {
+    "startCommand": "./server",
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 30,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 3
+  },
+  "crons": [
+    {
+      "schedule": "*/15 * * * *",
+      "command": "bun run src/jobs/vhiCycle.ts",
+      "name": "VHI computation cycle"
+    },
+    {
+      "schedule": "0 */6 * * *",
+      "command": "bun run src/jobs/forecastCycle.ts",
+      "name": "Risk forecast sweep (every 6 hours)"
+    },
+    {
+      "schedule": "0 6 * * *",
+      "command": "bun run src/jobs/outcomeResolverCycle.ts",
+      "name": "Outcome resolver (daily 06:00 UTC)"
+    },
+    {
+      "schedule": "*/5 * * * *",
+      "command": "bun run src/jobs/webhookRetryWorker.ts",
+      "name": "Webhook retry worker (every 5 minutes)"
+    }
+  ]
+}

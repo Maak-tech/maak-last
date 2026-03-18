@@ -733,6 +733,10 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
     color: '#FFFFFF',
   },
+<<<<<<< Updated upstream
+=======
+  // Modal styles - Figma design & Nuralix theme (#003543 primary, #EB9C0C accent)
+>>>>>>> Stashed changes
   modalContainer: {
     flex: 1,
     backgroundColor: '#F8FAFC',

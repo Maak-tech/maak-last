@@ -1,12 +1,16 @@
-# Maak Terms and Conditions
+﻿# Nuralix Terms and Conditions
 
 *Last Updated: December 2024*
 
 ## 1. Acceptance of Terms
 
-By downloading, installing, or using the Maak app ("the App"), you acknowledge that you have read, understood, and agree to be bound by these terms and conditions ("Terms"). If you do not agree to any of these Terms, please do not use the App.
+By downloading, installing, or using the Nuralix app ("the App"), you acknowledge that you have read, understood, and agree to be bound by these terms and conditions ("Terms"). If you do not agree to any of these Terms, please do not use the App.
 
+<<<<<<< Updated upstream
 These Terms constitute a legally binding agreement between you and Maak Health Technologies ("Maak," "we," "our," or "us").
+=======
+These Terms constitute a legally binding agreement between you and Nuralix Tech ("Nuralix," "we," "our," or "us").
+>>>>>>> Stashed changes
 
 ## 2. Acceptable Use
 
@@ -166,7 +170,7 @@ Any disputes arising from these Terms or your use of the App shall be resolved t
 ## 13. Miscellaneous
 
 ### Entire Agreement
-These Terms, together with our Privacy Policy, constitute the entire agreement between you and Maak.
+These Terms, together with our Privacy Policy, constitute the entire agreement between you and Nuralix.
 
 ### Severability
 If any part of these Terms is found to be invalid or unenforceable, the remaining parts will remain in full force and effect.
@@ -185,6 +189,7 @@ Our failure to enforce any provision of these Terms does not constitute a waiver
 If you have questions about these Terms and Conditions, please contact us:
 
 **General Inquiries**:
+<<<<<<< Updated upstream
 - Email: support@maak.app
 - Phone: +966 12 345 6789
 
@@ -197,10 +202,21 @@ If you have questions about these Terms and Conditions, please contact us:
 **Business Address**:
 Maak Health Technologies
 Riyadh, Saudi Arabia
+=======
+- Email: info@nuralix.ai
+- Phone: +19477777645
+
+**Privacy and Legal Inquiries**:
+- Email: privacy@nuralix.ai
+
+**Business Address**:
+Nuralix
+Doha, Qatar
+>>>>>>> Stashed changes
 
 ## 15. Acknowledgment
 
-By using the Maak App, you acknowledge that:
+By using the Nuralix App, you acknowledge that:
 - You have read and understood these Terms
 - You agree to be bound by these Terms
 - You understand the limitations and disclaimers

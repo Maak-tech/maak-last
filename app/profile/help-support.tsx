@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 import React from 'react';
 import {
   View,
@@ -11,6 +12,10 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
+=======
+﻿import { useNavigation, useRouter } from "expo-router";
+import type { LucideIcon } from "lucide-react-native";
+>>>>>>> Stashed changes
 import {
   ArrowLeft,
   HelpCircle,
@@ -114,6 +119,7 @@ export default function HelpSupportScreen() {
   );
 
   return (
+<<<<<<< Updated upstream
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
@@ -127,6 +133,59 @@ export default function HelpSupportScreen() {
             style={[isRTL && { transform: [{ rotate: '180deg' }] }]}
           />
         </TouchableOpacity>
+=======
+    <GradientScreen edges={["top"]} style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        style={styles.scrollView}
+      >
+        <View style={styles.headerWrapper}>
+          <WavyBackground
+            contentPosition="top"
+            curve="home"
+            height={280}
+            variant="teal"
+          >
+            <View style={styles.headerContent}>
+              <View style={[styles.headerRow, isRTL && styles.headerRowRTL]}>
+                <TouchableOpacity
+                  onPress={() => router.push("/(tabs)/profile")}
+                  style={styles.backButton}
+                >
+                  <ArrowLeft
+                    color="#003543"
+                    size={20}
+                    style={
+                      isRTL ? { transform: [{ rotate: "180deg" }] } : undefined
+                    }
+                  />
+                </TouchableOpacity>
+                <View style={styles.headerTitle}>
+                  <View
+                    style={[
+                      styles.headerTitleRow,
+                      isRTL && styles.headerRowRTL,
+                    ]}
+                  >
+                    <HelpCircle color="#EB9C0C" size={20} />
+                    <Text style={styles.headerTitleText}>
+                      {isRTL ? "المساعدة والدعم" : "Help & Support"}
+                    </Text>
+                  </View>
+                  <Text
+                    style={[styles.headerSubtitle, isRTL && styles.rtlText]}
+                  >
+                    {isRTL
+                      ? "فريق دعم معاك متاح لمساعدتك"
+                      : "Nuralix support team is here to help you"}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </WavyBackground>
+        </View>
+>>>>>>> Stashed changes
 
         <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
           {isRTL ? 'المساعدة والدعم' : 'Help & Support'}
@@ -146,8 +205,13 @@ export default function HelpSupportScreen() {
           </Text>
           <Text style={[styles.welcomeDescription, isRTL && styles.rtlText]}>
             {isRTL
+<<<<<<< Updated upstream
               ? 'فريق دعم معاك متاح لمساعدتك في أي وقت. اختر الطريقة المناسبة للتواصل معنا.'
               : 'Maak support team is available to help you anytime. Choose the best way to contact us.'}
+=======
+              ? "فريق دعم معاك متاح لمساعدتك في أي وقت. اختر الطريقة المناسبة للتواصل معنا."
+              : "Nuralix support team is available to help you anytime. Choose the best way to contact us."}
+>>>>>>> Stashed changes
           </Text>
         </View>
 
@@ -165,9 +229,14 @@ export default function HelpSupportScreen() {
                 ? 'للحالات العاجلة والدعم المباشر'
                 : 'For urgent issues and direct support'
             }
+<<<<<<< Updated upstream
             value="+970 594521902"
             method="phone"
             color="#10B981"
+=======
+            title={isRTL ? "راسلنا" : "Email Us"}
+            value="info@nuralix.ai"
+>>>>>>> Stashed changes
           />
 
           <ContactCard
@@ -204,9 +273,14 @@ export default function HelpSupportScreen() {
                 ? 'معلومات شاملة ومركز المساعدة'
                 : 'Comprehensive information and help center'
             }
+<<<<<<< Updated upstream
             value="https://maaktech.net/"
             method="website"
             color="#F59E0B"
+=======
+            title={isRTL ? "موقعنا الإلكتروني" : "Visit Website"}
+            value="https://nuralix.ai/"
+>>>>>>> Stashed changes
           />
         </View>
 

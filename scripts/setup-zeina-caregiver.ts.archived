@@ -1,0 +1,118 @@
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { db } from "../lib/firebase";
+import { userService } from "../lib/services/userService";
+
+async function setupNoraAsCaregiver() {
+  try {
+    console.log("🔍 Looking for user named Nora...");
+
+    // Query for user with firstName "Nora"
+    const usersQuery = query(
+      collection(db, "users"),
+      where("firstName", ">=", "Nora"),
+      where("firstName", "<=", "Nora\uf8ff")
+    );
+
+    const usersSnapshot = await getDocs(usersQuery);
+    const noraUsers = usersSnapshot.docs.filter((doc) => {
+      const data = doc.data();
+      return data.firstName?.toLowerCase() === "nora";
+    });
+
+    if (noraUsers.length === 0) {
+      console.log("❌ No user named Nora found in the system.");
+      console.log("Please ensure Nora is registered as a user first.");
+      return;
+    }
+
+    if (noraUsers.length > 1) {
+      console.log(
+        "⚠️ Multiple users named Nora found. Please specify which one:"
+      );
+      noraUsers.forEach((doc, index) => {
+        const data = doc.data();
+        console.log(
+          `${index + 1}. ${data.firstName} ${data.lastName || ""} (${data.email})`
+        );
+      });
+      return;
+    }
+
+    const noraDoc = noraUsers[0];
+    const noraData = noraDoc.data();
+    const noraId = noraDoc.id;
+
+    console.log(
+      `✅ Found Nora: ${noraData.firstName} ${noraData.lastName || ""} (${noraData.email})`
+    );
+
+    // Check if she already has the caregiver role
+    if (noraData.role === "caregiver") {
+      console.log("ℹ️ Nora is already set as a caregiver.");
+      return;
+    }
+
+    // Check if she has a family
+    if (!noraData.familyId) {
+      console.log(
+        "❌ Nora is not part of a family. Please add her to a family first."
+      );
+      return;
+    }
+
+    console.log(`🔍 Checking family: ${noraData.familyId}`);
+
+    // Find admin of the family
+    const familyMembers = await userService.getFamilyMembers(
+      noraData.familyId
+    );
+    const admin = familyMembers.find((member) => member.role === "admin");
+
+    if (!admin) {
+      console.log(
+        "❌ No admin found in Nora's family. Cannot assign caregiver role."
+      );
+      return;
+    }
+
+    console.log(
+      `👑 Found admin: ${admin.firstName} ${admin.lastName || ""} (${admin.email})`
+    );
+
+    // Set Nora as caregiver
+    console.log("🔄 Setting Nora as caregiver...");
+    await userService.setUserAsCaregiver(noraId, admin.id);
+
+    console.log("✅ SUCCESS!");
+    console.log("Nora now has access to:");
+    console.log(
+      "  • Full family medical information (symptoms, medications, moods)"
+    );
+    console.log("  • Family health reports and analytics");
+    console.log(
+      "  • Ability to send notifications to admins when something is off"
+    );
+    console.log("  • Caregiver dashboard functionality");
+    console.log("");
+    console.log("Admins can now:");
+    console.log("  • View caregiver alerts in their dashboard");
+    console.log(
+      "  • Manage Nora's caregiver role from family member profiles"
+    );
+    console.log("  • Receive notifications when Nora sends alerts");
+  } catch (error) {
+    console.error("❌ Error setting up Nora as caregiver:", error);
+    process.exit(1);
+  }
+}
+
+// Run the script
+setupNoraAsCaregiver()
+  .then(() => {
+    console.log("\n🎉 Setup complete!");
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error("Script failed:", error);
+    process.exit(1);
+  });

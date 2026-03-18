@@ -175,8 +175,13 @@ export default function FamilyScreen() {
 
       // Prepare sharing message
       const shareMessage = isRTL
+<<<<<<< Updated upstream
         ? `مرحباً ${memberName}! تم دعوتك للانضمام إلى مجموعة العائلة الصحية على تطبيق معك.\n\nرمز الدعوة: ${code}\n\n1. حمل تطبيق معك\n2. سجل دخولك أو أنشئ حساب جديد\n3. استخدم رمز الدعوة: ${code}\n\nهذا الرمز صالح لمدة 7 أيام.`
         : `Hi ${memberName}! You've been invited to join our family health group on Maak app.\n\nInvitation Code: ${code}\n\n1. Download the Maak app\n2. Sign in or create a new account\n3. Use invitation code: ${code}\n\nThis code expires in 7 days.`;
+=======
+        ? `مرحباً ${memberName}! تمت دعوتك للانضمام إلى مجموعة العائلة الصحية على تطبيق معك.\n\nرمز الدعوة: ${code}\n\n1. حمّل تطبيق معك\n2. سجّل دخولك أو أنشئ حساباً جديداً\n3. استخدم رمز الدعوة: ${code}\n\nهذا الرمز صالح لمدة 7 أيام.`
+        : `Hi ${memberName}! You've been invited to join our family health group on Nuralix app.\n\nInvitation Code: ${code}\n\n1. Download the Nuralix app\n2. Sign in or create a new account\n3. Use invitation code: ${code}\n\nThis code expires in 7 days.`;
+>>>>>>> Stashed changes
 
       // Show options to share or copy
       Alert.alert(
@@ -192,8 +197,13 @@ export default function FamilyScreen() {
                 await Share.share({
                   message: shareMessage,
                   title: isRTL
+<<<<<<< Updated upstream
                     ? 'دعوة للانضمام إلى معك'
                     : 'Invitation to join Maak',
+=======
+                    ? "دعوة للانضمام إلى معك"
+                    : "Invitation to join Nuralix",
+>>>>>>> Stashed changes
                 });
               } catch (error) {
                 console.error('Error sharing:', error);
@@ -467,8 +477,13 @@ export default function FamilyScreen() {
       );
 
       const shareMessage = isRTL
+<<<<<<< Updated upstream
         ? `مرحباً! تم دعوتك للانضمام إلى مجموعة العائلة الصحية على تطبيق معك.\n\nرمز الدعوة: ${code}\n\n1. حمل تطبيق معك\n2. سجل دخولك أو أنشئ حساب جديد\n3. استخدم رمز الدعوة: ${code}\n\nهذا الرمز صالح لمدة 7 أيام.`
         : `Hi! You've been invited to join our family health group on Maak app.\n\nInvitation Code: ${code}\n\n1. Download the Maak app\n2. Sign in or create a new account\n3. Use invitation code: ${code}\n\nThis code expires in 7 days.`;
+=======
+        ? `مرحباً! تمت دعوتك للانضمام إلى مجموعة العائلة الصحية على تطبيق معك.\n\nرمز الدعوة: ${code}\n\n1. حمّل تطبيق معك\n2. سجّل دخولك أو أنشئ حساباً جديداً\n3. استخدم رمز الدعوة: ${code}\n\nهذا الرمز صالح لمدة 7 أيام.`
+        : `Hi! You've been invited to join our family health group on Nuralix app.\n\nInvitation Code: ${code}\n\n1. Download the Nuralix app\n2. Sign in or create a new account\n3. Use invitation code: ${code}\n\nThis code expires in 7 days.`;
+>>>>>>> Stashed changes
 
       // Show options to share or copy
       Alert.alert(
@@ -484,8 +499,13 @@ export default function FamilyScreen() {
                 await Share.share({
                   message: shareMessage,
                   title: isRTL
+<<<<<<< Updated upstream
                     ? 'دعوة للانضمام إلى معك'
                     : 'Invitation to join Maak',
+=======
+                    ? "دعوة للانضمام إلى معك"
+                    : "Invitation to join Nuralix",
+>>>>>>> Stashed changes
                 });
               } catch (error) {
                 console.error('Error sharing:', error);

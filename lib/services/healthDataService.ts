@@ -1,7 +1,18 @@
+<<<<<<< Updated upstream
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
 import * as Sensors from 'expo-sensors';
+=======
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
+import { Platform } from "react-native";
+import { api } from "@/lib/apiClient";
+import { authClient } from "@/lib/authClient";
+import type { VitalSign } from "@/types";
+import { safeFormatNumber } from "@/utils/dateFormat";
+import { appleHealthService } from "./appleHealthService";
+>>>>>>> Stashed changes
 
 // iOS HealthKit permissions - correct format for react-native-health
 const HealthKitPermissions = {
@@ -77,8 +88,50 @@ export interface HealthDataSummary {
   lastSyncTime: Date;
 }
 
+<<<<<<< Updated upstream
 const HEALTH_DATA_STORAGE_KEY = '@maak_health_data';
 const PERMISSIONS_STORAGE_KEY = '@maak_health_permissions';
+=======
+const HEALTH_DATA_STORAGE_KEY = "@nuralix_health_data";
+const PERMISSIONS_STORAGE_KEY = "@nuralix_health_permissions";
+
+// In-memory cache for getLatestVitalsFromFirestore
+const _vitalsFirestoreCache = new Map<string, { data: VitalSigns | null; timestamp: number }>();
+const VITALS_CACHE_TTL = 2 * 60_000; // 2 minutes
+const isDevEnvironment = (): boolean =>
+  (globalThis as { __DEV__?: boolean }).__DEV__ === true;
+
+type VitalSample = {
+  value: number;
+  timestamp: Date;
+  source?: string;
+  metadata?: Record<string, unknown>;
+};
+
+const getLatestBloodPressure = (
+  vitalsByType: Record<string, VitalSample[]>
+): { systolic: number; diastolic: number } | undefined => {
+  const samples = vitalsByType.bloodPressure;
+  if (!samples || samples.length === 0) {
+    return;
+  }
+
+  const sorted = [...samples].sort(
+    (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+  );
+  const latest = sorted[0];
+  const systolic = Number(latest.metadata?.systolic);
+  const diastolic = Number(latest.metadata?.diastolic);
+  if (!(Number.isNaN(systolic) || Number.isNaN(diastolic))) {
+    return {
+      systolic,
+      diastolic,
+    };
+  }
+
+  return;
+};
+>>>>>>> Stashed changes
 
 export const healthDataService = {
   // Initialize health data access (Expo-compatible)
@@ -172,6 +225,7 @@ export const healthDataService = {
   // Get latest vital signs
   async getLatestVitals(): Promise<VitalSigns | null> {
     try {
+<<<<<<< Updated upstream
       const hasPermissions = await this.hasHealthPermissions();
       if (!hasPermissions) {
         console.log('⚠️ No health permissions granted');
@@ -182,6 +236,71 @@ export const healthDataService = {
         return await this.getIOSVitals();
       } else if (Platform.OS === 'android') {
         return await this.getAndroidVitals();
+=======
+      const userId = (await authClient.getSession())?.data?.user?.id;
+
+      // Prefer direct provider first - matches Health app in real time
+      const providerVitals = await this.getLatestVitalsFromProviders();
+      if (providerVitals) {
+        return providerVitals;
+      }
+
+      // Fall back to Firestore (synced data) when no provider connected
+      if (userId) {
+        return await this.getLatestVitalsFromFirestore(userId);
+      }
+      return null;
+    } catch (_error) {
+      const userId = (await authClient.getSession())?.data?.user?.id;
+      if (userId) {
+        return await this.getLatestVitalsFromFirestore(userId);
+      }
+      return await this.getLatestVitalsFromProviders();
+    }
+  },
+
+  // Get latest vitals from REST API (aggregated from all sources)
+  async getLatestVitalsFromFirestore(
+    userId: string
+  ): Promise<VitalSigns | null> {
+    const cached = _vitalsFirestoreCache.get(userId);
+    if (cached && Date.now() - cached.timestamp < VITALS_CACHE_TTL) {
+      return cached.data;
+    }
+
+    try {
+      // Get recent vitals from all sources (last 7 days)
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      const result = await api.get<{ data?: Record<string, unknown>[] }>(
+        `/api/health/vitals?since=${sevenDaysAgo.toISOString()}&limit=500`
+      );
+
+      const docs = result?.data ?? [];
+      if (docs.length === 0) {
+        return null;
+      }
+
+      // Group vitals by type
+      const vitalsByType: Record<string, VitalSample[]> = {};
+
+      for (const data of docs) {
+        const vitalType = data.type as string;
+        const timestamp = data.recordedAt
+          ? new Date(data.recordedAt as string)
+          : new Date();
+
+        if (!vitalsByType[vitalType]) {
+          vitalsByType[vitalType] = [];
+        }
+        vitalsByType[vitalType].push({
+          value: data.value as number,
+          timestamp,
+          source: data.source as string | undefined,
+          metadata: data.metadata as Record<string, unknown> | undefined,
+        });
+>>>>>>> Stashed changes
       }
       
       return null;
@@ -426,4 +545,67 @@ export const healthDataService = {
         : 'N/A',
     };
   },
+<<<<<<< Updated upstream
 };
+=======
+
+  /**
+   * Fetch historical vital sign readings for a user as a flat VitalSign[].
+   *
+   * Maps Firestore field names to the VitalSign type:
+   *   bodyTemperature → temperature
+   *   bloodGlucose    → bloodSugar
+   * Other types (heartRate, bloodPressure, weight) are passed through as-is.
+   *
+   * @param userId  The authenticated user's UID.
+   * @param days    How many days back to fetch (default 90).
+   * @param maxDocs Maximum Firestore documents to read (default 1000).
+   */
+  async getUserVitals(
+    userId: string,
+    days = 90,
+    maxDocs = 1000
+  ): Promise<VitalSign[]> {
+    try {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+
+      const TYPE_MAP: Record<string, VitalSign["type"] | null> = {
+        heartRate: "heartRate",
+        bloodPressure: "bloodPressure",
+        bodyTemperature: "temperature",
+        temperature: "temperature",
+        weight: "weight",
+        bloodGlucose: "bloodSugar",
+        bloodSugar: "bloodSugar",
+      };
+
+      const raw = await api.get<Record<string, unknown>[]>(
+        `/api/health/vitals?userId=${userId}&from=${cutoff.toISOString()}&limit=${maxDocs}`
+      ) ?? [];
+
+      const results: VitalSign[] = [];
+      for (const data of raw) {
+        const mappedType = TYPE_MAP[data.type as string] ?? null;
+        if (!mappedType) continue;
+        results.push({
+          id: (data.id as string) ?? "",
+          userId,
+          type: mappedType,
+          value: typeof data.value === "number" ? data.value : 0,
+          unit: typeof data.unit === "string" ? data.unit : "",
+          timestamp: data.recordedAt ? new Date(data.recordedAt as string) : new Date(),
+          source:
+            data.source === "manual" || data.source === "clinic"
+              ? (data.source as "manual" | "clinic")
+              : "device",
+        });
+      }
+
+      return results;
+    } catch {
+      return [];
+    }
+  },
+};
+>>>>>>> Stashed changes

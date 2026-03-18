@@ -1,0 +1,1201 @@
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Screen is currently large/stateful; refactor can be done separately from feature work. */
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { api } from "@/lib/apiClient";
+import {
+  AlertCircle,
+  ArrowLeft,
+  ChevronRight,
+  Clock,
+  Heart,
+  Plus,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { LineChart } from "react-native-chart-kit";
+import { SafeAreaView } from "react-native-safe-area-context";
+import GradientScreen from "@/components/figma/GradientScreen";
+import WavyBackground from "@/components/figma/WavyBackground";
+import { useAuth } from "@/contexts/AuthContext";
+
+type BloodPressureReading = {
+  id: string;
+  systolic: number;
+  diastolic: number;
+  pulse?: number;
+  note?: string;
+  timestamp: Date;
+  status: "normal" | "elevated" | "high" | "critical";
+};
+
+const STATUS_COLORS: Record<BloodPressureReading["status"], string> = {
+  normal: "#10B981",
+  elevated: "#FBBF24",
+  high: "#F97316",
+  critical: "#EF4444",
+};
+
+const STATUS_LABELS: Record<
+  BloodPressureReading["status"],
+  { en: string; ar: string }
+> = {
+  normal: { en: "Normal", ar: "طبيعي" },
+  elevated: { en: "Elevated", ar: "مرتفع قليلًا" },
+  high: { en: "High", ar: "مرتفع" },
+  critical: { en: "Critical", ar: "حرج" },
+};
+
+const getStatusLabel = (
+  status: BloodPressureReading["status"],
+  isRTL: boolean
+) => (isRTL ? STATUS_LABELS[status].ar : STATUS_LABELS[status].en);
+
+const getStatus = (systolic: number, diastolic: number) => {
+  if (systolic >= 180 || diastolic >= 120) {
+    return "critical";
+  }
+  if (systolic >= 140 || diastolic >= 90) {
+    return "high";
+  }
+  if (systolic >= 120 || diastolic >= 80) {
+    return "elevated";
+  }
+  return "normal";
+};
+
+const parseBloodPressure = (value: unknown) => {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    const [sys, dia] = value.split("/").map((part) => Number(part.trim()));
+    if (!(Number.isNaN(sys) || Number.isNaN(dia))) {
+      return { systolic: sys, diastolic: dia };
+    }
+  }
+
+  if (typeof value === "object") {
+    const record = value as { systolic?: number; diastolic?: number };
+    if (
+      typeof record.systolic === "number" &&
+      typeof record.diastolic === "number"
+    ) {
+      return { systolic: record.systolic, diastolic: record.diastolic };
+    }
+  }
+
+  return null;
+};
+
+const formatRelativeTime = (
+  date: Date,
+  t: (key: string, options?: { count?: number }) => string
+) => {
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.max(0, Math.floor(diffMs / 60_000));
+  if (diffMinutes < 60) {
+    return diffMinutes <= 1
+      ? t("justNow")
+      : t("minAgo", { count: diffMinutes });
+  }
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) {
+    return t("hoursAgo", { count: diffHours });
+  }
+  const diffDays = Math.floor(diffHours / 24);
+  return t("daysAgo", { count: diffDays });
+};
+
+export default function BloodPressureScreen() {
+  const { user } = useAuth();
+  const { t, i18n } = useTranslation();
+  const router = useRouter();
+  const params = useLocalSearchParams<{ returnTo?: string }>();
+  const [readings, setReadings] = useState<BloodPressureReading[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [systolic, setSystolic] = useState("");
+  const [diastolic, setDiastolic] = useState("");
+  const [pulse, setPulse] = useState("");
+  const [note, setNote] = useState("");
+  const [time, setTime] = useState(() => new Date().toTimeString().slice(0, 5));
+
+  const isRTL = i18n.language === "ar";
+
+  const loadReadings = useCallback(async () => {
+    if (!user?.id) {
+      setReadings([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const raw = await api.get<Record<string, unknown>[]>(
+        `/api/health/vitals?type=bloodPressure&limit=30`
+      );
+      const items: BloodPressureReading[] = [];
+
+      for (const d of raw ?? []) {
+        const fromMetadata = parseBloodPressure(d.metadata);
+        const fromValue = parseBloodPressure(d.value);
+        const parsed = fromMetadata || fromValue;
+
+        if (!parsed) {
+          continue;
+        }
+
+        const metadata = d.metadata as Record<string, unknown> | undefined;
+        const valueObj = d.value as Record<string, unknown> | undefined;
+
+        let pulseValue: number | undefined;
+        if (typeof metadata?.pulse === "number") {
+          pulseValue = metadata.pulse;
+        } else if (typeof valueObj?.pulse === "number") {
+          pulseValue = valueObj.pulse;
+        }
+
+        items.push({
+          id: d.id as string,
+          systolic: parsed.systolic,
+          diastolic: parsed.diastolic,
+          pulse: pulseValue,
+          note:
+            typeof metadata?.note === "string" ? metadata.note : undefined,
+          timestamp: d.recordedAt ? new Date(d.recordedAt as string) : new Date(),
+          status: getStatus(parsed.systolic, parsed.diastolic),
+        });
+      }
+
+      setReadings(items);
+    } catch (error) {
+      console.error("Failed to load blood pressure readings:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : t("unknownError");
+      Alert.alert(
+        t("error"),
+        `Unable to load blood pressure readings. ${errorMessage}`
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id, t]);
+
+  useEffect(() => {
+    loadReadings();
+  }, [loadReadings]);
+
+  const latestReading = readings[0];
+
+  const averages = useMemo(() => {
+    if (readings.length === 0) {
+      return { systolic: 0, diastolic: 0 };
+    }
+    const total = readings.reduce(
+      (acc, reading) => {
+        acc.systolic += reading.systolic;
+        acc.diastolic += reading.diastolic;
+        return acc;
+      },
+      { systolic: 0, diastolic: 0 }
+    );
+    return {
+      systolic: Math.round(total.systolic / readings.length),
+      diastolic: Math.round(total.diastolic / readings.length),
+    };
+  }, [readings]);
+
+  const trend = useMemo(() => {
+    if (readings.length < 4) {
+      return { direction: "stable", percent: 0 };
+    }
+    const recent = readings.slice(0, 3);
+    const previous = readings.slice(3, 6);
+    const recentAvg =
+      recent.reduce((sum, item) => sum + item.systolic, 0) / recent.length;
+    const previousAvg =
+      previous.reduce((sum, item) => sum + item.systolic, 0) / previous.length;
+    if (!previousAvg) {
+      return { direction: "stable", percent: 0 };
+    }
+    const percent = Math.round(((previousAvg - recentAvg) / previousAvg) * 100);
+    if (percent > 0) {
+      return { direction: "down", percent };
+    }
+    if (percent < 0) {
+      return { direction: "up", percent: Math.abs(percent) };
+    }
+    return { direction: "stable", percent: 0 };
+  }, [readings]);
+
+  const trendPresentation = useMemo(() => {
+    if (trend.direction === "down") {
+      return {
+        Icon: TrendingDown,
+        color: "#10B981",
+        label: isRTL ? "يتحسن" : "Improving",
+      };
+    }
+    if (trend.direction === "up") {
+      return {
+        Icon: TrendingUp,
+        color: "#F97316",
+        label: isRTL ? "يرتفع" : "Rising",
+      };
+    }
+    return {
+      Icon: AlertCircle,
+      color: "#6C7280",
+      label: isRTL ? "مستقر" : "Stable",
+    };
+  }, [trend.direction, isRTL]);
+
+  const chartData = useMemo(() => {
+    const points = [...readings]
+      .slice(0, 7)
+      .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+
+    if (points.length > 0) {
+      return {
+        labels: points.map((reading) =>
+          reading.timestamp.toLocaleDateString(isRTL ? "ar-EG" : "en-US", {
+            weekday: "short",
+          })
+        ),
+        datasets: [
+          {
+            data: points.map((reading) => reading.systolic),
+            color: () => "#DC2626",
+            strokeWidth: 2.5,
+          },
+          {
+            data: points.map((reading) => reading.diastolic),
+            color: () => "#3B82F6",
+            strokeWidth: 2.5,
+          },
+        ],
+      };
+    }
+
+    // Mock chart when no data: 7 days of sample BP values
+    const mockSystolic = [118, 120, 119, 122, 118, 121, 121];
+    const mockDiastolic = [78, 76, 80, 79, 77, 78, 79];
+    const labels: string[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      labels.push(
+        d.toLocaleDateString(isRTL ? "ar-EG" : "en-US", { weekday: "short" })
+      );
+    }
+    return {
+      labels,
+      datasets: [
+        { data: mockSystolic, color: () => "#DC2626", strokeWidth: 2.5 },
+        { data: mockDiastolic, color: () => "#3B82F6", strokeWidth: 2.5 },
+      ],
+    };
+  }, [readings, isRTL]);
+
+  const handleSave = async () => {
+    const sys = Number(systolic);
+    const dia = Number(diastolic);
+    const pulseValue = pulse ? Number(pulse) : undefined;
+
+    if (!(sys && dia) || Number.isNaN(sys) || Number.isNaN(dia)) {
+      Alert.alert(
+        isRTL ? "إدخال غير صالح" : "Invalid Input",
+        isRTL
+          ? "يرجى إدخال قيم انقباضي وانبساطي صحيحة."
+          : "Please enter valid systolic and diastolic values."
+      );
+      return;
+    }
+    if (sys <= dia) {
+      Alert.alert(
+        isRTL ? "إدخال غير صالح" : "Invalid Input",
+        isRTL
+          ? "يجب أن يكون الضغط الانقباضي أكبر من الانبساطي."
+          : "Systolic must be greater than diastolic."
+      );
+      return;
+    }
+    if (!user?.id) {
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL
+          ? "يرجى تسجيل الدخول لحفظ القراءات."
+          : "Please log in to save readings."
+      );
+      return;
+    }
+
+    const entryDate = new Date();
+    if (time) {
+      const [hours, minutes] = time.split(":").map((value) => Number(value));
+      if (!(Number.isNaN(hours) || Number.isNaN(minutes))) {
+        entryDate.setHours(hours, minutes, 0, 0);
+      }
+    }
+
+    setSaving(true);
+    try {
+      await api.post("/api/health/vitals", {
+        type: "bloodPressure",
+        value: `${sys}/${dia}`,
+        unit: "mmHg",
+        recordedAt: entryDate.toISOString(),
+        source: "manual",
+        metadata: {
+          systolic: sys,
+          diastolic: dia,
+          pulse: pulseValue,
+          note: note.trim() || undefined,
+        },
+      });
+
+      setSystolic("");
+      setDiastolic("");
+      setPulse("");
+      setNote("");
+      setTime(new Date().toTimeString().slice(0, 5));
+      setShowAddModal(false);
+      await loadReadings();
+    } catch (_error) {
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL
+          ? "تعذر حفظ قراءة ضغط الدم."
+          : "Unable to save blood pressure reading."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <GradientScreen>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        style={styles.scrollView}
+      >
+        <View style={styles.headerWrapper}>
+          <WavyBackground curve="home" height={220} variant="teal">
+            <View style={styles.header}>
+              <TouchableOpacity
+                onPress={() => {
+                  if (params.returnTo === "track") {
+                    router.push("/(tabs)/track");
+                  } else if (router.canGoBack?.()) {
+                    router.back();
+                  } else {
+                    router.push("/(tabs)/track");
+                  }
+                }}
+                style={styles.backButton}
+              >
+                <ArrowLeft
+                  color="#003543"
+                  size={20}
+                  style={
+                    isRTL ? { transform: [{ rotate: "180deg" }] } : undefined
+                  }
+                />
+              </TouchableOpacity>
+              <View style={styles.headerTitleWrap}>
+                <View style={styles.headerTitleRow}>
+                  <Heart color="#EB9C0C" size={24} />
+                  <Text style={styles.headerTitle}>
+                    {isRTL ? "ضغط الدم" : "Blood Pressure"}
+                  </Text>
+                </View>
+                <Text style={styles.headerSubtitle}>
+                  {isRTL
+                    ? "راقب قراءات ضغط الدم مع مرور الوقت"
+                    : "Monitor BP readings over time"}
+                </Text>
+              </View>
+            </View>
+          </WavyBackground>
+        </View>
+
+        <View style={styles.content}>
+          {loading ? (
+            <View style={styles.loading}>
+              <ActivityIndicator color="#003543" />
+            </View>
+          ) : (
+            <>
+              <View style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.cardLabel}>
+                    {isRTL ? "أحدث قراءة" : "Latest Reading"}
+                  </Text>
+                  <Text style={styles.cardMeta}>
+                    {latestReading
+                      ? formatRelativeTime(latestReading.timestamp, t)
+                      : "--"}
+                  </Text>
+                </View>
+                {latestReading ? (
+                  <View style={styles.latestRow}>
+                    <View>
+                      <View style={styles.latestValueRow}>
+                        <Text style={styles.latestValue}>
+                          {latestReading.systolic}
+                        </Text>
+                        <Text style={styles.latestSlash}>/</Text>
+                        <Text style={styles.latestValue}>
+                          {latestReading.diastolic}
+                        </Text>
+                      </View>
+                      <Text style={styles.latestMeta}>
+                        mmHg • Pulse: {latestReading.pulse ?? "--"} bpm
+                      </Text>
+                    </View>
+                    <View>
+                      <View
+                        style={[
+                          styles.statusBadge,
+                          {
+                            backgroundColor: `${STATUS_COLORS[latestReading.status]}20`,
+                          },
+                        ]}
+                      >
+                        <Heart
+                          color={STATUS_COLORS[latestReading.status]}
+                          size={14}
+                        />
+                        <Text
+                          style={[
+                            styles.statusText,
+                            { color: STATUS_COLORS[latestReading.status] },
+                          ]}
+                        >
+                          {getStatusLabel(latestReading.status, isRTL)}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                ) : (
+                  <Text style={styles.emptyText}>
+                    {isRTL ? "لا توجد قراءات بعد" : "No readings yet"}
+                  </Text>
+                )}
+              </View>
+
+              <View style={styles.quickStats}>
+                <View style={styles.quickStatCard}>
+                  <Text style={styles.quickStatValue}>
+                    {averages.systolic || "--"}
+                  </Text>
+                  <Text style={styles.quickStatLabel}>
+                    {isRTL ? "متوسط الانقباضي" : "Avg Systolic"}
+                  </Text>
+                </View>
+                <View style={styles.quickStatCard}>
+                  <Text style={styles.quickStatValue}>
+                    {averages.diastolic || "--"}
+                  </Text>
+                  <Text style={styles.quickStatLabel}>
+                    {isRTL ? "متوسط الانبساطي" : "Avg Diastolic"}
+                  </Text>
+                </View>
+                <View style={styles.quickStatCard}>
+                  <View style={styles.trendRow}>
+                    <trendPresentation.Icon
+                      color={trendPresentation.color}
+                      size={16}
+                    />
+                    <Text
+                      style={[
+                        styles.trendValue,
+                        { color: trendPresentation.color },
+                      ]}
+                    >
+                      {trend.percent ? `${trend.percent}%` : "--"}
+                    </Text>
+                  </View>
+                  <Text style={styles.quickStatLabel}>
+                    {trendPresentation.label}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.card}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>
+                    {isRTL ? "اتجاه الضغط" : "Pressure Trend"}
+                  </Text>
+                  <Text style={styles.sectionAction}>
+                    {isRTL ? "7 أيام" : "7 Days"}
+                  </Text>
+                </View>
+                <LineChart
+                  chartConfig={{
+                    backgroundGradientFrom: "#FFFFFF",
+                    backgroundGradientTo: "#FFFFFF",
+                    color: (opacity = 1) => `rgba(30, 41, 59, ${opacity})`,
+                    labelColor: (opacity = 1) =>
+                      `rgba(107, 114, 128, ${opacity})`,
+                    propsForDots: {
+                      r: "3",
+                    },
+                    propsForBackgroundLines: {
+                      strokeDasharray: "3 3",
+                      stroke: "#E5E7EB",
+                    },
+                  }}
+                  data={chartData}
+                  height={220}
+                  style={styles.chart}
+                  width={Dimensions.get("window").width - 48}
+                  withShadow={false}
+                />
+                <View style={styles.chartLegend}>
+                  <Text style={styles.chartLegendText}>
+                    {isRTL ? "طبيعي: أقل من 120/80" : "Normal: <120/80"}
+                  </Text>
+                  <Text style={styles.chartLegendText}>
+                    {isRTL
+                      ? "مرتفع قليلًا: 120-129/<80"
+                      : "Elevated: 120-129/<80"}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.card}>
+                <Text style={styles.sectionTitle}>
+                  {isRTL ? "النطاقات المرجعية" : "Reference Ranges"}
+                </Text>
+                <View style={styles.referenceItem}>
+                  <View style={styles.referenceLeft}>
+                    <View
+                      style={[
+                        styles.referenceDot,
+                        { backgroundColor: "#10B981" },
+                      ]}
+                    />
+                    <Text style={styles.referenceLabel}>
+                      {isRTL ? "طبيعي" : "Normal"}
+                    </Text>
+                  </View>
+                  <Text style={styles.referenceValue}>&lt;120/80 mmHg</Text>
+                </View>
+                <View style={styles.referenceItem}>
+                  <View style={styles.referenceLeft}>
+                    <View
+                      style={[
+                        styles.referenceDot,
+                        { backgroundColor: "#FBBF24" },
+                      ]}
+                    />
+                    <Text style={styles.referenceLabel}>
+                      {isRTL ? "مرتفع قليلًا" : "Elevated"}
+                    </Text>
+                  </View>
+                  <Text style={styles.referenceValue}>120-129/&lt;80 mmHg</Text>
+                </View>
+                <View style={styles.referenceItem}>
+                  <View style={styles.referenceLeft}>
+                    <View
+                      style={[
+                        styles.referenceDot,
+                        { backgroundColor: "#F97316" },
+                      ]}
+                    />
+                    <Text style={styles.referenceLabel}>
+                      {isRTL ? "مرتفع - المرحلة 1" : "High Stage 1"}
+                    </Text>
+                  </View>
+                  <Text style={styles.referenceValue}>130-139/80-89 mmHg</Text>
+                </View>
+                <View style={styles.referenceItem}>
+                  <View style={styles.referenceLeft}>
+                    <View
+                      style={[
+                        styles.referenceDot,
+                        { backgroundColor: "#EF4444" },
+                      ]}
+                    />
+                    <Text style={styles.referenceLabel}>
+                      {isRTL ? "مرتفع - المرحلة 2" : "High Stage 2"}
+                    </Text>
+                  </View>
+                  <Text style={styles.referenceValue}>≥140/90 mmHg</Text>
+                </View>
+              </View>
+
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>
+                  {isRTL ? "القراءات الأخيرة" : "Recent Readings"}
+                </Text>
+                <Text style={styles.sectionAction}>
+                  {isRTL ? "عرض الكل" : "View All"}
+                </Text>
+              </View>
+              {readings.slice(0, 5).map((reading) => (
+                <View key={reading.id} style={styles.readingCard}>
+                  <View style={styles.readingIcon}>
+                    <Heart color={STATUS_COLORS[reading.status]} size={20} />
+                  </View>
+                  <View style={styles.readingContent}>
+                    <View style={styles.readingHeader}>
+                      <Text style={styles.readingTitle}>
+                        {reading.systolic}/{reading.diastolic} mmHg
+                      </Text>
+                      <View
+                        style={[
+                          styles.statusBadgeSmall,
+                          {
+                            backgroundColor: `${STATUS_COLORS[reading.status]}20`,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.statusTextSmall,
+                            { color: STATUS_COLORS[reading.status] },
+                          ]}
+                        >
+                          {getStatusLabel(reading.status, isRTL)}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={styles.readingMeta}>
+                      {isRTL ? "النبض" : "Pulse"}: {reading.pulse ?? "--"}{" "}
+                      {isRTL ? "نبضة/د" : "bpm"} •{" "}
+                      {reading.note || t("noNotes")}
+                    </Text>
+                    <View style={styles.readingTimeRow}>
+                      <Clock color="#6C7280" size={12} />
+                      <Text style={styles.readingTime}>
+                        {formatRelativeTime(reading.timestamp, t)}
+                      </Text>
+                    </View>
+                  </View>
+                  <ChevronRight color="#6C7280" size={18} />
+                </View>
+              ))}
+            </>
+          )}
+        </View>
+      </ScrollView>
+
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => setShowAddModal(true)}
+        style={styles.fab}
+      >
+        <Plus color="#FFFFFF" size={22} />
+      </TouchableOpacity>
+
+      <Modal
+        animationType="slide"
+        onRequestClose={() => setShowAddModal(false)}
+        transparent
+        visible={showAddModal}
+      >
+        <View style={styles.modalOverlay}>
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {isRTL ? "تسجيل ضغط الدم" : "Log Blood Pressure"}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowAddModal(false)}
+                style={styles.modalClose}
+              >
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.modalRow}>
+                <View style={styles.modalField}>
+                  <Text style={styles.modalLabel}>
+                    {isRTL ? "الانقباضي" : "Systolic"}
+                  </Text>
+                  <TextInput
+                    keyboardType="number-pad"
+                    onChangeText={setSystolic}
+                    placeholder="120"
+                    style={styles.modalInput}
+                    value={systolic}
+                  />
+                  <Text style={styles.modalHint}>
+                    {isRTL ? "مم زئبق" : "mmHg"}
+                  </Text>
+                </View>
+                <View style={styles.modalField}>
+                  <Text style={styles.modalLabel}>
+                    {isRTL ? "الانبساطي" : "Diastolic"}
+                  </Text>
+                  <TextInput
+                    keyboardType="number-pad"
+                    onChangeText={setDiastolic}
+                    placeholder="80"
+                    style={styles.modalInput}
+                    value={diastolic}
+                  />
+                  <Text style={styles.modalHint}>
+                    {isRTL ? "مم زئبق" : "mmHg"}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.modalField}>
+                <Text style={styles.modalLabel}>
+                  {isRTL ? "معدل النبض (اختياري)" : "Pulse Rate (Optional)"}
+                </Text>
+                <TextInput
+                  keyboardType="number-pad"
+                  onChangeText={setPulse}
+                  placeholder="72"
+                  style={styles.modalInput}
+                  value={pulse}
+                />
+                <Text style={styles.modalHint}>{isRTL ? "نبضة/د" : "bpm"}</Text>
+              </View>
+
+              <View style={styles.modalField}>
+                <Text style={styles.modalLabel}>
+                  {isRTL ? "الوقت" : "Time"}
+                </Text>
+                <TextInput
+                  onChangeText={setTime}
+                  placeholder="08:00"
+                  style={styles.modalInput}
+                  value={time}
+                />
+              </View>
+
+              <View style={styles.modalField}>
+                <Text style={styles.modalLabel}>
+                  {isRTL ? "ملاحظات (اختياري)" : "Notes (Optional)"}
+                </Text>
+                <TextInput
+                  multiline
+                  onChangeText={setNote}
+                  placeholder={
+                    isRTL ? "مثال: بعد الإفطار" : "e.g., After breakfast"
+                  }
+                  style={[styles.modalInput, styles.modalTextArea]}
+                  value={note}
+                />
+              </View>
+
+              <TouchableOpacity
+                disabled={saving}
+                onPress={handleSave}
+                style={styles.modalSave}
+              >
+                {saving ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalSaveText}>
+                    {isRTL ? "حفظ القراءة" : "Save Reading"}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </SafeAreaView>
+        </View>
+      </Modal>
+    </GradientScreen>
+  );
+}
+
+const styles = StyleSheet.create({
+  headerWrapper: {
+    flexShrink: 0,
+    marginBottom: 12,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 140,
+  },
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 32,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "rgba(0, 53, 67, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitleWrap: {
+    flex: 1,
+  },
+  headerTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontFamily: "Inter-Bold",
+    color: "#003543",
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    fontFamily: "Inter-SemiBold",
+    color: "#003543",
+  },
+  content: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    gap: 20,
+  },
+  loading: {
+    paddingVertical: 40,
+    alignItems: "center",
+  },
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  cardLabel: {
+    fontSize: 12,
+    fontFamily: "Inter-Medium",
+    color: "#6C7280",
+  },
+  cardMeta: {
+    fontSize: 12,
+    color: "#6C7280",
+  },
+  latestRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  latestValueRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 6,
+  },
+  latestValue: {
+    fontSize: 34,
+    fontFamily: "Inter-Bold",
+    color: "#003543",
+  },
+  latestSlash: {
+    fontSize: 22,
+    fontFamily: "Inter-Bold",
+    color: "#003543",
+    marginBottom: 6,
+  },
+  latestMeta: {
+    fontSize: 12,
+    color: "#6C7280",
+    marginTop: 4,
+  },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  statusText: {
+    fontSize: 12,
+    fontFamily: "Inter-Medium",
+  },
+  emptyText: {
+    fontSize: 13,
+    color: "#6C7280",
+  },
+  quickStats: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  quickStatCard: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  quickStatValue: {
+    fontSize: 20,
+    fontFamily: "Inter-Bold",
+    color: "#003543",
+    marginBottom: 4,
+  },
+  quickStatLabel: {
+    fontSize: 11,
+    color: "#6C7280",
+  },
+  trendRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 4,
+  },
+  trendValue: {
+    fontSize: 18,
+    fontFamily: "Inter-Bold",
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontFamily: "Inter-SemiBold",
+    color: "#1A1D1F",
+  },
+  sectionAction: {
+    fontSize: 12,
+    color: "#003543",
+    fontFamily: "Inter-Medium",
+  },
+  chart: {
+    marginTop: 12,
+    borderRadius: 16,
+  },
+  chartLegend: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 12,
+    marginTop: 10,
+  },
+  chartLegendText: {
+    fontSize: 11,
+    color: "#6C7280",
+  },
+  referenceItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 10,
+  },
+  referenceLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  referenceDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  referenceLabel: {
+    fontSize: 13,
+    fontFamily: "Inter-Medium",
+    color: "#1A1D1F",
+  },
+  referenceValue: {
+    fontSize: 12,
+    color: "#6C7280",
+  },
+  readingCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  readingIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: "#F8FAFC",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  readingContent: {
+    flex: 1,
+  },
+  readingHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  readingTitle: {
+    fontSize: 14,
+    fontFamily: "Inter-SemiBold",
+    color: "#1A1D1F",
+  },
+  statusBadgeSmall: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  statusTextSmall: {
+    fontSize: 10,
+    fontFamily: "Inter-Medium",
+  },
+  readingMeta: {
+    fontSize: 12,
+    color: "#6C7280",
+    marginBottom: 4,
+  },
+  readingTimeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  readingTime: {
+    fontSize: 11,
+    color: "#6C7280",
+  },
+  fab: {
+    position: "absolute",
+    bottom: 100,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#EB9C0C",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+  },
+  modalContainer: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 24,
+    maxHeight: "80%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: "Inter-Bold",
+    color: "#1A1D1F",
+  },
+  modalClose: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalCloseText: {
+    fontSize: 16,
+    color: "#1A1D1F",
+  },
+  modalRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  modalField: {
+    flex: 1,
+    marginBottom: 16,
+  },
+  modalLabel: {
+    fontSize: 13,
+    fontFamily: "Inter-Medium",
+    color: "#1A1D1F",
+    marginBottom: 8,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    fontFamily: "Inter-Regular",
+    backgroundColor: "#FFFFFF",
+  },
+  modalTextArea: {
+    minHeight: 80,
+    textAlignVertical: "top",
+  },
+  modalHint: {
+    fontSize: 11,
+    color: "#6C7280",
+    marginTop: 6,
+  },
+  modalSave: {
+    backgroundColor: "#003543",
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  modalSaveText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontFamily: "Inter-SemiBold",
+  },
+});

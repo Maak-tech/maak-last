@@ -1,0 +1,524 @@
+/**
+ * Motion Permissions Screen
+ * Request motion and fitness permissions for fall detection
+ */
+
+import { useRouter } from "expo-router";
+import {
+  Activity,
+  AlertTriangle,
+  ArrowLeft,
+  CheckCircle,
+  Info,
+  Settings,
+} from "lucide-react-native";
+import { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useTheme } from "@/contexts/ThemeContext";
+import { motionPermissionService } from "@/lib/services/motionPermissionService";
+
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: permission UX combines platform copy, status, and actions in one screen.
+export default function MotionPermissionsScreen() {
+  const router = useRouter();
+  const { theme, isDark } = useTheme();
+  const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const [permissionStatus, setPermissionStatus] = useState<{
+    available: boolean;
+    granted: boolean;
+    reason?: string;
+  } | null>(null);
+
+  const checkPermissionStatus = useCallback(async () => {
+    setChecking(true);
+    try {
+      const status = await motionPermissionService.checkMotionAvailability();
+      setPermissionStatus(status);
+    } catch (_error) {
+      setPermissionStatus({
+        available: false,
+        granted: false,
+        reason: "Failed to check permission status",
+      });
+    } finally {
+      setChecking(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkPermissionStatus();
+  }, [checkPermissionStatus]);
+
+  const handleRequestPermission = async () => {
+    setLoading(true);
+    try {
+      const granted = await motionPermissionService.requestMotionPermission();
+
+      if (granted) {
+        await motionPermissionService.saveMotionPermissionStatus(true);
+        Alert.alert(
+          "Permission Requested",
+          Platform.OS === "ios"
+            ? "Please allow motion access in the dialog that appears. If no dialog appears, you may need to enable it in Settings → Privacy & Security → Motion & Fitness."
+            : "Motion permission has been requested. Please grant the permission when prompted.",
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                checkPermissionStatus();
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert(
+          "Permission Not Available",
+          "Motion sensors are not available on this device. Fall detection may not work properly.",
+          [{ text: "OK" }]
+        );
+      }
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error && error.message
+          ? error.message
+          : "Failed to request motion permission. Please try again.";
+      Alert.alert("Error", errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOpenSettings = async () => {
+    await motionPermissionService.openMotionSettings();
+  };
+
+  if (checking) {
+    return (
+      <SafeAreaView
+        style={[
+          styles.container,
+          { backgroundColor: theme.colors.background.primary },
+        ]}
+      >
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color={theme.colors.primary.main} size="large" />
+          <Text
+            style={[styles.loadingText, { color: theme.colors.text.primary }]}
+          >
+            Checking permission status...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  let statusBorderColor = "#EF4444";
+  let statusTitle = "Not Available";
+  let statusIcon = <AlertTriangle color="#EF4444" size={32} />;
+  if (permissionStatus?.granted) {
+    statusBorderColor = "#10B981";
+    statusTitle = "Permission Granted";
+    statusIcon = <CheckCircle color="#10B981" size={32} />;
+  } else if (permissionStatus?.available) {
+    statusBorderColor = "#F59E0B";
+    statusTitle = "Permission Required";
+    statusIcon = <AlertTriangle color="#F59E0B" size={32} />;
+  }
+
+  return (
+    <SafeAreaView
+      style={[
+        styles.container,
+        { backgroundColor: theme.colors.background.primary },
+      ]}
+    >
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+          >
+            <ArrowLeft color={theme.colors.text.primary} size={24} />
+          </TouchableOpacity>
+          <Activity color={theme.colors.primary.main} size={48} />
+          <Text style={[styles.title, { color: theme.colors.text.primary }]}>
+            Motion & Fitness Access
+          </Text>
+          <Text
+            style={[styles.subtitle, { color: theme.colors.text.secondary }]}
+          >
+            Enable motion sensors for fall detection
+          </Text>
+        </View>
+
+        {/* Status Card */}
+        {permissionStatus ? (
+          <View
+            style={[
+              styles.statusCard,
+              {
+                backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                borderColor: statusBorderColor,
+              },
+            ]}
+          >
+            <View style={styles.statusHeader}>
+              {statusIcon}
+              <View style={styles.statusInfo}>
+                <Text
+                  style={[
+                    styles.statusTitle,
+                    { color: theme.colors.text.primary },
+                  ]}
+                >
+                  {statusTitle}
+                </Text>
+                <Text
+                  style={[
+                    styles.statusText,
+                    { color: theme.colors.text.secondary },
+                  ]}
+                >
+                  {permissionStatus.granted
+                    ? "Motion sensors are enabled. Fall detection is ready."
+                    : permissionStatus.reason ||
+                      "Motion sensors are required for fall detection."}
+                </Text>
+              </View>
+            </View>
+          </View>
+        ) : null}
+
+        {/* Information Cards */}
+        <View style={styles.infoSection}>
+          {/* Why We Need This */}
+          <View
+            style={[
+              styles.infoCard,
+              {
+                backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                borderColor: isDark ? "#334155" : "#E2E8F0",
+              },
+            ]}
+          >
+            <View style={styles.infoHeader}>
+              <Activity color={theme.colors.primary.main} size={24} />
+              <Text
+                style={[styles.infoTitle, { color: theme.colors.text.primary }]}
+              >
+                Why We Need This
+              </Text>
+            </View>
+            <Text
+              style={[styles.infoText, { color: theme.colors.text.secondary }]}
+            >
+              Nuralix uses your device&apos;s motion sensors (accelerometer
+              and gyroscope) to detect sudden movements that may indicate a
+              fall. This allows us to automatically alert your emergency
+              contacts if a fall is detected.
+            </Text>
+          </View>
+
+          {/* How It Works */}
+          <View
+            style={[
+              styles.infoCard,
+              {
+                backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                borderColor: isDark ? "#334155" : "#E2E8F0",
+              },
+            ]}
+          >
+            <View style={styles.infoHeader}>
+              <Info color={theme.colors.primary.main} size={24} />
+              <Text
+                style={[styles.infoTitle, { color: theme.colors.text.primary }]}
+              >
+                How It Works
+              </Text>
+            </View>
+            <Text
+              style={[styles.infoText, { color: theme.colors.text.secondary }]}
+            >
+              The app continuously monitors motion patterns. When unusual
+              acceleration patterns are detected that match a fall, an alert is
+              automatically sent to your family members with your location.
+            </Text>
+          </View>
+
+          {/* Privacy */}
+          <View
+            style={[
+              styles.infoCard,
+              {
+                backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                borderColor: isDark ? "#334155" : "#E2E8F0",
+              },
+            ]}
+          >
+            <View style={styles.infoHeader}>
+              <CheckCircle color={theme.colors.primary.main} size={24} />
+              <Text
+                style={[styles.infoTitle, { color: theme.colors.text.primary }]}
+              >
+                Your Privacy
+              </Text>
+            </View>
+            <Text
+              style={[styles.infoText, { color: theme.colors.text.secondary }]}
+            >
+              Motion data is processed locally on your device and is never
+              stored or transmitted. Only fall detection alerts are sent to your
+              emergency contacts.
+            </Text>
+          </View>
+        </View>
+
+        {/* Action Buttons */}
+        <View style={styles.actionSection}>
+          {!permissionStatus?.granted && permissionStatus?.available ? (
+            <TouchableOpacity
+              disabled={loading}
+              onPress={handleRequestPermission}
+              style={[
+                styles.primaryButton,
+                {
+                  backgroundColor: theme.colors.primary.main,
+                },
+              ]}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <>
+                  <Activity color="#FFFFFF" size={20} />
+                  <Text style={styles.primaryButtonText}>
+                    Enable Motion Access
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          ) : null}
+
+          {permissionStatus?.granted ? (
+            <View
+              style={[
+                styles.successCard,
+                {
+                  backgroundColor: "#10B98120",
+                  borderColor: "#10B981",
+                },
+              ]}
+            >
+              <CheckCircle color="#10B981" size={24} />
+              <Text style={[styles.successText, { color: "#10B981" }]}>
+                Motion access is enabled. Fall detection is ready to use.
+              </Text>
+            </View>
+          ) : null}
+
+          <TouchableOpacity
+            onPress={handleOpenSettings}
+            style={[
+              styles.secondaryButton,
+              {
+                backgroundColor: isDark ? "#1E293B" : "#F8FAFC",
+                borderColor: isDark ? "#334155" : "#E2E8F0",
+              },
+            ]}
+          >
+            <Settings color={theme.colors.text.primary} size={20} />
+            <Text
+              style={[
+                styles.secondaryButtonText,
+                { color: theme.colors.text.primary },
+              ]}
+            >
+              Open Settings
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Warning */}
+        <View
+          style={[
+            styles.warningCard,
+            {
+              backgroundColor: "#FFFBEB",
+              borderColor: "#FEF3C7",
+            },
+          ]}
+        >
+          <AlertTriangle color="#F59E0B" size={20} />
+          <Text style={styles.warningText}>
+            {Platform.OS === "ios"
+              ? "If permission was denied, go to Settings → Privacy & Security → Motion & Fitness → Nuralix and enable motion access."
+              : "If permission was denied, go to Settings → Apps → Nuralix → Permissions and enable Activity Recognition."}
+          </Text>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  scroll: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+  },
+  header: {
+    padding: 24,
+    alignItems: "center",
+    position: "relative",
+  },
+  backButton: {
+    position: "absolute",
+    left: 24,
+    top: 24,
+    padding: 8,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "700",
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  subtitle: {
+    fontSize: 16,
+    textAlign: "center",
+    lineHeight: 24,
+  },
+  statusCard: {
+    margin: 24,
+    marginTop: 0,
+    padding: 20,
+    borderRadius: 12,
+    borderWidth: 2,
+  },
+  statusHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  statusInfo: {
+    marginStart: 16,
+    flex: 1,
+  },
+  statusTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  statusText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  infoSection: {
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+  },
+  infoCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 12,
+  },
+  infoHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  infoTitle: {
+    fontSize: 17,
+    fontWeight: "600",
+    marginStart: 12,
+  },
+  infoText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  actionSection: {
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+  },
+  primaryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    gap: 8,
+  },
+  primaryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 17,
+    fontWeight: "600",
+  },
+  successCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+    gap: 12,
+  },
+  successText: {
+    fontSize: 14,
+    fontWeight: "500",
+    flex: 1,
+  },
+  secondaryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 8,
+  },
+  secondaryButtonText: {
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  warningCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    padding: 16,
+    marginHorizontal: 24,
+    marginBottom: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 12,
+  },
+  warningText: {
+    fontSize: 13,
+    color: "#92400E",
+    lineHeight: 18,
+    flex: 1,
+  },
+});

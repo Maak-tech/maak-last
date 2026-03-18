@@ -1,0 +1,554 @@
+/* biome-ignore-all lint/suspicious/useAwait: Event API retains async signatures for stable public contract. */
+/* biome-ignore-all lint/nursery/useMaxParams: Legacy emitter methods preserve existing call shapes used across the app. */
+/* biome-ignore-all lint/style/useBlockStatements: Existing compact guards are intentionally retained in this legacy module. */
+/* biome-ignore-all lint/suspicious/noExplicitAny: Transitional casts remain while gradually hardening event payload types. */
+/* biome-ignore-all lint/style/useReadonlyClassProperties: Mutable configuration fields may be tuned at runtime in future revisions. */
+import { AppState, type AppStateStatus } from "react-native";
+import { api } from "@/lib/apiClient";
+import { logger } from "@/lib/utils/logger";
+import type {
+  AlertAuditEntry,
+  AlertEvent,
+  EventSeverity,
+  EventStatus,
+  HealthEvent,
+  ObservabilityDomain,
+  ObservabilityEvent,
+  PlatformMetric,
+} from "./types";
+
+const ALLOWED_METADATA_KEYS = new Set([
+  "provider",
+  "metricKey",
+  "metricCount",
+  "sampleCount",
+  "savedCount",
+  "invalidCount",
+  "skippedMetricCount",
+  "durationMs",
+  "syncId",
+  "vitalType",
+  "unit",
+  "isAbnormal",
+  "thresholdBreached",
+  "recommendedAction",
+  "alertType",
+  "escalationLevel",
+  "policyId",
+  "action",
+  "serviceName",
+  "operationName",
+  "status",
+  "timeout",
+  "failureCount",
+  "previousState",
+  "interactionType",
+  "eventType",
+  "source",
+  "domain",
+  "severity",
+  "count",
+  "retryCount",
+  "latencyMs",
+  "stack",
+]);
+
+const PHI_PATTERNS = [
+  /\b\d{3}[-.]?\d{2}[-.]?\d{4}\b/g,
+  /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
+  /\b\d{10,}\b/g,
+  /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g,
+];
+
+function generateCorrelationId(): string {
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+}
+
+function redactPHI(text: string): string {
+  let redacted = text;
+  for (const pattern of PHI_PATTERNS) {
+    redacted = redacted.replace(pattern, "[REDACTED]");
+  }
+  return redacted;
+}
+
+function sanitizeMetadata(
+  metadata: Record<string, unknown> | undefined
+): Record<string, unknown> | undefined {
+  if (!metadata) {
+    return;
+  }
+
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(metadata)) {
+    if (!ALLOWED_METADATA_KEYS.has(key)) {
+      continue;
+    }
+
+    if (typeof value === "string") {
+      sanitized[key] = redactPHI(value);
+    } else if (typeof value === "number" || typeof value === "boolean") {
+      sanitized[key] = value;
+    }
+  }
+  return Object.keys(sanitized).length > 0 ? sanitized : undefined;
+}
+
+function sanitizeError(
+  error: { code?: string; message: string; stack?: string } | undefined
+): { code?: string; message: string } | undefined {
+  if (!error) {
+    return;
+  }
+
+  const sanitized: { code?: string; message: string } = {
+    message: redactPHI(error.message).substring(0, 200),
+  };
+  if (typeof error.code === "string" && error.code.trim() !== "") {
+    sanitized.code = error.code;
+  }
+  return sanitized;
+}
+
+/**
+ * Prepare an event or metric payload for JSON transport.
+ * Strips undefined fields, redacts PHI in message, and sanitizes
+ * nested metadata/error objects. Dates are left as-is so that
+ * JSON.stringify serialises them as ISO-8601 strings.
+ */
+function sanitizeForTransport(
+  data: Record<string, unknown>
+): Record<string, unknown> {
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (value === undefined) {
+      continue;
+    }
+    if (key === "metadata") {
+      const sanitizedMeta = sanitizeMetadata(value as Record<string, unknown>);
+      if (sanitizedMeta) {
+        sanitized[key] = sanitizedMeta;
+      }
+    } else if (key === "error") {
+      const sanitizedErr = sanitizeError(
+        value as { code?: string; message: string; stack?: string }
+      );
+      if (sanitizedErr) {
+        sanitized[key] = sanitizedErr;
+      }
+    } else if (key === "message" && typeof value === "string") {
+      sanitized[key] = redactPHI(value).substring(0, 500);
+    } else {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized;
+}
+
+class ObservabilityEventEmitter {
+  private buffer: ObservabilityEvent[] = [];
+  private flushInterval: ReturnType<typeof setInterval> | null = null;
+  private maxBufferSize = 50;
+  private flushIntervalMs = 10_000;
+  private metricsBuffer: PlatformMetric[] = [];
+  private metricsFlushInterval: ReturnType<typeof setInterval> | null = null;
+  private maxMetricsBufferSize = 100;
+  private metricsFlushIntervalMs = 15_000;
+  private isEnabled = true;
+  private appStateSubscription: { remove: () => void } | null = null;
+
+  constructor() {
+    this.startFlushInterval();
+    this.startMetricsFlushInterval();
+    this.setupAppStateListener();
+  }
+
+  setEnabled(enabled: boolean): void {
+    this.isEnabled = enabled;
+  }
+
+  private setupAppStateListener(): void {
+    try {
+      this.appStateSubscription = AppState.addEventListener(
+        "change",
+        this.handleAppStateChange.bind(this)
+      );
+    } catch (error) {
+      logger.warn(
+        "Failed to setup app state listener",
+        error,
+        "ObservabilityEmitter"
+      );
+    }
+  }
+
+  private handleAppStateChange(nextAppState: AppStateStatus): void {
+    if (nextAppState === "background" || nextAppState === "inactive") {
+      this.flush();
+    }
+  }
+
+  private startFlushInterval(): void {
+    if (this.flushInterval) return;
+    this.flushInterval = setInterval(() => {
+      this.flush();
+    }, this.flushIntervalMs);
+  }
+
+  private startMetricsFlushInterval(): void {
+    if (this.metricsFlushInterval) return;
+    this.metricsFlushInterval = setInterval(() => {
+      this.flush();
+    }, this.metricsFlushIntervalMs);
+  }
+
+  private async flushEvents(): Promise<void> {
+    if (this.buffer.length === 0) return;
+
+    const eventsToFlush = [...this.buffer];
+    this.buffer = [];
+
+    try {
+      await api.post("/api/audit/events/batch", {
+        events: eventsToFlush.map((e) =>
+          sanitizeForTransport(e as unknown as Record<string, unknown>)
+        ),
+      });
+    } catch (error) {
+      logger.error(
+        "Failed to flush observability events",
+        error,
+        "ObservabilityEmitter"
+      );
+    }
+  }
+
+  private async flushMetrics(): Promise<void> {
+    if (this.metricsBuffer.length === 0) return;
+
+    const metricsToFlush = [...this.metricsBuffer];
+    this.metricsBuffer = [];
+
+    try {
+      await api.post("/api/audit/metrics/batch", {
+        metrics: metricsToFlush.map((m) =>
+          sanitizeForTransport(m as unknown as Record<string, unknown>)
+        ),
+      });
+    } catch (error) {
+      logger.error(
+        "Failed to flush observability metrics",
+        error,
+        "ObservabilityEmitter"
+      );
+    }
+  }
+
+  private async flush(): Promise<void> {
+    await Promise.allSettled([this.flushEvents(), this.flushMetrics()]);
+  }
+
+  async emit(
+    event: Omit<ObservabilityEvent, "id" | "timestamp">
+  ): Promise<string> {
+    if (!this.isEnabled) return "";
+
+    const correlationId = event.correlationId || generateCorrelationId();
+    const fullEvent: ObservabilityEvent = {
+      ...event,
+      timestamp: new Date(),
+      correlationId,
+    };
+
+    this.buffer.push(fullEvent);
+
+    if (this.buffer.length >= this.maxBufferSize) {
+      this.flush();
+    }
+
+    if (event.severity === "error" || event.severity === "critical") {
+      logger.error(
+        `[${event.domain}] ${event.message}`,
+        event.metadata,
+        event.source
+      );
+    } else if (event.severity === "warn") {
+      logger.warn(
+        `[${event.domain}] ${event.message}`,
+        event.metadata,
+        event.source
+      );
+    } else {
+      logger.info(
+        `[${event.domain}] ${event.message}`,
+        event.metadata,
+        event.source
+      );
+    }
+
+    return correlationId;
+  }
+
+  async emitImmediate(
+    event: Omit<ObservabilityEvent, "id" | "timestamp">
+  ): Promise<string> {
+    if (!this.isEnabled) return "";
+
+    const correlationId = event.correlationId || generateCorrelationId();
+    const fullEvent: ObservabilityEvent = {
+      ...event,
+      timestamp: new Date(),
+      correlationId,
+    };
+
+    try {
+      await api.post(
+        "/api/audit/events",
+        sanitizeForTransport(fullEvent as unknown as Record<string, unknown>)
+      );
+    } catch (error) {
+      logger.error(
+        "Failed to emit observability event immediately",
+        error,
+        "ObservabilityEmitter"
+      );
+    }
+
+    if (event.severity === "error" || event.severity === "critical") {
+      logger.error(
+        `[${event.domain}] ${event.message}`,
+        event.metadata,
+        event.source
+      );
+    } else if (event.severity === "warn") {
+      logger.warn(
+        `[${event.domain}] ${event.message}`,
+        event.metadata,
+        event.source
+      );
+    } else {
+      logger.info(
+        `[${event.domain}] ${event.message}`,
+        event.metadata,
+        event.source
+      );
+    }
+
+    return correlationId;
+  }
+
+  async emitHealthEvent(
+    eventType: string,
+    message: string,
+    options: {
+      userId?: string;
+      vitalType?: string;
+      value?: number;
+      unit?: string;
+      isAbnormal?: boolean;
+      thresholdBreached?: string;
+      severity?: EventSeverity;
+      status?: EventStatus;
+      correlationId?: string;
+      metadata?: Record<string, unknown>;
+    } = {}
+  ): Promise<string> {
+    const event: Omit<HealthEvent, "id" | "timestamp"> = {
+      eventType,
+      domain: "health_data",
+      severity: options.severity || "info",
+      status: options.status || "success",
+      message,
+      source: "health_service",
+      userId: options.userId,
+      vitalType: options.vitalType,
+      value: options.value,
+      unit: options.unit,
+      isAbnormal: options.isAbnormal,
+      thresholdBreached: options.thresholdBreached,
+      correlationId: options.correlationId,
+      metadata: options.metadata,
+    };
+
+    return this.emit(event);
+  }
+
+  async emitAlertEvent(
+    eventType: string,
+    alertId: string,
+    alertType: string,
+    message: string,
+    options: {
+      userId?: string;
+      familyId?: string;
+      escalationLevel?: number;
+      acknowledgedBy?: string;
+      resolvedBy?: string;
+      severity?: EventSeverity;
+      status?: EventStatus;
+      correlationId?: string;
+      metadata?: Record<string, unknown>;
+    } = {}
+  ): Promise<string> {
+    const event: Omit<AlertEvent, "id" | "timestamp"> = {
+      eventType,
+      domain: "alerts",
+      severity: options.severity || "warn",
+      status: options.status || "pending",
+      message,
+      source: "alert_service",
+      alertId,
+      alertType,
+      escalationLevel: options.escalationLevel || 0,
+      userId: options.userId,
+      familyId: options.familyId,
+      acknowledgedBy: options.acknowledgedBy,
+      resolvedBy: options.resolvedBy,
+      correlationId: options.correlationId,
+      metadata: options.metadata,
+    };
+
+    return this.emit(event);
+  }
+
+  async emitPlatformEvent(
+    eventType: string,
+    message: string,
+    options: {
+      source: string;
+      severity?: EventSeverity;
+      status?: EventStatus;
+      durationMs?: number;
+      error?: { code?: string; message: string; stack?: string };
+      correlationId?: string;
+      metadata?: Record<string, unknown>;
+    }
+  ): Promise<string> {
+    const event: Omit<ObservabilityEvent, "id" | "timestamp"> = {
+      eventType,
+      domain: "platform",
+      severity: options.severity || "info",
+      status: options.status || "success",
+      message,
+      source: options.source,
+      durationMs: options.durationMs,
+      error: options.error,
+      correlationId: options.correlationId,
+      metadata: options.metadata,
+    };
+
+    return this.emit(event);
+  }
+
+  async emitImmediatePlatformEvent(
+    eventType: string,
+    message: string,
+    options: {
+      source: string;
+      severity?: EventSeverity;
+      status?: EventStatus;
+      durationMs?: number;
+      error?: { code?: string; message: string; stack?: string };
+      correlationId?: string;
+      metadata?: Record<string, unknown>;
+    }
+  ): Promise<string> {
+    const event: Omit<ObservabilityEvent, "id" | "timestamp"> = {
+      eventType,
+      domain: "platform",
+      severity: options.severity || "info",
+      status: options.status || "success",
+      message,
+      source: options.source,
+      durationMs: options.durationMs,
+      error: options.error,
+      correlationId: options.correlationId,
+      metadata: options.metadata,
+    };
+
+    return this.emitImmediate(event);
+  }
+
+  async recordMetric(
+    metricName: string,
+    value: number,
+    unit: string,
+    domain: ObservabilityDomain,
+    tags?: Record<string, string>
+  ): Promise<void> {
+    if (!this.isEnabled) return;
+
+    const metric: PlatformMetric = {
+      metricName,
+      value,
+      unit,
+      domain,
+      timestamp: new Date(),
+      tags,
+    };
+
+    this.metricsBuffer.push(metric);
+
+    if (this.metricsBuffer.length >= this.maxMetricsBufferSize) {
+      await this.flushMetrics();
+    }
+  }
+
+  async recordAlertAudit(
+    alertId: string,
+    action: AlertAuditEntry["action"],
+    newState: string,
+    options: {
+      actorId?: string;
+      actorType?: "user" | "system" | "ai";
+      previousState?: string;
+      notes?: string;
+      metadata?: Record<string, unknown>;
+    } = {}
+  ): Promise<void> {
+    if (!this.isEnabled) return;
+
+    const auditEntry: AlertAuditEntry = {
+      alertId,
+      action,
+      timestamp: new Date(),
+      actorId: options.actorId,
+      actorType: options.actorType || "system",
+      previousState: options.previousState,
+      newState,
+      notes: options.notes,
+      metadata: options.metadata,
+    };
+
+    try {
+      await api.post(
+        "/api/audit/alert-audit",
+        sanitizeForTransport(auditEntry as unknown as Record<string, unknown>)
+      );
+    } catch (error) {
+      logger.error(
+        "Failed to record alert audit",
+        { alertId, action, error },
+        "ObservabilityEmitter"
+      );
+    }
+  }
+
+  destroy(): void {
+    if (this.flushInterval) {
+      clearInterval(this.flushInterval);
+      this.flushInterval = null;
+    }
+    if (this.metricsFlushInterval) {
+      clearInterval(this.metricsFlushInterval);
+      this.metricsFlushInterval = null;
+    }
+    if (this.appStateSubscription) {
+      this.appStateSubscription.remove();
+      this.appStateSubscription = null;
+    }
+    this.flush();
+  }
+}
+
+export const observabilityEmitter = new ObservabilityEventEmitter();

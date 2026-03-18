@@ -1,8 +1,16 @@
+<<<<<<< Updated upstream
 import React, {
+=======
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Auth lifecycle and migration flows are intentionally centralized. */
+/* biome-ignore-all lint/suspicious/noExplicitAny: Legacy error handling paths still use dynamic error payloads. */
+import type React from "react";
+import {
+>>>>>>> Stashed changes
   createContext,
   useContext,
   useEffect,
   useState,
+<<<<<<< Updated upstream
   useMemo,
 } from 'react';
 import { Platform, Alert } from 'react-native';
@@ -19,6 +27,17 @@ import { userService } from '@/lib/services/userService';
 import { fcmService } from '@/lib/services/fcmService';
 import { familyInviteService } from '@/lib/services/familyInviteService';
 import { User } from '@/types';
+=======
+} from "react";
+import { Alert } from "react-native";
+import { api } from "@/lib/apiClient";
+import { authClient } from "@/lib/authClient";
+import { familyInviteService } from "@/lib/services/familyInviteService";
+import { revenueCatService } from "@/lib/services/revenueCatService";
+import { userService } from "@/lib/services/userService";
+import { logger } from "@/lib/utils/logger";
+import type { AvatarType, EmergencyContact, User } from "@/types";
+>>>>>>> Stashed changes
 
 interface AuthContextType {
   user: User | null;
@@ -215,6 +234,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Helper function to process pending family codes
   const processPendingFamilyCode = async (userId: string) => {
     try {
+<<<<<<< Updated upstream
       console.log('🔍 Starting processPendingFamilyCode for user:', userId);
       const AsyncStorage = await import(
         '@react-native-async-storage/async-storage'
@@ -323,6 +343,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       return false; // Return false to indicate no successful processing
     } catch (error) {
       console.error('❌ Error in processPendingFamilyCode:', error);
+=======
+      const familyData = await api.get<Record<string, unknown> | null>(
+        `/api/family/${familyId}`
+      ).catch(() => null);
+      if (familyData == null) {
+        await userService.updateUser(userId, { familyId: undefined, role: "admin" });
+        return false;
+      }
+      const status = (familyData.status as string | undefined) ?? "active";
+      const members: string[] = (familyData.members as string[] | undefined) ?? [];
+      const isMember = members.length === 0 || members.includes(userId);
+      const isActive = status !== "inactive";
+      const hasActiveFamily = isActive && isMember;
+      if (!hasActiveFamily) await userService.updateUser(userId, { familyId: undefined, role: "admin" });
+      return hasActiveFamily;
+    } catch (_err) {
+      logger.error("Failed to check family membership", _err, "AuthContext");
+>>>>>>> Stashed changes
       return false;
     }
   };
@@ -466,6 +504,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const logout = async () => {
     try {
+<<<<<<< Updated upstream
       console.log('🚪 Starting logout process...');
       setLoading(true);
 
@@ -495,15 +534,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setUser(null);
       setLoading(false);
       console.log('🔄 Forced logout due to error');
+=======
+      await api.patch(`/api/user/profile`, userData).catch(() => {});
+      setUser({ ...user, ...userData });
+    } catch {
+      throw new Error("Failed to update user. Please try again.");
+>>>>>>> Stashed changes
     }
   };
 
   const updateUser = async (userData: Partial<User>) => {
     if (!user) return;
 
+<<<<<<< Updated upstream
     try {
       const userDocRef = doc(db, 'users', user.id);
       await updateDoc(userDocRef, userData);
+=======
+  const resetPassword = useCallback(async (email: string) => {
+    const { error } = await authClient.requestPasswordReset({
+      email,
+      redirectTo: "nuralix://reset-password",
+    });
+    if (error) throw new Error(mapAuthError(error, "resetPassword"));
+  }, []);
+>>>>>>> Stashed changes
 
       const updatedUser = { ...user, ...userData };
       setUser(updatedUser);

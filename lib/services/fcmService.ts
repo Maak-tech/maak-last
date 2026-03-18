@@ -1,6 +1,22 @@
+<<<<<<< Updated upstream
 import { Platform } from 'react-native';
 import { httpsCallable, Functions } from 'firebase/functions';
 import { functions as defaultFunctions } from '@/lib/firebase';
+=======
+/**
+ * FCM / Push Token service — Firebase-free replacement.
+ *
+ * - getFCMToken():             unchanged — uses expo-notifications directly (no Firebase)
+ * - saveFCMToken():            replaced Firebase CF `saveFCMToken` with POST /api/notifications/push-token
+ * - sendPushNotificationHTTP() replaced Firebase CF HTTP endpoint with POST /api/notifications/send
+ * - sendPushNotification():    delegates to sendPushNotificationHTTP (same payload)
+ * - initializeFCM():           simplified — no Firebase auth check
+ * - isFCMAvailable():          unchanged
+ */
+
+import { Platform } from "react-native";
+import { api } from "@/lib/apiClient";
+>>>>>>> Stashed changes
 
 export interface FCMTokenResult {
   success: boolean;
@@ -8,6 +24,7 @@ export interface FCMTokenResult {
   error?: string;
 }
 
+<<<<<<< Updated upstream
 // Helper to get functions with current auth context
 async function getAuthenticatedFunctions(): Promise<Functions> {
   const { auth, app } = await import('@/lib/firebase');
@@ -39,10 +56,13 @@ async function getAuthenticatedFunctions(): Promise<Functions> {
   return functionsInstance;
 }
 
+=======
+>>>>>>> Stashed changes
 export const fcmService = {
-  // Get FCM token for current device
+  // Get Expo push token for current device
   async getFCMToken(): Promise<FCMTokenResult> {
     try {
+<<<<<<< Updated upstream
       if (Platform.OS === 'web') {
         return { success: false, error: 'FCM not supported on web' };
       }
@@ -61,6 +81,40 @@ export const fcmService = {
       // For development builds and production
       const { getExpoPushTokenAsync } = await import('expo-notifications');
       const tokenData = await getExpoPushTokenAsync();
+=======
+      if (Platform.OS === "web") {
+        return { success: false, error: "Push notifications not supported on web" };
+      }
+
+      const Constants = await import("expo-constants");
+      const isExpoGo = Constants.default.appOwnership === "expo";
+
+      if (isExpoGo) {
+        return { success: false, error: "Push notifications not available in Expo Go" };
+      }
+
+      const Notifications = await import("expo-notifications");
+
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+
+      if (existingStatus !== "granted") {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== "granted") {
+        return { success: false, error: "Notification permissions not granted" };
+      }
+
+      const tokenData = await Notifications.getExpoPushTokenAsync({
+        projectId: Constants.default.expoConfig?.extra?.eas?.projectId,
+      });
+
+      if (!tokenData?.data) {
+        return { success: false, error: "Failed to get push token" };
+      }
+>>>>>>> Stashed changes
 
       console.log('📱 FCM Token obtained:', tokenData.data);
       return { success: true, token: tokenData.data };
@@ -70,6 +124,7 @@ export const fcmService = {
     }
   },
 
+<<<<<<< Updated upstream
   // Save FCM token to user document via Cloud Function
   async saveFCMToken(token: string, userId?: string): Promise<boolean> {
     try {
@@ -101,10 +156,23 @@ export const fcmService = {
       await saveFCMTokenFn({ 
         token, 
         userId: userId || currentUser?.uid 
+=======
+  // Register push token with the Nuralix API (replaces Firebase CF `saveFCMToken`)
+  async saveFCMToken(token: string, _userId?: string): Promise<boolean> {
+    try {
+      const Constants = await import("expo-constants");
+
+      await api.post("/api/notifications/push-token", {
+        token,
+        platform: Platform.OS as "ios" | "android" | "web",
+        deviceId: Constants.default.sessionId,
+        deviceName: `${Platform.OS} Device`,
+>>>>>>> Stashed changes
       });
 
       console.log('✅ FCM token saved to user document');
       return true;
+<<<<<<< Updated upstream
     } catch (error) {
       console.error('❌ Error saving FCM token:', error);
       console.log('🔍 Full error object:', JSON.stringify(error, null, 2));
@@ -142,11 +210,15 @@ export const fcmService = {
         }
       }
       
+=======
+    } catch {
+>>>>>>> Stashed changes
       return false;
     }
   },
 
-  // Send push notification via HTTP endpoint (bypasses auth issues)
+  // Send push notification to specific users via the Nuralix API
+  // (replaces Firebase CF HTTP endpoint at maak-5caad.cloudfunctions.net/sendPushNotificationHttp)
   async sendPushNotificationHTTP(
     userIds: string[],
     notification: {
@@ -158,6 +230,7 @@ export const fcmService = {
     }
   ): Promise<boolean> {
     try {
+<<<<<<< Updated upstream
       const { auth } = await import('@/lib/firebase');
       const currentUser = auth.currentUser;
       
@@ -192,6 +265,19 @@ export const fcmService = {
   },
   
   // Send push notification to specific users via Cloud Function
+=======
+      const result = await api.post<{ sent: number }>("/api/notifications/send", {
+        userIds,
+        notification,
+      });
+      return (result.sent ?? 0) > 0;
+    } catch {
+      return false;
+    }
+  },
+
+  // Send push notification to specific users (same as HTTP variant — kept for API compat)
+>>>>>>> Stashed changes
   async sendPushNotification(
     userIds: string[],
     notification: {
@@ -202,6 +288,7 @@ export const fcmService = {
       priority?: 'normal' | 'high';
     }
   ): Promise<boolean> {
+<<<<<<< Updated upstream
     try {
       // Check if user is authenticated
       const { auth } = await import('@/lib/firebase');
@@ -247,11 +334,15 @@ export const fcmService = {
       console.error('❌ Error sending push notification:', error);
       return false;
     }
+=======
+    return this.sendPushNotificationHTTP(userIds, notification);
+>>>>>>> Stashed changes
   },
 
-  // Initialize FCM for the current user
-  async initializeFCM(userId: string): Promise<boolean> {
+  // Initialize push notifications for the current user
+  async initializeFCM(_userId: string): Promise<boolean> {
     try {
+<<<<<<< Updated upstream
       // Wait a bit to ensure auth is fully ready
       const { auth } = await import('@/lib/firebase');
       const currentUser = auth.currentUser;
@@ -261,6 +352,8 @@ export const fcmService = {
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
       
+=======
+>>>>>>> Stashed changes
       const tokenResult = await this.getFCMToken();
 
       if (!tokenResult.success || !tokenResult.token) {
@@ -270,6 +363,7 @@ export const fcmService = {
         return false;
       }
 
+<<<<<<< Updated upstream
       const saved = await this.saveFCMToken(tokenResult.token, userId);
 
       if (saved) {
@@ -281,11 +375,15 @@ export const fcmService = {
       }
     } catch (error) {
       console.error('❌ Error initializing FCM:', error);
+=======
+      return this.saveFCMToken(tokenResult.token);
+    } catch {
+>>>>>>> Stashed changes
       return false;
     }
   },
 
-  // Check if FCM is available
+  // Check if push notifications are available on this device
   async isFCMAvailable(): Promise<boolean> {
     try {
       if (Platform.OS === 'web') {
@@ -295,7 +393,6 @@ export const fcmService = {
       const Constants = await import('expo-constants');
       const isExpoGo = Constants.default.appOwnership === 'expo';
 
-      // FCM is not available in Expo Go
       return !isExpoGo;
     } catch (error) {
       console.error('Error checking FCM availability:', error);

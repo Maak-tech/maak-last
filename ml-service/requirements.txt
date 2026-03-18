@@ -1,0 +1,90 @@
+# Core dependencies
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.9.0  # Newer version has pre-built wheels for Python 3.13
+python-dotenv==1.0.0
+
+# ML dependencies
+# Note: Using compatible versions for Python 3.13
+# If you have Python 3.9-3.11, you can use torch==2.1.2, numpy==1.26.3
+torch>=2.6.0
+torchvision>=0.21.0
+numpy>=1.26.0  # Use >= to get compatible pre-built wheels
+scipy>=1.12.0
+scikit-learn>=1.4.0
+joblib>=1.3.0
+pandas>=2.0.0
+tqdm>=4.66.0
+
+# ── Time-Series Foundation Models ─────────────────────────────────────────────
+# Chronos-T5 (Amazon, MIT) — primary vital forecasting model
+chronos-forecasting>=2.2.0
+
+# TimesFM-1.0-200M (Google, Apache 2.0) — fallback time-series forecasting
+# Install with: pip install timesfm[torch]
+# Note: requires torch>=2.1.0 already installed above
+timesfm>=1.0.0
+
+# IBM Granite TimeSeriesTTM-R2 (Apache 2.0) — lightweight CPU-only fallback
+# Available via the TSFM public library
+tsfm_public>=0.2.0
+
+# ── Transformer Models (HuggingFace) ──────────────────────────────────────────
+# Required for: BioGPT, DNABERT-2, Nucleotide Transformer, ESM-2, HyenaDNA, MedGemma
+transformers>=4.40.0
+accelerate>=0.30.0
+einops>=0.7.0
+sentencepiece>=0.2.0  # BioGPT, DNABERT-2 tokenizers
+tokenizers>=0.19.0
+
+# ESM-2 (Meta, MIT) — missense variant pathogenicity (35M params, CPU-feasible)
+# Loaded via transformers: facebook/esm2_t12_35M_UR50D
+
+# BioGPT (Microsoft, MIT) — biomedical text generation for variant explanations
+# Loaded via transformers: microsoft/BioGPT-Large
+
+# DNABERT-2 (Zhihan Liu et al.) — SNP/variant classification
+# Loaded via transformers: zhihan1996/DNABERT-2-117M
+
+# Nucleotide Transformer (InstaDeep, open) — regulatory variant effect prediction
+# Loaded via transformers: InstaDeepAI/nucleotide-transformer-500m-1000g
+
+# HyenaDNA (LongSafari, MIT) — long-range genomic context
+# Loaded via transformers: LongSafari/hyenadna-large-1m-seqlen
+
+# ── Clinical Explanation Models ────────────────────────────────────────────────
+# MedGemma-4b (Google, Apache 2.0*) — medical explanations via Google AI API
+# Install: pip install google-generativeai
+google-generativeai>=0.8.0
+
+# ── Signal processing ─────────────────────────────────────────────────────────
+librosa>=0.10.2
+pywavelets>=1.6.0  # Newer version has pre-built wheels for Python 3.13
+
+# ── PDF extraction (clinical note parser) ─────────────────────────────────────
+pdfplumber>=0.11.0
+pypdf>=4.0.0
+openai>=1.30.0
+
+# ── Causal Inference (Phase 8+) ───────────────────────────────────────────────
+# DoWhy (Microsoft, MIT) — causal graph construction & effect estimation
+dowhy>=0.11.0
+
+# EconML (Microsoft, MIT) — heterogeneous treatment effect estimation
+econml>=0.15.1
+
+# ── Genomics APIs ─────────────────────────────────────────────────────────────
+# biothings-client — ClinVar E-utilities API client
+biothings-client>=0.3.1
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+httpx>=0.26.0
+python-multipart==0.0.6
+requests>=2.31.0
+aiohttp>=3.9.0   # async HTTP for ClinVar/PharmGKB API calls
+
+# ── Development ───────────────────────────────────────────────────────────────
+pytest==7.4.4
+black==24.1.1
+isort==5.13.2
+mypy==1.8.0

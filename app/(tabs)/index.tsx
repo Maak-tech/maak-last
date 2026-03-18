@@ -584,6 +584,7 @@ export default function DashboardScreen() {
   }
 
   return (
+<<<<<<< Updated upstream
     <SafeAreaView style={styles.container}>
       <ScrollView
         style={styles.content}
@@ -605,6 +606,689 @@ export default function DashboardScreen() {
                 month: 'long',
                 day: 'numeric',
               })}
+=======
+    <GradientScreen
+      edges={["top"]}
+      pointerEvents="box-none"
+      style={styles.container as ViewStyle}
+    >
+      <View style={{ flex: 1, marginBottom: 80 }}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.contentInner as ViewStyle,
+            { paddingBottom: 20 + insets.bottom },
+            isRTL && styles.contentInnerRTL,
+          ]}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl onRefresh={onRefresh} refreshing={refreshing} />
+          }
+          scrollEventThrottle={16}
+          showsVerticalScrollIndicator={false}
+          style={styles.content as ViewStyle}
+        >
+          {/* Wavy Header */}
+          <View
+            style={[
+              styles.wavyHeaderWrapper as ViewStyle,
+              isRTL && styles.wavyHeaderWrapperRTL,
+            ]}
+          >
+            <WavyBackground
+              contentPosition="top"
+              curve="home"
+              height={228}
+              variant="gold"
+            >
+              <View
+                style={[
+                  styles.wavyHeaderContent as ViewStyle,
+                  {
+                    paddingTop: wavyHeaderTopPadding + (isRTL ? 2 : 0),
+                  },
+                  isRTL && styles.wavyHeaderContentRTL,
+                ]}
+              >
+                <View style={styles.wavyHeaderTopRow as ViewStyle}>
+                  <View
+                    style={[
+                      styles.headerContent as ViewStyle,
+                      isRTL && (styles.headerContentRTL as ViewStyle),
+                    ]}
+                  >
+                    <Heading
+                      color={theme.colors.neutral.white}
+                      level={2}
+                      numberOfLines={isRTL ? 3 : 2}
+                      style={[
+                        styles.welcomeText,
+                        isRTL && styles.welcomeTextRTL,
+                        isRTL && styles.rtlText,
+                      ]}
+                    >
+                      {isRTL
+                        ? `مرحباً، ${user.firstName || "User"}`
+                        : `Welcome, ${user.firstName || "User"}`}
+                    </Heading>
+                  </View>
+
+                  <View
+                    style={[
+                      styles.wavyHeaderActions as ViewStyle,
+                      isRTL && (styles.wavyHeaderActionsRTL as ViewStyle),
+                    ]}
+                  >
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      onPress={handleSOS}
+                      style={[
+                        styles.sosHeaderButton as ViewStyle,
+                        isRTL && (styles.sosHeaderButtonRTL as ViewStyle),
+                      ]}
+                    >
+                      <Phone color={theme.colors.neutral.white} size={18} />
+                      <Text
+                        color={theme.colors.neutral.white}
+                        style={styles.sosHeaderText as StyleProp<TextStyle>}
+                        weight="bold"
+                      >
+                        SOS
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      onPress={handleAlertsBadgePress}
+                      style={styles.alertBadgeButton as ViewStyle}
+                    >
+                      <Bell color={theme.colors.neutral.white} size={22} />
+                      {alertsCount > 0 && (
+                        <View style={styles.alertBadgeDot as ViewStyle}>
+                          <Text
+                            style={{
+                              color: "#fff",
+                              fontSize: 9,
+                              fontWeight: "700",
+                              lineHeight: 13,
+                            }}
+                          >
+                            {alertsCount > 99 ? "99+" : alertsCount}
+                          </Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={styles.headerDateRow as ViewStyle}>
+                  <Text
+                    color={theme.colors.secondary.main}
+                    numberOfLines={isRTL ? 2 : 1}
+                    size="medium"
+                    style={[styles.dateText, isRTL && styles.rtlText]}
+                    weight="bold"
+                  >
+                    {safeFormatDate(
+                      new Date(),
+                      isRTL ? "ar-u-ca-gregory" : "en-US",
+                      {
+                        weekday: "long",
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      }
+                    )}
+                  </Text>
+                </View>
+              </View>
+            </WavyBackground>
+          </View>
+
+          {/* Render widgets dynamically */}
+          {enabledWidgets.map((widgetId) => renderWidget(widgetId))}
+
+          {/* Vital anomaly monitoring — only shown when there are active alerts */}
+          <View style={styles.section as ViewStyle}>
+            <AnomalyDashboardSection onlyWhenActive={true} />
+          </View>
+
+          {/* Proactive health suggestions + top new discovery (unified section) */}
+          <View style={styles.section as ViewStyle}>
+            <ProactiveHealthSuggestions showDiscoveries={true} />
+          </View>
+
+          {/* Alerts Modal */}
+          <Modal
+            animationType="slide"
+            onRequestClose={() => setShowAlertsModal(false)}
+            transparent={true}
+            visible={showAlertsModal}
+          >
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: "rgba(0, 0, 0, 0.5)",
+                justifyContent: "flex-end",
+              }}
+            >
+              <View
+                style={{
+                  backgroundColor: "#FFFFFF",
+                  borderTopLeftRadius: 24,
+                  borderTopRightRadius: 24,
+                  maxHeight: "80%",
+                  padding: 20,
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: 20,
+                  }}
+                >
+                  <Text
+                    style={[
+                      {
+                        fontSize: 20,
+                        fontFamily: "Inter-SemiBold",
+                        color: "#1A1D1F",
+                      },
+                      isRTL && styles.rtlText,
+                    ]}
+                  >
+                    {isRTL
+                      ? "التنبيهات الطوارئ الصحية الفعالة"
+                      : "Active Emergency Alerts"}
+                  </Text>
+                  <TouchableOpacity onPress={() => setShowAlertsModal(false)}>
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontFamily: "Inter-Medium",
+                        color: "#003543",
+                      }}
+                    >
+                      {isRTL ? "إغلاق" : "Close"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {loadingAlerts ? (
+                  <View
+                    style={{
+                      paddingVertical: theme.spacing.xl,
+                      alignItems: "center",
+                    }}
+                  >
+                    <ActivityIndicator color="#003543" size="large" />
+                  </View>
+                ) : userAlerts.length === 0 ? (
+                  <View
+                    style={{
+                      paddingVertical: 32,
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text
+                      style={[
+                        {
+                          fontSize: 14,
+                          fontFamily: "Inter-Regular",
+                          color: "#6C7280",
+                        },
+                        isRTL && styles.rtlText,
+                      ]}
+                    >
+                      {isRTL
+                        ? "لا توجد تنبيهات طوارئ صحية نشطة"
+                        : "No active emergency alerts"}
+                    </Text>
+                  </View>
+                ) : (
+                  <ScrollView showsVerticalScrollIndicator={false}>
+                    {userAlerts.map((alert) => {
+                      const severityConfig = {
+                        emergency: {
+                          bg: "#FEE2E2",
+                          border: "#DC2626",
+                          icon: "#DC2626",
+                        },
+                        fall: {
+                          bg: "#FEE2E2",
+                          border: "#DC2626",
+                          icon: "#DC2626",
+                        },
+                        medication: {
+                          bg: "#FEF3C7",
+                          border: "#F59E0B",
+                          icon: "#F59E0B",
+                        },
+                        vitals: {
+                          bg: "#DBEAFE",
+                          border: "#3B82F6",
+                          icon: "#3B82F6",
+                        },
+                      };
+                      const config =
+                        severityConfig[
+                          alert.type as keyof typeof severityConfig
+                        ] || severityConfig.emergency;
+
+                      return (
+                        <View
+                          key={alert.id}
+                          style={{
+                            backgroundColor: config.bg,
+                            borderRadius: 16,
+                            padding: 16,
+                            marginBottom: 12,
+                            borderStartWidth: 4,
+                            borderStartColor: config.border,
+                            shadowColor: "#000",
+                            shadowOffset: { width: 0, height: 1 },
+                            shadowOpacity: 0.05,
+                            shadowRadius: 2,
+                            elevation: 1,
+                          }}
+                        >
+                          <View style={{ flexDirection: "row", gap: 12 }}>
+                            <View style={{ marginTop: 2 }}>
+                              <AlertCircle color={config.icon} size={20} />
+                            </View>
+                            <View style={{ flex: 1, minWidth: 0 }}>
+                              <Text
+                                style={[
+                                  {
+                                    fontSize: 15,
+                                    fontFamily: "Inter-SemiBold",
+                                    color: "#1A1D1F",
+                                    marginBottom: 4,
+                                  },
+                                  isRTL && styles.rtlText,
+                                ]}
+                              >
+                                {alert.type === "fall"
+                                  ? isRTL
+                                    ? "تنبيه سقوط"
+                                    : "Fall Detection"
+                                  : alert.type === "emergency"
+                                    ? isRTL
+                                      ? "طوارئ"
+                                      : "Emergency"
+                                    : alert.type === "medication"
+                                      ? isRTL
+                                        ? "دواء"
+                                        : "Medication"
+                                      : isRTL
+                                        ? "مؤشرات حيوية"
+                                        : "Vitals"}
+                              </Text>
+                              <Text
+                                style={[
+                                  {
+                                    fontSize: 14,
+                                    fontFamily: "Inter-Regular",
+                                    color: "#4E5661",
+                                    marginBottom: 6,
+                                  },
+                                  isRTL && styles.rtlText,
+                                ]}
+                              >
+                                {alert.message}
+                              </Text>
+                              <View
+                                style={{
+                                  flexDirection: "row",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                }}
+                              >
+                                <Text
+                                  style={[
+                                    {
+                                      fontSize: 12,
+                                      fontFamily: "Inter-Regular",
+                                      color: "#6C7280",
+                                    },
+                                    isRTL && styles.rtlText,
+                                  ]}
+                                >
+                                  {formatDateTime(alert.timestamp)}
+                                </Text>
+                                <TouchableOpacity
+                                  disabled={loadingAlerts}
+                                  onPress={async () => {
+                                    try {
+                                      setLoadingAlerts(true);
+
+                                      await alertService.resolveAlert(
+                                        alert.id,
+                                        user.id
+                                      );
+
+                                      await new Promise((resolve) =>
+                                        setTimeout(resolve, 1500)
+                                      );
+
+                                      const updatedAlerts =
+                                        await alertService.getActiveAlerts(
+                                          user.id
+                                        );
+
+                                      setUserAlerts(updatedAlerts);
+                                      setAlertsCount(updatedAlerts.length);
+
+                                      await loadDashboardData();
+
+                                      if (updatedAlerts.length === 0) {
+                                        setShowAlertsModal(false);
+                                        Alert.alert(
+                                          isRTL ? "نجح" : "Success",
+                                          isRTL
+                                            ? "تم حل جميع التنبيهات الطوارئ الصحية الفعالة"
+                                            : "All alerts resolved"
+                                        );
+                                      } else {
+                                        Alert.alert(
+                                          t("success"),
+                                          t("alertResolvedSuccessfully")
+                                        );
+                                      }
+                                    } catch (error: any) {
+                                      logger.error(
+                                        "Failed to resolve alert",
+                                        error,
+                                        "HomeScreen"
+                                      );
+
+                                      const errorMessage =
+                                        error?.message || t("unknownError");
+                                      let displayMessage = errorMessage;
+
+                                      if (
+                                        errorMessage.includes(
+                                          "permission-denied"
+                                        ) ||
+                                        errorMessage.includes("permission")
+                                      ) {
+                                        displayMessage = isRTL
+                                          ? "ليس لديك الصلاحية لحل هذا التنبيه"
+                                          : "You don't have permission to resolve this alert";
+                                      } else if (
+                                        errorMessage.includes(
+                                          "does not exist"
+                                        ) ||
+                                        errorMessage.includes("not found")
+                                      ) {
+                                        displayMessage = isRTL
+                                          ? "التنبيه غير موجود"
+                                          : "Alert not found";
+                                      }
+
+                                      Alert.alert(
+                                        isRTL ? "خطأ" : "Error",
+                                        isRTL
+                                          ? `فشل في حل التنبيه: ${displayMessage}`
+                                          : `Failed to resolve alert: ${displayMessage}`
+                                      );
+                                    } finally {
+                                      setLoadingAlerts(false);
+                                    }
+                                  }}
+                                  style={{
+                                    backgroundColor: loadingAlerts
+                                      ? "#9CA3AF"
+                                      : "#003543",
+                                    paddingHorizontal: 12,
+                                    paddingVertical: 6,
+                                    borderRadius: 8,
+                                    opacity: loadingAlerts ? 0.6 : 1,
+                                  }}
+                                >
+                                  <Text
+                                    style={{
+                                      fontSize: 12,
+                                      fontFamily: "Inter-SemiBold",
+                                      color: "#FFFFFF",
+                                    }}
+                                  >
+                                    {isRTL ? "حل" : "Resolve"}
+                                  </Text>
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </ScrollView>
+                )}
+              </View>
+            </View>
+          </Modal>
+
+          <Modal
+            animationType="fade"
+            onRequestClose={handleTourFinish}
+            transparent={true}
+            visible={showTour && tourSteps.length > 0}
+          >
+            <View style={styles.tourOverlay as ViewStyle}>
+              <View style={styles.tourCard as ViewStyle}>
+                <Text
+                  style={[styles.tourTitle, isRTL && styles.rtlText]}
+                  weight="bold"
+                >
+                  {activeTourStep.title}
+                </Text>
+                <Text style={[styles.tourBody, isRTL && styles.rtlText]}>
+                  {activeTourStep.body}
+                </Text>
+                <View style={styles.tourProgressRow as ViewStyle}>
+                  <Text style={styles.tourProgressText as StyleProp<TextStyle>}>
+                    {tourStep + 1}/{tourSteps.length}
+                  </Text>
+                  <View style={styles.tourDots as ViewStyle}>
+                    {tourSteps.map((_, index) => (
+                      <View
+                        key={`tour-dot-${index}`}
+                        style={[
+                          styles.tourDot,
+                          index === tourStep && styles.tourDotActive,
+                        ]}
+                      />
+                    ))}
+                  </View>
+                </View>
+                <View style={styles.tourFooter as ViewStyle}>
+                  <Pressable
+                    onPress={handleTourFinish}
+                    style={styles.tourButton as ViewStyle}
+                  >
+                    <Text style={styles.tourButtonText as StyleProp<TextStyle>}>
+                      {isRTL ? "تخطي" : "Skip"}
+                    </Text>
+                  </Pressable>
+                  <View style={styles.tourActions as ViewStyle}>
+                    {tourStep > 0 && (
+                      <Pressable
+                        onPress={handleTourBack}
+                        style={styles.tourButton as ViewStyle}
+                      >
+                        <Text
+                          style={styles.tourButtonText as StyleProp<TextStyle>}
+                        >
+                          {isRTL ? "رجوع" : "Back"}
+                        </Text>
+                      </Pressable>
+                    )}
+                    <Pressable
+                      onPress={handleTourNext}
+                      style={[styles.tourButton, styles.tourButtonPrimary]}
+                    >
+                      <Text
+                        style={[
+                          styles.tourButtonText,
+                          styles.tourButtonTextPrimary,
+                        ]}
+                      >
+                        {tourStep >= tourSteps.length - 1
+                          ? isRTL
+                            ? "إنهاء"
+                            : "Done"
+                          : isRTL
+                            ? "التالي"
+                            : "Next"}
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </View>
+            </View>
+          </Modal>
+
+          {/* Health Tracking Section for Regular Users */}
+          {!isAdmin && (
+            <View style={styles.trackingSection as ViewStyle}>
+              <View style={styles.sectionHeader as ViewStyle}>
+                <Text
+                  style={[
+                    styles.sectionTitle,
+                    isRTL && styles.rtlText,
+                    isRTL && { textAlign: "right" as const },
+                  ]}
+                >
+                  {isRTL ? "تتبع الصحة اليومي" : "Daily Health Tracking"}
+                </Text>
+              </View>
+
+              {/* First-time user banner — shown only when no data logged yet */}
+              {stats.symptomsThisWeek === 0 && (
+                <View
+                  style={{
+                    backgroundColor: theme.colors.primary.main + "12",
+                    borderRadius: 12,
+                    padding: theme.spacing.sm,
+                    marginBottom: theme.spacing.base,
+                    flexDirection: isRTL ? "row-reverse" : "row",
+                    alignItems: "center",
+                    gap: theme.spacing.sm,
+                    flexWrap: "wrap" as const,
+                  }}
+                >
+                  <Text
+                    style={{
+                      flex: 1,
+                      color: theme.colors.text.secondary,
+                      fontSize: 13,
+                      textAlign: isRTL ? "right" : "left",
+                    }}
+                  >
+                    {isRTL
+                      ? "أنت جاهز! ابدأ بتسجيل أول علامة حيوية أو عرض."
+                      : "You're all set! Start by logging your first vital or symptom."}
+                  </Text>
+                  <View
+                    style={{
+                      flexDirection: isRTL ? "row-reverse" : "row",
+                      gap: theme.spacing.xs,
+                    }}
+                  >
+                    <TouchableOpacity
+                      onPress={navigateToVitals}
+                      style={{
+                        backgroundColor: theme.colors.primary.main,
+                        borderRadius: 8,
+                        paddingHorizontal: theme.spacing.sm,
+                        paddingVertical: 6,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: theme.colors.neutral.white,
+                          fontSize: 12,
+                          fontWeight: "600",
+                        }}
+                      >
+                        {isRTL ? "علامة حيوية" : "Log a vital"}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={navigateToSymptoms}
+                      style={{
+                        backgroundColor: theme.colors.primary.main + "22",
+                        borderRadius: 8,
+                        paddingHorizontal: theme.spacing.sm,
+                        paddingVertical: 6,
+                        borderWidth: 1,
+                        borderColor: theme.colors.primary.main + "44",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: theme.colors.primary.main,
+                          fontSize: 12,
+                          fontWeight: "600",
+                        }}
+                      >
+                        {isRTL ? "عرض" : "Log a symptom"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
+              <View style={styles.trackingOptions as ViewStyle}>
+                {trackingTabs.map((tab) => {
+                  const TrackingIcon = tab.icon;
+                  return (
+                    <TouchableOpacity
+                      key={tab.id}
+                      onPress={tab.onPress}
+                      style={styles.trackingCard as ViewStyle}
+                    >
+                      <View
+                        style={[
+                          styles.trackingCardIcon,
+                          { backgroundColor: tab.iconBackground },
+                        ]}
+                      >
+                        <TrackingIcon color={tab.iconColor} size={28} />
+                      </View>
+                      <Text
+                        style={[
+                          styles.trackingCardTitle,
+                          isRTL && styles.rtlText,
+                        ]}
+                      >
+                        {tab.label}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.trackingCardSubtitle,
+                          isRTL && styles.rtlText,
+                        ]}
+                      >
+                        {tab.description}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
+          {/* Nuralix One-liner */}
+          <View style={styles.onelineCard as ViewStyle}>
+            <Text style={[styles.onelineText, isRTL && styles.rtlText]}>
+              {isRTL
+                ? '"لأن الصحة تبدأ من المنزل"'
+                : '"Because health starts at home."'}
+>>>>>>> Stashed changes
             </Text>
           </View>
           <TouchableOpacity style={styles.sosHeaderButton} onPress={handleSOS}>

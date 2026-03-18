@@ -663,6 +663,7 @@ export default function VitalsScreen() {
           </View>
         </View>
 
+<<<<<<< Updated upstream
         {/* Maak One-liner */}
         <View style={styles.onelineCard}>
           <Text style={[styles.onelineText, isRTL && styles.rtlText]}>
@@ -670,6 +671,29 @@ export default function VitalsScreen() {
           </Text>
           <Text style={[styles.onelineSource, isRTL && styles.rtlText]}>
             - Maak
+=======
+        {/* Nuralix One-liner */}
+        <View style={styles.onelineCard as ViewStyle}>
+          <Text
+            style={
+              [
+                styles.onelineText,
+                isRTL && styles.rtlText,
+              ] as StyleProp<TextStyle>
+            }
+          >
+            {isRTL ? '"خليهم دايمًا معك"' : '"Health starts at home"'}
+          </Text>
+          <Text
+            style={
+              [
+                styles.onelineSource,
+                isRTL && styles.rtlText,
+              ] as StyleProp<TextStyle>
+            }
+          >
+            - Nuralix
+>>>>>>> Stashed changes
           </Text>
         </View>
       </ScrollView>

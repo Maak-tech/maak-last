@@ -122,7 +122,7 @@ export default function LoginScreen() {
                 resizeMode="contain"
               />
             </View>
-            <Text style={[styles.appName, isRTL && styles.rtlText]}>Maak</Text>
+            <Text style={[styles.appName, isRTL && styles.rtlText]}>Nuralix</Text>
             <Text style={[styles.tagline, isRTL && styles.rtlText]}>
               {isRTL
                 ? 'صحتك وصحة عائلتك في مكان واحد'

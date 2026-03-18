@@ -1,12 +1,12 @@
-# Maak Privacy Policy
+﻿# Nuralix Privacy Policy
 
 *Last Updated: December 2024*
 
 ## Introduction
 
-We at Maak ("we," "our," or "us") are committed to protecting your privacy and ensuring the security of your personal and health information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application ("Maak App" or "the App").
+We at Nuralix ("we," "our," or "us") are committed to protecting your privacy and ensuring the security of your personal and health information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application ("Nuralix App" or "the App").
 
-By using the Maak App, you agree to the practices described in this Privacy Policy. If you do not agree with our policies and practices, please do not use the App.
+By using the Nuralix App, you agree to the practices described in this Privacy Policy. If you do not agree with our policies and practices, please do not use the App.
 
 ## Information We Collect
 
@@ -147,7 +147,7 @@ You have the following rights regarding your personal information:
 
 ## Children's Privacy
 
-The Maak App is not intended for children under 13 years of age. We do not knowingly collect personal information from children under 13. If we become aware that we have collected personal information from a child under 13, we will take steps to delete such information promptly.
+The Nuralix App is not intended for children under 13 years of age. We do not knowingly collect personal information from children under 13. If we become aware that we have collected personal information from a child under 13, we will take steps to delete such information promptly.
 
 ## International Data Transfers
 
@@ -170,9 +170,22 @@ Your continued use of the App after changes become effective constitutes accepta
 
 If you have questions about this Privacy Policy or our privacy practices, please contact us:
 
+<<<<<<< Updated upstream
 **Email**: privacy@maak.app
 **Phone**: +966 12 345 6789
 **Address**: Maak Health Technologies, Riyadh, Saudi Arabia
+=======
+**General Inquiries**:
+- Email: info@nuralix.ai
+- Phone: +19477777645
+
+**Privacy and Legal Inquiries**:
+- Email: privacy@nuralix.ai
+
+**Business Address**:
+Nuralix
+Doha, Qatar
+>>>>>>> Stashed changes
 
 ## Compliance
 

@@ -13,6 +13,28 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
+<<<<<<< Updated upstream
     "nativewind-env.d.ts"
   ]
+=======
+    "nativewind-env.d.ts",
+    "react-native-globals.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "babel.config.js",
+    "metro.config.js",
+    "jest.config.js",
+    "android",
+    "ios",
+    "functions.archived",
+    "functions/src/**/__tests__",
+    "functions/src/**/*.test.ts",
+    "functions/src/**/*.spec.ts",
+    // The API has its own tsconfig (api/tsconfig.json) with Node.js lib types.
+    // Including it here causes false errors (e.g. NodeJS.Timeout.unref not in DOM).
+    "api"
+  ],
+  "extends": "expo/tsconfig.base"
+>>>>>>> Stashed changes
 }

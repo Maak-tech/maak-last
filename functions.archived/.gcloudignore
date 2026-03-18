@@ -1,0 +1,45 @@
+# This file specifies files that are *not* uploaded to Google Cloud
+# using gcloud. It follows the same syntax as .gitignore
+
+# Node modules from root (should not be deployed with functions)
+../node_modules/
+../package.json
+../package-lock.json
+../bun.lockb
+
+# Root app files
+../app/
+../components/
+../lib/
+../assets/
+../public/
+../.git/
+../.expo/
+../android/
+../ios/
+../patches/
+../plugins/
+../scripts/
+../docs/
+../modules/
+
+# Environment files
+../.env
+../.env.local
+../.env.*.local
+
+# Build artifacts
+../dist/
+../build/
+../.expo/
+../node_modules/
+
+# IDE files
+../.vscode/
+../.idea/
+../*.swp
+../*.swo
+
+# OS files
+../.DS_Store
+../Thumbs.db

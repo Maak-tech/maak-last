@@ -1,0 +1,274 @@
+/**
+ * Analyze: LLM Call
+ *
+ * HIPAA-SAFE LLM INTEGRATION:
+ * - Calls ONLY with sanitized NoraInput (no PHI)
+ * - No storage of prompts or responses
+ * - Timeout + retry with safe defaults
+ * - Provider: OpenAI (gpt-4o-mini, configurable via NORA_MODEL)
+ *
+ * FAIL CLOSED: If LLM fails, returns deterministic fallback
+ */
+
+import { logger } from "../../observability/logger";
+import type { RawAIResponse, NoraInput } from "./types";
+import { EscalationLevel, RecommendedActionCode } from "./types";
+
+/**
+ * LLM Provider interface (adapter pattern)
+ */
+type LLMProvider = {
+  name: string;
+  call(prompt: string, timeout: number): Promise<RawAIResponse | null>;
+};
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError";
+}
+
+/**
+ * OpenAI Provider
+ */
+class OpenAIProvider implements LLMProvider {
+  name = "openai";
+  private readonly apiKey: string;
+  private readonly model: string;
+
+  constructor(apiKey: string, model = "gpt-4o-mini") {
+    this.apiKey = apiKey;
+    this.model = model;
+  }
+
+  async call(prompt: string, timeout: number): Promise<RawAIResponse | null> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const response = await fetch(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${this.apiKey}`,
+          },
+          body: JSON.stringify({
+            model: this.model,
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You are a medical AI assistant. Provide structured JSON responses with risk assessment. Always respond with valid JSON. Never provide medical diagnoses.",
+              },
+              {
+                role: "user",
+                content: prompt,
+              },
+            ],
+            temperature: 0.2, // Low temperature for consistent medical analysis
+            max_tokens: 300, // Limit response size
+            response_format: { type: "json_object" },
+          }),
+          signal: controller.signal,
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API returned ${response.status}: ${errorText}`);
+      }
+
+      const data = (await response.json()) as {
+        choices?: Array<{ message?: { content?: string } }>;
+      };
+      const content = data.choices?.[0]?.message?.content;
+
+      if (!content) {
+        return null;
+      }
+
+      const aiResponse: RawAIResponse = JSON.parse(content);
+      return aiResponse;
+    } catch (error) {
+      if (isAbortError(error)) {
+        throw new Error("LLM call timeout");
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
+/**
+ * Get configured LLM provider (OpenAI only)
+ */
+function getLLMProvider(apiKey?: string): LLMProvider | null {
+  // Check passed key first, then NORA_API_KEY, then OPENAI_API_KEY (fallback)
+  const key = apiKey || process.env.NORA_API_KEY || process.env.OPENAI_API_KEY;
+  if (!key) {
+    return null;
+  }
+  const model = process.env.NORA_MODEL || "gpt-4o-mini";
+  return new OpenAIProvider(key, model);
+}
+
+/**
+ * Call LLM with sanitized input
+ * NO PHI is sent to the LLM
+ *
+ * @param input - Sanitized NoraInput (no PHI)
+ * @param prompt - Generated prompt (no PHI)
+ * @param traceId - Trace ID for logging
+ * @param apiKey - Optional API key (falls back to process.env)
+ * @returns RawAIResponse or null on failure
+ */
+export async function callLLM(
+  _input: NoraInput,
+  prompt: string,
+  traceId: string,
+  apiKey?: string
+): Promise<RawAIResponse | null> {
+  const timeout = Number.parseInt(process.env.NORA_TIMEOUT_MS || "8000", 10);
+  const maxRetries = Number.parseInt(process.env.NORA_MAX_RETRIES || "2", 10);
+
+  logger.debug("Calling LLM", {
+    traceId,
+    timeout,
+    maxRetries,
+    fn: "nora.analyze.callLLM",
+  });
+
+  const provider = getLLMProvider(apiKey);
+  if (!provider) {
+    logger.warn("No LLM provider configured, using deterministic fallback", {
+      traceId,
+      fn: "nora.analyze.callLLM",
+    });
+    return null;
+  }
+
+  // Retry logic
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await provider.call(prompt, timeout);
+
+      if (response) {
+        logger.info("LLM call successful", {
+          traceId,
+          provider: provider.name,
+          attempt: attempt + 1,
+          fn: "nora.analyze.callLLM",
+        });
+        return response;
+      }
+    } catch (error) {
+      const isLastAttempt = attempt === maxRetries - 1;
+
+      logger.warn(`LLM call failed (attempt ${attempt + 1}/${maxRetries})`, {
+        traceId,
+        error: (error as Error).message,
+        isLastAttempt,
+        fn: "nora.analyze.callLLM",
+      });
+
+      if (isLastAttempt) {
+        logger.error("LLM call failed after all retries", error as Error, {
+          traceId,
+          attempts: maxRetries,
+          fn: "nora.analyze.callLLM",
+        });
+        return null;
+      }
+
+      // Exponential backoff
+      const backoffMs = Math.min(1000 * 2 ** attempt, 5000);
+      await new Promise((resolve) => setTimeout(resolve, backoffMs));
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Generate deterministic fallback response
+ * Used when LLM is unavailable or fails
+ */
+export function generateDeterministicResponse(
+  input: NoraInput,
+  traceId: string
+): RawAIResponse {
+  logger.info("Generating deterministic fallback response", {
+    traceId,
+    alertType: input.alertType,
+    severity: input.severity,
+    fn: "nora.analyze.generateDeterministicResponse",
+  });
+
+  const riskScore = calculateRiskScore(input);
+  const actionCode = determineActionCode(input);
+  const escalationLevel = determineEscalationLevel(input, riskScore);
+
+  // Generate summary
+  let summary = `${input.alertType} alert`;
+  if (input.vitalType) {
+    summary = `${input.vitalType} ${input.vitalLevel || "alert"}`;
+  }
+  if (input.trend) {
+    summary += ` (${input.trend} trend)`;
+  }
+
+  return {
+    riskScore,
+    summary,
+    recommendedActionCode: actionCode,
+    escalationLevel,
+  };
+}
+
+function calculateRiskScore(input: NoraInput): number {
+  const severityBase: Record<string, number> = {
+    critical: 75,
+    warning: 50,
+    info: 25,
+  };
+  const vitalAdjustment: Record<string, number> = {
+    very_high: 15,
+    very_low: 15,
+    high: 5,
+    low: 5,
+  };
+
+  const baseScore = severityBase[input.severity] ?? 30;
+  const adjustment = input.vitalLevel
+    ? (vitalAdjustment[input.vitalLevel] ?? 0)
+    : 0;
+
+  return Math.min(baseScore + adjustment, 100);
+}
+
+function determineActionCode(input: NoraInput): RecommendedActionCode {
+  if (input.alertType === "fall") {
+    return RecommendedActionCode.IMMEDIATE_ATTENTION;
+  }
+  if (input.severity === "critical") {
+    return RecommendedActionCode.CONTACT_PATIENT;
+  }
+  if (input.vitalLevel === "very_high" || input.vitalLevel === "very_low") {
+    return RecommendedActionCode.CHECK_VITALS;
+  }
+  return RecommendedActionCode.MONITOR;
+}
+
+function determineEscalationLevel(
+  input: NoraInput,
+  riskScore: number
+): EscalationLevel {
+  if (input.alertType === "fall" || input.severity === "critical") {
+    return EscalationLevel.CAREGIVER;
+  }
+  if (riskScore >= 70) {
+    return EscalationLevel.CAREGIVER;
+  }
+  return EscalationLevel.NONE;
+}

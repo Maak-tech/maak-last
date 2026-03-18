@@ -1,0 +1,1509 @@
+/**
+ * Nora - AI Health Assistant Chat
+ *
+ * A text-based chat interface for health assistance powered by OpenAI.
+ */
+
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import {
+  AlertTriangle,
+  Mic,
+  MicOff,
+  Send,
+  Settings,
+  Sparkles,
+  Volume2,
+  VolumeX,
+} from "lucide-react-native";
+import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import GradientScreen from "@/components/figma/GradientScreen";
+import WavyBackground from "@/components/figma/WavyBackground";
+import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
+import aiConsentService from "@/lib/services/aiConsentService";
+import noraChatService, { type NoraChatMessage as AIMessage } from "@/lib/services/noraChatService";
+import vhiService, { type VHI } from "@/lib/services/vhiService";
+import { safeFormatTime } from "@/utils/dateFormat";
+
+// Model labels for the settings UI (backend always uses GPT-4o)
+const AI_MODELS: Record<string, string> = {
+  "gpt-4o": "GPT-4o",
+  "gpt-4o-mini": "GPT-4o mini",
+};
+import { voiceService } from "../../lib/services/voiceService";
+import { autoLogHealthSignalsFromText } from "../../lib/services/noraChatAutoLogService";
+import CoachMark from "../components/CoachMark";
+import VHIPanel from "@/components/VHIPanel";
+import { useVHI } from "@/hooks/useVHI";
+
+/* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Screen orchestrates chat, voice IO, onboarding tips, and settings in one component. */
+export default function NoraScreen() {
+  const { t, i18n } = useTranslation();
+  const { user } = useAuth();
+  const { theme } = useTheme();
+  const router = useRouter();
+  const params = useLocalSearchParams<{ tour?: string }>();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const inputRef = useRef<TextInput>(null);
+  const inputFieldRef = useRef<View>(null);
+  const isMountedRef = useRef(true);
+  const [messages, setMessages] = useState<AIMessage[]>([]);
+  const [inputText, setInputText] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [conversationId, setConversationId] = useState<string | undefined>();
+  const [showSettings, setShowSettings] = useState(false);
+  const [_selectedModel, setSelectedModel] = useState("gpt-4o");
+  const [tempModel, setTempModel] = useState("gpt-4o");
+  // System prompt is injected server-side via VHI context block — no local state needed
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [autoSpeak, _setAutoSpeak] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [recognitionAvailable, setRecognitionAvailable] = useState(false);
+  const [voiceInputEnabled, setVoiceInputEnabled] = useState(false);
+  const [voiceOutputEnabled, setVoiceOutputEnabled] = useState(false);
+  const [voiceLanguage, setVoiceLanguage] = useState("en-US");
+  const [showHowTo, setShowHowTo] = useState(false);
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
+  const { width, height } = useWindowDimensions();
+  const isIphone16Pro =
+    Math.round(Math.min(width, height)) === 393 &&
+    Math.round(Math.max(width, height)) === 852;
+  const contentPadding = isIphone16Pro ? 24 : theme.spacing.lg;
+  const headerPadding = isIphone16Pro ? 28 : theme.spacing.xl;
+  const isRTL = i18n.language.toLowerCase().startsWith("ar");
+
+  // VHI — fetched once with a 5-min TTL; shared between the proactive-message
+  // logic and VHIPanel so the panel never performs a duplicate network call.
+  const { vhi: hookVhi, loading: vhiLoading } = useVHI(user?.id);
+  // Keep a ref so async functions (initializeChat) can read the latest value
+  // without being added to useEffect dependency arrays.
+  const vhiRef = useRef<VHI | null>(null);
+
+  const quickActions = isRTL
+    ? [
+        { label: "كيف صحتي اليوم؟", prompt: "كيف حال صحتي اليوم؟" },
+        { label: "ما الذي يضر صحتي؟", prompt: "ما هي العوامل التي تضر صحتي الآن؟" },
+        { label: "ماذا أفعل اليوم؟", prompt: "ما الذي يجب أن أفعله اليوم لتحسين صحتي؟" },
+        { label: "ملخص الأدوية", prompt: "هل أدويتي منتظمة؟" },
+      ]
+    : [
+        { label: "How is my health?", prompt: "How is my health overall?" },
+        { label: "What's hurting me?", prompt: "What are the top factors hurting my health right now?" },
+        { label: "What can I do today?", prompt: "What should I do today to improve my health?" },
+        { label: "Medication check", prompt: "How is my medication adherence?" },
+      ];
+
+  const formatMessageTime = (timestamp?: Date) => {
+    if (!timestamp) {
+      return "";
+    }
+    return safeFormatTime(timestamp) ?? "";
+  };
+
+  useEffect(
+    () => () => {
+      isMountedRef.current = false;
+    },
+    []
+  );
+
+  // Mirror hook state into a ref so async functions can read it without
+  // needing to be inside the React re-render cycle.
+  useEffect(() => {
+    vhiRef.current = hookVhi;
+  }, [hookVhi]);
+
+  useEffect(() => {
+    if (params.tour === "1") {
+      setShowHowTo(true);
+    }
+  }, [params.tour]);
+
+  /* biome-ignore lint/correctness/useExhaustiveDependencies: Initialization side effects are intended to run once on mount. */
+  useEffect(() => {
+    initializeChat();
+    checkVoiceAvailability();
+    checkRecognitionAvailability();
+
+    // Initialize voice settings from local storage
+    const loadVoiceSettings = async () => {
+      try {
+        const savedVoiceOutput = await AsyncStorage.getItem(
+          "voice_output_enabled"
+        );
+        const savedVoiceInput = await AsyncStorage.getItem(
+          "voice_input_enabled"
+        );
+        const savedVoiceLanguage = await AsyncStorage.getItem("voice_language");
+
+        if (savedVoiceOutput !== null) {
+          setVoiceOutputEnabled(JSON.parse(savedVoiceOutput));
+        }
+        if (savedVoiceInput !== null) {
+          setVoiceInputEnabled(JSON.parse(savedVoiceInput));
+        }
+        if (savedVoiceLanguage) {
+          setVoiceLanguage(savedVoiceLanguage);
+        }
+      } catch (_error) {
+        // Use defaults
+      }
+    };
+
+    loadVoiceSettings();
+  }, []);
+
+  const checkRecognitionAvailability = async () => {
+    try {
+      const available = await voiceService.isRecognitionAvailable();
+      if (isMountedRef.current) {
+        setRecognitionAvailable(available);
+      }
+    } catch (_error) {
+      if (isMountedRef.current) {
+        setRecognitionAvailable(false);
+      }
+    }
+  };
+
+  const checkVoiceAvailability = async () => {
+    try {
+      const available = await voiceService.isAvailable();
+      if (isMountedRef.current) {
+        setVoiceEnabled(available);
+      }
+    } catch (_error) {
+      if (isMountedRef.current) {
+        setVoiceEnabled(false);
+      }
+    }
+  };
+
+  const handleVoiceInput = async () => {
+    if (isListening) {
+      await voiceService.stopListening();
+      setIsListening(false);
+      return;
+    }
+
+    if (!recognitionAvailable) {
+      Alert.alert(
+        t("speechError", "Speech Error"),
+        t(
+          "voiceInputNotAvailable",
+          "Voice input is not available on this device"
+        )
+      );
+      return;
+    }
+
+    try {
+      setIsListening(true);
+      await voiceService.startListening(
+        async (result) => {
+          setIsListening(false);
+          if (result.text?.trim()) {
+            setInputText(result.text);
+            // Automatically send the voice input
+            await handleSend(result.text);
+          }
+        },
+        (error) => {
+          setIsListening(false);
+          Alert.alert(
+            t("speechError", "Speech Error"),
+            error.message ||
+              t("failedToRecognizeSpeech", "Failed to recognize speech")
+          );
+        },
+        voiceLanguage
+      );
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : t("failedToStartVoiceInput", "Failed to start voice input");
+      setIsListening(false);
+      Alert.alert(t("speechError", "Speech Error"), message);
+    }
+  };
+
+  const handleVoiceOutput = async (text: string) => {
+    if (!(voiceEnabled && voiceOutputEnabled)) {
+      return;
+    }
+
+    try {
+      setIsSpeaking(true);
+      await voiceService.speak(text, {
+        language: voiceLanguage,
+        rate: 0.9,
+        pitch: 1.0,
+        volume: 1.0,
+      });
+    } catch (_error) {
+      // Silently fail if TTS is not available
+    } finally {
+      setIsSpeaking(false);
+    }
+  };
+
+  const _toggleVoiceOutput = () => {
+    if (!voiceEnabled) {
+      Alert.alert(
+        t("voiceNotAvailable", "Voice Not Available"),
+        t(
+          "voiceOutputNotSupported",
+          "Voice output is not supported on this device"
+        )
+      );
+      return;
+    }
+    setVoiceOutputEnabled(!voiceOutputEnabled);
+  };
+
+  /* biome-ignore lint/correctness/useExhaustiveDependencies: Scroll should happen when messages update. */
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const initializeChat = async () => {
+    try {
+      if (isMountedRef.current) {
+        setIsLoading(true);
+      }
+      // Model defaults to gpt-4o (server-side; client value is cosmetic only)
+      setSelectedModel("gpt-4o");
+      setTempModel("gpt-4o");
+
+      // Show welcome message immediately — health context loads in background
+      const welcomeId = Date.now().toString();
+      const systemId = (Date.now() + 1).toString();
+      const welcomeMessage: AIMessage = {
+        id: welcomeId,
+        role: "assistant",
+        content: t(
+          "noraWelcome",
+          "Hello! I'm Nora, your personal health AI assistant. I have access to your health profile, medications, symptoms, and family information. How can I help you today?"
+        ),
+        timestamp: new Date(),
+      };
+      const systemMessage: AIMessage = {
+        id: systemId,
+        role: "system",
+        content: "",
+        timestamp: new Date(),
+      };
+
+      setMessages([systemMessage, welcomeMessage]);
+
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
+
+      // Load VHI in background to surface a proactive message.
+      // Context injection is handled server-side — no need to call Firebase here.
+      Promise.resolve().then(async () => {
+        try {
+          const userId = user?.id;
+          if (!userId || !isMountedRef.current) return;
+
+          // Throttle: only surface a proactive message if we haven't chatted recently
+          const lastChatKey = `nora_last_chat_${userId}`;
+          const lastChatTimestamp = await AsyncStorage.getItem(lastChatKey);
+          const sinceDate = lastChatTimestamp
+            ? new Date(lastChatTimestamp)
+            : new Date(Date.now() - 4 * 60 * 60 * 1000); // 4-hour window
+
+          // Only proactively surface if last chat was > 4 hours ago
+          if (lastChatTimestamp && Date.now() - new Date(lastChatTimestamp).getTime() < 4 * 60 * 60 * 1000) {
+            return;
+          }
+
+          // Prefer the already-cached value from the useVHI hook; fall back to
+          // a direct fetch only when the hook hasn't resolved yet.
+          const currentVhi = vhiRef.current ?? await vhiService.getMyVHI();
+          if (!currentVhi || !isMountedRef.current) return;
+
+          const proactiveText = vhiService.getProactiveMessage(currentVhi, isRTL);
+          if (proactiveText) {
+            const proactiveMessage: AIMessage = {
+              id: (Date.now() + 3).toString(),
+              role: "assistant",
+              content: proactiveText,
+              label: isRTL ? "رؤية صحية" : "Health insight",
+              timestamp: new Date(),
+            };
+            setMessages((prev) => [...prev, proactiveMessage]);
+          }
+
+          await AsyncStorage.setItem(lastChatKey, new Date().toISOString());
+        } catch {
+          // Proactive messages are optional — silently ignore any errors
+        }
+      });
+    } catch (_error) {
+      // Silently handle error
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const scrollToBottom = () => {
+    // Use requestAnimationFrame for smoother scrolling
+    requestAnimationFrame(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    });
+  };
+
+  const handleSend = async (textOverride?: string | unknown) => {
+    const textToSend =
+      typeof textOverride === "string" ? textOverride : inputText;
+    if (!textToSend.trim() || isStreaming) {
+      return;
+    }
+
+    const consent = await aiConsentService.getConsent();
+    if (!consent.consented) {
+      Alert.alert(
+        isRTL ? "مشاركة بيانات الذكاء الاصطناعي" : "AI Data Sharing",
+        isRTL
+          ? "لتشغيل «نورة»، يجب السماح بمشاركة البيانات مع مزوّد ذكاء اصطناعي خارجي (OpenAI)."
+          : "To use Nora, you must allow sharing data with a third-party AI provider (OpenAI).",
+        [
+          { text: isRTL ? "لاحقًا" : "Not now", style: "cancel" },
+          {
+            text: isRTL ? "فتح الإعدادات" : "Open settings",
+            onPress: () => router.push("/profile/ai-data-sharing"),
+          },
+        ]
+      );
+      return;
+    }
+
+    // Access check: server returns 401/403 if not configured/authorised —
+    // handled in the stream error callback below. No pre-flight needed.
+
+    const userMessage: AIMessage = {
+      id: Date.now().toString(),
+      role: "user",
+      content: textToSend.trim(),
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setInputText("");
+    setIsStreaming(true);
+
+    autoLogHealthSignalsFromText(userMessage.content).catch(() => {
+      // Non-blocking side effect; chat flow continues even if autolog fails.
+    });
+
+    const assistantMessage: AIMessage = {
+      id: (Date.now() + 1).toString(),
+      role: "assistant",
+      content: "",
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, assistantMessage]);
+
+    let fullResponse = "";
+    let streamFinalized = false;
+    let didTimeout = false;
+    const setAssistantFallbackMessage = (content: string) => {
+      setMessages((prev) => {
+        const lastIndex = prev.length - 1;
+        if (lastIndex >= 0 && prev[lastIndex].id === assistantMessage.id) {
+          const newMessages = [...prev];
+          newMessages[lastIndex] = {
+            ...prev[lastIndex],
+            content,
+          };
+          return newMessages;
+        }
+        return prev;
+      });
+    };
+
+    const finalizeStream = () => {
+      if (streamFinalized) {
+        return;
+      }
+      streamFinalized = true;
+      setIsStreaming(false);
+    };
+
+    const streamTimeout = setTimeout(() => {
+      if (streamFinalized) {
+        return;
+      }
+      didTimeout = true;
+      finalizeStream();
+      if (!fullResponse.trim()) {
+        setAssistantFallbackMessage(
+          t(
+            "noraTimeoutFallback",
+            "I'm taking too long to respond right now. Please try again in a moment."
+          )
+        );
+      }
+      Alert.alert(
+        t("error", "Error"),
+        t(
+          "noraTimeoutMessage",
+          "Response took too long. Please try sending your message again."
+        )
+      );
+    }, 30_000);
+
+    try {
+      await noraChatService.streamMessage(
+        userMessage.content,
+        messages, // history before this message
+        (chunk) => {
+          fullResponse = chunk;
+          setMessages((prev) => {
+            const lastIndex = prev.length - 1;
+            if (lastIndex >= 0 && prev[lastIndex].id === assistantMessage.id) {
+              const newMessages = [...prev];
+              newMessages[lastIndex] = { ...prev[lastIndex], content: fullResponse };
+              return newMessages;
+            }
+            return prev;
+          });
+          scrollToBottom();
+        },
+        async (newConversationId) => {
+          setConversationId(newConversationId);
+          finalizeStream();
+
+          if (voiceOutputEnabled && autoSpeak) {
+            await handleVoiceOutput(fullResponse);
+          }
+        },
+        (error) => {
+          finalizeStream();
+          if (didTimeout) return;
+
+          if (!fullResponse.trim()) {
+            setAssistantFallbackMessage(
+              t("noraErrorFallback", "I couldn't complete your request right now. Please try again.")
+            );
+          }
+
+          Alert.alert(
+            t("error", "Error"),
+            error.message || t("failedToGetResponse", "Failed to get response. Please try again.")
+          );
+        },
+        conversationId
+      );
+    } finally {
+      clearTimeout(streamTimeout);
+      finalizeStream();
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    // Model selection is cosmetic — backend always uses GPT-4o
+    setSelectedModel(tempModel);
+
+    // Save voice settings
+    try {
+      await AsyncStorage.setItem(
+        "voice_output_enabled",
+        JSON.stringify(voiceOutputEnabled)
+      );
+      await AsyncStorage.setItem(
+        "voice_input_enabled",
+        JSON.stringify(voiceInputEnabled)
+      );
+      await AsyncStorage.setItem("voice_language", voiceLanguage);
+    } catch (_error) {
+      // Silently handle storage error
+    }
+
+    setShowSettings(false);
+    Alert.alert(
+      t("success", "Success"),
+      t("settingsSavedSuccessfully", "Settings saved successfully!")
+    );
+  };
+
+  const _handleNewChat = async () => {
+    await initializeChat();
+  };
+
+  const _getVoiceOutputIcon = () => {
+    if (isSpeaking) {
+      return <VolumeX color="white" size={20} />;
+    }
+
+    if (voiceOutputEnabled) {
+      return <Volume2 color="white" size={20} />;
+    }
+
+    return <VolumeX color="#666" size={20} />;
+  };
+
+  return (
+    <GradientScreen edges={["top"]} style={styles.container}>
+      <View style={styles.figmaOrbTop} />
+      <View style={styles.figmaOrbBottom} />
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={90}
+        style={styles.figmaChatContainer}
+      >
+        <ScrollView
+          contentContainerStyle={styles.figmaMessagesContent}
+          keyboardDismissMode="interactive"
+          keyboardShouldPersistTaps="handled"
+          ref={scrollViewRef}
+          showsVerticalScrollIndicator={false}
+          style={styles.figmaMessagesContainer}
+        >
+          <View
+            style={[
+              styles.headerWrapper,
+              {
+                marginHorizontal: -contentPadding,
+                marginTop: -theme.spacing.base,
+                marginBottom: -40,
+              },
+            ]}
+          >
+            <WavyBackground curve="home" height={240} variant="teal">
+              <View
+                style={[
+                  styles.figmaHeaderContent,
+                  {
+                    paddingHorizontal: headerPadding,
+                    paddingTop: headerPadding,
+                    paddingBottom: headerPadding,
+                    minHeight: 230,
+                  },
+                ]}
+              >
+                <View style={styles.figmaHeaderRow}>
+                  <View style={styles.figmaHeaderIcon}>
+                    <Sparkles color="#FFFFFF" size={20} />
+                  </View>
+                  <View>
+                    <Text
+                      style={[
+                        styles.figmaHeaderTitle,
+                        { color: theme.colors.neutral.white },
+                      ]}
+                    >
+                      {isRTL ? "نورة الذكية" : "Nora AI"}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.figmaHeaderSubtitle,
+                        { color: "rgba(255, 255, 255, 0.85)" },
+                      ]}
+                    >
+                      {isRTL
+                        ? "مساعدك الصحي"
+                        : t("noraSubtitle", "Your health assistant")}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </WavyBackground>
+          </View>
+
+          {/* VHI Identity Panel — shown above chat messages */}
+          <View style={{ paddingHorizontal: contentPadding, paddingTop: 12 }}>
+            <VHIPanel
+              vhi={hookVhi?.data ?? null}
+              loading={vhiLoading}
+              isRTL={isRTL}
+              onAskNora={(prompt) => handleSend(prompt)}
+            />
+          </View>
+
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator color="#007AFF" size="large" />
+              <Text style={styles.loadingText}>
+                {t("loadingHealthContext", "Loading your health context...")}
+              </Text>
+            </View>
+          ) : (
+            <>
+              {messages
+                .filter((m) => m.role !== "system")
+                .map((message) => {
+                  const isUser = message.role === "user";
+                  return (
+                    <View
+                      key={message.id}
+                      style={[
+                        styles.figmaMessageRow,
+                        isUser && styles.figmaMessageRowUser,
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.figmaMessageBubble,
+                          isUser
+                            ? styles.figmaMessageBubbleUser
+                            : styles.figmaMessageBubbleAssistant,
+                        ]}
+                      >
+                        {!isUser && (
+                          <View style={styles.figmaMessageHeader}>
+                            <Sparkles color="#EB9C0C" size={14} />
+                            <Text style={styles.figmaMessageSender}>
+                              {isRTL ? "نورة" : "Nora"}
+                            </Text>
+                          </View>
+                        )}
+                        {!isUser && message.label && (
+                          <View
+                            style={{
+                              flexDirection: isRTL ? "row-reverse" : "row",
+                              alignItems: "center",
+                              gap: 4,
+                              backgroundColor: "#FEF3C7",
+                              borderRadius: 20,
+                              paddingHorizontal: 8,
+                              paddingVertical: 3,
+                              alignSelf: "flex-start",
+                              marginBottom: 6,
+                            }}
+                          >
+                            <Sparkles color="#D97706" size={10} />
+                            <Text
+                              style={{
+                                fontSize: 11,
+                                color: "#92400E",
+                                fontWeight: "600",
+                              }}
+                            >
+                              {message.label}
+                            </Text>
+                          </View>
+                        )}
+                        <Text
+                          style={[
+                            styles.figmaMessageText,
+                            isUser
+                              ? styles.figmaMessageTextUser
+                              : styles.figmaMessageTextAssistant,
+                          ]}
+                        >
+                          {message.content}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.figmaMessageTime,
+                            isUser
+                              ? styles.figmaMessageTimeUser
+                              : styles.figmaMessageTimeAssistant,
+                          ]}
+                        >
+                          {formatMessageTime(message.timestamp)}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
+
+              <View style={styles.figmaQuickActionsSection}>
+                <Text style={styles.figmaQuickActionsTitle}>
+                  {isRTL ? "إجراءات سريعة" : "Quick actions"}
+                </Text>
+                <View style={styles.figmaQuickActionsGrid}>
+                  {quickActions.map((action) => (
+                    <TouchableOpacity
+                      key={action.prompt}
+                      onPress={() => handleSend(action.prompt)}
+                      style={styles.figmaQuickActionCard}
+                    >
+                      <Text style={styles.figmaQuickActionText}>
+                        {action.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </>
+          )}
+        </ScrollView>
+
+        <View style={styles.figmaDisclaimer}>
+          <AlertTriangle color="#F59E0B" size={14} />
+          <Text style={styles.figmaDisclaimerText}>
+            {isRTL
+              ? "تقدم نورة إرشادات صحية عامة ولا تُعد بديلاً عن الاستشارة الطبية المتخصصة."
+              : t(
+                  "nora.disclaimer",
+                  "Nora provides general wellness guidance and is not a substitute for professional medical advice."
+                )}
+          </Text>
+        </View>
+
+        <View
+          style={[
+            styles.figmaInputContainer,
+            {
+              paddingBottom: Math.max(insets.bottom, 12) + tabBarHeight,
+            },
+          ]}
+        >
+          <View style={styles.figmaInputRow}>
+            <View
+              collapsable={false}
+              ref={inputFieldRef}
+              style={styles.figmaInputField}
+            >
+              <TextInput
+                editable={!isStreaming}
+                multiline
+                onChangeText={setInputText}
+                placeholder={
+                  isRTL
+                    ? "اسأل نورة عن صحتك..."
+                    : t(
+                        "nora.ask.placeholder",
+                        "Ask Nora about your health..."
+                      )
+                }
+                placeholderTextColor="#999"
+                ref={inputRef}
+                scrollEnabled
+                style={styles.figmaTextInput}
+                textAlign={isRTL ? "right" : "left"}
+                textAlignVertical="top"
+                value={inputText}
+              />
+            </View>
+            {Boolean(recognitionAvailable) && (
+              <TouchableOpacity
+                onPress={handleVoiceInput}
+                style={styles.figmaIconButton}
+              >
+                {isListening ? (
+                  <MicOff color="#FFFFFF" size={18} />
+                ) : (
+                  <Mic color="#4E5661" size={18} />
+                )}
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              disabled={!inputText.trim() || isStreaming}
+              onPress={handleSend}
+              style={[
+                styles.figmaSendButton,
+                (!inputText.trim() || isStreaming) &&
+                  styles.figmaSendButtonDisabled,
+              ]}
+            >
+              {isStreaming ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <Send color="#FFFFFF" size={18} />
+              )}
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.figmaPrivacyTipText}>
+            {isRTL
+              ? "نصيحة خصوصية: تجنّب كتابة الاسم أو رقم الهاتف أو البريد الإلكتروني أو العنوان في الرسالة."
+              : "Privacy tip: avoid typing names, phone numbers, emails, or addresses in your message."}
+          </Text>
+        </View>
+      </KeyboardAvoidingView>
+
+      <CoachMark
+        body={t(
+          "noraHowToBody",
+          "Tap here to ask Nora questions about your health."
+        )}
+        onClose={() => setShowHowTo(false)}
+        onPrimaryAction={() => inputRef.current?.focus()}
+        primaryActionLabel={t("startChat", "Start chat")}
+        secondaryActionLabel={t("gotIt", "Got it")}
+        targetRef={inputFieldRef}
+        title={t("noraHowToTitle", "Use Nora")}
+        visible={showHowTo}
+      />
+
+      <Modal
+        animationType="slide"
+        onRequestClose={() => setShowSettings(false)}
+        transparent={true}
+        visible={showSettings}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t("settings", "Settings")}</Text>
+              <TouchableOpacity onPress={() => setShowSettings(false)}>
+                <Ionicons color="#333" name="close" size={24} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalLabel}>{t("aiModel", "AI Model")}</Text>
+            <View style={styles.modelSelector}>
+              {Object.entries(AI_MODELS).map(([modelKey, modelName]) => (
+                <TouchableOpacity
+                  key={modelKey}
+                  onPress={() => setTempModel(modelKey)}
+                  style={[
+                    styles.modelOption,
+                    tempModel === modelKey && styles.modelOptionSelected,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.modelOptionText,
+                      tempModel === modelKey && styles.modelOptionTextSelected,
+                    ]}
+                  >
+                    {modelName}
+                  </Text>
+                  {modelKey === "gpt-4o" && (
+                    <Text style={styles.recommendedBadge}>
+                      {t("recommended", "Recommended")}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.modalHint}>
+              {t(
+                "aiModelDisplayHint",
+                "Model selection is cosmetic — Nora always uses GPT-4o on the server."
+              )}
+            </Text>
+
+            {/* Voice Settings */}
+            {Boolean(voiceEnabled || recognitionAvailable) && (
+              <>
+                <Text style={[styles.modalLabel, { marginTop: 20 }]}>
+                  {t("voiceSettings", "Voice Settings")}
+                </Text>
+
+                {Boolean(voiceEnabled) && (
+                  <View style={styles.voiceSetting}>
+                    <View style={styles.voiceSettingInfo}>
+                      <Volume2 color="#007AFF" size={20} />
+                      <View style={{ marginStart: 12, flex: 1 }}>
+                        <Text style={styles.voiceSettingTitle}>
+                          {t("voiceOutput", "Voice Output")}
+                        </Text>
+                        <Text style={styles.voiceSettingDescription}>
+                          {t(
+                            "voiceOutputDescription",
+                            "Enable text-to-speech for AI responses"
+                          )}
+                        </Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => setVoiceOutputEnabled(!voiceOutputEnabled)}
+                      style={[
+                        styles.voiceToggle,
+                        voiceOutputEnabled && styles.voiceToggleActive,
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.voiceToggleKnob,
+                          voiceOutputEnabled && styles.voiceToggleKnobActive,
+                        ]}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {Boolean(recognitionAvailable) && (
+                  <View style={styles.voiceSetting}>
+                    <View style={styles.voiceSettingInfo}>
+                      <Mic color="#007AFF" size={20} />
+                      <View style={{ marginStart: 12, flex: 1 }}>
+                        <Text style={styles.voiceSettingTitle}>
+                          {t("voiceInput", "Voice Input")}
+                        </Text>
+                        <Text style={styles.voiceSettingDescription}>
+                          {t(
+                            "voiceInputDescription",
+                            "Enable speech-to-text for voice commands"
+                          )}
+                        </Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => setVoiceInputEnabled(!voiceInputEnabled)}
+                      style={[
+                        styles.voiceToggle,
+                        voiceInputEnabled && styles.voiceToggleActive,
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.voiceToggleKnob,
+                          voiceInputEnabled && styles.voiceToggleKnobActive,
+                        ]}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                <View style={styles.voiceSetting}>
+                  <View style={styles.voiceSettingInfo}>
+                    <Settings color="#007AFF" size={20} />
+                    <View style={{ marginStart: 12, flex: 1 }}>
+                      <Text style={styles.voiceSettingTitle}>
+                        {t("voiceLanguage", "Voice Language")}
+                      </Text>
+                      <Text style={styles.voiceSettingDescription}>
+                        {t(
+                          "voiceLanguageDescription",
+                          "Language for voice input/output"
+                        )}
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => {
+                      // Cycle through available languages
+                      const languages = ["en-US", "ar-SA"];
+                      const currentIndex = languages.indexOf(voiceLanguage);
+                      const nextIndex = (currentIndex + 1) % languages.length;
+                      setVoiceLanguage(languages[nextIndex]);
+                    }}
+                    style={styles.languageButton}
+                  >
+                    <Text style={styles.languageButtonText}>
+                      {voiceLanguage === "en-US"
+                        ? t("english", "English")
+                        : t("arabic", "العربية")}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+
+            <TouchableOpacity
+              onPress={handleSaveSettings}
+              style={styles.saveButton}
+            >
+              <Text style={styles.saveButtonText}>
+                {t("saveSettings", "Save Settings")}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.helpSection}>
+              <Text style={styles.helpTitle}>
+                {t("noraUnavailableHelpTitle", "Nora not responding?")}
+              </Text>
+              <Text style={styles.helpText}>
+                {t(
+                  "noraUnavailableHelpSteps",
+                  "1. Check your internet connection\n2. Try closing and re-opening the app\n3. Contact support at support@nuralix.ai if the issue persists"
+                )}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </GradientScreen>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "transparent",
+  },
+  figmaOrbTop: {
+    position: "absolute",
+    top: -120,
+    right: -120,
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: "rgba(0, 53, 67, 0.08)",
+  },
+  figmaOrbBottom: {
+    position: "absolute",
+    bottom: -140,
+    left: -140,
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: "rgba(235, 156, 12, 0.08)",
+  },
+  figmaHeaderContent: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 16,
+  },
+  figmaHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  figmaHeaderIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#EB9C0C",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  figmaHeaderTitle: {
+    fontSize: 28,
+    fontFamily: "Inter-Bold",
+    color: "#003543",
+  },
+  figmaHeaderSubtitle: {
+    fontSize: 13,
+    fontFamily: "Inter-SemiBold",
+    color: "rgba(0, 53, 67, 0.7)",
+    marginTop: 2,
+  },
+  figmaChatContainer: {
+    flex: 1,
+  },
+  figmaMessagesContainer: {
+    flex: 1,
+    flexGrow: 1,
+  },
+  figmaMessagesContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 200, // Extra padding to ensure content isn't hidden behind input bar
+    paddingTop: 8,
+  },
+  figmaMessageRow: {
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    marginBottom: 16,
+  },
+  figmaMessageRowUser: {
+    justifyContent: "flex-end",
+  },
+  figmaMessageBubble: {
+    maxWidth: "80%",
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  figmaMessageBubbleUser: {
+    backgroundColor: "#003543",
+    borderBottomRightRadius: 6,
+  },
+  figmaMessageBubbleAssistant: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderBottomLeftRadius: 6,
+  },
+  figmaMessageHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 6,
+  },
+  figmaMessageSender: {
+    fontSize: 12,
+    fontFamily: "Inter-Medium",
+    color: "#6C7280",
+  },
+  figmaMessageText: {
+    fontSize: 14,
+    fontFamily: "Inter-Regular",
+    lineHeight: 20,
+  },
+  figmaMessageTextUser: {
+    color: "#FFFFFF",
+  },
+  figmaMessageTextAssistant: {
+    color: "#1A1D1F",
+  },
+  figmaMessageTime: {
+    fontSize: 11,
+    fontFamily: "Inter-Regular",
+    marginTop: 6,
+  },
+  figmaMessageTimeUser: {
+    color: "rgba(255, 255, 255, 0.6)",
+    textAlign: "right",
+  },
+  figmaMessageTimeAssistant: {
+    color: "#9CA3AF",
+  },
+  figmaQuickActionsSection: {
+    paddingTop: 8,
+  },
+  figmaQuickActionsTitle: {
+    fontSize: 12,
+    fontFamily: "Inter-Medium",
+    color: "#9CA3AF",
+    marginBottom: 8,
+  },
+  figmaQuickActionsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  figmaQuickActionCard: {
+    width: "48%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+  },
+  figmaQuickActionText: {
+    fontSize: 13,
+    fontFamily: "Inter-Medium",
+    color: "#1A1D1F",
+  },
+  figmaDisclaimer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    backgroundColor: "#FEF3C7",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(245, 158, 11, 0.2)",
+  },
+  figmaDisclaimerText: {
+    flex: 1,
+    fontSize: 11,
+    fontFamily: "Inter-Regular",
+    color: "#92400E",
+    lineHeight: 16,
+  },
+  figmaInputContainer: {
+    backgroundColor: "#FFFFFF",
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    flexShrink: 0,
+  },
+  figmaInputRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 8,
+  },
+  figmaInputField: {
+    flex: 1,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  figmaPrivacyTipText: {
+    marginTop: 8,
+    fontSize: 11,
+    lineHeight: 14,
+    color: "#64748B",
+    paddingBottom: 4,
+  },
+  figmaTextInput: {
+    fontSize: 14,
+    fontFamily: "Inter-Regular",
+    color: "#1A1D1F",
+    minHeight: 24,
+  },
+  figmaIconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  figmaSendButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#EB9C0C",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  figmaSendButtonDisabled: {
+    opacity: 0.5,
+  },
+  headerWrapper: {
+    marginHorizontal: -16,
+    marginTop: -16,
+    marginBottom: 12,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 16,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    flex: 1,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  headerButton: {
+    padding: 6,
+    marginStart: 8,
+    borderRadius: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+  },
+  newChatHeaderButton: {
+    marginStart: 0,
+  },
+  helpHeaderButton: {
+    marginStart: 0,
+  },
+  chatContainer: {
+    flex: 1,
+  },
+  messagesContainer: {
+    flex: 1,
+  },
+  messagesContent: {
+    paddingVertical: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingTop: 100,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "#666",
+  },
+  inputContainer: {
+    flexDirection: "row",
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#E0E0E0",
+    alignItems: "flex-end",
+  },
+  textInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginEnd: 8,
+    fontSize: 16,
+    maxHeight: 100,
+    color: "#333",
+  },
+  sendButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#007AFF",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  sendButtonDisabled: {
+    backgroundColor: "#B0B0B0",
+  },
+  voiceButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#E0E0E0",
+    justifyContent: "center",
+    alignItems: "center",
+    marginEnd: 8,
+  },
+  voiceButtonActive: {
+    backgroundColor: "#007AFF",
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContent: {
+    width: "90%",
+    backgroundColor: "white",
+    borderRadius: 16,
+    padding: 24,
+    maxWidth: 400,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#333",
+  },
+  modalLabel: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#666",
+    marginBottom: 8,
+  },
+  modalHint: {
+    fontSize: 12,
+    color: "#666",
+    marginBottom: 20,
+  },
+  modelSelector: {
+    marginBottom: 8,
+  },
+  modelOption: {
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+  },
+  modelOptionSelected: {
+    borderColor: "#007AFF",
+    backgroundColor: "#F0F8FF",
+  },
+  modelOptionText: {
+    fontSize: 14,
+    color: "#333",
+  },
+  modelOptionTextSelected: {
+    color: "#007AFF",
+    fontWeight: "600",
+  },
+  recommendedBadge: {
+    fontSize: 10,
+    color: "#10B981",
+    fontWeight: "600",
+    marginTop: 4,
+  },
+  helpSection: {
+    marginTop: 20,
+    padding: 12,
+    backgroundColor: "#FFF3CD",
+    borderRadius: 8,
+  },
+  helpTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#856404",
+    marginBottom: 8,
+  },
+  helpText: {
+    fontSize: 12,
+    color: "#856404",
+    lineHeight: 18,
+  },
+  saveButton: {
+    backgroundColor: "#007AFF",
+    borderRadius: 8,
+    padding: 14,
+    alignItems: "center",
+    marginTop: 16,
+  },
+  saveButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  voiceSetting: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: "#F8F9FA",
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  voiceSettingInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  voiceSettingTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 2,
+  },
+  voiceSettingDescription: {
+    fontSize: 14,
+    color: "#666",
+  },
+  voiceToggle: {
+    width: 50,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#E0E0E0",
+    justifyContent: "center",
+    paddingHorizontal: 2,
+  },
+  voiceToggleActive: {
+    backgroundColor: "#007AFF",
+  },
+  voiceToggleKnob: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "white",
+    transform: [{ translateX: 0 }],
+  },
+  voiceToggleKnobActive: {
+    transform: [{ translateX: 22 }],
+  },
+  languageButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "#007AFF",
+    borderRadius: 16,
+  },
+  languageButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+});

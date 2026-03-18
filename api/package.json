@@ -1,0 +1,36 @@
+{
+  "name": "@nuralix/api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "build": "bun build --compile --minify-whitespace --minify-syntax src/index.ts --outfile dist/server",
+    "start": "dist/server",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "bun run src/db/migrate.ts",
+    "db:studio": "drizzle-kit studio",
+    "migrate:firestore": "bun run src/scripts/migrate.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.800.0",
+    "@aws-sdk/s3-request-presigner": "^3.800.0",
+    "@better-auth/expo": "^1.2.0",
+    "@better-auth/infra": "latest",
+    "@elysiajs/cors": "^1.1.5",
+    "@elysiajs/jwt": "^1.1.1",
+    "@elysiajs/swagger": "^1.1.5",
+    "@neondatabase/serverless": "^0.10.4",
+    "better-auth": "^1.2.0",
+    "drizzle-orm": "^0.41.0",
+    "elysia": "^1.2.25",
+    "postgres": "^3.4.5"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.0",
+    "drizzle-kit": "^0.30.0",
+    "firebase-admin": "^13.0.0",
+    "typescript": "^5.9.2"
+  }
+}
