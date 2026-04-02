@@ -109,9 +109,6 @@ export interface Family {
   members: string[]; // array of user IDs
   status: 'active' | 'inactive';
   createdAt: Date;
-<<<<<<< Updated upstream
-}
-=======
   createdBy: string;
   patientCount: number;
 };
@@ -439,4 +436,3 @@ export type EmailTemplate = {
 export * from "./clinicalNote";
 export * from "./vhi";
 export * from "./genetics";
->>>>>>> Stashed changes

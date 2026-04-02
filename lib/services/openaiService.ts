@@ -1,6 +1,3 @@
-<<<<<<< Updated upstream
-import AsyncStorage from '@react-native-async-storage/async-storage';
-=======
 /**
  * OpenAI service — Firebase-free replacement.
  *
@@ -15,7 +12,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from "@/lib/apiClient";
 import { aiInstrumenter } from "@/lib/observability";
 import aiConsentService from "@/lib/services/aiConsentService";
->>>>>>> Stashed changes
 
 export interface ChatMessage {
   id: string;
@@ -31,37 +27,6 @@ export const AI_MODELS = {
   'gpt-4o': 'GPT-4o (Latest)',
 };
 
-<<<<<<< Updated upstream
-export interface ChatCompletionChunk {
-  id: string;
-  object: string;
-  created: number;
-  model: string;
-  choices: Array<{
-    delta: {
-      content?: string;
-      role?: string;
-    };
-    index: number;
-    finish_reason: string | null;
-  }>;
-}
-
-class OpenAIService {
-  private apiKey: string | null = null;
-  private baseURL = 'https://api.openai.com/v1';
-  private model: string = 'gpt-3.5-turbo'; // Default to cheaper model
-
-  async initialize() {
-    try {
-      this.apiKey = await AsyncStorage.getItem('openai_api_key');
-      const savedModel = await AsyncStorage.getItem('openai_model');
-      if (savedModel) {
-        this.model = savedModel;
-      }
-    } catch (error) {
-      console.error('Error loading OpenAI settings:', error);
-=======
 type ExpectedApiError = Error & {
   isExpectedError?: boolean;
   isApiKeyError?: boolean;
@@ -128,7 +93,6 @@ class OpenAIService {
     } catch {
       this.cachedHealth = { configured: false, hasAccess: false, checkedAtMs: now };
       return { configured: false, hasAccess: false };
->>>>>>> Stashed changes
     }
   }
 
@@ -190,55 +154,6 @@ class OpenAIService {
     if (!this.apiKey) {
       throw new Error('OpenAI API key not configured');
     }
-<<<<<<< Updated upstream
-
-    try {
-      console.log(`Making OpenAI API call with model: ${this.model}`);
-      
-      const response = await fetch(`${this.baseURL}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: this.model,
-          messages: messages.map(msg => ({
-            role: msg.role,
-            content: msg.content
-          })),
-          temperature: 0.7,
-          max_tokens: 1000,
-          stream: false,
-        }),
-      });
-
-      console.log(`OpenAI API response status: ${response.status}`);
-
-      if (!response.ok) {
-        let errorMessage = '';
-        try {
-          const errorData = await response.text();
-          const errorJson = JSON.parse(errorData);
-          errorMessage = errorJson.error?.message || errorData;
-        } catch {
-          errorMessage = `HTTP ${response.status}`;
-        }
-        
-        console.error('OpenAI API Error:', errorMessage);
-        
-        if (response.status === 429) {
-          throw new Error('API quota exceeded. Please add billing to your OpenAI account or switch to GPT-3.5 Turbo (cheaper model).');
-        } else if (response.status === 401) {
-          throw new Error('Invalid API key. Please check your OpenAI API key in settings.');
-        } else if (response.status === 404) {
-          throw new Error(`Model ${this.model} not found. Please select a different model in settings.`);
-        } else if (response.status === 400) {
-          throw new Error(`Bad request: ${errorMessage}. Please check your API key and selected model.`);
-        }
-        
-        throw new Error(`OpenAI API error: ${errorMessage}`);
-=======
   }
 
   private async requestChatCompletion(
@@ -299,7 +214,6 @@ class OpenAIService {
         throw markExpectedApiError(
           "This feature requires an active subscription."
         );
->>>>>>> Stashed changes
       }
 
       const data = await response.json();

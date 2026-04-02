@@ -1,9 +1,3 @@
-<<<<<<< Updated upstream
-import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Device from 'expo-device';
-import * as Sensors from 'expo-sensors';
-=======
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
@@ -12,7 +6,6 @@ import { authClient } from "@/lib/authClient";
 import type { VitalSign } from "@/types";
 import { safeFormatNumber } from "@/utils/dateFormat";
 import { appleHealthService } from "./appleHealthService";
->>>>>>> Stashed changes
 
 // iOS HealthKit permissions - correct format for react-native-health
 const HealthKitPermissions = {
@@ -88,10 +81,6 @@ export interface HealthDataSummary {
   lastSyncTime: Date;
 }
 
-<<<<<<< Updated upstream
-const HEALTH_DATA_STORAGE_KEY = '@maak_health_data';
-const PERMISSIONS_STORAGE_KEY = '@maak_health_permissions';
-=======
 const HEALTH_DATA_STORAGE_KEY = "@nuralix_health_data";
 const PERMISSIONS_STORAGE_KEY = "@nuralix_health_permissions";
 
@@ -131,7 +120,6 @@ const getLatestBloodPressure = (
 
   return;
 };
->>>>>>> Stashed changes
 
 export const healthDataService = {
   // Initialize health data access (Expo-compatible)
@@ -225,18 +213,6 @@ export const healthDataService = {
   // Get latest vital signs
   async getLatestVitals(): Promise<VitalSigns | null> {
     try {
-<<<<<<< Updated upstream
-      const hasPermissions = await this.hasHealthPermissions();
-      if (!hasPermissions) {
-        console.log('⚠️ No health permissions granted');
-        return null;
-      }
-
-      if (Platform.OS === 'ios') {
-        return await this.getIOSVitals();
-      } else if (Platform.OS === 'android') {
-        return await this.getAndroidVitals();
-=======
       const userId = (await authClient.getSession())?.data?.user?.id;
 
       // Prefer direct provider first - matches Health app in real time
@@ -300,7 +276,6 @@ export const healthDataService = {
           source: data.source as string | undefined,
           metadata: data.metadata as Record<string, unknown> | undefined,
         });
->>>>>>> Stashed changes
       }
       
       return null;
@@ -545,9 +520,6 @@ export const healthDataService = {
         : 'N/A',
     };
   },
-<<<<<<< Updated upstream
-};
-=======
 
   /**
    * Fetch historical vital sign readings for a user as a flat VitalSign[].
@@ -608,4 +580,3 @@ export const healthDataService = {
     }
   },
 };
->>>>>>> Stashed changes

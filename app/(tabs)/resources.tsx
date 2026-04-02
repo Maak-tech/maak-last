@@ -56,16 +56,6 @@ const resources: Resource[] = [
     featured: true,
   },
   {
-<<<<<<< Updated upstream
-    id: '2',
-    title: 'Family Health Management Best Practices',
-    titleAr: 'أفضل ممارسات إدارة صحة العائلة',
-    description: 'Tips for managing your family\'s health effectively using Maak',
-    descriptionAr: 'نصائح لإدارة صحة عائلتك بفعالية باستخدام معاك',
-    category: 'family',
-    type: 'guide',
-    duration: '10 min',
-=======
     id: "2",
     title: "Family Health Management Best Practices",
     titleAr: "أفضل ممارسات إدارة صحة العائلة",
@@ -75,7 +65,6 @@ const resources: Resource[] = [
     category: "family",
     type: "guide",
     duration: "10 min",
->>>>>>> Stashed changes
     rating: 4.9,
     featured: true,
   },
@@ -113,16 +102,6 @@ const resources: Resource[] = [
     rating: 4.5,
   },
   {
-<<<<<<< Updated upstream
-    id: '6',
-    title: 'Understanding Health Scores',
-    titleAr: 'فهم نقاط الصحة',
-    description: 'How Maak calculates your health score and what it means',
-    descriptionAr: 'كيف يحسب معاك نقاط صحتك وما معنى ذلك',
-    category: 'general',
-    type: 'guide',
-    duration: '6 min',
-=======
     id: "6",
     title: "Understanding Health Scores",
     titleAr: "فهم نقاط الصحة",
@@ -131,7 +110,6 @@ const resources: Resource[] = [
     category: "general",
     type: "guide",
     duration: "6 min",
->>>>>>> Stashed changes
     rating: 4.4,
   },
 ];

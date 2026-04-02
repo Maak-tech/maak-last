@@ -1,28 +1,3 @@
-<<<<<<< Updated upstream
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  Switch,
-  Alert,
-  Modal,
-  ActivityIndicator,
-  RefreshControl,
-} from 'react-native';
-import { useTranslation } from 'react-i18next';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { useAuth } from '@/contexts/AuthContext';
-import { useFallDetectionContext } from '@/contexts/FallDetectionContext';
-import { useTheme } from '@/contexts/ThemeContext';
-import { firebaseValidation } from '@/lib/services/firebaseValidation';
-import { symptomService } from '@/lib/services/symptomService';
-import { medicationService } from '@/lib/services/medicationService';
-
-=======
 /* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: legacy profile screen with many sections and handlers. */
 /* biome-ignore-all lint/style/noNestedTernary: existing localized UI branches retained for this batch. */
 /* biome-ignore-all lint/nursery/noLeakedRender: incremental JSX cleanup in progress. */
@@ -38,14 +13,10 @@ import { useIsFocused } from "@react-navigation/native";
 import * as Sentry from "@sentry/react-native";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { api } from "@/lib/apiClient";
->>>>>>> Stashed changes
 import {
   User,
   Settings,
   Bell,
-<<<<<<< Updated upstream
-  Shield,
-=======
   BookOpen,
   Brain,
   Building2,
@@ -58,7 +29,6 @@ import {
   CreditCard,
   Dna,
   FileText,
->>>>>>> Stashed changes
   Globe,
   Heart,
   FileText,
@@ -68,16 +38,6 @@ import {
   Activity,
   Calendar,
   Phone,
-<<<<<<< Updated upstream
-  Check,
-  Moon,
-  Sun,
-  BookOpen,
-} from 'lucide-react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Symptom, Medication, MedicalHistory } from '@/types';
-import Avatar from '@/components/Avatar';
-=======
   Plus,
   RefreshCw,
   Shield,
@@ -162,7 +122,6 @@ import {
   safeFormatNumber,
   safeFormatTime,
 } from "@/utils/dateFormat";
->>>>>>> Stashed changes
 
 interface ProfileSectionItem {
   icon: any;
@@ -198,9 +157,6 @@ export default function ProfileScreen() {
 
   const isRTL = i18n.language === 'ar';
 
-<<<<<<< Updated upstream
-  // Refresh data when tab is focused
-=======
   // Org membership — available for org_admin, provider, care_coordinator roles
   const {
     org: myOrg,
@@ -373,7 +329,6 @@ export default function ProfileScreen() {
   };
 
   // Refresh data when tab is focused - debounced to prevent multiple loads
->>>>>>> Stashed changes
   useFocusEffect(
     useCallback(() => {
       loadHealthData();
@@ -564,11 +519,6 @@ export default function ProfileScreen() {
           onPress: handleHealthReports,
         },
         {
-<<<<<<< Updated upstream
-          icon: BookOpen,
-          label: isRTL ? 'المصادر التعليمية' : 'Health Resources',
-          onPress: () => router.push('/(tabs)/resources'),
-=======
           icon: Calendar,
           label: isRTL
             ? t("calendar")
@@ -1004,7 +954,6 @@ export default function ProfileScreen() {
             : t("connectedDevices", "Connected Devices"),
           icon: Activity,
           onPress: () => router.push("/profile/health-integrations"),
->>>>>>> Stashed changes
         },
       ],
     },
@@ -1270,16 +1219,9 @@ export default function ProfileScreen() {
           </Text>
         </TouchableOpacity>
 
-<<<<<<< Updated upstream
-        {/* App Version */}
-        <View style={styles.appVersion}>
-          <Text style={[styles.appVersionText, isRTL && styles.rtlText]}>
-            Maak v1.0.0
-=======
         <View style={styles.figmaVersion}>
           <Text style={styles.figmaVersionText}>
             {isRTL ? "نيورالكس v1.0.0" : "Nuralix v1.0.0"}
->>>>>>> Stashed changes
           </Text>
         </View>
       </ScrollView>

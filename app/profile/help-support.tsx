@@ -1,21 +1,5 @@
-<<<<<<< Updated upstream
-import React from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  Linking,
-  Alert,
-} from 'react-native';
-import { useTranslation } from 'react-i18next';
-import { useRouter } from 'expo-router';
-=======
 ﻿import { useNavigation, useRouter } from "expo-router";
 import type { LucideIcon } from "lucide-react-native";
->>>>>>> Stashed changes
 import {
   ArrowLeft,
   HelpCircle,
@@ -119,21 +103,6 @@ export default function HelpSupportScreen() {
   );
 
   return (
-<<<<<<< Updated upstream
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={[styles.backButton, isRTL && styles.backButtonRTL]}
-          onPress={() => router.back()}
-        >
-          <ArrowLeft
-            size={24}
-            color="#1E293B"
-            style={[isRTL && { transform: [{ rotate: '180deg' }] }]}
-          />
-        </TouchableOpacity>
-=======
     <GradientScreen edges={["top"]} style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -185,7 +154,6 @@ export default function HelpSupportScreen() {
             </View>
           </WavyBackground>
         </View>
->>>>>>> Stashed changes
 
         <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
           {isRTL ? 'المساعدة والدعم' : 'Help & Support'}
@@ -205,13 +173,8 @@ export default function HelpSupportScreen() {
           </Text>
           <Text style={[styles.welcomeDescription, isRTL && styles.rtlText]}>
             {isRTL
-<<<<<<< Updated upstream
-              ? 'فريق دعم معاك متاح لمساعدتك في أي وقت. اختر الطريقة المناسبة للتواصل معنا.'
-              : 'Maak support team is available to help you anytime. Choose the best way to contact us.'}
-=======
               ? "فريق دعم معاك متاح لمساعدتك في أي وقت. اختر الطريقة المناسبة للتواصل معنا."
               : "Nuralix support team is available to help you anytime. Choose the best way to contact us."}
->>>>>>> Stashed changes
           </Text>
         </View>
 
@@ -229,14 +192,8 @@ export default function HelpSupportScreen() {
                 ? 'للحالات العاجلة والدعم المباشر'
                 : 'For urgent issues and direct support'
             }
-<<<<<<< Updated upstream
-            value="+970 594521902"
-            method="phone"
-            color="#10B981"
-=======
             title={isRTL ? "راسلنا" : "Email Us"}
             value="info@nuralix.ai"
->>>>>>> Stashed changes
           />
 
           <ContactCard
@@ -273,14 +230,8 @@ export default function HelpSupportScreen() {
                 ? 'معلومات شاملة ومركز المساعدة'
                 : 'Comprehensive information and help center'
             }
-<<<<<<< Updated upstream
-            value="https://maaktech.net/"
-            method="website"
-            color="#F59E0B"
-=======
             title={isRTL ? "موقعنا الإلكتروني" : "Visit Website"}
             value="https://nuralix.ai/"
->>>>>>> Stashed changes
           />
         </View>
 

@@ -1,20 +1,3 @@
-<<<<<<< Updated upstream
-import {
-  collection,
-  addDoc,
-  doc,
-  updateDoc,
-  deleteDoc,
-  query,
-  where,
-  orderBy,
-  getDocs,
-  getDoc,
-  Timestamp,
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { Medication } from '@/types';
-=======
 /**
  * Medication service — Firebase-free replacement.
  *
@@ -170,27 +153,11 @@ const _medCache: {
   data: Map<string, { medications: Medication[]; timestamp: number }>;
   TTL: number;
 } = { data: new Map(), TTL: 2 * 60_000 }; // 2-minute TTL
->>>>>>> Stashed changes
 
 export const medicationService = {
   // Add new medication
   async addMedication(medicationData: Omit<Medication, 'id'>): Promise<string> {
     try {
-<<<<<<< Updated upstream
-      // Filter out undefined values to prevent Firebase errors
-      const cleanedData = Object.fromEntries(
-        Object.entries({
-          ...medicationData,
-          startDate: Timestamp.fromDate(medicationData.startDate),
-          endDate: medicationData.endDate
-            ? Timestamp.fromDate(medicationData.endDate)
-            : null,
-        }).filter(([_, value]) => value !== undefined)
-      );
-
-      const docRef = await addDoc(collection(db, 'medications'), cleanedData);
-      return docRef.id;
-=======
       if (isOnline) {
         const created = await api.post<Record<string, unknown>>("/api/health/medications", {
           name: medicationData.name,
@@ -223,7 +190,6 @@ export const medicationService = {
       const currentMedications = await offlineService.getOfflineCollection<Medication>("medications");
       await offlineService.storeOfflineData("medications", [...currentMedications, newMedication]);
       return tempId;
->>>>>>> Stashed changes
     } catch (error) {
       console.error('Error adding medication:', error);
       throw error;
@@ -235,32 +201,6 @@ export const medicationService = {
     medicationData: Omit<Medication, 'id'>,
     targetUserId: string
   ): Promise<string> {
-<<<<<<< Updated upstream
-    try {
-      // Override the userId to the target user
-      const dataWithTargetUser = {
-        ...medicationData,
-        userId: targetUserId,
-      };
-
-      // Filter out undefined values to prevent Firebase errors
-      const cleanedData = Object.fromEntries(
-        Object.entries({
-          ...dataWithTargetUser,
-          startDate: Timestamp.fromDate(dataWithTargetUser.startDate),
-          endDate: dataWithTargetUser.endDate
-            ? Timestamp.fromDate(dataWithTargetUser.endDate)
-            : null,
-        }).filter(([_, value]) => value !== undefined)
-      );
-
-      const docRef = await addDoc(collection(db, 'medications'), cleanedData);
-      return docRef.id;
-    } catch (error) {
-      console.error('Error adding medication for user:', error);
-      throw error;
-    }
-=======
     const created = await api.post<Record<string, unknown>>("/api/health/medications", {
       name: medicationData.name,
       userId: targetUserId,
@@ -274,39 +214,10 @@ export const medicationService = {
       notes: medicationData.notes,
     });
     return created.id as string;
->>>>>>> Stashed changes
   },
 
   // Get user medications
   async getUserMedications(userId: string): Promise<Medication[]> {
-<<<<<<< Updated upstream
-    try {
-      const q = query(
-        collection(db, 'medications'),
-        where('userId', '==', userId),
-        where('isActive', '==', true),
-        orderBy('startDate', 'desc')
-      );
-
-      const querySnapshot = await getDocs(q);
-      const medications: Medication[] = [];
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        medications.push({
-          id: doc.id,
-          ...data,
-          // Ensure reminders is always an array
-          reminders: data.reminders || [],
-          startDate: data.startDate.toDate(),
-          endDate: data.endDate?.toDate() || undefined,
-        } as Medication);
-      });
-
-      return medications;
-    } catch (error) {
-      console.error('Error getting medications:', error);
-=======
     // Return cached result if fresh
     const cached = _medCache.data.get(userId);
     if (cached && Date.now() - cached.timestamp < _medCache.TTL) {
@@ -342,54 +253,11 @@ export const medicationService = {
           .map((m) => normalizeMedicationForClient(m, m.id || userId))
           .sort(compareMedicationStartDateDesc);
       }
->>>>>>> Stashed changes
       throw error;
     }
   },
 
   // Update medication
-<<<<<<< Updated upstream
-  async updateMedication(
-    medicationId: string,
-    updates: Partial<Medication>
-  ): Promise<void> {
-    try {
-      const updateData: any = { ...updates };
-      if (updates.startDate) {
-        updateData.startDate = Timestamp.fromDate(updates.startDate);
-      }
-      if (updates.endDate) {
-        updateData.endDate = Timestamp.fromDate(updates.endDate);
-      }
-      await updateDoc(doc(db, 'medications', medicationId), updateData);
-    } catch (error) {
-      console.error('Error updating medication:', error);
-      throw error;
-    }
-  },
-
-  // Mark medication as taken
-  async markMedicationTaken(
-    medicationId: string,
-    reminderId: string
-  ): Promise<void> {
-    try {
-      // Get the current medication to update the specific reminder
-      const medication = await this.getMedication(medicationId);
-      if (!medication) {
-        throw new Error('Medication not found');
-      }
-
-      // Update the specific reminder in the reminders array
-      const updatedReminders = medication.reminders.map((reminder) =>
-        reminder.id === reminderId
-          ? { ...reminder, taken: !reminder.taken, takenAt: Timestamp.now() }
-          : reminder
-      );
-
-      await updateDoc(doc(db, 'medications', medicationId), {
-        reminders: updatedReminders,
-=======
   async updateMedication(medicationId: string, updates: Partial<Medication>): Promise<void> {
     await api.patch(`/api/health/medications/${medicationId}`, {
       ...(updates.name !== undefined && { name: updates.name }),
@@ -438,7 +306,6 @@ export const medicationService = {
         reminderTime: reminder.time,
       }).catch(() => {
         // Silently handle dismissal errors
->>>>>>> Stashed changes
       });
     } catch (error) {
       console.error('Error marking medication as taken:', error);
@@ -449,79 +316,22 @@ export const medicationService = {
   // Get single medication
   async getMedication(medicationId: string): Promise<Medication | null> {
     try {
-<<<<<<< Updated upstream
-      const docRef = doc(db, 'medications', medicationId);
-      const docSnap = await getDoc(docRef);
-
-      if (!docSnap.exists()) {
-        return null;
-      }
-
-      const data = docSnap.data();
-
-      return {
-        id: docSnap.id,
-        ...data,
-        reminders: data.reminders || [],
-        startDate: data.startDate.toDate(),
-        endDate: data.endDate?.toDate() || undefined,
-      } as Medication;
-    } catch (error) {
-      console.error('Error getting medication:', error);
-      throw error;
-=======
       const raw = await api.get<Record<string, unknown>>(`/api/health/medications/${medicationId}`);
       if (!raw || (raw as { error?: string }).error) return null;
       return normalizeMedicationFromApi(raw);
     } catch {
       return null;
->>>>>>> Stashed changes
     }
   },
 
   // Delete medication (soft-delete via isActive = false)
   async deleteMedication(medicationId: string): Promise<void> {
-<<<<<<< Updated upstream
-    try {
-      await updateDoc(doc(db, 'medications', medicationId), {
-        isActive: false,
-      });
-    } catch (error) {
-      console.error('Error deleting medication:', error);
-      throw error;
-    }
-=======
     await api.patch(`/api/health/medications/${medicationId}`, { isActive: false });
     this.invalidateCache(); // Clear all since we don't have userId here
->>>>>>> Stashed changes
   },
 
   // Get today's medications
   async getTodaysMedications(userId: string): Promise<Medication[]> {
-<<<<<<< Updated upstream
-    try {
-      const medications = await this.getUserMedications(userId);
-      const today = new Date().toDateString();
-
-      // Filter medications that should be taken today
-      return medications.filter((med) => {
-        if (!med.isActive) return false;
-
-        const startDate = new Date(med.startDate).toDateString();
-        const endDate = med.endDate
-          ? new Date(med.endDate).toDateString()
-          : null;
-
-        // Check if today is within the medication period
-        const isInPeriod = today >= startDate && (!endDate || today <= endDate);
-
-        return isInPeriod;
-      });
-    } catch (error) {
-      console.error("Error getting today's medications:", error);
-      throw error;
-    }
-=======
     const medications = await this.getUserMedications(userId);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -543,31 +353,15 @@ export const medicationService = {
         (!endDate || today.getTime() <= endDate.getTime())
       );
     });
->>>>>>> Stashed changes
   },
 
   // Get upcoming reminders
   async getUpcomingReminders(
     userId: string,
     hours = 24
-<<<<<<< Updated upstream
-  ): Promise<
-    {
-      medicationId: string;
-      medicationName: string;
-      reminderId: string;
-      time: string;
-      taken: boolean;
-    }[]
-  > {
-    try {
-      const medications = await this.getUserMedications(userId);
-      const reminders: any[] = [];
-=======
   ): Promise<UpcomingReminder[]> {
     const medications = await this.getUserMedications(userId);
     const reminders: UpcomingReminder[] = [];
->>>>>>> Stashed changes
 
       medications.forEach((med) => {
         const medicationReminders = med.reminders || [];
@@ -577,22 +371,11 @@ export const medicationService = {
           const reminderTime = new Date();
           reminderTime.setHours(parseInt(hourStr), parseInt(minuteStr), 0, 0);
 
-<<<<<<< Updated upstream
-          // If reminder time has passed today, set it for tomorrow
-          if (reminderTime < now) {
-            reminderTime.setDate(reminderTime.getDate() + 1);
-          }
-
-          // Include reminders within the specified hours
-          const timeDiff = reminderTime.getTime() - now.getTime();
-          const hoursDiff = timeDiff / (1000 * 60 * 60);
-=======
         // If reminder time has passed today, set it for tomorrow
         if (reminderTime < now) reminderTime.setDate(reminderTime.getDate() + 1);
 
         const timeDiff = reminderTime.getTime() - now.getTime();
         const hoursDiff = timeDiff / (1000 * 60 * 60);
->>>>>>> Stashed changes
 
           if (hoursDiff <= hours) {
             reminders.push({
@@ -619,132 +402,6 @@ export const medicationService = {
       const medications = await this.getUserMedications(userId);
       const today = new Date().toDateString();
 
-<<<<<<< Updated upstream
-      for (const medication of medications) {
-        // Check if reminders need to be reset for today
-        const needsReset = medication.reminders.some((reminder) => {
-          const lastTaken = reminder.takenAt
-            ? new Date(reminder.takenAt).toDateString()
-            : null;
-          return reminder.taken && lastTaken !== today;
-        });
-
-        if (needsReset) {
-          // Reset all reminders for this medication
-          const resetReminders = medication.reminders.map((reminder) => {
-            const resetReminder: any = {
-              ...reminder,
-              taken: false,
-            };
-            // Remove takenAt field entirely instead of setting to undefined
-            delete resetReminder.takenAt;
-            return resetReminder;
-          });
-
-          await updateDoc(doc(db, 'medications', medication.id), {
-            reminders: resetReminders,
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error resetting daily reminders:', error);
-      throw error;
-    }
-  },
-
-  // Get medications for all family members (for admins)
-  async getFamilyMedications(familyId: string): Promise<Medication[]> {
-    try {
-      // First get all family members
-      const familyMembersQuery = query(
-        collection(db, 'users'),
-        where('familyId', '==', familyId)
-      );
-      const familyMembersSnapshot = await getDocs(familyMembersQuery);
-      const memberIds = familyMembersSnapshot.docs.map((doc) => doc.id);
-
-      if (memberIds.length === 0) {
-        return [];
-      }
-
-      // Get medications for all family members
-      const medicationsQuery = query(
-        collection(db, 'medications'),
-        where('userId', 'in', memberIds),
-        where('isActive', '==', true),
-        orderBy('startDate', 'desc')
-      );
-
-      const querySnapshot = await getDocs(medicationsQuery);
-      const medications: Medication[] = [];
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        medications.push({
-          id: doc.id,
-          ...data,
-          startDate: data.startDate.toDate(),
-          endDate: data.endDate?.toDate(),
-          reminders: data.reminders || [],
-        } as Medication);
-      });
-
-      return medications;
-    } catch (error) {
-      console.error('Error getting family medications:', error);
-      throw error;
-    }
-  },
-
-  // Get today's medications for all family members (for admins)
-  async getFamilyTodaysMedications(familyId: string): Promise<Medication[]> {
-    try {
-      const familyMedications = await this.getFamilyMedications(familyId);
-
-      // Filter for today's medications (active medications with reminders)
-      const today = new Date().toDateString();
-      return familyMedications.filter((med) => {
-        if (!med.isActive) return false;
-
-        // Check if medication has any reminders for today
-        return Array.isArray(med.reminders) && med.reminders.length > 0;
-      });
-    } catch (error) {
-      console.error('Error getting family today medications:', error);
-      throw error;
-    }
-  },
-
-  // Get medications for a specific family member (for admins)
-  async getMemberMedications(memberId: string): Promise<Medication[]> {
-    try {
-      const q = query(
-        collection(db, 'medications'),
-        where('userId', '==', memberId),
-        where('isActive', '==', true),
-        orderBy('startDate', 'desc')
-      );
-
-      const querySnapshot = await getDocs(q);
-      const medications: Medication[] = [];
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        medications.push({
-          id: doc.id,
-          ...data,
-          startDate: data.startDate.toDate(),
-          endDate: data.endDate?.toDate(),
-          reminders: data.reminders || [],
-        } as Medication);
-      });
-
-      return medications;
-    } catch (error) {
-      console.error('Error getting member medications:', error);
-      throw error;
-    }
-=======
     for (const medication of medications) {
       const needsReset = medication.reminders.some((reminder) => {
         const lastTaken = reminder.takenAt
@@ -812,34 +469,15 @@ export const medicationService = {
     return (raw ?? [])
       .map(normalizeMedicationFromApi)
       .sort(compareMedicationStartDateDesc);
->>>>>>> Stashed changes
   },
 
   // Get today's medications for a specific family member (for admins)
   async getMemberTodaysMedications(memberId: string): Promise<Medication[]> {
-<<<<<<< Updated upstream
-    try {
-      const memberMedications = await this.getMemberMedications(memberId);
-
-      // Filter for today's medications (active medications with reminders)
-      const today = new Date().toDateString();
-      return memberMedications.filter((med) => {
-        if (!med.isActive) return false;
-
-        // Check if medication has any reminders for today
-        return Array.isArray(med.reminders) && med.reminders.length > 0;
-      });
-    } catch (error) {
-      console.error('Error getting member today medications:', error);
-      throw error;
-    }
-=======
     const memberMedications = await this.getMemberMedications(memberId);
     return memberMedications.filter((med) => {
       if (!med.isActive) return false;
       return Array.isArray(med.reminders) && med.reminders.length > 0;
     });
->>>>>>> Stashed changes
   },
 
   // Get medication stats for a specific family member (for admins)
@@ -869,19 +507,10 @@ export const medicationService = {
         return (
           sum +
           reminders.filter((r) => {
-<<<<<<< Updated upstream
-            if (!r.taken || !r.takenAt) return false;
-            const takenDate = (r.takenAt as any).toDate
-              ? (r.takenAt as any).toDate()
-              : new Date(r.takenAt);
-            const takenToday = takenDate.toDateString() === today;
-            return takenToday;
-=======
             if (!(r.taken && r.takenAt)) return false;
             const takenDate = coerceToDate(r.takenAt);
             if (!takenDate) return false;
             return takenDate.toDateString() === today;
->>>>>>> Stashed changes
           }).length
         );
       }, 0);
@@ -896,12 +525,7 @@ export const medicationService = {
         todaysCompliance: Math.round(todaysCompliance),
         upcomingReminders,
       };
-<<<<<<< Updated upstream
-    } catch (error) {
-      console.error('Error getting member medication stats:', error);
-=======
     } catch {
->>>>>>> Stashed changes
       return {
         totalMedications: 0,
         activeMedications: 0,
@@ -910,8 +534,6 @@ export const medicationService = {
       };
     }
   },
-<<<<<<< Updated upstream
-=======
 
   // Bulk add medications
   async bulkAddMedications(
@@ -934,5 +556,4 @@ export const medicationService = {
 
     return result;
   },
->>>>>>> Stashed changes
 };

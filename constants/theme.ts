@@ -1,23 +1,4 @@
 export const Colors = {
-<<<<<<< Updated upstream
-  // Primary Colors (Navy Blue & Orange)
-  primary: {
-    main: '#1E3A8A',        // Navy Blue - Main primary
-    light: '#3B82F6',       // Lighter navy blue
-    dark: '#1E40AF',        // Darker navy blue
-    50: '#EFF6FF',          // Very light navy tint
-    100: '#DBEAFE',         // Light navy tint
-    200: '#BFDBFE',         // Medium light navy tint
-  },
-  
-  secondary: {
-    main: '#EA580C',        // Orange - Main secondary
-    light: '#FB923C',       // Lighter orange
-    dark: '#C2410C',        // Darker orange
-    50: '#FFF7ED',          // Very light orange tint
-    100: '#FFEDD5',         // Light orange tint
-    200: '#FED7AA',         // Medium light orange tint
-=======
   // Primary Colors (Nuralix Gold)
   primary: {
     main: "#EB9C0C", // Nuralix gold primary
@@ -36,7 +17,6 @@ export const Colors = {
     50: "#F0FAFB", // Very light teal tint
     100: "#E6F7F9", // Light teal tint
     200: "#D4F1F4", // Medium light teal tint
->>>>>>> Stashed changes
   },
   
   // Accent Colors

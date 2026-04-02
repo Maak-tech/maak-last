@@ -1,25 +1,3 @@
-import React, { useEffect } from 'react';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { AuthProvider } from '@/contexts/AuthContext';
-import { FallDetectionProvider } from '@/contexts/FallDetectionContext';
-import { ThemeProvider } from '@/contexts/ThemeContext';
-import * as Notifications from 'expo-notifications';
-import '@/lib/i18n';
-
-<<<<<<< Updated upstream
-// Configure how notifications should be displayed when app is in foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,  // Show notification banner at top
-    shouldShowList: true,    // Show in notification list
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
-
-export default function RootLayout() {
-=======
 // Initialize reanimated compatibility early to prevent createAnimatedComponent errors
 import "@/lib/utils/reanimatedSetup";
 // Remap Inter fonts to Arabic-safe fonts when app language is Arabic.
@@ -125,7 +103,6 @@ function RootLayout() {
   const backgroundLaunchLoggedRef = useRef(false);
   const notificationHandlerConfiguredRef = useRef(false);
 
->>>>>>> Stashed changes
   useEffect(() => {
     // Request notification permissions on app start
     const requestPermissions = async () => {
@@ -139,27 +116,6 @@ function RootLayout() {
     
     requestPermissions();
   }, []);
-<<<<<<< Updated upstream
-  return (
-    <ThemeProvider>
-      <AuthProvider>
-        <FallDetectionProvider>
-          <StatusBar style="auto" />
-          <Stack>
-            <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="debug-notifications"
-              options={{ title: 'Debug Notifications' }}
-            />
-            <Stack.Screen name="+not-found" />
-          </Stack>
-        </FallDetectionProvider>
-      </AuthProvider>
-    </ThemeProvider>
-=======
 
   // Keep Text defaults neutral. Arabic font handling is patched globally at runtime.
   useEffect(() => {
@@ -257,6 +213,5 @@ function RootLayout() {
         </I18nextProvider>
       </SafeAreaProvider>
     </ErrorBoundary>
->>>>>>> Stashed changes
   );
 }

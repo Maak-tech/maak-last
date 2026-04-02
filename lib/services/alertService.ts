@@ -1,21 +1,3 @@
-<<<<<<< Updated upstream
-import {
-  collection,
-  addDoc,
-  doc,
-  updateDoc,
-  query,
-  where,
-  orderBy,
-  limit,
-  getDocs,
-  Timestamp,
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { EmergencyAlert } from '@/types';
-import { pushNotificationService } from './pushNotificationService';
-import { userService } from './userService';
-=======
 /**
  * Alert service — Firebase-free replacement.
  *
@@ -88,19 +70,10 @@ const _activeAlertsCache = new Map<
 
 const buildFamilyAlertsCacheKey = (userIds: string[], limitCount: number) =>
   `${[...userIds].sort().join(",")}::${limitCount}`;
->>>>>>> Stashed changes
 
 // ── Service ──────────────────────────────────────────────────────────────────
 
 export const alertService = {
-<<<<<<< Updated upstream
-  // Create emergency alert
-  async createAlert(alertData: Omit<EmergencyAlert, 'id'>): Promise<string> {
-    try {
-      const docRef = await addDoc(collection(db, 'alerts'), {
-        ...alertData,
-        timestamp: Timestamp.fromDate(alertData.timestamp),
-=======
   async createAlert(alertData: Omit<EmergencyAlert, "id">): Promise<string> {
     try {
       const result = await api.post<EmergencyAlert>("/api/alerts", {
@@ -156,7 +129,6 @@ export const alertService = {
         status: "failure",
         error: { message: errorMessage },
         metadata: { alertType: alertData.type, userId: alertData.userId },
->>>>>>> Stashed changes
       });
       return docRef.id;
     } catch (error) {
@@ -170,79 +142,6 @@ export const alertService = {
     _userId: string, // server resolves via session
     limitCount = 20
   ): Promise<EmergencyAlert[]> {
-<<<<<<< Updated upstream
-    try {
-      const q = query(
-        collection(db, 'alerts'),
-        where('userId', '==', userId),
-        orderBy('timestamp', 'desc'),
-        limit(limitCount)
-      );
-
-      const querySnapshot = await getDocs(q);
-      const alerts: EmergencyAlert[] = [];
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        alerts.push({
-          id: doc.id,
-          ...data,
-          timestamp: data.timestamp.toDate(),
-        } as EmergencyAlert);
-      });
-
-      return alerts;
-    } catch (error) {
-      console.error('Error getting alerts:', error);
-      throw error;
-    }
-  },
-
-  // Get family alerts
-  async getFamilyAlerts(
-    userIds: string[],
-    limitCount = 50
-  ): Promise<EmergencyAlert[]> {
-    try {
-      const q = query(
-        collection(db, 'alerts'),
-        where('userId', 'in', userIds),
-        where('resolved', '==', false),
-        orderBy('timestamp', 'desc'),
-        limit(limitCount)
-      );
-
-      const querySnapshot = await getDocs(q);
-      const alerts: EmergencyAlert[] = [];
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        alerts.push({
-          id: doc.id,
-          ...data,
-          timestamp: data.timestamp.toDate(),
-        } as EmergencyAlert);
-      });
-
-      return alerts;
-    } catch (error) {
-      console.error('Error getting family alerts:', error);
-      throw error;
-    }
-  },
-
-  // Resolve alert
-  async resolveAlert(alertId: string, resolverId: string): Promise<void> {
-    try {
-      await updateDoc(doc(db, 'alerts', alertId), {
-        resolved: true,
-        resolvedAt: Timestamp.now(),
-        resolvedBy: resolverId,
-      });
-    } catch (error) {
-      console.error('Error resolving alert:', error);
-      throw error;
-=======
     const result = await api.get<EmergencyAlert[]>(
       `/api/alerts?limit=${limitCount}`
     );
@@ -356,19 +255,11 @@ export const alertService = {
         metadata: { alertId, resolverId },
       });
       throw new Error(`Failed to resolve alert: ${errorMessage}`);
->>>>>>> Stashed changes
     }
   },
 
   // Add responder to alert
   async addResponder(alertId: string, responderId: string): Promise<void> {
-<<<<<<< Updated upstream
-    try {
-      const alertDoc = doc(db, 'alerts', alertId);
-      // Note: This is a simplified version. In production, you'd want to use arrayUnion
-      await updateDoc(alertDoc, {
-        responders: [responderId], // This would typically use arrayUnion for proper array handling
-=======
     await api.patch(`/api/alerts/${alertId}/responders`, { responderId });
   },
 
@@ -435,7 +326,6 @@ export const alertService = {
           message: notificationError instanceof Error ? notificationError.message : "Unknown error",
         },
         metadata: { alertId, userId },
->>>>>>> Stashed changes
       });
     } catch (error) {
       console.error('Error adding responder:', error);
@@ -443,79 +333,6 @@ export const alertService = {
     }
   },
 
-<<<<<<< Updated upstream
-  // Create fall detection alert
-  async createFallAlert(userId: string, location?: string): Promise<string> {
-    try {
-      const alertData: Omit<EmergencyAlert, 'id'> = {
-        userId,
-        type: 'fall',
-        severity: 'high',
-        message: `Fall detected for user. Immediate attention may be required.${
-          location ? ` Location: ${location}` : ''
-        }`,
-        timestamp: new Date(),
-        resolved: false,
-        responders: [],
-      };
-
-      const alertId = await this.createAlert(alertData);
-
-      // Send push notification to family members
-      try {
-        const user = await userService.getUser(userId);
-        if (user && user.familyId) {
-          await pushNotificationService.sendFallAlert(
-            userId,
-            alertId,
-            user.name,
-            user.familyId
-          );
-        } else {
-          // If no family, send test notification to user
-          await pushNotificationService.sendFallAlert(
-            userId,
-            alertId,
-            user?.name || 'User'
-          );
-        }
-      } catch (notificationError) {
-        console.error(
-          'Error sending fall alert notification:',
-          notificationError
-        );
-        // Don't throw error here - alert was created successfully
-      }
-
-      return alertId;
-    } catch (error) {
-      console.error('Error creating fall alert:', error);
-      throw error;
-    }
-  },
-
-  // Create medication reminder alert
-  async createMedicationAlert(
-    userId: string,
-    medicationName: string
-  ): Promise<string> {
-    try {
-      const alertData: Omit<EmergencyAlert, 'id'> = {
-        userId,
-        type: 'medication',
-        severity: 'medium',
-        message: `Medication reminder: ${medicationName} was not taken as scheduled.`,
-        timestamp: new Date(),
-        resolved: false,
-        responders: [],
-      };
-
-      return await this.createAlert(alertData);
-    } catch (error) {
-      console.error('Error creating medication alert:', error);
-      throw error;
-    }
-=======
   async createMedicationAlert(userId: string, medicationName: string): Promise<string> {
     return this.createAlert({
       userId,
@@ -526,7 +343,6 @@ export const alertService = {
       resolved: false,
       responders: [],
     });
->>>>>>> Stashed changes
   },
 
   // Create vitals alert
@@ -536,42 +352,6 @@ export const alertService = {
     value: number,
     normalRange: string
   ): Promise<string> {
-<<<<<<< Updated upstream
-    try {
-      const alertData: Omit<EmergencyAlert, 'id'> = {
-        userId,
-        type: 'vitals',
-        severity: 'high',
-        message: `Abnormal ${vitalType} reading: ${value}. Normal range: ${normalRange}`,
-        timestamp: new Date(),
-        resolved: false,
-        responders: [],
-      };
-
-      return await this.createAlert(alertData);
-    } catch (error) {
-      console.error('Error creating vitals alert:', error);
-      throw error;
-    }
-  },
-
-  // Get active alerts count
-  async getActiveAlertsCount(userId: string): Promise<number> {
-    try {
-      const q = query(
-        collection(db, 'alerts'),
-        where('userId', '==', userId),
-        where('resolved', '==', false)
-      );
-
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.size;
-    } catch (error) {
-      console.error('Error getting active alerts count:', error);
-      return 0;
-    }
-  },
-=======
     return this.createAlert({
       userId,
       type: "vitals",
@@ -662,5 +442,4 @@ export const alertService = {
       return [];
     }
   },
->>>>>>> Stashed changes
 };

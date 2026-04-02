@@ -584,29 +584,6 @@ export default function DashboardScreen() {
   }
 
   return (
-<<<<<<< Updated upstream
-    <SafeAreaView style={styles.container}>
-      <ScrollView
-        style={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header with SOS Button */}
-        <View style={styles.headerWithSOS}>
-          <View style={styles.headerContent}>
-            <Text style={[styles.welcomeText, isRTL && styles.rtlText]}>
-              {isRTL ? `مرحباً، ${user.name}` : `Welcome, ${user.name}`}
-            </Text>
-            <Text style={[styles.dateText, isRTL && styles.rtlText]}>
-              {new Date().toLocaleDateString(isRTL ? 'ar-SA' : 'en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })}
-=======
     <GradientScreen
       edges={["top"]}
       pointerEvents="box-none"
@@ -1288,7 +1265,6 @@ export default function DashboardScreen() {
               {isRTL
                 ? '"لأن الصحة تبدأ من المنزل"'
                 : '"Because health starts at home."'}
->>>>>>> Stashed changes
             </Text>
           </View>
           <TouchableOpacity style={styles.sosHeaderButton} onPress={handleSOS}>

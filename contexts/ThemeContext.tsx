@@ -27,11 +27,7 @@ interface ThemeProviderProps {
   children: ReactNode;
 }
 
-<<<<<<< Updated upstream
-const THEME_STORAGE_KEY = '@maak_theme_mode';
-=======
 const THEME_STORAGE_KEY = "@nuralix_theme_mode";
->>>>>>> Stashed changes
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const systemColorScheme = useColorScheme();

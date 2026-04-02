@@ -1,11 +1,7 @@
-<<<<<<< Updated upstream
-import React, { useEffect, useState } from 'react';
-=======
 ﻿/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Large screen composed of multiple localized UI states. */
 /* biome-ignore-all lint/correctness/noNestedComponentDefinitions: Local section renderer intentionally captures `isRTL`. */
 /* biome-ignore-all lint/style/noNestedTernary: State rendering is explicit and localized. */
 import { useNavigation, useRouter } from "expo-router";
->>>>>>> Stashed changes
 import {
   View,
   Text,
@@ -185,13 +181,8 @@ export default function TermsConditionsScreen() {
               </View>
               <Text style={[styles.introTitle, isRTL && styles.rtlText]}>
                 {isRTL
-<<<<<<< Updated upstream
-                  ? 'شروط وأحكام استخدام تطبيق معاك'
-                  : document.title}
-=======
                   ? "يرجى قراءة هذه الشروط والأحكام بعناية قبل استخدام تطبيق معك. باستخدامك للتطبيق، فإنك توافق على الالتزام بهذه الشروط."
                   : "Please read these terms and conditions carefully before using the Nuralix app. By using the app, you agree to be bound by these terms."}
->>>>>>> Stashed changes
               </Text>
               <Text style={[styles.introDescription, isRTL && styles.rtlText]}>
                 {isRTL
@@ -228,13 +219,6 @@ export default function TermsConditionsScreen() {
                   ? 'إذا كان لديك أي أسئلة حول هذه الشروط والأحكام، يرجى التواصل معنا:'
                   : 'If you have any questions about these terms and conditions, please contact us:'}
               </Text>
-<<<<<<< Updated upstream
-              <Text style={[styles.contactDetails, isRTL && styles.rtlText]}>
-                {isRTL ? 'البريد الإلكتروني: ' : 'Email: '}legal@maak.app
-              </Text>
-              <Text style={[styles.contactDetails, isRTL && styles.rtlText]}>
-                {isRTL ? 'الهاتف: ' : 'Phone: '}+966 12 345 6789
-=======
               <Text
                 style={[styles.contactDetails, isRTL && { textAlign: "left" }]}
               >
@@ -249,7 +233,6 @@ export default function TermsConditionsScreen() {
                 style={[styles.contactDetails, isRTL && { textAlign: "left" }]}
               >
                 {isRTL ? "الهاتف: " : "Phone: "}+19477777645
->>>>>>> Stashed changes
               </Text>
             </View>
           </>

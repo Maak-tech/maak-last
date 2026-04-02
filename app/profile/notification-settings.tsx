@@ -1,24 +1,4 @@
-<<<<<<< Updated upstream
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  TouchableOpacity,
-  Switch,
-  ScrollView,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
-import { useTranslation } from 'react-i18next';
-import { useRouter } from 'expo-router';
-import { useAuth } from '@/contexts/AuthContext';
-import { userService } from '@/lib/services/userService';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-=======
 import { useNavigation, useRouter } from "expo-router";
->>>>>>> Stashed changes
 import {
   ArrowLeft,
   Bell,
@@ -29,10 +9,6 @@ import {
   Users,
   Clock,
   Volume2,
-<<<<<<< Updated upstream
-  Smartphone,
-} from 'lucide-react-native';
-=======
 } from "lucide-react-native";
 import type React from "react";
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
@@ -54,7 +30,6 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { api } from "@/lib/apiClient";
 import { pushNotificationService } from "@/lib/services/pushNotificationService";
 import { userService } from "@/lib/services/userService";
->>>>>>> Stashed changes
 
 interface NotificationSettings {
   enabled: boolean;
@@ -117,17 +92,7 @@ export default function NotificationSettingsScreen() {
     if (!user) return;
 
     try {
-<<<<<<< Updated upstream
-      setSaving(true);
-
-      // Update settings in Firestore via Cloud Function
-      const functions = getFunctions();
-      const updatePreferences = httpsCallable(functions, 'updateNotificationPreferences');
-      
-      await updatePreferences({ preferences: settings });
-=======
       await api.patch("/api/user/notification-preferences", { preferences: updatedSettings }).catch(() => {});
->>>>>>> Stashed changes
 
       // Also update locally
       await userService.updateUser(user.id, {

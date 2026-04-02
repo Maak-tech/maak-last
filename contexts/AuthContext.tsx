@@ -1,33 +1,11 @@
-<<<<<<< Updated upstream
-import React, {
-=======
 /* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Auth lifecycle and migration flows are intentionally centralized. */
 /* biome-ignore-all lint/suspicious/noExplicitAny: Legacy error handling paths still use dynamic error payloads. */
 import type React from "react";
 import {
->>>>>>> Stashed changes
   createContext,
   useContext,
   useEffect,
   useState,
-<<<<<<< Updated upstream
-  useMemo,
-} from 'react';
-import { Platform, Alert } from 'react-native';
-import {
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-  User as FirebaseUser,
-} from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
-import { userService } from '@/lib/services/userService';
-import { fcmService } from '@/lib/services/fcmService';
-import { familyInviteService } from '@/lib/services/familyInviteService';
-import { User } from '@/types';
-=======
 } from "react";
 import { Alert } from "react-native";
 import { api } from "@/lib/apiClient";
@@ -37,7 +15,6 @@ import { revenueCatService } from "@/lib/services/revenueCatService";
 import { userService } from "@/lib/services/userService";
 import { logger } from "@/lib/utils/logger";
 import type { AvatarType, EmergencyContact, User } from "@/types";
->>>>>>> Stashed changes
 
 interface AuthContextType {
   user: User | null;
@@ -234,116 +211,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Helper function to process pending family codes
   const processPendingFamilyCode = async (userId: string) => {
     try {
-<<<<<<< Updated upstream
-      console.log('🔍 Starting processPendingFamilyCode for user:', userId);
-      const AsyncStorage = await import(
-        '@react-native-async-storage/async-storage'
-      );
-
-      // Add debugging to see all AsyncStorage keys
-      try {
-        const allKeys = await AsyncStorage.default.getAllKeys();
-        console.log('🗂️ All AsyncStorage keys:', allKeys);
-      } catch (error) {
-        console.log('⚠️ Could not get AsyncStorage keys:', error);
-      }
-
-      const pendingCode = await AsyncStorage.default.getItem(
-        'pendingFamilyCode'
-      );
-      console.log(
-        '🔍 Retrieved pending family code from storage:',
-        pendingCode
-      );
-
-      if (pendingCode) {
-        console.log('📱 Found pending family code:', pendingCode);
-
-        try {
-          console.log('🔄 Attempting to use invitation code...');
-          const result = await familyInviteService.useInvitationCode(
-            pendingCode,
-            userId
-          );
-          console.log('📋 Invitation code result:', result);
-
-          if (result.success && result.familyId) {
-            console.log(
-              '✅ Invitation code valid, joining family:',
-              result.familyId
-            );
-
-            // Join the family (this will handle leaving previous family properly)
-            console.log('🔄 Starting family join process...');
-            await userService.joinFamily(userId, result.familyId);
-            console.log('✅ Family join process completed');
-
-            // Clear the pending code
-            console.log('🧹 Clearing pending family code from storage');
-            await AsyncStorage.default.removeItem('pendingFamilyCode');
-
-            // Refresh the user data to reflect the new family
-            console.log('🔄 Refreshing user data...');
-            const updatedUser = await userService.getUser(userId);
-            console.log('📋 Updated user data:', {
-              userId: updatedUser?.id,
-              familyId: updatedUser?.familyId,
-              name: updatedUser?.name,
-            });
-            if (updatedUser) {
-              setUser(updatedUser);
-              console.log('✅ User state updated in context');
-            }
-
-            // Show success message
-            setTimeout(() => {
-              Alert.alert(
-                'Welcome to the Family!',
-                result.message +
-                  ' You can now see your family members in the Family tab.'
-              );
-            }, 2000);
-
-            console.log('✅ Successfully joined family via pending code');
-            return true; // Return true to indicate successful processing
-          } else {
-            console.log('❌ Failed to use family code:', result.message);
-            // Clear the invalid code
-            await AsyncStorage.default.removeItem('pendingFamilyCode');
-
-            setTimeout(() => {
-              Alert.alert(
-                'Family Code Issue',
-                result.message +
-                  ' A default family has been created for you instead.'
-              );
-            }, 2000);
-          }
-        } catch (error) {
-          console.error('❌ Error processing family code:', error);
-          console.error('Error details:', {
-            message: error instanceof Error ? error.message : 'Unknown error',
-            code: (error as any)?.code,
-            stack: error instanceof Error ? error.stack : undefined,
-          });
-
-          setTimeout(() => {
-            Alert.alert(
-              'Family Code Error',
-              'There was an issue processing your family invitation. A default family has been created for you. Please try using the code manually in the Family tab.'
-            );
-          }, 2000);
-        }
-      } else {
-        console.log('📝 No pending family code found');
-      }
-
-      // Return false to indicate no family code was processed
-      console.log('📝 Returning false - no successful invitation processing');
-      return false; // Return false to indicate no successful processing
-    } catch (error) {
-      console.error('❌ Error in processPendingFamilyCode:', error);
-=======
       const familyData = await api.get<Record<string, unknown> | null>(
         `/api/family/${familyId}`
       ).catch(() => null);
@@ -360,7 +227,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       return hasActiveFamily;
     } catch (_err) {
       logger.error("Failed to check family membership", _err, "AuthContext");
->>>>>>> Stashed changes
       return false;
     }
   };
@@ -504,53 +370,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const logout = async () => {
     try {
-<<<<<<< Updated upstream
-      console.log('🚪 Starting logout process...');
-      setLoading(true);
-
-      // Clear any pending family codes from AsyncStorage
-      try {
-        const AsyncStorage = await import(
-          '@react-native-async-storage/async-storage'
-        );
-        await AsyncStorage.default.removeItem('pendingFamilyCode');
-        console.log('🧹 Cleared AsyncStorage');
-      } catch (error) {
-        console.log('Could not clear AsyncStorage on logout:', error);
-      }
-
-      // Sign out from Firebase
-      await signOut(auth);
-      console.log('🔥 Firebase signOut completed');
-
-      // Set user to null immediately after successful signOut
-      setUser(null);
-      setLoading(false);
-
-      console.log('✅ Logout completed successfully');
-    } catch (error) {
-      console.error('❌ Logout error:', error);
-      // Force logout even if Firebase signOut fails to ensure user is logged out from the app
-      setUser(null);
-      setLoading(false);
-      console.log('🔄 Forced logout due to error');
-=======
       await api.patch(`/api/user/profile`, userData).catch(() => {});
       setUser({ ...user, ...userData });
     } catch {
       throw new Error("Failed to update user. Please try again.");
->>>>>>> Stashed changes
     }
   };
 
   const updateUser = async (userData: Partial<User>) => {
     if (!user) return;
 
-<<<<<<< Updated upstream
-    try {
-      const userDocRef = doc(db, 'users', user.id);
-      await updateDoc(userDocRef, userData);
-=======
   const resetPassword = useCallback(async (email: string) => {
     const { error } = await authClient.requestPasswordReset({
       email,
@@ -558,7 +387,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     });
     if (error) throw new Error(mapAuthError(error, "resetPassword"));
   }, []);
->>>>>>> Stashed changes
 
       const updatedUser = { ...user, ...userData };
       setUser(updatedUser);

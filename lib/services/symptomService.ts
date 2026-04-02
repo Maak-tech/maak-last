@@ -1,20 +1,3 @@
-<<<<<<< Updated upstream
-import {
-  collection,
-  addDoc,
-  doc,
-  updateDoc,
-  deleteDoc,
-  query,
-  where,
-  orderBy,
-  limit,
-  getDocs,
-  Timestamp,
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { Symptom } from '@/types';
-=======
 /* biome-ignore-all lint/complexity/noForEach: Legacy symptom aggregation paths still use forEach and will be migrated in a dedicated cleanup pass. */
 /* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Family symptom/stat aggregation intentionally combines query and rollup logic in single methods. */
 /* biome-ignore-all lint/style/noNonNullAssertion: Existing map-lookup paths guard initialization prior to access in this legacy module. */
@@ -42,7 +25,6 @@ import { userService } from "./userService";
 const _symptomCache = new Map<string, { data: Symptom[]; timestamp: number }>();
 const _symptomStatsCache = new Map<string, { data: { totalSymptoms: number; avgSeverity: number; commonSymptoms: { type: string; count: number }[] }; timestamp: number }>();
 const SYMPTOM_CACHE_TTL = 2 * 60_000; // 2 minutes
->>>>>>> Stashed changes
 
 type SymptomStats = {
   totalSymptoms: number;
@@ -78,18 +60,6 @@ export const symptomService = {
   // Add new symptom
   async addSymptom(symptomData: Omit<Symptom, 'id'>): Promise<string> {
     try {
-<<<<<<< Updated upstream
-      // Filter out undefined values to prevent Firebase errors
-      const cleanedData = Object.fromEntries(
-        Object.entries({
-          ...symptomData,
-          timestamp: Timestamp.fromDate(symptomData.timestamp),
-        }).filter(([_, value]) => value !== undefined)
-      );
-
-      const docRef = await addDoc(collection(db, 'symptoms'), cleanedData);
-      return docRef.id;
-=======
       if (isOnline) {
         const created = await api.post<Record<string, unknown>>("/api/health/symptoms", {
           type: symptomData.type,
@@ -165,7 +135,6 @@ export const symptomService = {
       const currentSymptoms = await offlineService.getOfflineCollection<Symptom>("symptoms");
       await offlineService.storeOfflineData("symptoms", [...currentSymptoms, newSymptom]);
       return tempId;
->>>>>>> Stashed changes
     } catch (error) {
       console.error('Error adding symptom:', error);
       throw error;
@@ -177,35 +146,6 @@ export const symptomService = {
     symptomData: Omit<Symptom, 'id'>,
     targetUserId: string
   ): Promise<string> {
-<<<<<<< Updated upstream
-    try {
-      // Override the userId to the target user
-      const dataWithTargetUser = {
-        ...symptomData,
-        userId: targetUserId,
-      };
-
-      // Filter out undefined values to prevent Firebase errors
-      const cleanedData = Object.fromEntries(
-        Object.entries({
-          ...dataWithTargetUser,
-          timestamp: Timestamp.fromDate(dataWithTargetUser.timestamp),
-        }).filter(([_, value]) => value !== undefined)
-      );
-
-      const docRef = await addDoc(collection(db, 'symptoms'), cleanedData);
-      return docRef.id;
-    } catch (error) {
-      console.error('Error adding symptom for user:', error);
-      throw error;
-    }
-  },
-
-  // Get user symptoms
-  async getUserSymptoms(
-    userId: string,
-    limitCount: number = 50
-=======
     const created = await api.post<Record<string, unknown>>("/api/health/symptoms", {
       userId: targetUserId,
       type: symptomData.type,
@@ -294,7 +234,6 @@ export const symptomService = {
     userId: string,
     familyId: string,
     limitCount = 50
->>>>>>> Stashed changes
   ): Promise<Symptom[]> {
     const hasPermission = await this.checkFamilyAccessPermission(userId, familyId);
     if (!hasPermission) {
@@ -302,36 +241,11 @@ export const symptomService = {
     }
 
     try {
-<<<<<<< Updated upstream
-      const q = query(
-        collection(db, 'symptoms'),
-        where('userId', '==', userId),
-        orderBy('timestamp', 'desc'),
-        limit(limitCount)
-      );
-
-      const querySnapshot = await getDocs(q);
-      const symptoms: Symptom[] = [];
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        symptoms.push({
-          id: doc.id,
-          ...data,
-          timestamp: data.timestamp.toDate(),
-        } as Symptom);
-      });
-
-      return symptoms;
-    } catch (error) {
-      console.error('Error getting symptoms:', error);
-=======
       const raw = await api.get<Record<string, unknown>[]>(
         `/api/health/symptoms/family/${familyId}?limit=${limitCount}`
       );
       return (raw ?? []).map(normalizeSymptom);
     } catch (error) {
->>>>>>> Stashed changes
       throw error;
     }
   },
@@ -339,79 +253,6 @@ export const symptomService = {
   // Get symptoms for all family members (for admins)
   async getFamilySymptoms(
     familyId: string,
-<<<<<<< Updated upstream
-    limitCount: number = 50
-  ): Promise<Symptom[]> {
-    try {
-      // First get all family members
-      const familyMembersQuery = query(
-        collection(db, 'users'),
-        where('familyId', '==', familyId)
-      );
-      const familyMembersSnapshot = await getDocs(familyMembersQuery);
-      const memberIds = familyMembersSnapshot.docs.map((doc) => doc.id);
-
-      if (memberIds.length === 0) {
-        return [];
-      }
-
-      // Get symptoms for all family members
-      const symptomsQuery = query(
-        collection(db, 'symptoms'),
-        where('userId', 'in', memberIds),
-        orderBy('timestamp', 'desc'),
-        limit(limitCount)
-      );
-
-      const querySnapshot = await getDocs(symptomsQuery);
-      const symptoms: Symptom[] = [];
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        symptoms.push({
-          id: doc.id,
-          ...data,
-          timestamp: data.timestamp.toDate(),
-        } as Symptom);
-      });
-
-      return symptoms;
-    } catch (error) {
-      console.error('Error getting family symptoms:', error);
-      throw error;
-    }
-  },
-
-  // Get symptom stats for all family members (for admins)
-  async getFamilySymptomStats(
-    familyId: string,
-    days: number = 7
-  ): Promise<{
-    totalSymptoms: number;
-    avgSeverity: number;
-    commonSymptoms: {
-      type: string;
-      count: number;
-      userId?: string;
-      userName?: string;
-    }[];
-  }> {
-    try {
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
-
-      // First get all family members
-      const familyMembersQuery = query(
-        collection(db, 'users'),
-        where('familyId', '==', familyId)
-      );
-      const familyMembersSnapshot = await getDocs(familyMembersQuery);
-      const memberIds = familyMembersSnapshot.docs.map((doc) => doc.id);
-      const membersMap = new Map();
-      familyMembersSnapshot.docs.forEach((doc) => {
-        membersMap.set(doc.id, doc.data().name);
-      });
-=======
     days = 7
   ): Promise<FamilySymptomStats> {
     try {
@@ -427,36 +268,12 @@ export const symptomService = {
         `/api/health/symptoms/family/${familyId}?from=${startDate.toISOString()}&limit=500`
       );
       const symptoms = (raw ?? []).map(normalizeSymptom);
->>>>>>> Stashed changes
 
       // Get family members for name lookup
       const members = await userService.getFamilyMembers(familyId);
       const membersMap = new Map(members.map((m) => [m.id, `${m.firstName} ${m.lastName}`.trim() || "Unknown"]));
 
-<<<<<<< Updated upstream
-      // Get symptoms for all family members
-      const symptomsQuery = query(
-        collection(db, 'symptoms'),
-        where('userId', 'in', memberIds),
-        where('timestamp', '>=', Timestamp.fromDate(startDate))
-      );
-
-      const querySnapshot = await getDocs(symptomsQuery);
-      const symptoms: Symptom[] = [];
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        symptoms.push({
-          id: doc.id,
-          ...data,
-          timestamp: data.timestamp.toDate(),
-        } as Symptom);
-      });
-
-      // Calculate stats
-=======
       // Aggregate stats
->>>>>>> Stashed changes
       const totalSymptoms = symptoms.length;
       const avgSeverity = totalSymptoms > 0
         ? symptoms.reduce((sum, s) => sum + s.severity, 0) / totalSymptoms
@@ -485,38 +302,13 @@ export const symptomService = {
         .sort((a, b) => b.count - a.count)
         .slice(0, 5);
 
-<<<<<<< Updated upstream
-      return {
-        totalSymptoms,
-        avgSeverity: Math.round(avgSeverity * 10) / 10,
-        commonSymptoms,
-      };
-    } catch (error) {
-      console.error('Error getting family symptom stats:', error);
-=======
       return { totalSymptoms, avgSeverity: Math.round(avgSeverity * 10) / 10, commonSymptoms };
     } catch {
->>>>>>> Stashed changes
       return { totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] };
     }
   },
 
   // Update symptom
-<<<<<<< Updated upstream
-  async updateSymptom(
-    symptomId: string,
-    updates: Partial<Symptom>
-  ): Promise<void> {
-    try {
-      const updateData: any = { ...updates };
-      if (updates.timestamp) {
-        updateData.timestamp = Timestamp.fromDate(updates.timestamp);
-      }
-      await updateDoc(doc(db, 'symptoms', symptomId), updateData);
-    } catch (error) {
-      console.error('Error updating symptom:', error);
-      throw error;
-=======
   async updateSymptom(symptomId: string, updates: Partial<Symptom>): Promise<void> {
     await api.patch(`/api/health/symptoms/${symptomId}`, {
       ...(updates.type !== undefined && { type: updates.type }),
@@ -535,31 +327,11 @@ export const symptomService = {
       for (const key of _symptomStatsCache.keys()) {
         if (key.startsWith(`${updates.userId}:`)) _symptomStatsCache.delete(key);
       }
->>>>>>> Stashed changes
     }
   },
 
   // Delete symptom
   async deleteSymptom(symptomId: string): Promise<void> {
-<<<<<<< Updated upstream
-    try {
-      await deleteDoc(doc(db, 'symptoms', symptomId));
-    } catch (error) {
-      console.error('Error deleting symptom:', error);
-      throw error;
-    }
-  },
-
-  // Get symptom statistics
-  async getSymptomStats(
-    userId: string,
-    days = 7
-  ): Promise<{
-    totalSymptoms: number;
-    avgSeverity: number;
-    commonSymptoms: { type: string; count: number }[];
-  }> {
-=======
     await api.delete(`/api/health/symptoms/${symptomId}`);
   },
 
@@ -571,35 +343,14 @@ export const symptomService = {
       return cachedStats.data;
     }
 
->>>>>>> Stashed changes
     try {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
 
-<<<<<<< Updated upstream
-      const q = query(
-        collection(db, 'symptoms'),
-        where('userId', '==', userId),
-        where('timestamp', '>=', Timestamp.fromDate(startDate))
-      );
-
-      const querySnapshot = await getDocs(q);
-      const symptoms: Symptom[] = [];
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        symptoms.push({
-          id: doc.id,
-          ...data,
-          timestamp: data.timestamp.toDate(),
-        } as Symptom);
-      });
-=======
       const raw = await api.get<Record<string, unknown>[]>(
         `/api/health/symptoms?from=${startDate.toISOString()}&limit=500`
       );
       const symptoms = (raw ?? []).map(normalizeSymptom);
->>>>>>> Stashed changes
 
       const totalSymptoms = symptoms.length;
       const avgSeverity = totalSymptoms > 0
@@ -616,71 +367,19 @@ export const symptomService = {
         .sort((a, b) => b.count - a.count)
         .slice(0, 5);
 
-<<<<<<< Updated upstream
-      return {
-=======
       const result: SymptomStats = {
->>>>>>> Stashed changes
         totalSymptoms,
         avgSeverity: Math.round(avgSeverity * 10) / 10,
         commonSymptoms,
       };
-<<<<<<< Updated upstream
-    } catch (error) {
-      console.error('Error getting symptom stats:', error);
-      throw error;
-=======
       _symptomStatsCache.set(statsCacheKey, { data: result, timestamp: Date.now() });
       return result;
     } catch {
       return { totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] };
->>>>>>> Stashed changes
     }
   },
 
   // Get symptoms for a specific family member (for admins)
-<<<<<<< Updated upstream
-  async getMemberSymptoms(
-    memberId: string,
-    limitCount: number = 50
-  ): Promise<Symptom[]> {
-    try {
-      const q = query(
-        collection(db, 'symptoms'),
-        where('userId', '==', memberId),
-        orderBy('timestamp', 'desc'),
-        limit(limitCount)
-      );
-
-      const querySnapshot = await getDocs(q);
-      const symptoms: Symptom[] = [];
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        symptoms.push({
-          id: doc.id,
-          ...data,
-          timestamp: data.timestamp.toDate(),
-        } as Symptom);
-      });
-
-      return symptoms;
-    } catch (error) {
-      console.error('Error getting member symptoms:', error);
-      throw error;
-    }
-  },
-
-  // Get symptom stats for a specific family member (for admins)
-  async getMemberSymptomStats(
-    memberId: string,
-    days: number = 7
-  ): Promise<{
-    totalSymptoms: number;
-    avgSeverity: number;
-    commonSymptoms: { type: string; count: number }[];
-  }> {
-=======
   async getMemberSymptoms(memberId: string, limitCount = 50): Promise<Symptom[]> {
     const raw = await api.get<Record<string, unknown>[]>(
       `/api/health/symptoms/user/${memberId}?limit=${limitCount}`
@@ -690,39 +389,15 @@ export const symptomService = {
 
   // Get symptom stats for a specific family member (for admins)
   async getMemberSymptomStats(memberId: string, days = 7): Promise<SymptomStats> {
->>>>>>> Stashed changes
     try {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
 
-<<<<<<< Updated upstream
-      const q = query(
-        collection(db, 'symptoms'),
-        where('userId', '==', memberId),
-        where('timestamp', '>=', Timestamp.fromDate(startDate))
-=======
       const raw = await api.get<Record<string, unknown>[]>(
         `/api/health/symptoms/user/${memberId}?from=${startDate.toISOString()}&limit=500`
->>>>>>> Stashed changes
       );
       const symptoms = (raw ?? []).map(normalizeSymptom);
 
-<<<<<<< Updated upstream
-      const querySnapshot = await getDocs(q);
-      const symptoms: Symptom[] = [];
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        symptoms.push({
-          id: doc.id,
-          ...data,
-          timestamp: data.timestamp.toDate(),
-        } as Symptom);
-      });
-
-      // Calculate stats
-=======
->>>>>>> Stashed changes
       const totalSymptoms = symptoms.length;
       const avgSeverity = totalSymptoms > 0
         ? symptoms.reduce((sum, s) => sum + s.severity, 0) / totalSymptoms
@@ -738,18 +413,8 @@ export const symptomService = {
         .sort((a, b) => b.count - a.count)
         .slice(0, 5);
 
-<<<<<<< Updated upstream
-      return {
-        totalSymptoms,
-        avgSeverity: Math.round(avgSeverity * 10) / 10,
-        commonSymptoms,
-      };
-    } catch (error) {
-      console.error('Error getting member symptom stats:', error);
-=======
       return { totalSymptoms, avgSeverity: Math.round(avgSeverity * 10) / 10, commonSymptoms };
     } catch {
->>>>>>> Stashed changes
       return { totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] };
     }
   },

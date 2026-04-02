@@ -2,16 +2,6 @@ import React, {
   createContext,
   useContext,
   useState,
-<<<<<<< Updated upstream
-  useEffect,
-  useCallback,
-} from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert } from 'react-native';
-import { useAuth } from './AuthContext';
-import { useFallDetection } from '@/hooks/useFallDetection';
-import { alertService } from '@/lib/services/alertService';
-=======
 } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, AppState } from "react-native";
@@ -21,7 +11,6 @@ import { alertService } from "@/lib/services/alertService";
 import { backgroundFallDetectionService } from "@/lib/services/backgroundFallDetectionService";
 import { logFallDetectionDiagnostics } from "@/lib/utils/fallDetectionDiagnostics";
 import { useAuth } from "./AuthContext";
->>>>>>> Stashed changes
 
 interface FallDetectionContextType {
   isEnabled: boolean;
@@ -162,13 +151,8 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
         return;
       }
 
-<<<<<<< Updated upstream
-      // Create a test alert
-      const alertId = await alertService.createFallAlert(user.id);
-=======
       // user.id is already verified above — skip redundant session check
       const authUserId = user.id;
->>>>>>> Stashed changes
 
       // Simulate fall detection
       await handleFallDetected(alertId);

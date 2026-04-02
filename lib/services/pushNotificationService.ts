@@ -1,11 +1,3 @@
-<<<<<<< Updated upstream
-import { userService } from './userService';
-import { fcmService } from './fcmService';
-import { User } from '@/types';
-import { httpsCallable, getFunctions } from 'firebase/functions';
-import { Platform } from 'react-native';
-import Constants from 'expo-constants';
-=======
 /**
  * Push notification service — Firebase-free replacement.
  *
@@ -26,7 +18,6 @@ import { Platform } from "react-native";
 import { fcmService } from "./fcmService";
 import { userService } from "./userService";
 import { api } from "@/lib/apiClient";
->>>>>>> Stashed changes
 
 export interface PushNotificationData {
   title: string;
@@ -50,26 +41,6 @@ export interface PushNotificationData {
   notificationType?: 'fall' | 'medication' | 'symptom' | 'family' | 'general';
 }
 
-<<<<<<< Updated upstream
-// Helper to get authenticated functions instance
-async function getAuthenticatedFunctions() {
-  const { auth, app } = await import('@/lib/firebase');
-  
-  // Wait for auth to be ready
-  const currentUser = auth.currentUser;
-  if (currentUser) {
-    // Force token refresh to ensure we have a valid token
-    try {
-      await currentUser.getIdToken(true);
-      console.log('🔑 Auth token refreshed for push notification');
-    } catch (e) {
-      console.warn('⚠️ Could not refresh token:', e);
-    }
-  }
-  
-  // Return the functions instance (it will use the current auth state)
-  return getFunctions(app, 'us-central1');
-=======
 // Schedule a local notification as fallback when Expo push is unavailable.
 async function scheduleLocalNotification(
   notification: PushNotificationData
@@ -93,7 +64,6 @@ async function scheduleLocalNotification(
   }
 
   await Notifications.scheduleNotificationAsync({ content, trigger: null });
->>>>>>> Stashed changes
 }
 
 export const pushNotificationService = {
@@ -106,11 +76,6 @@ export const pushNotificationService = {
       const isFCMAvailable = await fcmService.isFCMAvailable();
 
       if (isFCMAvailable) {
-<<<<<<< Updated upstream
-        console.log('📱 Attempting FCM notification for user:', userId);
-        // Use HTTP endpoint to bypass auth issues
-=======
->>>>>>> Stashed changes
         const success = await fcmService.sendPushNotificationHTTP([userId], {
           title: notification.title,
           body: notification.body,
@@ -119,41 +84,6 @@ export const pushNotificationService = {
           priority: notification.priority || 'normal',
         });
 
-<<<<<<< Updated upstream
-        if (success) {
-          console.log('✅ FCM notification sent to user:', userId);
-          return;
-        } else {
-          console.log('⚠️ FCM failed, falling back to local notification');
-        }
-      }
-
-      // Fallback to local notifications (for Expo Go or when FCM fails)
-      console.log('📱 Using local notification fallback for user:', userId);
-      const Notifications = await import('expo-notifications');
-
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: notification.title,
-          body: notification.body,
-          data: notification.data,
-          sound: notification.sound || 'default',
-          priority: notification.priority === 'high' ? 'high' : 'normal',
-          badge: notification.badge || 1,
-          color: notification.color || '#2563EB',
-        },
-        trigger: null, // Send immediately
-      });
-
-      console.log(
-        '📱 Local notification sent to user:',
-        userId,
-        'Title:',
-        notification.title
-      );
-    } catch (error) {
-      console.error('Error sending notification to user:', error);
-=======
         if (success) return;
       }
 
@@ -161,7 +91,6 @@ export const pushNotificationService = {
       await scheduleLocalNotification(notification);
     } catch {
       // Silently handle
->>>>>>> Stashed changes
     }
   },
 
@@ -177,29 +106,12 @@ export const pushNotificationService = {
         (member) => member.id !== excludeUserId
       );
 
-<<<<<<< Updated upstream
-      if (membersToNotify.length === 0) {
-        console.log('📱 No family members to notify');
-        return;
-      }
-=======
       if (!membersToNotify.length) return;
->>>>>>> Stashed changes
 
       const isFCMAvailable = await fcmService.isFCMAvailable();
 
       if (isFCMAvailable) {
-<<<<<<< Updated upstream
-        console.log(
-          '📱 Attempting FCM notification to family members:',
-          membersToNotify.length
-        );
-        const userIds = membersToNotify.map((member) => member.id);
-
-        // Use HTTP endpoint to bypass auth issues
-=======
         const userIds = membersToNotify.map((m) => m.id);
->>>>>>> Stashed changes
         const success = await fcmService.sendPushNotificationHTTP(userIds, {
           title: notification.title,
           body: notification.body,
@@ -207,44 +119,6 @@ export const pushNotificationService = {
           sound: notification.sound || 'default',
           priority: notification.priority || 'normal',
         });
-<<<<<<< Updated upstream
-
-        if (success) {
-          console.log(
-            '✅ FCM notifications sent to family:',
-            familyId,
-            'Members:',
-            membersToNotify.length
-          );
-          return;
-        } else {
-          console.log(
-            '⚠️ FCM failed for family, falling back to local notifications'
-          );
-        }
-      }
-
-      // Fallback to local notifications (one per family member)
-      console.log('📱 Using local notification fallback for family members');
-      const notificationPromises = membersToNotify.map((member) =>
-        this.sendToUser(member.id, notification)
-      );
-
-      await Promise.all(notificationPromises);
-
-      console.log(
-        '📱 Local notifications sent to family:',
-        familyId,
-        'Members:',
-        membersToNotify.length
-      );
-    } catch (error) {
-      console.error('Error sending notifications to family:', error);
-    }
-  },
-
-  // Enhanced fall alert notification with Cloud Function support
-=======
         if (success) return;
       }
 
@@ -295,7 +169,6 @@ export const pushNotificationService = {
 
   // Send emergency fall alert to family members
   /* biome-ignore lint/nursery/useMaxParams: Alert dispatch API intentionally accepts explicit fields for existing call sites. */
->>>>>>> Stashed changes
   async sendFallAlert(
     userId: string,
     alertId: string,
@@ -303,60 +176,6 @@ export const pushNotificationService = {
     familyId?: string,
     location?: string
   ): Promise<void> {
-<<<<<<< Updated upstream
-    try {
-      // Try Cloud Function first for better reliability
-      const isFCMAvailable = await fcmService.isFCMAvailable();
-      
-      if (isFCMAvailable && familyId) {
-        console.log('🚨 Sending fall alert via Cloud Function');
-        
-        // Check if user is authenticated
-        const { auth } = await import('@/lib/firebase');
-        const currentUser = auth.currentUser;
-        console.log('🔐 Current auth user:', currentUser ? currentUser.uid : 'NOT AUTHENTICATED');
-        
-        // Use the main sendPushNotification function with authenticated context
-        const functions = await getAuthenticatedFunctions();
-        const sendPushFunc = httpsCallable(functions, 'sendPushNotification');
-        
-        // Get family members
-        const familyMembers = await userService.getFamilyMembers(familyId);
-        const memberIds = familyMembers
-          .filter(m => m.id !== userId)
-          .map(m => m.id);
-        
-        const result = await sendPushFunc({
-          userIds: memberIds,
-          notification: {
-            title: '🚨 Emergency: Fall Detected',
-            body: `${userName} may have fallen and needs immediate help!`,
-            data: {
-              type: 'fall_alert',
-              alertId,
-              userId,
-              severity: 'critical',
-              clickAction: 'OPEN_ALERT_DETAILS',
-            },
-            sound: 'emergency',
-            priority: 'high',
-            color: '#EF4444',
-            badge: 1,
-          },
-          notificationType: 'fall',
-          senderId: currentUser?.uid || userId, // Include senderId as fallback
-        });
-        
-        console.log('🚨 Fall alert sent via Cloud Function:', result.data);
-        return;
-      }
-    } catch (error) {
-      console.error('Cloud Function failed, using fallback:', error);
-    }
-    
-    // Fallback to direct notification
-=======
->>>>>>> Stashed changes
     const notification: PushNotificationData = {
       title: '🚨 Emergency: Fall Detected',
       body: `${userName} may have fallen and needs immediate help!${location ? ` Location: ${location}` : ''}`,
@@ -411,48 +230,6 @@ export const pushNotificationService = {
     medicationName: string,
     dosage: string
   ): Promise<void> {
-<<<<<<< Updated upstream
-    try {
-      // Try Cloud Function first
-      const isFCMAvailable = await fcmService.isFCMAvailable();
-      
-      if (isFCMAvailable) {
-        console.log('💊 Sending medication reminder via Cloud Function');
-        // Use the configured functions instance with authenticated context
-        const functions = await getAuthenticatedFunctions();
-        const sendPushFunc = httpsCallable(functions, 'sendPushNotification');
-        
-        // Get current user for senderId
-        const { auth } = await import('@/lib/firebase');
-        const currentUser = auth.currentUser;
-        
-        await sendPushFunc({
-          userIds: [userId],
-          notification: {
-            title: '💊 Medication Reminder',
-            body: `Time to take ${medicationName} (${dosage})`,
-            data: {
-              type: 'medication_reminder',
-              medicationId,
-              medicationName,
-              clickAction: 'OPEN_MEDICATIONS',
-            },
-            sound: 'default',
-            priority: 'high',
-            color: '#10B981',
-          },
-          notificationType: 'medication',
-          senderId: currentUser?.uid || userId, // Include senderId as fallback
-        });
-        return;
-      }
-    } catch (error) {
-      console.error('Cloud Function failed, using fallback:', error);
-    }
-    
-    // Fallback to local notification
-=======
->>>>>>> Stashed changes
     const notification: PushNotificationData = {
       title: '💊 Medication Reminder',
       body: `Time to take ${medicationName} (${dosage})`,
@@ -532,65 +309,11 @@ export const pushNotificationService = {
     severity: number,
     familyId?: string
   ): Promise<void> {
-<<<<<<< Updated upstream
-    // Only send for high severity symptoms
-    if (severity < 4 || !familyId) return;
-    
-    try {
-      // Try Cloud Function first
-      const isFCMAvailable = await fcmService.isFCMAvailable();
-      
-      if (isFCMAvailable) {
-        console.log('⚠️ Sending symptom alert via Cloud Function');
-        // Use the configured functions instance with authenticated context
-        const functions = await getAuthenticatedFunctions();
-        const sendPushFunc = httpsCallable(functions, 'sendPushNotification');
-        
-        // Get family members
-        const familyMembers = await userService.getFamilyMembers(familyId!);
-        const memberIds = familyMembers
-          .filter(m => m.id !== userId)
-          .map(m => m.id);
-        
-        const severityText = severity === 5 ? 'very severe' : 'severe';
-        
-        // Get current user for senderId
-        const { auth } = await import('@/lib/firebase');
-        const currentUser = auth.currentUser;
-        
-        await sendPushFunc({
-          userIds: memberIds,
-          notification: {
-            title: '⚠️ Health Alert',
-            body: `${userName} is experiencing ${severityText} ${symptomType}`,
-            data: {
-              type: 'symptom_alert',
-              symptomType,
-              severity: severity === 5 ? 'critical' : 'high',
-              userId,
-              clickAction: 'OPEN_SYMPTOMS',
-            },
-            priority: severity === 5 ? 'high' : 'normal',
-            color: severity === 5 ? '#EF4444' : '#F59E0B',
-          },
-          notificationType: 'symptom',
-          senderId: currentUser?.uid || userId, // Include senderId as fallback
-        });
-        return;
-      }
-    } catch (error) {
-      console.error('Cloud Function failed, using fallback:', error);
-    }
-    
-    // Fallback to direct notification
-    const severityText = severity === 5 ? 'very severe' : 'severe';
-=======
     if (severity < 4 || !familyId) return;
 
     const severityText = severity === 5 ? "very severe" : "severe";
     const severityEmoji = severity === 5 ? "🚨" : "⚠️";
 
->>>>>>> Stashed changes
     const notification: PushNotificationData = {
       title: '⚠️ Health Alert',
       body: `${userName} is experiencing ${severityText} ${symptomType}`,
@@ -606,9 +329,6 @@ export const pushNotificationService = {
       notificationType: 'symptom',
     };
 
-<<<<<<< Updated upstream
-    await this.sendToFamily(familyId, notification, userId);
-=======
     await this.sendToAdmins(familyId, notification, userId);
   },
 
@@ -660,7 +380,6 @@ export const pushNotificationService = {
     };
 
     await this.sendToAdmins(options.familyId, notification, options.actorUserId);
->>>>>>> Stashed changes
   },
 
   // Test notification
@@ -668,23 +387,6 @@ export const pushNotificationService = {
     userId: string,
     userName: string = 'Test User'
   ): Promise<void> {
-<<<<<<< Updated upstream
-    const notification: PushNotificationData = {
-      title: '🔔 Test Notification',
-      body: `Hello ${userName}! Push notifications are working correctly.`,
-      data: {
-        type: 'fall_alert',
-        userId,
-        severity: 'low',
-      },
-      sound: 'default',
-      priority: 'normal',
-      badge: 1,
-      color: '#2563EB',
-    };
-
-    await this.sendToUser(userId, notification);
-=======
     await this.sendToUser(userId, {
       title: "🔔 Test Notification",
       body: `Hello ${userName}! Push notifications are working correctly.`,
@@ -694,7 +396,6 @@ export const pushNotificationService = {
       badge: 1,
       color: "#2563EB",
     });
->>>>>>> Stashed changes
   },
 
   // Register push token with the API (replaces Firebase CF `saveFCMToken`)
@@ -708,30 +409,14 @@ export const pushNotificationService = {
     }
   ): Promise<void> {
     try {
-<<<<<<< Updated upstream
-      // Use the configured functions instance with authenticated context
-      const functions = await getAuthenticatedFunctions();
-      const saveFCMTokenFunc = httpsCallable(functions, 'saveFCMToken');
-      
-      await saveFCMTokenFunc({
-=======
       await api.post("/api/notifications/push-token", {
->>>>>>> Stashed changes
         token,
         platform: (deviceInfo?.platform ?? Platform.OS) as "ios" | "android" | "web",
         deviceId: deviceInfo?.deviceId ?? Constants.sessionId,
         deviceName: deviceInfo?.deviceName ?? `${Platform.OS} Device`,
       });
-<<<<<<< Updated upstream
-      
-      console.log('✅ FCM token saved via Cloud Function');
-    } catch (error) {
-      console.error('Error saving FCM token:', error);
-      // Fallback to direct save
-=======
     } catch {
       // Silently handle — fallback to fcmService direct save
->>>>>>> Stashed changes
       await fcmService.saveFCMToken(token);
     }
   },

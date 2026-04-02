@@ -300,10 +300,6 @@ export default function OnboardingScreen() {
             </Text>
           </TouchableOpacity>
         </View>
-<<<<<<< Updated upstream
-      </View>
-    </SafeAreaView>
-=======
 
         {/* Progress indicators — 5 dots total (4 content + 1 premium) */}
         <View style={styles.progressRow}>
@@ -514,6 +510,5 @@ export default function OnboardingScreen() {
         />
       </Modal>
     </View>
->>>>>>> Stashed changes
   );
 }

@@ -21,6 +21,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { createThemedStyles, getTextStyle } from '@/utils/styles';
 import { userService } from '@/lib/services/userService';
 import { familyInviteService } from '@/lib/services/familyInviteService';
+import { api } from '@/lib/apiClient';
 import { User } from '@/types';
 import {
   Plus,
@@ -74,6 +75,8 @@ export default function FamilyScreen() {
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [emergencyContacts, setEmergencyContacts] = useState<{id: string, name: string, phone: string}[]>([]);
   const [newContact, setNewContact] = useState({ name: '', phone: '' });
+  const [familyAlertCount, setFamilyAlertCount] = useState(0);
+  const [myVhiScore, setMyVhiScore] = useState<number | null>(null);
 
   const isRTL = i18n.language === 'ar';
 
@@ -98,6 +101,23 @@ export default function FamilyScreen() {
       
       const members = await userService.getFamilyMembers(user.familyId);
       setFamilyMembers(members);
+
+      // Fetch real alert count for family members
+      if (members.length > 0) {
+        try {
+          const userIds = members.map((m: User) => m.id).join(',');
+          const familyAlerts = await api.get<{ isAcknowledged: boolean }[]>(
+            `/api/alerts/family?userIds=${userIds}`
+          );
+          setFamilyAlertCount((familyAlerts ?? []).filter((a) => !a.isAcknowledged).length);
+        } catch { /* silently ignore — alerts are non-critical */ }
+      }
+
+      // Fetch current user's VHI score
+      try {
+        const vhiData = await api.get<{ data?: { currentState?: { overallScore?: number } } }>('/api/vhi');
+        setMyVhiScore(vhiData?.data?.currentState?.overallScore ?? null);
+      } catch { /* silently ignore */ }
     } catch (error) {
       console.error('Error loading family members:', error);
       Alert.alert(
@@ -175,13 +195,8 @@ export default function FamilyScreen() {
 
       // Prepare sharing message
       const shareMessage = isRTL
-<<<<<<< Updated upstream
-        ? `مرحباً ${memberName}! تم دعوتك للانضمام إلى مجموعة العائلة الصحية على تطبيق معك.\n\nرمز الدعوة: ${code}\n\n1. حمل تطبيق معك\n2. سجل دخولك أو أنشئ حساب جديد\n3. استخدم رمز الدعوة: ${code}\n\nهذا الرمز صالح لمدة 7 أيام.`
-        : `Hi ${memberName}! You've been invited to join our family health group on Maak app.\n\nInvitation Code: ${code}\n\n1. Download the Maak app\n2. Sign in or create a new account\n3. Use invitation code: ${code}\n\nThis code expires in 7 days.`;
-=======
         ? `مرحباً ${memberName}! تمت دعوتك للانضمام إلى مجموعة العائلة الصحية على تطبيق معك.\n\nرمز الدعوة: ${code}\n\n1. حمّل تطبيق معك\n2. سجّل دخولك أو أنشئ حساباً جديداً\n3. استخدم رمز الدعوة: ${code}\n\nهذا الرمز صالح لمدة 7 أيام.`
         : `Hi ${memberName}! You've been invited to join our family health group on Nuralix app.\n\nInvitation Code: ${code}\n\n1. Download the Nuralix app\n2. Sign in or create a new account\n3. Use invitation code: ${code}\n\nThis code expires in 7 days.`;
->>>>>>> Stashed changes
 
       // Show options to share or copy
       Alert.alert(
@@ -197,13 +212,8 @@ export default function FamilyScreen() {
                 await Share.share({
                   message: shareMessage,
                   title: isRTL
-<<<<<<< Updated upstream
-                    ? 'دعوة للانضمام إلى معك'
-                    : 'Invitation to join Maak',
-=======
                     ? "دعوة للانضمام إلى معك"
                     : "Invitation to join Nuralix",
->>>>>>> Stashed changes
                 });
               } catch (error) {
                 console.error('Error sharing:', error);
@@ -477,13 +487,8 @@ export default function FamilyScreen() {
       );
 
       const shareMessage = isRTL
-<<<<<<< Updated upstream
-        ? `مرحباً! تم دعوتك للانضمام إلى مجموعة العائلة الصحية على تطبيق معك.\n\nرمز الدعوة: ${code}\n\n1. حمل تطبيق معك\n2. سجل دخولك أو أنشئ حساب جديد\n3. استخدم رمز الدعوة: ${code}\n\nهذا الرمز صالح لمدة 7 أيام.`
-        : `Hi! You've been invited to join our family health group on Maak app.\n\nInvitation Code: ${code}\n\n1. Download the Maak app\n2. Sign in or create a new account\n3. Use invitation code: ${code}\n\nThis code expires in 7 days.`;
-=======
         ? `مرحباً! تمت دعوتك للانضمام إلى مجموعة العائلة الصحية على تطبيق معك.\n\nرمز الدعوة: ${code}\n\n1. حمّل تطبيق معك\n2. سجّل دخولك أو أنشئ حساباً جديداً\n3. استخدم رمز الدعوة: ${code}\n\nهذا الرمز صالح لمدة 7 أيام.`
         : `Hi! You've been invited to join our family health group on Nuralix app.\n\nInvitation Code: ${code}\n\n1. Download the Nuralix app\n2. Sign in or create a new account\n3. Use invitation code: ${code}\n\nThis code expires in 7 days.`;
->>>>>>> Stashed changes
 
       // Show options to share or copy
       Alert.alert(
@@ -499,13 +504,8 @@ export default function FamilyScreen() {
                 await Share.share({
                   message: shareMessage,
                   title: isRTL
-<<<<<<< Updated upstream
-                    ? 'دعوة للانضمام إلى معك'
-                    : 'Invitation to join Maak',
-=======
                     ? "دعوة للانضمام إلى معك"
                     : "Invitation to join Nuralix",
->>>>>>> Stashed changes
                 });
               } catch (error) {
                 console.error('Error sharing:', error);
@@ -620,9 +620,9 @@ export default function FamilyScreen() {
 
   const getFamilyStats = () => {
     const totalMembers = familyMembers.length;
-    const activeMembers = familyMembers.length; // All loaded members are active
-    const totalAlerts = 0; // TODO: Get from alert service
-    const avgHealthScore = 85; // TODO: Calculate from health data
+    const activeMembers = familyMembers.length;
+    const totalAlerts = familyAlertCount;
+    const avgHealthScore = myVhiScore !== null ? Math.round(myVhiScore) : 0;
 
     return { totalMembers, activeMembers, totalAlerts, avgHealthScore };
   };

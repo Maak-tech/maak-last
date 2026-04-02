@@ -1,7 +1,3 @@
-<<<<<<< Updated upstream
-import { auth, db } from '../firebase';
-import { doc, getDoc, collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
-=======
 /* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: This module intentionally centralizes rich context aggregation and prompt composition for the AI assistant workflow. */
 /* biome-ignore-all lint/style/noNestedTernary: Prompt template sections use nested conditional string assembly to preserve concise multilingual rendering logic. */
 import { safeFormatDate } from "@/utils/dateFormat";
@@ -13,7 +9,6 @@ import {
   type PatternInsight,
   type WeeklySummary,
 } from "./healthInsightsService";
->>>>>>> Stashed changes
 
 export interface HealthContext {
   profile: {
@@ -88,10 +83,6 @@ export interface HealthContext {
 }
 
 class HealthContextService {
-<<<<<<< Updated upstream
-  async getUserHealthContext(userId?: string): Promise<HealthContext> {
-    const uid = userId || auth.currentUser?.uid;
-=======
   private _contextCache = new Map<string, { context: HealthContext; timestamp: number }>();
   private readonly CONTEXT_CACHE_TTL = 300_000; // 5 minutes
 
@@ -104,15 +95,12 @@ class HealthContextService {
     options?: { includeFamilyInsights?: boolean; language?: string }
   ): Promise<HealthContext> {
     const uid = userId;
->>>>>>> Stashed changes
     if (!uid) {
       throw new Error('No user ID provided');
     }
 
     console.log('Fetching comprehensive health context for user:', uid);
 
-<<<<<<< Updated upstream
-=======
     // Fetch user profile first (needed for familyId + gender)
     const userRaw = await api.get<Record<string, unknown>>("/api/user/profile").catch(() => null);
     const userData = userRaw ?? {};
@@ -836,7 +824,6 @@ class HealthContextService {
 
     // Fetch VHI from new API (best-effort — does not block context assembly)
     let vhiSummary: string | null = null;
->>>>>>> Stashed changes
     try {
       // Fetch user profile
       const userDoc = await getDoc(doc(db, 'users', uid));
@@ -1061,8 +1048,6 @@ class HealthContextService {
       console.error('Error fetching health context:', error);
       throw error;
     }
-<<<<<<< Updated upstream
-=======
 
     // Construct comprehensive health context
     const healthContext: HealthContext = {
@@ -1103,7 +1088,6 @@ class HealthContextService {
 
     this._contextCache.set(uid, { context: healthContext, timestamp: Date.now() });
     return healthContext;
->>>>>>> Stashed changes
   }
 
   generateSystemPrompt(context: HealthContext): string {

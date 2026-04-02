@@ -1,6 +1,3 @@
-<<<<<<< Updated upstream
-import React, { useState, useRef, useEffect } from 'react';
-=======
 /* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: This screen coordinates chat, voice, persistence, and settings flows in one component. */
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -10,48 +7,11 @@ import { authClient } from "@/lib/authClient";
 import { Mic, MicOff, Settings, Volume2, VolumeX } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
->>>>>>> Stashed changes
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
-<<<<<<< Updated upstream
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  ActivityIndicator,
-  Alert,
-  Modal,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { auth, db } from '../lib/firebase';
-import { collection, addDoc, getDocs, query, orderBy, limit, doc, updateDoc, getDoc, deleteDoc } from 'firebase/firestore';
-import ChatMessage from './components/ChatMessage';
-import openaiService, { ChatMessage as AIMessage, AI_MODELS } from '../lib/services/openaiService';
-import healthContextService from '../lib/services/healthContextService';
-
-interface ChatSession {
-  id: string;
-  messages: AIMessage[];
-  createdAt: Date;
-  updatedAt: Date;
-  title: string;
-}
-
-interface SavedSession {
-  id: string;
-  title: string;
-  createdAt: Date;
-  updatedAt: Date;
-  messageCount: number;
-  preview: string;
-}
-=======
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -64,7 +24,6 @@ import openaiService, {
 } from "../lib/services/openaiService";
 import { voiceService } from "../lib/services/voiceService";
 import ChatMessage from "./components/ChatMessage";
->>>>>>> Stashed changes
 
 export default function AIAssistant() {
   const router = useRouter();
@@ -148,15 +107,11 @@ export default function AIAssistant() {
   };
 
   const createNewSession = async (initialMessages: AIMessage[]) => {
-<<<<<<< Updated upstream
-    if (!auth.currentUser) return;
-=======
     const session = await authClient.getSession();
     const userId = session?.data?.user?.id;
     if (!userId) {
       return;
     }
->>>>>>> Stashed changes
 
     try {
       // Generate a title based on the conversation topic
@@ -172,14 +127,6 @@ export default function AIAssistant() {
       }
 
       const sessionData = {
-<<<<<<< Updated upstream
-        userId: auth.currentUser.uid,
-        messages: initialMessages.filter(m => m.role !== 'system').map(m => ({
-          role: m.role,
-          content: m.content,
-          timestamp: m.timestamp,
-        })),
-=======
         userId,
         messages: initialMessages
           .filter((m) => m.role !== "system")
@@ -188,44 +135,21 @@ export default function AIAssistant() {
             content: m.content,
             timestamp: m.timestamp,
           })),
->>>>>>> Stashed changes
         createdAt: new Date(),
         updatedAt: new Date(),
         title: title,
       };
 
-<<<<<<< Updated upstream
-      const docRef = await addDoc(
-        collection(db, 'users', auth.currentUser.uid, 'chatSessions'),
-        sessionData
-      );
-      
-      setCurrentSessionId(docRef.id);
-      return docRef.id;
-    } catch (error) {
-      console.error('Error creating session:', error);
-=======
       const result = await api.post<{ id: string }>("/api/nora/chat-sessions", sessionData);
       setCurrentSessionId(result.id);
       return result.id;
     } catch (_error) {
       // Silently handle error
->>>>>>> Stashed changes
       return null;
     }
   };
 
   const saveMessageToSession = async (message: AIMessage) => {
-<<<<<<< Updated upstream
-    if (!auth.currentUser || !currentSessionId) return;
-
-    try {
-      const sessionRef = doc(db, 'users', auth.currentUser.uid, 'chatSessions', currentSessionId);
-      const currentMessages = messages.filter(m => m.role !== 'system');
-      
-      const updates: any = {
-        messages: [...currentMessages, message].map(m => ({
-=======
     const saveSession = await authClient.getSession();
     const saveUserId = saveSession?.data?.user?.id;
     if (!(saveUserId && currentSessionId)) {
@@ -245,7 +169,6 @@ export default function AIAssistant() {
         title?: string;
       } = {
         messages: [...currentMessages, message].map((m) => ({
->>>>>>> Stashed changes
           role: m.role,
           content: m.content,
           timestamp: m.timestamp,
@@ -258,17 +181,10 @@ export default function AIAssistant() {
         const words = message.content.split(' ').slice(0, 5);
         updates.title = words.join(' ') + (words.length >= 5 ? '...' : '');
       }
-<<<<<<< Updated upstream
-      
-      await updateDoc(sessionRef, updates);
-    } catch (error) {
-      console.error('Error saving message:', error);
-=======
 
       await api.patch(`/api/nora/chat-sessions/${currentSessionId}`, updates).catch(() => {});
     } catch (_error) {
       // Silently handle error
->>>>>>> Stashed changes
     }
   };
 
