@@ -96,10 +96,23 @@ export default function TrackScreen() {
       // Load data based on selected filter
       if (selectedFilter.type === 'family' && user.familyId) {
         // Load family symptoms and stats (both admins and members can view)
-        const [familySymptoms, familyStats] = await Promise.all([
-          symptomService.getFamilySymptoms(user.familyId, 50),
-          symptomService.getFamilySymptomStats(user.familyId, 7),
-        ]);
+        // Use the 3-arg overload that returns Symptom[]
+        const familySymptoms = await symptomService.getFamilySymptoms(user.id, user.familyId, 50);
+        // Compute family-level stats from fetched symptoms
+        const countMap = new Map<string, number>();
+        let totalSev = 0;
+        for (const s of familySymptoms) {
+          countMap.set(s.type, (countMap.get(s.type) ?? 0) + 1);
+          totalSev += (s.severity as number) ?? 0;
+        }
+        const familyStats = {
+          totalSymptoms: familySymptoms.length,
+          avgSeverity: familySymptoms.length > 0 ? totalSev / familySymptoms.length : 0,
+          commonSymptoms: Array.from(countMap.entries())
+            .map(([type, count]) => ({ type, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5),
+        };
 
         setSymptoms(familySymptoms);
         setStats(familyStats);

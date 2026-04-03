@@ -12,7 +12,7 @@ type ThemedStylesFunction<T> = (theme: typeof Theme.light) => T;
 export const createThemedStyles = <T extends StyleSheet.NamedStyles<T>>(
   stylesFunction: ThemedStylesFunction<T>
 ) => {
-  return (theme: typeof Theme.light) => StyleSheet.create(stylesFunction(theme));
+  return (theme: typeof Theme.light): T => StyleSheet.create(stylesFunction(theme)) as unknown as T;
 };
 
 export const getTextStyle = (

@@ -3,7 +3,10 @@ export type SortField =
   | "name"
   | "lastActivity"
   | "adherence"
-  | "vhiScore";
+  | "vhiScore"
+  | "lastVitalSync"
+  | "anomalies"
+  | "missedMeds";
 
 export interface CohortPatient {
   id: string;

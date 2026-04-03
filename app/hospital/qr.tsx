@@ -41,7 +41,6 @@ const qrStyles = StyleSheet.create({
     color: '#111827',
     fontFamily: 'monospace',
     textAlign: 'center',
-    wordBreak: 'break-all',
   },
   qrNote: {
     fontSize: 9,

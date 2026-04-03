@@ -205,7 +205,7 @@ export default function HealthSummaryScreen() {
                 iconColor="#06B6D4"
                 label={isRTL ? "البيانات الجينية" : "Genetic Data"}
                 value={genetic?.hasGeneticData ? (isRTL ? "متاح" : "Available") : (isRTL ? "غير متاح" : "None")}
-                onPress={() => router.push("/profile/genetics")}
+                onPress={() => router.push("/profile/genetics" as any)}
               />
             </View>
           )}

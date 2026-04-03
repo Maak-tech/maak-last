@@ -20,29 +20,51 @@ export interface PatternInsight {
 // These are full implementations in the ML service layer; the mobile service
 // only calls them and renders results — logic lives server-side.
 
-export async function detectVitalTrends(
-  _userId: string,
-  _vitals: VitalSample[]
-): Promise<PatternInsight[]> {
+export function detectVitalTrends(
+  _vitals: unknown[],
+  _isArabic?: boolean,
+  _userId?: string,
+  _flag?: boolean
+): PatternInsight[] {
   return [];
 }
 
-export async function detectTemporalPatterns(
-  _userId: string,
-  _vitals: VitalSample[]
-): Promise<PatternInsight[]> {
+export function detectTemporalPatterns(
+  _symptoms: unknown[],
+  _moods: unknown[],
+  _isArabic?: boolean
+): PatternInsight[] {
   return [];
 }
 
-export async function detectMedicationCorrelations(
-  _userId: string,
-  _vitals: VitalSample[]
-): Promise<PatternInsight[]> {
+export function detectMedicationCorrelations(
+  _symptoms: unknown[],
+  _medications: unknown[],
+  _isArabic?: boolean
+): PatternInsight[] {
   return [];
 }
 
-export async function detectIntegrationSpecificInsights(
-  _userId: string
-): Promise<PatternInsight[]> {
+export function detectIntegrationSpecificInsights(
+  _vitals: unknown[],
+  _isArabic?: boolean
+): PatternInsight[] {
+  return [];
+}
+
+export function detectTrends(
+  _symptoms: unknown[],
+  _moods: unknown[],
+  _isArabic?: boolean,
+  _userId?: string,
+  _flag?: boolean
+): PatternInsight[] {
+  return [];
+}
+
+export function detectVitalRanges(
+  _vitals: unknown[],
+  _isArabic?: boolean
+): PatternInsight[] {
   return [];
 }

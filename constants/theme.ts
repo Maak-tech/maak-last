@@ -123,11 +123,11 @@ export const Typography = {
   
   // Font Weights
   fontWeight: {
-    normal: '400',
-    medium: '500',
-    semibold: '600',
-    bold: '700',
-    extrabold: '800',
+    normal: '400' as const,
+    medium: '500' as const,
+    semibold: '600' as const,
+    bold: '700' as const,
+    extrabold: '800' as const,
   },
 };
 

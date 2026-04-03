@@ -239,14 +239,22 @@ export default function HealthPulseCard({ userId, isRTL = false }: HealthPulseCa
     );
   }
 
-  const healthScore = forecast?.currentScore ?? 75;
+  const healthScore = forecast?.score7d ?? 75;
   const trend = forecast?.trend ?? "stable";
   const trendColor = getTrendColor(trend);
   const scoreColor = healthScore >= 70 ? "#10B981" : healthScore >= 50 ? "#F59E0B" : "#EF4444";
 
   const recoveryScoreValue = recoveryScore?.score ?? null;
-  const recoveryStateLabel = recoveryScore?.stateDisplay.label
-    ? (rtl ? recoveryScore.stateDisplay.label.ar : recoveryScore.stateDisplay.label.en)
+  const recoveryLevelLabels: Record<string, { en: string; ar: string }> = {
+    poor:      { en: "Poor",      ar: "ضعيف" },
+    fair:      { en: "Fair",      ar: "مقبول" },
+    good:      { en: "Good",      ar: "جيد" },
+    excellent: { en: "Excellent", ar: "ممتاز" },
+  };
+  const recoveryStateLabel = recoveryScore?.level
+    ? (rtl
+        ? (recoveryLevelLabels[recoveryScore.level]?.ar ?? recoveryScore.level)
+        : (recoveryLevelLabels[recoveryScore.level]?.en ?? recoveryScore.level))
     : null;
 
   return (

@@ -13,6 +13,7 @@ import {
   StyleProp,
   TextStyle,
   ViewStyle,
+  ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
@@ -42,6 +43,7 @@ import FamilyDataFilter, {
   FilterOption,
 } from '@/app/components/FamilyDataFilter';
 import VHIContextBanner from '@/components/VHIContextBanner';
+import { safeFormatDate } from '@/utils/dateFormat';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import GradientScreen from '@/components/figma/GradientScreen';
 import WavyBackground from '@/components/figma/WavyBackground';
@@ -94,10 +96,37 @@ export default function DashboardScreen() {
   };
   const handleTourBack = () => setTourStep((s) => Math.max(0, s - 1));
 
+  const [loadingAlerts, setLoadingAlerts] = useState(false);
+  const [userAlerts, setUserAlerts] = useState<any[]>([]);
+
   const isRTL = i18n.language === 'ar';
   const isAdmin = user?.role === 'admin';
   const hasFamily = Boolean(user?.familyId);
-  
+
+  const navigateToVitals = () => router.push('/(tabs)/vitals');
+  const navigateToSymptoms = () => router.push('/(tabs)/symptoms');
+
+  const trackingTabs = [
+    {
+      id: 'vitals',
+      label: isRTL ? 'قياسات حيوية' : 'Vitals',
+      description: isRTL ? 'سجل ضغط الدم والنبض' : 'Log blood pressure, heart rate',
+      icon: Heart,
+      iconColor: '#E53E3E',
+      iconBackground: '#FEE2E2',
+      onPress: navigateToVitals,
+    },
+    {
+      id: 'symptoms',
+      label: isRTL ? 'أعراض' : 'Symptoms',
+      description: isRTL ? 'تتبع الأعراض اليومية' : 'Track daily symptoms',
+      icon: Activity,
+      iconColor: '#2B6CB0',
+      iconBackground: '#EBF8FF',
+      onPress: navigateToSymptoms,
+    },
+  ];
+
   // Create themed styles
   const styles = createThemedStyles((theme) => ({
     container: {
@@ -115,6 +144,9 @@ export default function DashboardScreen() {
     },
     header: {
       marginBottom: theme.spacing.xl,
+    },
+    welcomeTextRTL: {
+      textAlign: 'right' as const,
     },
     welcomeText: {
       ...getTextStyle(theme, 'heading', 'bold', theme.colors.primary.main),
@@ -324,6 +356,9 @@ export default function DashboardScreen() {
     headerContent: {
       flex: 1,
     },
+    headerContentRTL: {
+      alignItems: 'flex-end' as const,
+    },
     sosHeaderButton: {
       backgroundColor: theme.colors.accent.error,
       borderRadius: theme.borderRadius.lg,
@@ -336,6 +371,9 @@ export default function DashboardScreen() {
     },
     sosHeaderText: {
       ...getTextStyle(theme, 'body', 'bold', theme.colors.neutral.white),
+    },
+    sosHeaderButtonRTL: {
+      flexDirection: 'row-reverse' as const,
     },
     onelineCard: {
       backgroundColor: theme.colors.secondary[50],
@@ -377,6 +415,169 @@ export default function DashboardScreen() {
       marginTop: theme.spacing.sm,
       textAlign: 'center' as const,
     },
+    // Wavy header styles
+    wavyHeaderContent: {
+      flex: 1,
+    },
+    wavyHeaderWrapper: {
+      paddingHorizontal: theme.spacing.lg,
+      paddingBottom: theme.spacing.base,
+    },
+    wavyHeaderWrapperRTL: {
+      alignItems: 'flex-end' as const,
+    },
+    wavyHeaderContentRTL: {
+      alignItems: 'flex-end' as const,
+    },
+    wavyHeaderTopRow: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      alignItems: 'center' as const,
+      marginBottom: theme.spacing.sm,
+    },
+    wavyHeaderActions: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: theme.spacing.sm,
+    },
+    wavyHeaderActionsRTL: {
+      flexDirection: 'row-reverse' as const,
+    },
+    // Content inner
+    contentInner: {
+      flex: 1,
+      paddingHorizontal: theme.spacing.lg,
+    },
+    contentInnerRTL: {
+      alignItems: 'flex-end' as const,
+    },
+    // Header date row
+    headerDateRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: theme.spacing.xs,
+      marginTop: 2,
+    },
+    // Alert badge
+    alertBadgeButton: {
+      padding: theme.spacing.xs,
+      position: 'relative' as const,
+    },
+    alertBadgeDot: {
+      position: 'absolute' as const,
+      top: 4,
+      right: 4,
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: theme.colors.accent.error,
+    },
+    // Tour overlay
+    tourOverlay: {
+      position: 'absolute' as const,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      zIndex: 1000,
+    },
+    tourCard: {
+      backgroundColor: theme.colors.background.secondary,
+      borderRadius: theme.borderRadius.xl,
+      padding: theme.spacing.xl,
+      width: '85%' as unknown as number,
+      ...theme.shadows.lg,
+    },
+    tourTitle: {
+      ...getTextStyle(theme, 'subheading', 'bold', theme.colors.text.primary),
+      marginBottom: theme.spacing.sm,
+    },
+    tourBody: {
+      ...getTextStyle(theme, 'body', 'regular', theme.colors.text.secondary),
+      marginBottom: theme.spacing.lg,
+    },
+    tourProgressRow: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      alignItems: 'center' as const,
+      marginBottom: theme.spacing.base,
+    },
+    tourProgressText: {
+      ...getTextStyle(theme, 'caption', 'regular', theme.colors.text.secondary),
+    },
+    tourDots: {
+      flexDirection: 'row' as const,
+      gap: theme.spacing.xs,
+    },
+    tourDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: theme.colors.neutral[300],
+    },
+    tourDotActive: {
+      backgroundColor: theme.colors.primary.main,
+      width: 16,
+    },
+    tourFooter: {
+      flexDirection: 'row' as const,
+      justifyContent: 'flex-end' as const,
+      gap: theme.spacing.sm,
+    },
+    tourButton: {
+      paddingVertical: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.base,
+      borderRadius: theme.borderRadius.md,
+    },
+    tourButtonText: {
+      ...getTextStyle(theme, 'caption', 'medium', theme.colors.text.secondary),
+    },
+    tourActions: {
+      flexDirection: 'row' as const,
+      gap: theme.spacing.sm,
+    },
+    tourButtonPrimary: {
+      backgroundColor: theme.colors.primary.main,
+    },
+    tourButtonTextPrimary: {
+      ...getTextStyle(theme, 'caption', 'bold', theme.colors.neutral.white),
+    },
+    // Tracking section
+    trackingSection: {
+      marginBottom: theme.spacing.base,
+    },
+    trackingOptions: {
+      flexDirection: 'row' as const,
+      gap: theme.spacing.md,
+    },
+    trackingCard: {
+      flex: 1,
+      backgroundColor: theme.colors.background.secondary,
+      borderRadius: theme.borderRadius.lg,
+      padding: theme.spacing.base,
+      alignItems: 'center' as const,
+      ...theme.shadows.sm,
+    },
+    trackingCardIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      marginBottom: theme.spacing.sm,
+    },
+    trackingCardTitle: {
+      ...getTextStyle(theme, 'caption', 'semibold', theme.colors.text.primary),
+      textAlign: 'center' as const,
+    },
+    trackingCardSubtitle: {
+      ...getTextStyle(theme, 'caption', 'regular', theme.colors.text.secondary),
+      textAlign: 'center' as const,
+      marginTop: 2,
+    },
   }))(theme);
 
   const getMemberName = (userId: string): string => {
@@ -413,10 +614,10 @@ export default function DashboardScreen() {
           alertsCountData,
           familySymptomStats,
         ] = await Promise.all([
-          symptomService.getFamilySymptoms(user.familyId, 5),
-          medicationService.getFamilyTodaysMedications(user.familyId),
+          symptomService.getFamilySymptoms(user.id, user.familyId, 5),
+          medicationService.getFamilyTodaysMedications(user.id, user.familyId),
           alertService.getActiveAlertsCount(user.id), // Keep personal alerts for now
-          symptomService.getFamilySymptomStats(user.familyId, 7),
+          symptomService.getMemberSymptomStats(user.familyId, 7),
         ]);
 
         setRecentSymptoms(familySymptoms);
@@ -670,18 +871,18 @@ export default function DashboardScreen() {
                     ]}
                   >
                     <Heading
-                      color={theme.colors.neutral.white}
                       level={2}
                       numberOfLines={isRTL ? 3 : 2}
                       style={[
                         styles.welcomeText,
+                        { color: theme.colors.neutral.white },
                         isRTL && styles.welcomeTextRTL,
                         isRTL && styles.rtlText,
                       ]}
                     >
                       {isRTL
-                        ? `مرحباً، ${user.firstName || "User"}`
-                        : `Welcome, ${user.firstName || "User"}`}
+                        ? `مرحباً، ${(user.name ?? '').split(' ')[0] || "User"}`
+                        : `Welcome, ${(user.name ?? '').split(' ')[0] || "User"}`}
                     </Heading>
                   </View>
 
@@ -702,9 +903,7 @@ export default function DashboardScreen() {
                     >
                       <Phone color={theme.colors.neutral.white} size={18} />
                       <Text
-                        color={theme.colors.neutral.white}
-                        style={styles.sosHeaderText as StyleProp<TextStyle>}
-                        weight="bold"
+                        style={[styles.sosHeaderText as StyleProp<TextStyle>, { color: theme.colors.neutral.white }]}
                       >
                         SOS
                       </Text>
@@ -737,11 +936,8 @@ export default function DashboardScreen() {
 
                 <View style={styles.headerDateRow as ViewStyle}>
                   <Text
-                    color={theme.colors.secondary.main}
                     numberOfLines={isRTL ? 2 : 1}
-                    size="medium"
-                    style={[styles.dateText, isRTL && styles.rtlText]}
-                    weight="bold"
+                    style={[styles.dateText, { color: theme.colors.secondary.main }, isRTL && styles.rtlText]}
                   >
                     {safeFormatDate(
                       new Date(),
@@ -973,7 +1169,7 @@ export default function DashboardScreen() {
                                     isRTL && styles.rtlText,
                                   ]}
                                 >
-                                  {formatDateTime(alert.timestamp)}
+                                  {safeFormatDate(alert.timestamp)}
                                 </Text>
                                 <TouchableOpacity
                                   disabled={loadingAlerts}
@@ -1015,10 +1211,9 @@ export default function DashboardScreen() {
                                         );
                                       }
                                     } catch (error: any) {
-                                      logger.error(
+                                      console.error(
                                         "Failed to resolve alert",
-                                        error,
-                                        "HomeScreen"
+                                        error
                                       );
 
                                       const errorMessage =
@@ -1097,7 +1292,6 @@ export default function DashboardScreen() {
               <View style={styles.tourCard as ViewStyle}>
                 <Text
                   style={[styles.tourTitle, isRTL && styles.rtlText]}
-                  weight="bold"
                 >
                   {activeTourStep.title}
                 </Text>
@@ -1312,7 +1506,6 @@ export default function DashboardScreen() {
               {isRTL ? 'SOS' : 'SOS'}
             </Text>
           </TouchableOpacity>
-        </View>
 
         {/* Enhanced Data Filter */}
         <FamilyDataFilter

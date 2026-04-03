@@ -1037,37 +1037,51 @@ export default function PPGVitalMonitor({
     // Real fingertip PPG often has small amplitude in raw pixel averages; we rely on
     // `processPPGSignalEnhanced()` for quality gating after normalization/filtering.
 
+    // Convert scalar signal (number[]) to PPGFrame[] required by processPPGSignalEnhanced.
+    // Each captured frame value is the mean red-channel pixel brightness; we wrap it
+    // into the PPGFrame structure so the signal processor can work normally.
+    const frameIntervalMs = 1000 / TARGET_FPS;
+    const ppgFrames = ppgSignalRef.current.map((val, i) => ({
+      r: [val],
+      g: [val],
+      b: [val],
+      timestamp: i * frameIntervalMs,
+    }));
+
     // Process PPG signal using multi-order filtering (2nd-6th order)
     // As per guide: "Processes with multi-order filtering (2nd-6th)"
-    const ppgResult = processPPGSignalEnhanced(
-      ppgSignalRef.current,
-      TARGET_FPS
-    );
+    const ppgResult = await processPPGSignalEnhanced(ppgFrames, TARGET_FPS);
 
-    if (ppgResult.success && Number.isFinite(ppgResult.heartRate)) {
+    // Map BiometricUtils result fields to component state
+    const isSuccess = ppgResult.heartRate !== null && Number.isFinite(ppgResult.heartRate);
+    const qualityNumber = ppgResult.confidence; // 0-100 numeric quality score
+
+    if (isSuccess) {
       const heartRate = ppgResult.heartRate as number;
       setHeartRate(heartRate);
-      setHeartRateVariability(ppgResult.heartRateVariability || null);
-      setRespiratoryRate(ppgResult.respiratoryRate || null);
-      setSignalQuality(ppgResult.signalQuality);
+      setHeartRateVariability(ppgResult.hrv || null);
+      setRespiratoryRate(null); // BiometricUtils does not compute respiratory rate
+      setSignalQuality(qualityNumber);
 
-      // Save to Firestore (skip saving if this is a low-confidence estimate)
-      if (!ppgResult.isEstimate) {
+      // Save to Firestore when confidence is sufficient (not a low-quality estimate)
+      if (qualityNumber >= 35) {
         await saveVitalToFirestore(
           heartRate,
-          ppgResult.signalQuality,
-          ppgResult.heartRateVariability,
-          ppgResult.respiratoryRate
+          qualityNumber,
+          ppgResult.hrv ?? undefined,
+          undefined
         );
       }
 
       setStatus("success");
       onMeasurementComplete?.({
         ...ppgResult,
-        heartRate: ppgResult.heartRate,
+        heartRate,
+        heartRateVariability: ppgResult.hrv ?? undefined,
+        respiratoryRate: undefined,
       } as ExtendedPPGResult);
     } else {
-      setError(getPPGErrorMessage(ppgResult.error));
+      setError(getPPGErrorMessage("Signal quality too low"));
       setStatus("error");
     }
   };

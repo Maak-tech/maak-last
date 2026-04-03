@@ -9,6 +9,7 @@
 
 import { api } from "@/lib/apiClient";
 import { logger } from "@/lib/utils/logger";
+import type { Medication } from "@/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -92,6 +93,56 @@ export const medicationRefillService = {
       );
       return [];
     }
+  },
+
+  /**
+   * Generates client-side refill predictions from the current medication list.
+   * Returns a summary object consumed by smartNotificationService and
+   * proactiveHealthSuggestionsService.
+   */
+  getRefillPredictions: (medications: Medication[]): {
+    predictions: Array<{
+      medicationId: string;
+      medicationName: string;
+      daysUntilRefill: number;
+      needsRefill: boolean;
+      urgency: "critical" | "high" | "medium" | "low";
+    }>;
+  } => {
+    const predictions = medications
+      .filter((med) => med.isActive && med.refillDate != null)
+      .map((med) => {
+        const refillDate = med.refillDate as Date;
+        const daysUntilRefill = Math.ceil(
+          (refillDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+        );
+        const needsRefill = daysUntilRefill <= 7;
+        const urgency: "critical" | "high" | "medium" | "low" =
+          daysUntilRefill <= 0
+            ? "critical"
+            : daysUntilRefill <= 2
+              ? "high"
+              : daysUntilRefill <= 5
+                ? "medium"
+                : "low";
+        return {
+          medicationId: med.id,
+          medicationName: med.name,
+          daysUntilRefill,
+          needsRefill,
+          urgency,
+        };
+      });
+    return { predictions };
+  },
+
+  /**
+   * Formats a days-until-refill count into a human-readable string.
+   */
+  formatDaysUntilRefill: (days: number): string => {
+    if (days <= 0) return "now";
+    if (days === 1) return "1 day";
+    return `${days} days`;
   },
 
   /**

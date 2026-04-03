@@ -1,0 +1,32 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Expo Mobile App",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 8081
+    },
+    {
+      "name": "API Server (Bun / Elysia)",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "--watch", "src/index.ts"],
+      "cwd": "api",
+      "port": 3000
+    },
+    {
+      "name": "Hospital Dashboard Server (Hono)",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["tsx", "watch", "src/index.ts"],
+      "cwd": "hospital-dashboard/server",
+      "port": 3001
+    },
+    {
+      "name": "Hospital Dashboard Web (Next.js)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "hospital-dashboard/web",
+      "port": 3000
+    }
+  ]
+}

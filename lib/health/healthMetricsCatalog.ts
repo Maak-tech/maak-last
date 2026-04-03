@@ -12,6 +12,7 @@ export type HealthProvider =
   | "withings"
   | "samsung_health"
   | "dexcom"
+  | "freestyle_libre"
   | "manual";
 
 export interface HealthMetricDefinition {
@@ -103,4 +104,104 @@ export const HEALTH_METRICS_CATALOG: HealthMetricDefinition[] = [
 
 export function getMetricsForProvider(provider: HealthProvider): HealthMetricDefinition[] {
   return HEALTH_METRICS_CATALOG.filter((m) => m.supportedProviders.includes(provider));
+}
+
+export function getMetricByKey(key: string): HealthMetricDefinition | undefined {
+  return HEALTH_METRICS_CATALOG.find((m) => m.key === key);
+}
+
+/** Alias — returns the same result as getMetricsForProvider */
+export function getAvailableMetricsForProvider(
+  provider: HealthProvider
+): HealthMetricDefinition[] {
+  return getMetricsForProvider(provider);
+}
+
+// ── Provider-specific OAuth scope helpers ─────────────────────────────────────
+
+/** Maps a list of metric keys to the Fitbit OAuth scopes required to read them. */
+export function getFitbitScopesForMetrics(metricKeys: string[]): string[] {
+  const scopeMap: Record<string, string> = {
+    heartRate: "heartrate",
+    hrv: "heartrate",
+    steps: "activity",
+    sleepHours: "sleep",
+    weight: "weight",
+    bloodOxygen: "oxygen_saturation",
+    oxygenSaturation: "oxygen_saturation",
+  };
+  const scopes = new Set<string>();
+  for (const key of metricKeys) {
+    const scope = scopeMap[key];
+    if (scope) scopes.add(scope);
+  }
+  return Array.from(scopes);
+}
+
+/** Maps metric keys to the Oura OAuth scopes required to read them. */
+export function getOuraScopesForMetrics(metricKeys: string[]): string[] {
+  const scopeMap: Record<string, string> = {
+    heartRate: "heartrate",
+    hrv: "heartrate",
+    sleepHours: "daily.sleep",
+    steps: "daily.activity",
+    oxygenSaturation: "daily.readiness",
+  };
+  const scopes = new Set<string>();
+  for (const key of metricKeys) {
+    const scope = scopeMap[key];
+    if (scope) scopes.add(scope);
+  }
+  return Array.from(scopes);
+}
+
+/** Maps metric keys to the Withings OAuth scopes required to read them. */
+export function getWithingsScopesForMetrics(metricKeys: string[]): string[] {
+  const scopeMap: Record<string, string> = {
+    weight: "user.metrics",
+    bloodPressure: "user.metrics",
+    heartRate: "user.metrics",
+    sleepHours: "user.sleepevents",
+    steps: "user.activity",
+  };
+  const scopes = new Set<string>();
+  for (const key of metricKeys) {
+    const scope = scopeMap[key];
+    if (scope) scopes.add(scope);
+  }
+  return Array.from(scopes);
+}
+
+/** Maps metric keys to the Samsung Health permissions required to read them. */
+export function getSamsungHealthScopesForMetrics(metricKeys: string[]): string[] {
+  const scopeMap: Record<string, string> = {
+    heartRate: "com.samsung.health.heart_rate",
+    steps: "com.samsung.health.step_count",
+    sleepHours: "com.samsung.health.sleep",
+    weight: "com.samsung.health.weight",
+    oxygenSaturation: "com.samsung.health.oxygen_saturation",
+  };
+  const scopes = new Set<string>();
+  for (const key of metricKeys) {
+    const scope = scopeMap[key];
+    if (scope) scopes.add(scope);
+  }
+  return Array.from(scopes);
+}
+
+/** Maps metric keys to the Dexcom OAuth scopes required to read them. */
+export function getDexcomScopesForMetrics(metricKeys: string[]): string[] {
+  // Dexcom only has a few scopes; EGV covers glucose readings
+  const scopeMap: Record<string, string> = {
+    bloodGlucose: "offline_access egv",
+    glucoseTrend: "offline_access egv",
+  };
+  const scopes = new Set<string>(["offline_access"]);
+  for (const key of metricKeys) {
+    const mapped = scopeMap[key];
+    if (mapped) {
+      for (const s of mapped.split(" ")) scopes.add(s);
+    }
+  }
+  return Array.from(scopes);
 }

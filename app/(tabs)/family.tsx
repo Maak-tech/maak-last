@@ -273,9 +273,9 @@ export default function FamilyScreen() {
 
     setEditMemberForm({
       id: member.id,
-      name: member.name,
-      email: member.email,
-      role: member.role,
+      name: member.name ?? '',
+      email: member.email ?? '',
+      role: member.role === 'caregiver' ? 'member' : member.role,
     });
     setShowEditMemberModal(true);
   };

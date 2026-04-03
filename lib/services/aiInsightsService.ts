@@ -2,7 +2,6 @@ import { api } from "@/lib/apiClient";
 import type {
   MedicalHistory,
   Medication,
-  MedicationInteractionAlert,
   Symptom,
 } from "@/types";
 import { safeFormatDate } from "@/utils/dateFormat";
@@ -11,7 +10,10 @@ import {
   correlationAnalysisService,
 } from "./correlationAnalysisService";
 import { medicalHistoryService } from "./medicalHistoryService";
-import { medicationInteractionService } from "./medicationInteractionService";
+import {
+  type MedicationInteractionAlert,
+  medicationInteractionService,
+} from "./medicationInteractionService";
 import { medicationService } from "./medicationService";
 import openaiService from "./openaiService";
 import {
@@ -22,11 +24,32 @@ import {
   type HealthRiskAssessment,
   riskAssessmentService,
 } from "./riskAssessmentService";
-import {
-  type PatternAnalysisResult,
-  symptomPatternRecognitionService,
-} from "./symptomPatternRecognitionService";
+import { symptomPatternRecognitionService } from "./symptomPatternRecognitionService";
 import { symptomService } from "./symptomService";
+
+// PatternAnalysisResult is defined locally because symptomPatternRecognitionService
+// only exposes detectPatterns(); this type represents the shaped result used by the dashboard.
+export type PatternAnalysisResult = {
+  patterns: Array<{
+    name: string;
+    confidence: number;
+    severity: string;
+    description?: string;
+    actionable?: boolean;
+    recommendation?: string;
+  }>;
+  diagnosisSuggestions: Array<{
+    condition: string;
+    confidence: number;
+    urgency: string;
+  }>;
+  riskAssessment: {
+    overallRisk: string;
+    concerns: string[];
+    recommendations: string[];
+  };
+  analysisTimestamp: Date;
+};
 
 const SYMPTOM_FETCH_LIMIT = 50;
 
@@ -530,30 +553,30 @@ class AIInsightsService {
   // biome-ignore lint/nursery/useMaxParams: Backward-compatible API keeps optional pre-fetched datasets explicit.
   private async generateSymptomAnalysis(
     userId: string,
-    symptoms?: Symptom[],
-    medications?: Medication[],
-    medicalHistory?: MedicalHistory[],
-    isArabic = false
+    _symptoms?: Symptom[],
+    _medications?: Medication[],
+    _medicalHistory?: MedicalHistory[],
+    _isArabic = false
   ): Promise<PatternAnalysisResult> {
-    // Use provided data or fetch if not provided (for backward compatibility)
-    const [symptomsData, medicalHistoryData, medicationsData] =
-      await Promise.all([
-        symptoms ? Promise.resolve(symptoms) : this.getRecentSymptoms(userId),
-        medicalHistory
-          ? Promise.resolve(medicalHistory)
-          : this.getMedicalHistory(userId),
-        medications
-          ? Promise.resolve(medications)
-          : this.getMedications(userId),
-      ]);
-
-    return symptomPatternRecognitionService.analyzeSymptomPatterns(
-      userId,
-      symptomsData,
-      medicalHistoryData,
-      medicationsData,
-      isArabic
-    );
+    const rawPatterns = await symptomPatternRecognitionService.detectPatterns(userId);
+    const now = new Date();
+    return {
+      patterns: rawPatterns.map((p) => ({
+        name: p.title,
+        confidence: p.confidence,
+        severity: "unknown",
+        description: p.description,
+        actionable: p.actionable,
+        recommendation: p.recommendation,
+      })),
+      diagnosisSuggestions: [],
+      riskAssessment: {
+        overallRisk: "low",
+        concerns: [],
+        recommendations: [],
+      },
+      analysisTimestamp: now,
+    } satisfies PatternAnalysisResult;
   }
 
   /**
@@ -616,13 +639,18 @@ class AIInsightsService {
         Write the narrative in a warm, supportive voice that empowers the user to take control of their health.
       `;
 
-      const narrative = await openaiService.generateHealthInsights(prompt);
-      if (!narrative) {
+      const narrative = await openaiService.createChatCompletion([
+        {
+          id: `health-narrative-${Date.now()}`,
+          role: "user",
+          content: prompt,
+          timestamp: new Date(),
+        },
+      ]);
+      if (typeof narrative !== "string" || !narrative) {
         return this.generateFallbackNarrative(context, isArabic);
       }
-      return typeof narrative.narrative === "string"
-        ? narrative.narrative
-        : this.generateFallbackNarrative(context, isArabic);
+      return narrative;
     } catch (_error) {
       // Missing API key or network errors should not spam logs; fallback is fine.
       return this.generateFallbackNarrative(

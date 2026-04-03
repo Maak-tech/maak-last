@@ -2,8 +2,8 @@ import { useEffect, useRef, useCallback } from 'react';
 import { Platform } from 'react-native';
 
 export const useNotifications = () => {
-  const notificationListener = useRef<any>();
-  const responseListener = useRef<any>();
+  const notificationListener = useRef<any>(null);
+  const responseListener = useRef<any>(null);
   const isInitialized = useRef(false);
   const initializationInProgress = useRef(false);
 
@@ -35,7 +35,7 @@ export const useNotifications = () => {
               shouldShowAlert: true,
               shouldPlaySound: true,
               shouldSetBadge: false,
-            }),
+            } as any),
           });
         } catch (handlerError) {
           console.warn('Failed to set notification handler:', handlerError);
@@ -145,7 +145,7 @@ export const useNotifications = () => {
             body,
             sound: 'default',
           },
-          trigger: trigger,
+          trigger: trigger as any,
         });
       } catch (error) {
         console.warn('Failed to schedule notification:', error);
@@ -165,9 +165,21 @@ export const useNotifications = () => {
     [scheduleNotification]
   );
 
+  const ensureInitialized = useCallback(async (): Promise<boolean> => {
+    if (Platform.OS === 'web') return false;
+    if (isInitialized.current) return true;
+    // Wait up to 5 seconds for initialization to complete
+    const deadline = Date.now() + 5000;
+    while (!isInitialized.current && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    return isInitialized.current;
+  }, []);
+
   return {
     scheduleNotification,
     scheduleMedicationReminder,
+    ensureInitialized,
   };
 };
 

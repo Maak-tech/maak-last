@@ -842,19 +842,20 @@ export default function NoraScreen() {
         </View>
       </KeyboardAvoidingView>
 
-      <CoachMark
-        body={t(
-          "noraHowToBody",
-          "Tap here to ask Nora questions about your health."
-        )}
-        onClose={() => setShowHowTo(false)}
-        onPrimaryAction={() => inputRef.current?.focus()}
-        primaryActionLabel={t("startChat", "Start chat")}
-        secondaryActionLabel={t("gotIt", "Got it")}
-        targetRef={inputFieldRef}
-        title={t("noraHowToTitle", "Use Nora")}
-        visible={showHowTo}
-      />
+      {showHowTo && (
+        <CoachMark
+          body={t(
+            "noraHowToBody",
+            "Tap here to ask Nora questions about your health."
+          )}
+          onClose={() => setShowHowTo(false)}
+          onPrimaryAction={() => inputRef.current?.focus()}
+          primaryActionLabel={t("startChat", "Start chat")}
+          secondaryActionLabel={t("gotIt", "Got it")}
+          targetRef={inputFieldRef}
+          title={t("noraHowToTitle", "Use Nora")}
+        />
+      )}
 
       <Modal
         animationType="slide"

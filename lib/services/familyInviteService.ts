@@ -138,6 +138,7 @@ export const familyInviteService = {
         members: (raw.memberIds as string[] | undefined) ?? [],
         status: (raw.status ?? "active") as Family["status"],
         createdAt: raw.createdAt ? new Date(raw.createdAt as string) : new Date(),
+        patientCount: 0,
       };
     } catch {
       return null;

@@ -15,6 +15,7 @@ type GlucoseReading = {
   value: number;
   unit: string;
   timestamp: Date;
+  trend?: string;
 };
 
 // ─── Singleton Service ────────────────────────────────────────────────────────

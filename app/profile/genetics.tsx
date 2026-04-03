@@ -11,7 +11,6 @@ import {
   Pill,
   RefreshCw,
   ShieldAlert,
-  Upload,
   XCircle,
 } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
@@ -230,10 +229,9 @@ export default function GeneticsScreen() {
                 : "Upload your raw DNA file from 23andMe or AncestryDNA to get personalised health insights."}
             </Text>
             <Button
-              title={isRTL ? "رفع ملف الحمض النووي" : "Upload DNA file"}
+              label={isRTL ? "رفع ملف الحمض النووي" : "Upload DNA file"}
               onPress={() => router.push("/profile/health-integrations")}
               variant="primary"
-              icon={<Upload size={16} color="#fff" />}
               style={styles.uploadButton}
             />
           </View>
@@ -301,10 +299,9 @@ export default function GeneticsScreen() {
                 : "Could not process the file. Please try again or upload a different file.")}
             </Text>
             <Button
-              title={isRTL ? "رفع ملف جديد" : "Upload new file"}
+              label={isRTL ? "رفع ملف جديد" : "Upload new file"}
               onPress={() => router.push("/profile/health-integrations")}
               variant="primary"
-              icon={<RefreshCw size={16} color="#fff" />}
               style={styles.uploadButton}
             />
           </View>
@@ -365,7 +362,7 @@ export default function GeneticsScreen() {
             <View style={styles.section}>
               <View style={[styles.sectionHeader, isRTL && styles.rtlRow]}>
                 <ShieldAlert size={18} color="#ef4444" />
-                <Heading level={5} style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+                <Heading level={4} style={[styles.sectionTitle, isRTL && styles.rtlText]}>
                   {isRTL ? "أعلى المخاطر الجينية" : "Top genetic risks"}
                 </Heading>
               </View>
@@ -425,7 +422,7 @@ export default function GeneticsScreen() {
             <View style={styles.section}>
               <View style={[styles.sectionHeader, isRTL && styles.rtlRow]}>
                 <Pill size={18} color="#f59e0b" />
-                <Heading level={5} style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+                <Heading level={4} style={[styles.sectionTitle, isRTL && styles.rtlText]}>
                   {isRTL ? "تفاعلات الأدوية الجينية" : "Drug-gene interactions"}
                 </Heading>
               </View>
@@ -461,7 +458,7 @@ export default function GeneticsScreen() {
             <View style={styles.section}>
               <View style={[styles.sectionHeader, isRTL && styles.rtlRow]}>
                 <FlaskConical size={18} color="#7c3aed" />
-                <Heading level={5} style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+                <Heading level={4} style={[styles.sectionTitle, isRTL && styles.rtlText]}>
                   {isRTL ? "المتغيرات الجينية الطبية (ClinVar)" : "Clinical variants (ClinVar)"}
                 </Heading>
               </View>
@@ -497,7 +494,7 @@ export default function GeneticsScreen() {
           <View style={styles.section}>
             <View style={[styles.sectionHeader, isRTL && styles.rtlRow]}>
               <Dna size={18} color={theme.colors.primary.main} />
-              <Heading level={5} style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+              <Heading level={4} style={[styles.sectionTitle, isRTL && styles.rtlText]}>
                 {isRTL ? "المشاركة مع العائلة" : "Family sharing"}
               </Heading>
             </View>

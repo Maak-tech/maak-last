@@ -1,7 +1,7 @@
 import type { Medication, Symptom } from "@/types";
 import { api } from "@/lib/apiClient";
 import { coerceToDate } from "@/utils/dateCoercion";
-import { getVitalAnomalySignals } from "./healthInsightScoringService";
+import { getVitalAnomalySignals, type VitalAnomalySignal } from "./healthInsightScoringService";
 import type { VitalSample } from "./healthPatternDetectionService";
 import { medicationService } from "./medicationService";
 import { symptomService } from "./symptomService";
@@ -289,7 +289,7 @@ export async function calculateHealthScore(
 
     // Compute vital anomaly signals and penalty
     const vitalAnomalies =
-      vitals.length >= 5 ? getVitalAnomalySignals(vitals) : [];
+      vitals.length >= 5 ? await getVitalAnomalySignals(userId) : [];
     const vitalPenalty = calculateVitalPenalty(vitalAnomalies.length);
 
     // Calculate components
@@ -386,9 +386,8 @@ export function calculateHealthScoreFromData(
     const compliancePercentage =
       calculateCompliancePercentage(todaysMedications);
 
-    // Compute vital anomaly signals and penalty
-    const vitalAnomalies =
-      vitals.length >= 5 ? getVitalAnomalySignals(vitals) : [];
+    // Compute vital anomaly signals and penalty (not available in sync context)
+    const vitalAnomalies: VitalAnomalySignal[] = [];
     const vitalPenalty = calculateVitalPenalty(vitalAnomalies.length);
 
     // Calculate components

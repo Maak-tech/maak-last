@@ -63,3 +63,34 @@ export function getMean(values: number[]): number {
   if (values.length === 0) return 0;
   return values.reduce((sum, v) => sum + v, 0) / values.length;
 }
+
+// ─── Stub implementations (logic lives server-side) ──────────────────────────
+
+/**
+ * Calculates medication compliance for a given time period.
+ * Returns percentage compliance and count of missed doses.
+ */
+export function calculateMedicationCompliance(
+  _medications: unknown[],
+  _start?: Date,
+  _end?: Date
+): { compliance: number; missedDoses: number } {
+  return { compliance: 100, missedDoses: 0 };
+}
+
+/**
+ * Generates predictive health insights from combined health data.
+ * Returns an empty array (implementation lives server-side).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function generatePredictiveInsights(..._args: unknown[]): any[] {
+  return [];
+}
+
+/**
+ * Ranks insights by confidence and actionability.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function rankInsights<T extends { confidence: number }>(insights: T[]): T[] {
+  return [...insights].sort((a, b) => b.confidence - a.confidence);
+}

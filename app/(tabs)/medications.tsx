@@ -92,7 +92,7 @@ export default function MedicationsScreen() {
       if (selectedFilter.type === 'family' && user.familyId) {
         // Load family medications (both admins and members can view)
         const familyMedications =
-          await medicationService.getFamilyTodaysMedications(user.familyId);
+          await medicationService.getFamilyTodaysMedications(user.id, user.familyId);
         setMedications(familyMedications);
       } else if (selectedFilter.type === 'member' && selectedFilter.memberId) {
         // Load specific member medications (both admins and members can view)

@@ -11,8 +11,8 @@ import {
   SafeAreaView,
   ActivityIndicator,
 } from 'react-native';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useRouter } from 'expo-router';
 import {
   ArrowLeft,
   FileText,

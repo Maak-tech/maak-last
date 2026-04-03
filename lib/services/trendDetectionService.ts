@@ -34,6 +34,8 @@ export interface TrendAnalysis {
   /** Deviation from baseline in standard deviations */
   zScore: number | null;
   analyzedAt: Date;
+  /** Human-readable summary of the trend (optional) */
+  message?: string;
 }
 
 export interface SymptomTrendAnalysis {
@@ -51,6 +53,8 @@ export interface SymptomTrendAnalysis {
   priorFrequency: number;
   windowDays: number;
   analyzedAt: Date;
+  /** Human-readable summary of the trend (optional) */
+  message?: string;
 }
 
 export interface TrendAlert {

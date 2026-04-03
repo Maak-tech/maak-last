@@ -25,7 +25,7 @@ import {
 import { getEffectivenessInsights } from "./medicationIntelligenceService";
 import { medicationService } from "./medicationService";
 import { moodService } from "./moodService";
-import { symptomPatternRecognitionService } from "./symptomPatternRecognitionService";
+import { symptomPatternRecognitionService, type SymptomPattern } from "./symptomPatternRecognitionService";
 import { symptomService } from "./symptomService";
 
 export type DiscoveryType =
@@ -163,9 +163,9 @@ async function fetchSymptomPatternDiscoveries(
       );
 
     return analysis.patterns
-      .filter((p) => p.confidence >= 40) // Only reasonably confident patterns
+      .filter((p: SymptomPattern) => p.confidence >= 40) // Only reasonably confident patterns
       .map(
-        (p, _idx): EnrichedDiscovery => ({
+        (p: SymptomPattern, _idx: number): EnrichedDiscovery => ({
           id: stableDiscoveryId("symptom_pattern", userId, p.name),
           userId,
           category: "temporal_pattern",

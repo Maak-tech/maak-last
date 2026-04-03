@@ -12,7 +12,13 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  ScrollView,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  Modal,
+  StyleSheet,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import aiConsentService from "@/lib/services/aiConsentService";
@@ -24,6 +30,15 @@ import openaiService, {
 } from "../lib/services/openaiService";
 import { voiceService } from "../lib/services/voiceService";
 import ChatMessage from "./components/ChatMessage";
+
+interface SavedSession {
+  id: string;
+  title: string;
+  createdAt: Date;
+  updatedAt: Date;
+  messageCount: number;
+  preview: string;
+}
 
 export default function AIAssistant() {
   const router = useRouter();
@@ -299,64 +314,29 @@ export default function AIAssistant() {
   };
 
   const loadChatHistory = async () => {
-    if (!auth.currentUser) return;
-
     try {
-      const sessionsQuery = query(
-        collection(db, 'users', auth.currentUser.uid, 'chatSessions'),
-        orderBy('updatedAt', 'desc'),
-        limit(20)
-      );
-      
-      const sessionsSnapshot = await getDocs(sessionsQuery);
-      const sessions: SavedSession[] = [];
-      
-      sessionsSnapshot.forEach((doc) => {
-        const data = doc.data();
-        const messages = data.messages || [];
-        const userMessages = messages.filter((m: any) => m.role === 'user');
-        const lastUserMessage = userMessages[userMessages.length - 1];
-        
-        sessions.push({
-          id: doc.id,
-          title: data.title || 'Chat Session',
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
-          messageCount: messages.length,
-          preview: lastUserMessage?.content?.substring(0, 50) + '...' || 'No messages',
-        });
-      });
-      
-      setChatHistory(sessions);
+      const sessions = await api.get<SavedSession[]>('/api/nora/chat-sessions?limit=20').catch(() => []);
+      setChatHistory(sessions ?? []);
     } catch (error) {
       console.error('Error loading chat history:', error);
     }
   };
 
   const loadSession = async (sessionId: string) => {
-    if (!auth.currentUser) return;
-
     try {
       setIsLoading(true);
-      const sessionDoc = await getDoc(
-        doc(db, 'users', auth.currentUser.uid, 'chatSessions', sessionId)
-      );
-      
-      if (sessionDoc.exists()) {
-        const data = sessionDoc.data();
-        const sessionMessages = data.messages.map((msg: any) => ({
+      const data = await api.get<{ messages: AIMessage[] }>(`/api/nora/chat-sessions/${sessionId}`);
+      if (data?.messages) {
+        const sessionMessages = data.messages.map((msg) => ({
           ...msg,
-          timestamp: msg.timestamp?.toDate() || new Date(),
+          timestamp: msg.timestamp ? new Date(msg.timestamp as unknown as string) : new Date(),
         }));
-        
-        // Add system message at the beginning
         const systemMessage: AIMessage = {
           id: 'system',
           role: 'system',
           content: systemPrompt,
           timestamp: new Date(),
         };
-        
         setMessages([systemMessage, ...sessionMessages]);
         setCurrentSessionId(sessionId);
         setShowHistory(false);
@@ -371,8 +351,6 @@ export default function AIAssistant() {
   };
 
   const deleteSession = async (sessionId: string) => {
-    if (!auth.currentUser) return;
-
     Alert.alert(
       'Delete Chat',
       'Are you sure you want to delete this chat session?',
@@ -383,12 +361,8 @@ export default function AIAssistant() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await deleteDoc(
-                doc(db, 'users', auth.currentUser.uid, 'chatSessions', sessionId)
-              );
+              await api.delete(`/api/nora/chat-sessions/${sessionId}`).catch(() => {});
               await loadChatHistory();
-              
-              // If deleting current session, start new chat
               if (sessionId === currentSessionId) {
                 await handleNewChat();
               }
@@ -474,13 +448,12 @@ export default function AIAssistant() {
 
         <View style={styles.inputContainer}>
           <TextInput
-            style={styles.textInput}
+            style={[styles.textInput, { maxHeight: 100 }]}
             value={inputText}
             onChangeText={setInputText}
             placeholder="Ask about your health, medications, symptoms..."
             placeholderTextColor="#999"
             multiline
-            maxHeight={100}
             editable={!isStreaming}
           />
           <TouchableOpacity

@@ -130,7 +130,7 @@ export const alertService = {
         error: { message: errorMessage },
         metadata: { alertType: alertData.type, userId: alertData.userId },
       });
-      return docRef.id;
+      throw new Error(`Failed to create alert: ${errorMessage}`);
     }
   },
 
@@ -314,7 +314,7 @@ export const alertService = {
     } catch (notificationError) {
       observabilityEmitter.emit({
         eventType: "alert_service",
-        domain: "notifications",
+        domain: "alerts",
         source: "alertService",
         message: "Failed to send fall alert notification",
         severity: "warn",
@@ -325,6 +325,8 @@ export const alertService = {
         metadata: { alertId, userId },
       });
     }
+
+    return alertId;
   },
 
   async createMedicationAlert(userId: string, medicationName: string): Promise<string> {

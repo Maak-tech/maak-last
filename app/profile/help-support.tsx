@@ -1,4 +1,18 @@
-﻿import { useNavigation, useRouter } from "expo-router";
+﻿import React from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  SafeAreaView,
+  Linking,
+  Alert,
+  StyleSheet,
+} from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { useNavigation, useRouter } from "expo-router";
+import GradientScreen from '@/components/figma/GradientScreen';
+import WavyBackground from '@/components/figma/WavyBackground';
 import type { LucideIcon } from "lucide-react-native";
 import {
   ArrowLeft,
@@ -191,7 +205,6 @@ export default function HelpSupportScreen() {
                 ? 'للحالات العاجلة والدعم المباشر'
                 : 'For urgent issues and direct support'
             }
-            title={isRTL ? "راسلنا" : "Email Us"}
             value="info@nuralix.ai"
           />
 
@@ -229,7 +242,6 @@ export default function HelpSupportScreen() {
                 ? 'معلومات شاملة ومركز المساعدة'
                 : 'Comprehensive information and help center'
             }
-            title={isRTL ? "موقعنا الإلكتروني" : "Visit Website"}
             value="https://nuralix.ai/"
           />
         </View>
@@ -377,6 +389,15 @@ export default function HelpSupportScreen() {
 }
 
 const styles = StyleSheet.create({
+  scrollContent: { paddingBottom: 40 },
+  scrollView: { flex: 1 },
+  headerWrapper: {},
+  headerContent: { paddingHorizontal: 20, paddingTop: 20 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  headerRowRTL: { flexDirection: 'row-reverse' },
+  headerTitleRow: { flex: 1, alignItems: 'center' },
+  headerTitleText: { fontSize: 20, fontWeight: '700', color: '#003543' },
+  headerSubtitle: { fontSize: 14, color: '#5f8d9a', marginTop: 4 },
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',

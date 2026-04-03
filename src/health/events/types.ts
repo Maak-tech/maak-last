@@ -29,6 +29,8 @@ export type HealthEventType =
 
 export type HealthEventSeverity = "info" | "warning" | "error" | "critical";
 
+export type HealthEventStatus = "OPEN" | "ACKED" | "ESCALATED" | "RESOLVED";
+
 export interface HealthEvent {
   id: string;
   type: HealthEventType;
@@ -51,6 +53,32 @@ export interface HealthEvent {
   processedAt?: Date;
   /** Whether downstream consumers (alerts, VHI, notifications) have processed this event */
   isProcessed: boolean;
+
+  // ─── Extended fields returned by the REST API ──────────────────────────────
+  /** Lifecycle status of the event */
+  status?: HealthEventStatus;
+  /** Originating data source (e.g. apple_health, manual, wearable) */
+  source?: string;
+  /** Key vital values captured at the time of the event */
+  vitalValues?: Record<string, unknown>;
+  /** Arbitrary additional metadata */
+  metadata?: Record<string, unknown>;
+  /** Human-readable reasons explaining why the event was raised */
+  reasons?: string[];
+  /** Wall-clock time the event record was created on the server */
+  createdAt?: Date;
+  /** When the event was acknowledged by a user or caregiver */
+  acknowledgedAt?: Date;
+  /** When the event was resolved */
+  resolvedAt?: Date;
+  /** When the event was escalated */
+  escalatedAt?: Date;
+  /** ID of the user who acknowledged the event */
+  acknowledgedBy?: string;
+  /** ID of the user who resolved the event */
+  resolvedBy?: string;
+  /** ID of the user who escalated the event */
+  escalatedBy?: string;
 }
 
 /** Lightweight reference used in lists and timelines */

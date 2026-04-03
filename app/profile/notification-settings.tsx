@@ -9,6 +9,7 @@ import {
   Users,
   Clock,
   Volume2,
+  Smartphone,
 } from "lucide-react-native";
 import type React from "react";
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
@@ -16,6 +17,7 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
+  SafeAreaView,
   ScrollView,
   StyleSheet,
   Switch,
@@ -75,10 +77,10 @@ export default function NotificationSettingsScreen() {
     try {
       setLoading(true);
       const userData = await userService.getUser(user.id);
-      if (userData?.preferences?.notifications) {
+      if (userData?.preferences?.notifications && typeof userData.preferences.notifications === 'object') {
         setSettings({
           ...settings,
-          ...userData.preferences.notifications,
+          ...(userData.preferences.notifications as unknown as Partial<NotificationSettings>),
         });
       }
     } catch (error) {
@@ -92,13 +94,13 @@ export default function NotificationSettingsScreen() {
     if (!user) return;
 
     try {
-      await api.patch("/api/user/notification-preferences", { preferences: updatedSettings }).catch(() => {});
+      await api.patch("/api/user/notification-preferences", { preferences: settings }).catch(() => {});
 
       // Also update locally
       await userService.updateUser(user.id, {
         preferences: {
           ...user.preferences,
-          notifications: settings,
+          notifications: settings as unknown as boolean,
         },
       });
 

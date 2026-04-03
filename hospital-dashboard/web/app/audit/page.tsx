@@ -43,7 +43,7 @@ export default function AuditPage() {
     setError(null)
     try {
       const data = await api.getAuditLogs(p)
-      setLogs(data.logs as AuditLog[])
+      setLogs(data.logs as unknown as AuditLog[])
       setHasMore(data.logs.length === data.limit)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load audit logs')

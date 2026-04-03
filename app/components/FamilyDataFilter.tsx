@@ -68,9 +68,9 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
           options.push({
             id: member.id,
             type: 'member',
-            label: member.name,
+            label: member.name ?? '',
             memberId: member.id,
-            memberName: member.name,
+            memberName: member.name ?? '',
           });
         });
     }

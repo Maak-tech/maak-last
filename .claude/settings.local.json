@@ -53,7 +53,14 @@
       "Bash(\"/c/Program Files/nodejs/npm\" install better-auth @better-auth/expo)",
       "Bash(curl -s \"http://localhost:8081/index.bundle?platform=web&dev=true\" -o /tmp/bundle_check.txt --max-time 10 -w \"%{http_code}\")",
       "Read(//tmp/**)",
-      "Bash(curl -s http://localhost:8081 -o /dev/null -w \"HTTP %{http_code}\")"
+      "Bash(curl -s http://localhost:8081 -o /dev/null -w \"HTTP %{http_code}\")",
+      "Bash(grep -v \"^$\")",
+      "Bash(grep -v \"//\")",
+      "Bash(awk 'NR>=400 && NR<=430' app/\\\\\\(tabs\\\\\\)/index.tsx)",
+      "Bash(head -130 app/\\\\\\(tabs\\\\\\)/index.tsx)",
+      "Bash(npm install:*)",
+      "Bash(grep -n '\"\"/profile/genetics\"\"' app/health-summary.tsx app/profile/health-integrations.tsx)",
+      "Bash(grep -n '\"\"notifications\"\"' lib/services/alertService.ts)"
     ]
   }
 }

@@ -3,13 +3,11 @@
  * Handles syncing health data from all providers to backend
  */
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import Constants from "expo-constants";
 import { AppState, Platform } from "react-native";
 import {
   getProviderConnection,
-  getProviderStorageKey,
   saveProviderConnection,
+  disconnectProvider as _disconnectProviderConnection,
 } from "./providerConnections";
 
 export {
@@ -18,14 +16,13 @@ export {
 } from "./providerConnections";
 
 // Import services
-// Lazy import to prevent early native module loading
-// import { appleHealthService } from "../services/appleHealthService";
 import { healthConnectService } from "../services/healthConnectService";
 import type { HealthProvider } from "./healthMetricsCatalog";
 import type {
-  DeviceInfo,
-  HealthSyncPayload,
+  HealthMetricReading,
+  NormalizedMetricPayload,
   ProviderConnection,
+  ProviderType,
   SyncResult,
 } from "./healthTypes";
 
@@ -33,19 +30,31 @@ const BACKEND_HEALTH_SYNC_URL = "/health/sync"; // Unified endpoint
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : "Unknown error";
 
-/**
- * Get device information
- */
-const getDeviceInfo = (): DeviceInfo => ({
-  platform: Platform.OS as "ios" | "android",
-  model: Platform.select({
-    ios: "iOS Device",
-    android: "Android Device",
-    default: "Unknown",
-  }),
-  osVersion: Platform.Version?.toString(),
-  appVersion: Constants.expoConfig?.version || "1.0.0",
-});
+/** Convert HealthMetricReading[] (apple/health_connect shape) to NormalizedMetricPayload[] */
+function readingsToMetricPayloads(
+  rawReadings: HealthMetricReading[],
+  providerName: string
+): NormalizedMetricPayload[] {
+  const map = new Map<string, NormalizedMetricPayload>();
+  for (const r of rawReadings) {
+    let payload = map.get(r.type);
+    if (!payload) {
+      payload = { provider: providerName, metricKey: r.type, unit: r.unit, samples: [] };
+      map.set(r.type, payload);
+    }
+    payload.samples.push({ value: r.value, unit: r.unit, startDate: r.recordedAt });
+  }
+  return Array.from(map.values());
+}
+
+// Placeholder userId — callers should pass a real userId; using a module-level
+// default keeps the public API unchanged while satisfying the new 2-arg signatures.
+let _currentUserId = "unknown";
+
+/** Call this once at app startup (e.g. from AuthContext) to set the active user. */
+export function setHealthSyncUserId(userId: string): void {
+  _currentUserId = userId;
+}
 
 /**
  * Disconnect provider
@@ -53,8 +62,7 @@ const getDeviceInfo = (): DeviceInfo => ({
 export const disconnectProvider = async (
   provider: HealthProvider
 ): Promise<void> => {
-  // Clear connection data and call service disconnect methods
-  const storageKey = getProviderStorageKey(provider);
+  // Call provider-specific SDK disconnect, then remove the connection record.
   switch (provider) {
     case "apple_health":
       break;
@@ -108,21 +116,15 @@ export const disconnectProvider = async (
         // Best effort disconnect for optional provider.
       }
       break;
-    case "freestyle_libre":
-      try {
-        const { freestyleLibreService } = await import(
-          "../services/freestyleLibreService"
-        );
-        await freestyleLibreService.disconnect();
-      } catch {
-        // Best effort disconnect for optional provider.
-      }
-      break;
     default:
       break;
   }
 
-  await AsyncStorage.removeItem(storageKey);
+  try {
+    await _disconnectProviderConnection(_currentUserId, provider as ProviderType);
+  } catch {
+    // Best effort — connection record removal.
+  }
 };
 
 /**
@@ -132,6 +134,7 @@ export const syncHealthData = async (
   provider: HealthProvider,
   retryOnce = true
 ): Promise<SyncResult> => {
+  const syncStart = Date.now();
   try {
     // CRITICAL: Check app state before heavy operations
     // Defer sync if app is backgrounded or inactive to prevent crashes
@@ -139,18 +142,18 @@ export const syncHealthData = async (
     if (appState !== "active") {
       // Return early if app is not active - sync will be retried when app becomes active
       return {
-        success: false,
-        provider,
+        provider: provider as ProviderType,
+        recordsSynced: 0,
+        recordsSkipped: 0,
+        errors: ["App is not in active state - sync deferred"],
         syncedAt: new Date().toISOString(),
-        metricsCount: 0,
-        samplesCount: 0,
-        error: "App is not in active state - sync deferred",
+        duration: Date.now() - syncStart,
       };
     }
 
     // Get provider connection
-    const connection = await getProviderConnection(provider);
-    if (!connection?.connected) {
+    const connection = await getProviderConnection(_currentUserId, provider as ProviderType);
+    if (!connection?.isConnected) {
       throw new Error(`${provider} not connected`);
     }
 
@@ -167,45 +170,48 @@ export const syncHealthData = async (
       startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     }
 
-    // Fetch metrics from provider
+    const selectedMetrics: string[] = connection.authorizedMetrics ?? [];
 
-    let metrics: HealthSyncPayload["metrics"];
+    // Fetch metrics from provider — normalised to NormalizedMetricPayload[]
+    // so they can be forwarded to saveSyncVitals.
+    let metrics: NormalizedMetricPayload[] = [];
+
     switch (provider) {
       case "apple_health": {
         // Lazy import to prevent early native module loading
         const { appleHealthService } = await import(
           "../services/appleHealthService"
         );
-        metrics = await appleHealthService.fetchMetrics(
-          connection.selectedMetrics,
+        const result = await appleHealthService.syncReadings(
+          selectedMetrics,
+          startDate
+        );
+        metrics = readingsToMetricPayloads(result.readings ?? [], "apple_health");
+        break;
+      }
+      case "health_connect": {
+        const result = await healthConnectService.syncReadings(
+          selectedMetrics,
+          startDate
+        );
+        metrics = readingsToMetricPayloads(result.readings ?? [], "health_connect");
+        break;
+      }
+      case "fitbit": {
+        const { fitbitService } = await import("../services/fitbitService");
+        metrics = await fitbitService.fetchMetrics(
+          selectedMetrics,
           startDate,
           endDate
         );
         break;
       }
-      case "health_connect":
-        metrics = await healthConnectService.fetchMetrics(
-          connection.selectedMetrics,
-          startDate,
-          endDate
-        );
-        break;
-      case "fitbit":
-        {
-          const { fitbitService } = await import("../services/fitbitService");
-          metrics = await fitbitService.fetchMetrics(
-            connection.selectedMetrics,
-            startDate,
-            endDate
-          );
-        }
-        break;
       case "samsung_health": {
         const { samsungHealthService } = await import(
           "../services/samsungHealthService"
         );
         metrics = await samsungHealthService.fetchMetrics(
-          connection.selectedMetrics,
+          selectedMetrics,
           startDate,
           endDate
         );
@@ -214,7 +220,7 @@ export const syncHealthData = async (
       case "garmin": {
         const { garminService } = await import("../services/garminService");
         metrics = await garminService.fetchMetrics(
-          connection.selectedMetrics,
+          selectedMetrics,
           startDate,
           endDate
         );
@@ -223,7 +229,7 @@ export const syncHealthData = async (
       case "withings": {
         const { withingsService } = await import("../services/withingsService");
         metrics = await withingsService.fetchMetrics(
-          connection.selectedMetrics,
+          selectedMetrics,
           startDate,
           endDate
         );
@@ -232,7 +238,7 @@ export const syncHealthData = async (
       case "oura": {
         const { ouraService } = await import("../services/ouraService");
         metrics = await ouraService.fetchMetrics(
-          connection.selectedMetrics,
+          selectedMetrics,
           startDate,
           endDate
         );
@@ -241,18 +247,7 @@ export const syncHealthData = async (
       case "dexcom": {
         const { dexcomService } = await import("../services/dexcomService");
         metrics = await dexcomService.fetchMetrics(
-          connection.selectedMetrics,
-          startDate,
-          endDate
-        );
-        break;
-      }
-      case "freestyle_libre": {
-        const { freestyleLibreService } = await import(
-          "../services/freestyleLibreService"
-        );
-        metrics = await freestyleLibreService.fetchMetrics(
-          connection.selectedMetrics,
+          selectedMetrics,
           startDate,
           endDate
         );
@@ -262,20 +257,22 @@ export const syncHealthData = async (
         throw new Error(`Unknown provider: ${provider}`);
     }
 
-    // Create sync payload
-    const payload: HealthSyncPayload = {
-      provider,
-      selectedMetrics: connection.selectedMetrics,
-      range: {
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-      },
-      device: getDeviceInfo(),
-      metrics,
-    };
-
     // Send to backend (if endpoint exists)
     try {
+      const payload = {
+        provider,
+        selectedMetrics,
+        range: {
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+        },
+        device: {
+          id: "device",
+          name: Platform.select({ ios: "iOS Device", android: "Android Device", default: "Unknown" }) ?? "Unknown",
+          osVersion: Platform.Version?.toString(),
+        },
+        metrics,
+      };
       const response = await fetch(BACKEND_HEALTH_SYNC_URL, {
         method: "POST",
         headers: {
@@ -289,7 +286,7 @@ export const syncHealthData = async (
         // Continue anyway to save to Firestore
       }
     } catch (_error) {
-      // Backend sync endpoint not available, saving to Firestore only: ${error}
+      // Backend sync endpoint not available, saving to Firestore only
       // Continue to save to Firestore
     }
 
@@ -307,15 +304,20 @@ export const syncHealthData = async (
     }
 
     // Update last sync timestamp
-    connection.lastSyncAt = new Date().toISOString();
-    await saveProviderConnection(connection);
+    const updatedConnection: ProviderConnection = {
+      ...connection,
+      lastSyncAt: new Date().toISOString(),
+    };
+    await saveProviderConnection(_currentUserId, updatedConnection);
 
+    const totalSamples = metrics.reduce((sum, m) => sum + m.samples.length, 0);
     const result: SyncResult = {
-      success: true,
-      provider,
-      syncedAt: connection.lastSyncAt,
-      metricsCount: metrics.length,
-      samplesCount: metrics.reduce((sum, m) => sum + m.samples.length, 0),
+      provider: provider as ProviderType,
+      recordsSynced: totalSamples,
+      recordsSkipped: 0,
+      errors: [],
+      syncedAt: updatedConnection.lastSyncAt!,
+      duration: Date.now() - syncStart,
     };
 
     return result;
@@ -327,12 +329,12 @@ export const syncHealthData = async (
     }
 
     return {
-      success: false,
-      provider,
+      provider: provider as ProviderType,
+      recordsSynced: 0,
+      recordsSkipped: 0,
+      errors: [errorMessage],
       syncedAt: new Date().toISOString(),
-      metricsCount: 0,
-      samplesCount: 0,
-      error: errorMessage,
+      duration: Date.now() - syncStart,
     };
   }
 };
@@ -344,7 +346,7 @@ export const getLastSyncTimestamp = async (
   provider: HealthProvider
 ): Promise<string | null> => {
   try {
-    const connection = await getProviderConnection(provider);
+    const connection = await getProviderConnection(_currentUserId, provider as ProviderType);
     return connection?.lastSyncAt || null;
   } catch {
     return null;
@@ -366,14 +368,13 @@ export const getAllConnectedProviders = async (): Promise<
     "withings",
     "oura",
     "dexcom",
-    "freestyle_libre",
   ];
 
   const connections = await Promise.all(
-    providers.map((p) => getProviderConnection(p))
+    providers.map((p) => getProviderConnection(_currentUserId, p as ProviderType))
   );
 
   return connections.filter(
-    (c): c is ProviderConnection => c?.connected === true
+    (c): c is ProviderConnection => c?.isConnected === true
   );
 };

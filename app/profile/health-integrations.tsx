@@ -298,7 +298,7 @@ export default function HealthIntegrationsScreen() {
     }
 
     const connection = connections.get(provider.id);
-    if (connection?.connected) {
+    if (connection?.isConnected) {
       // Navigate to connected screen
       if (provider.id === "health_connect") {
         // Health Connect uses permissions screen for connected state
@@ -451,7 +451,7 @@ export default function HealthIntegrationsScreen() {
             {/* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: rendering cards keeps UI state colocated with labels/badges. */}
             {providers.map((provider) => {
               const connection = connections.get(provider.id);
-              const isConnected = connection?.connected === true;
+              const isConnected = connection?.isConnected === true;
               const canInteract =
                 provider.available || provider.comingSoon === true;
 
@@ -681,7 +681,7 @@ export default function HealthIntegrationsScreen() {
             </Text>
 
             <TouchableOpacity
-              onPress={() => router.push("/profile/genetics")}
+              onPress={() => router.push("/profile/genetics" as any)}
               style={[
                 styles.providerCard,
                 {

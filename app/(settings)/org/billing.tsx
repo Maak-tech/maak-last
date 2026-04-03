@@ -287,7 +287,7 @@ export default function BillingScreen() {
         if (statusResult.status === "fulfilled")
           setSubscriptionStatus(statusResult.value);
         if (offeringsResult.status === "fulfilled" && offeringsResult.value) {
-          setPackages(offeringsResult.value.availablePackages);
+          setPackages(offeringsResult.value.current?.availablePackages ?? []);
         }
       } catch (err) {
         Alert.alert(

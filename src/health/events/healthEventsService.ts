@@ -45,32 +45,38 @@ export async function getUserHealthEvents(
       `/api/health/timeline?limit=${limitCount}`
     );
 
-    const events: HealthEvent[] = rawEvents.map((data) => ({
-      id: data.id as string,
-      userId: data.userId as string,
-      type: (data.eventType ?? data.type) as HealthEvent["type"],
-      severity: data.severity as HealthEvent["severity"],
-      reasons: (data.reasons as string[]) ?? [],
-      status: (data.status as HealthEvent["status"]) ?? "OPEN",
-      source: data.source as HealthEvent["source"],
-      vitalValues: data.vitalValues as HealthEvent["vitalValues"],
-      metadata: data.metadata as HealthEvent["metadata"],
-      createdAt: data.recordedAt
+    const events: HealthEvent[] = rawEvents.map((data) => {
+      const occurred = data.recordedAt
         ? new Date(data.recordedAt as string)
-        : new Date(),
-      acknowledgedAt: data.acknowledgedAt
-        ? new Date(data.acknowledgedAt as string)
-        : undefined,
-      resolvedAt: data.resolvedAt
-        ? new Date(data.resolvedAt as string)
-        : undefined,
-      escalatedAt: data.escalatedAt
-        ? new Date(data.escalatedAt as string)
-        : undefined,
-      acknowledgedBy: data.acknowledgedBy as string | undefined,
-      resolvedBy: data.resolvedBy as string | undefined,
-      escalatedBy: data.escalatedBy as string | undefined,
-    }));
+        : new Date();
+      return {
+        id: data.id as string,
+        userId: data.userId as string,
+        type: (data.eventType ?? data.type) as HealthEvent["type"],
+        severity: data.severity as HealthEvent["severity"],
+        title: (data.title as string) ?? "",
+        occurredAt: occurred,
+        isProcessed: (data.isProcessed as boolean) ?? false,
+        reasons: (data.reasons as string[]) ?? [],
+        status: (data.status as HealthEvent["status"]) ?? "OPEN",
+        source: data.source as HealthEvent["source"],
+        vitalValues: data.vitalValues as HealthEvent["vitalValues"],
+        metadata: data.metadata as HealthEvent["metadata"],
+        createdAt: occurred,
+        acknowledgedAt: data.acknowledgedAt
+          ? new Date(data.acknowledgedAt as string)
+          : undefined,
+        resolvedAt: data.resolvedAt
+          ? new Date(data.resolvedAt as string)
+          : undefined,
+        escalatedAt: data.escalatedAt
+          ? new Date(data.escalatedAt as string)
+          : undefined,
+        acknowledgedBy: data.acknowledgedBy as string | undefined,
+        resolvedBy: data.resolvedBy as string | undefined,
+        escalatedBy: data.escalatedBy as string | undefined,
+      };
+    });
 
     const durationMs = Date.now() - startTime;
     logger.info(
@@ -214,36 +220,42 @@ export async function getFamilyHealthEvents(
       `/api/health/timeline/family?userIds=${userIds.map(encodeURIComponent).join(",")}&limit=${limitCount}`
     );
 
-    const allEvents: HealthEvent[] = rawEvents.map((data) => ({
-      id: data.id as string,
-      userId: data.userId as string,
-      type: (data.eventType ?? data.type) as HealthEvent["type"],
-      severity: data.severity as HealthEvent["severity"],
-      reasons: (data.reasons as string[]) ?? [],
-      status: (data.status as HealthEvent["status"]) ?? "OPEN",
-      source: data.source as HealthEvent["source"],
-      vitalValues: data.vitalValues as HealthEvent["vitalValues"],
-      metadata: data.metadata as HealthEvent["metadata"],
-      createdAt: data.recordedAt
+    const allEvents: HealthEvent[] = rawEvents.map((data) => {
+      const occurred = data.recordedAt
         ? new Date(data.recordedAt as string)
-        : new Date(),
-      acknowledgedAt: data.acknowledgedAt
-        ? new Date(data.acknowledgedAt as string)
-        : undefined,
-      resolvedAt: data.resolvedAt
-        ? new Date(data.resolvedAt as string)
-        : undefined,
-      escalatedAt: data.escalatedAt
-        ? new Date(data.escalatedAt as string)
-        : undefined,
-      acknowledgedBy: data.acknowledgedBy as string | undefined,
-      resolvedBy: data.resolvedBy as string | undefined,
-      escalatedBy: data.escalatedBy as string | undefined,
-    }));
+        : new Date();
+      return {
+        id: data.id as string,
+        userId: data.userId as string,
+        type: (data.eventType ?? data.type) as HealthEvent["type"],
+        severity: data.severity as HealthEvent["severity"],
+        title: (data.title as string) ?? "",
+        occurredAt: occurred,
+        isProcessed: (data.isProcessed as boolean) ?? false,
+        reasons: (data.reasons as string[]) ?? [],
+        status: (data.status as HealthEvent["status"]) ?? "OPEN",
+        source: data.source as HealthEvent["source"],
+        vitalValues: data.vitalValues as HealthEvent["vitalValues"],
+        metadata: data.metadata as HealthEvent["metadata"],
+        createdAt: occurred,
+        acknowledgedAt: data.acknowledgedAt
+          ? new Date(data.acknowledgedAt as string)
+          : undefined,
+        resolvedAt: data.resolvedAt
+          ? new Date(data.resolvedAt as string)
+          : undefined,
+        escalatedAt: data.escalatedAt
+          ? new Date(data.escalatedAt as string)
+          : undefined,
+        acknowledgedBy: data.acknowledgedBy as string | undefined,
+        resolvedBy: data.resolvedBy as string | undefined,
+        escalatedBy: data.escalatedBy as string | undefined,
+      };
+    });
 
     // Server already sorts by occurredAt DESC and honours the limit,
     // but re-sort here to guarantee ordering after the response mapping.
-    allEvents.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    allEvents.sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime());
 
     const durationMs = Date.now() - startTime;
     logger.info(

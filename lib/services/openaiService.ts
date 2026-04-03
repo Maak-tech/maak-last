@@ -9,6 +9,7 @@
  * model selection, error classification) is preserved exactly.
  */
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "@/lib/apiClient";
 import { aiInstrumenter } from "@/lib/observability";
 import aiConsentService from "@/lib/services/aiConsentService";
@@ -62,6 +63,7 @@ const redactOutboundText = (value: string): string => {
 
 class OpenAIService {
   private model = "gpt-3.5-turbo";
+  private apiKey: string | null = null;
   private cachedHealth: {
     configured: boolean;
     hasAccess: boolean;

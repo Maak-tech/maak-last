@@ -29,6 +29,13 @@ type PPGAnalysisResponse = {
   error?: string;
 };
 
+function mapSignalQuality(q: number): "poor" | "fair" | "good" | "excellent" {
+  if (q >= 0.8) return "excellent";
+  if (q >= 0.6) return "good";
+  if (q >= 0.4) return "fair";
+  return "poor";
+}
+
 let hasLoggedMlUnavailable = false;
 const IS_DEV = process.env.NODE_ENV !== "production";
 
@@ -88,41 +95,25 @@ export const ppgMLService = {
           });
         }
         return {
-          success: true,
-          heartRate: data.heartRate,
-          heartRateVariability: data.heartRateVariability,
-          respiratoryRate: data.respiratoryRate,
-          signalQuality: data.signalQuality,
-          confidence: data.confidence,
-          isEstimate: (data.confidence || 0) < 0.7,
-          error:
-            data.warnings.length > 0 ? data.warnings.join(", ") : undefined,
+          heartRate: data.heartRate ?? null,
+          spo2: null,
+          hrv: data.heartRateVariability ?? null,
+          confidence: (data.confidence ?? 0) * 100,
+          signalQuality: mapSignalQuality(data.signalQuality),
+          processingTimeMs: 0,
+          rawPeakIntervals: [],
         };
       }
 
-      // ML service failed, but if it still produced a heart rate,
-      // return it as a low-confidence estimate to prefer ML outputs.
-      if (Number.isFinite(data.heartRate)) {
-        return {
-          success: false,
-          heartRate: data.heartRate,
-          heartRateVariability: data.heartRateVariability,
-          respiratoryRate: data.respiratoryRate,
-          signalQuality: data.signalQuality || 0,
-          confidence: data.confidence,
-          isEstimate: true,
-          error:
-            data.warnings.length > 0
-              ? data.warnings.join(", ")
-              : data.error || "ML analysis low confidence",
-        };
-      }
-
-      // ML service failed without usable output
+      // ML service failed — return a minimal valid PPGResult
       return {
-        success: false,
-        signalQuality: data.signalQuality || 0,
-        error: data.error || "ML analysis failed",
+        heartRate: data.heartRate ?? null,
+        spo2: null,
+        hrv: data.heartRateVariability ?? null,
+        confidence: (data.confidence ?? 0) * 100,
+        signalQuality: mapSignalQuality(data.signalQuality || 0),
+        processingTimeMs: 0,
+        rawPeakIntervals: [],
       };
     } catch (error: unknown) {
       const errorMessage = getMessageFromUnknownError(error);
@@ -136,9 +127,13 @@ export const ppgMLService = {
 
       // Return error result - caller should fallback to traditional processing
       return {
-        success: false,
-        signalQuality: 0,
-        error: errorMessage,
+        heartRate: null,
+        spo2: null,
+        hrv: null,
+        confidence: 0,
+        signalQuality: "poor",
+        processingTimeMs: 0,
+        rawPeakIntervals: [],
       };
     }
   },

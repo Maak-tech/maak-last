@@ -1,13 +1,147 @@
 import { api } from "@/lib/apiClient";
 import { logger } from "@/lib/utils/logger";
 
-type VitalReading = {
+export type VitalReading = {
   type: string;
   value: number;
   unit: string;
   timestamp: Date;
   userId: string;
 };
+
+export type VitalEvaluation = {
+  triggered: boolean;
+  severity: "info" | "warn" | "error" | "critical";
+  message?: string;
+  recommendedAction?: string;
+  thresholdBreached?: string;
+};
+
+type VitalThreshold = {
+  min?: { warn: number; error: number; critical?: number };
+  max?: { warn: number; error: number; critical?: number };
+  unit: string;
+  label: string;
+};
+
+const VITAL_THRESHOLDS: Record<string, VitalThreshold> = {
+  heart_rate: {
+    min: { warn: 55, error: 45, critical: 35 },
+    max: { warn: 100, error: 120, critical: 150 },
+    unit: "bpm",
+    label: "Heart Rate",
+  },
+  systolic_bp: {
+    min: { warn: 95, error: 85, critical: 70 },
+    max: { warn: 140, error: 160, critical: 180 },
+    unit: "mmHg",
+    label: "Systolic Blood Pressure",
+  },
+  diastolic_bp: {
+    min: { warn: 60, error: 50, critical: 40 },
+    max: { warn: 90, error: 100, critical: 120 },
+    unit: "mmHg",
+    label: "Diastolic Blood Pressure",
+  },
+  blood_oxygen: {
+    min: { warn: 95, error: 92, critical: 88 },
+    unit: "%",
+    label: "Blood Oxygen",
+  },
+  blood_glucose: {
+    min: { warn: 70, error: 60, critical: 50 },
+    max: { warn: 180, error: 250, critical: 350 },
+    unit: "mg/dL",
+    label: "Blood Glucose",
+  },
+  respiratory_rate: {
+    min: { warn: 12, error: 10, critical: 8 },
+    max: { warn: 20, error: 25, critical: 30 },
+    unit: "br/min",
+    label: "Respiratory Rate",
+  },
+  temperature: {
+    min: { warn: 36.0, error: 35.5, critical: 35.0 },
+    max: { warn: 37.5, error: 38.5, critical: 40.0 },
+    unit: "°C",
+    label: "Body Temperature",
+  },
+};
+
+class HealthRulesEngine {
+  evaluateVital(reading: VitalReading): VitalEvaluation {
+    const thresholds = VITAL_THRESHOLDS[reading.type];
+    if (!thresholds) {
+      return { triggered: false, severity: "info" };
+    }
+
+    if (thresholds.min) {
+      const { warn, error, critical } = thresholds.min;
+      if (critical !== undefined && reading.value <= critical) {
+        return {
+          triggered: true,
+          severity: "critical",
+          message: `Critically low ${thresholds.label}: ${reading.value} ${thresholds.unit}`,
+          recommendedAction: "Seek immediate medical attention",
+          thresholdBreached: `min_critical_${critical}`,
+        };
+      }
+      if (reading.value <= error) {
+        return {
+          triggered: true,
+          severity: "error",
+          message: `Low ${thresholds.label}: ${reading.value} ${thresholds.unit}`,
+          recommendedAction: "Contact your healthcare provider urgently",
+          thresholdBreached: `min_error_${error}`,
+        };
+      }
+      if (reading.value <= warn) {
+        return {
+          triggered: true,
+          severity: "warn",
+          message: `Below-normal ${thresholds.label}: ${reading.value} ${thresholds.unit}`,
+          recommendedAction: "Monitor closely and consult your provider if it worsens",
+          thresholdBreached: `min_warn_${warn}`,
+        };
+      }
+    }
+
+    if (thresholds.max) {
+      const { warn, error, critical } = thresholds.max;
+      if (critical !== undefined && reading.value >= critical) {
+        return {
+          triggered: true,
+          severity: "critical",
+          message: `Critically high ${thresholds.label}: ${reading.value} ${thresholds.unit}`,
+          recommendedAction: "Seek immediate medical attention",
+          thresholdBreached: `max_critical_${critical}`,
+        };
+      }
+      if (reading.value >= error) {
+        return {
+          triggered: true,
+          severity: "error",
+          message: `High ${thresholds.label}: ${reading.value} ${thresholds.unit}`,
+          recommendedAction: "Contact your healthcare provider urgently",
+          thresholdBreached: `max_error_${error}`,
+        };
+      }
+      if (reading.value >= warn) {
+        return {
+          triggered: true,
+          severity: "warn",
+          message: `Above-normal ${thresholds.label}: ${reading.value} ${thresholds.unit}`,
+          recommendedAction: "Monitor closely and consult your provider if it worsens",
+          thresholdBreached: `max_warn_${warn}`,
+        };
+      }
+    }
+
+    return { triggered: false, severity: "info" };
+  }
+}
+
+export const healthRulesEngine = new HealthRulesEngine();
 
 const getLocalizedText = (key: string, isArabic: boolean): string => {
   const texts: Record<string, { en: string; ar: string }> = {

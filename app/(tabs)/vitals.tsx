@@ -9,6 +9,9 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  type ViewStyle,
+  type TextStyle,
+  type StyleProp,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';

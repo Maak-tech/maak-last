@@ -13,7 +13,7 @@
 export { healthTimelineService } from "./healthTimeline";
 export { observabilityEmitter } from "./eventEmitter";
 export { familyDashboard } from "./familyDashboard";
-export { healthAnalytics } from "./healthAnalytics";
+export { healthAnalytics, healthRulesEngine } from "./healthAnalytics";
 export { escalationService } from "./escalationService";
 
 // AI instrumentation shim — wraps openai call telemetry
@@ -54,4 +54,6 @@ export type {
   AnomalyDetection,
   VitalCorrelation,
   RiskFactor,
+  VitalReading,
+  VitalEvaluation,
 } from "./healthAnalytics";

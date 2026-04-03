@@ -489,7 +489,7 @@ class AnomalyDetectionService {
     userId: string,
     anomaly: Omit<VitalAnomaly, "context">
   ): Promise<AnomalyContext> {
-    const timeOfDay = this.getTimeOfDay(anomaly.timestamp);
+    const timeOfDay = this.getTimeOfDay(anomaly.timestamp as Date);
 
     // Historical frequency: not available without a dedicated endpoint — default to 0
     const historicalFrequency = 0;
@@ -513,11 +513,11 @@ class AnomalyDetectionService {
     try {
       const todBaseline = await this.computeTimeOfDayBaseline(
         userId,
-        anomaly.vitalType,
+        anomaly.vitalType as string,
         timeOfDay
       );
       if (todBaseline) {
-        const deviation = Math.abs(anomaly.value - todBaseline.mean);
+        const deviation = Math.abs((anomaly.value as number) - todBaseline.mean);
         isTypicalForTime = deviation <= 1.5 * todBaseline.stddev;
       }
     } catch {
@@ -617,8 +617,8 @@ class AnomalyDetectionService {
         isMultivariate,
         contributingFactors: isMultivariate
           ? multivariateResult?.anomalousVitals
-              .filter((v) => v.type !== newReading.type)
-              .map((v) => v.type)
+              .filter((v: AnomalousVital) => v.type !== newReading.type)
+              .map((v: AnomalousVital) => v.type)
           : undefined,
         context,
         recommendation: multivariateResult?.dangerousCombination

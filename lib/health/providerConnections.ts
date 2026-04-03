@@ -72,6 +72,14 @@ export async function getProviderConnection(
 }
 
 /**
+ * Derive the AsyncStorage key used by legacy local-storage code for a given provider.
+ * Kept for backward compatibility with code that caches connection state locally.
+ */
+export function getProviderStorageKey(provider: ProviderType): string {
+  return `provider_connection_${provider}`;
+}
+
+/**
  * Disconnect a provider (revoke tokens, remove connection record).
  */
 export async function disconnectProvider(

@@ -20,6 +20,9 @@ interface UseRealtimeHealthOptions {
   onTrendAlert?: (alert: TrendAlert) => void;
   onFamilyMemberUpdate?: (update: FamilyMemberUpdate) => void;
   onAlertCreated?: (alert: EmergencyAlert) => void;
+  onAlertResolved?: (alertId: string, resolverId: string) => void;
+  onError?: (error: Error) => void;
+  enabled?: boolean;
 }
 
 export function useRealtimeHealth({
@@ -29,6 +32,9 @@ export function useRealtimeHealth({
   onTrendAlert,
   onFamilyMemberUpdate,
   onAlertCreated,
+  onAlertResolved: _onAlertResolved,
+  onError: _onError,
+  enabled: _enabled,
 }: UseRealtimeHealthOptions): void {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);

@@ -1,15 +1,15 @@
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, ViewProps } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
 
-interface Props {
+interface Props extends ViewProps {
   children?: React.ReactNode;
-  style?: object;
+  edges?: string[];
 }
 
-export default function GradientScreen({ children, style }: Props) {
+export default function GradientScreen({ children, style, edges: _edges, ...rest }: Props) {
   const { theme } = useTheme();
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background.primary }, style]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background.primary }, style]} {...rest}>
       {children}
     </View>
   );

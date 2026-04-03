@@ -43,25 +43,23 @@ const normalizeReminder = (
   const id = reminder.id || `${baseId}_reminder_${index}_${Date.now()}`;
   const time = typeof reminder.time === "string" ? reminder.time : "";
   const taken = typeof reminder.taken === "boolean" ? reminder.taken : false;
-  const takenBy = typeof reminder.takenBy === "string" ? reminder.takenBy : undefined;
 
   return {
     id,
     time,
     taken,
-    takenAt: coerceToDate(reminder.takenAt) || undefined,
-    takenBy,
+    takenAt: coerceToDate(reminder.takenAt as Parameters<typeof coerceToDate>[0]) || undefined,
   };
 };
 
 const coerceMedicationStartDate = (value: unknown): Date => {
-  const parsed = coerceToDate(value);
+  const parsed = coerceToDate(value as Parameters<typeof coerceToDate>[0]);
   if (parsed) return parsed;
   return new Date(0);
 };
 
 const coerceMedicationEndDate = (value: unknown): Date | undefined => {
-  const parsed = coerceToDate(value);
+  const parsed = coerceToDate(value as Parameters<typeof coerceToDate>[0]);
   return parsed || undefined;
 };
 
@@ -73,7 +71,7 @@ const normalizeMedicationForClient = (
   startDate: coerceMedicationStartDate(medication.startDate),
   endDate: coerceMedicationEndDate(medication.endDate),
   reminders: Array.isArray(medication.reminders)
-    ? medication.reminders.map((reminder: ReminderRecord, index: number) =>
+    ? (medication.reminders as unknown as ReminderRecord[]).map((reminder, index) =>
         normalizeReminder(reminder, baseId, index)
       )
     : [],
@@ -158,6 +156,7 @@ export const medicationService = {
   // Add new medication
   async addMedication(medicationData: Omit<Medication, 'id'>): Promise<string> {
     try {
+      const isOnline = offlineService.isDeviceOnline();
       if (isOnline) {
         const created = await api.post<Record<string, unknown>>("/api/health/medications", {
           name: medicationData.name,
@@ -535,6 +534,11 @@ export const medicationService = {
         upcomingReminders: 0,
       };
     }
+  },
+
+  // Cache invalidation stub (no-op — cache is managed per-request by the API layer)
+  invalidateCache(_userId?: string): void {
+    // no-op stub: cache invalidation is handled server-side
   },
 
   // Bulk add medications

@@ -3,6 +3,7 @@
 import { safeFormatDate } from "@/utils/dateFormat";
 import { api } from "../apiClient";
 import type { VirtualHealthIdentity } from "../../types/vhi";
+import type { MedicationReminder } from "../../types";
 import { correlationDiscoveryService } from "./correlationDiscoveryService";
 import {
   healthInsightsService,
@@ -45,7 +46,7 @@ export interface HealthContext {
     endDate?: string;
     notes?: string;
     isActive: boolean;
-    reminders?: string[];
+    reminders?: MedicationReminder[] | string[];
   }>;
   symptoms: Array<{
     name: string;
@@ -73,12 +74,119 @@ export interface HealthContext {
   }>;
   vitalSigns: {
     heartRate?: number;
+    restingHeartRate?: number;
+    walkingHeartRateAverage?: number;
+    heartRateVariability?: number;
     bloodPressure?: string;
+    respiratoryRate?: number;
     temperature?: number;
     oxygenLevel?: number;
     glucoseLevel?: number;
     weight?: number;
+    height?: number;
+    bodyFatPercentage?: number;
+    steps?: number;
+    sleepHours?: number;
+    activeEnergy?: number;
+    distanceWalkingRunning?: number;
+    waterIntake?: number;
     lastUpdated?: Date;
+  };
+  topDiscoveries?: Array<{
+    title: string;
+    description: string;
+    recommendation?: string;
+    category?: string | unknown;
+    confidence?: number;
+    strength?: string | number;
+  }>;
+  baselineDeviations?: Array<{
+    dimension: string;
+    metric: string;
+    insight: string;
+    insightAr?: string;
+    severity: string;
+    direction: string;
+    recommendation?: string;
+    recommendationAr?: string;
+  }>;
+  labResults?: Array<{
+    testName: string;
+    testDate: string;
+    flaggedValues: Array<{
+      name: string;
+      value: string;
+      unit?: string;
+      referenceRange?: string;
+      status?: string;
+    }>;
+    normalCount: number;
+  }>;
+  symptomPatterns?: Array<{
+    name: string;
+    confidence: number;
+    severity?: string;
+    duration?: string;
+    matchedSymptoms?: string[];
+    triggers?: string[];
+    description?: string;
+  }>;
+  riskAssessment?: {
+    riskLevel: string;
+    overallRiskScore: number;
+    topRiskFactors: Array<{
+      name: string;
+      category?: string;
+      riskLevel?: string;
+      modifiable?: boolean;
+    }>;
+    topConditionRisks: Array<{
+      condition: string;
+      riskLevel?: string;
+    }>;
+  };
+  insightsMetrics?: {
+    weekStart: Date;
+    weekEnd: Date;
+    symptomCount: number;
+    symptomAverageSeverity?: number;
+    symptomTrend?: string;
+    medicationCompliance?: number;
+    missedDoses?: number;
+    moodAverageIntensity?: number;
+    moodTrend?: string;
+    topInsights?: Array<{
+      type: string;
+      title: string;
+      description?: string;
+      confidence?: number;
+      recommendation?: string;
+    }>;
+  } | null;
+  familyInsights?: Array<{
+    memberId: string;
+    name: string;
+    relationship: string;
+    summary?: WeeklySummary;
+    insights?: PatternInsight[];
+  }>;
+  userDetailedInsights?: PatternInsight[];
+  vhiSummary?: string | null;
+  periodTracking?: {
+    cycleInfo?: {
+      averageCycleLength?: number;
+      averagePeriodLength?: number;
+      lastPeriodStart?: Date;
+      nextPeriodPredicted?: Date;
+      ovulationPredicted?: Date;
+    };
+    recentEntries: Array<{
+      startDate: Date;
+      endDate?: Date;
+      flowIntensity?: "light" | "medium" | "heavy";
+      symptoms: string[];
+      notes?: string;
+    }>;
   };
 }
 
@@ -181,16 +289,7 @@ class HealthContextService {
           const { symptomPatternRecognitionService } = await import(
             "./symptomPatternRecognitionService"
           );
-          const { symptomService } = await import("./symptomService");
-          const recentSymptoms = await symptomService.getUserSymptoms(uid, 100);
-          if (recentSymptoms.length < 3) return null;
-          return await symptomPatternRecognitionService.analyzeSymptomPatterns(
-            uid,
-            recentSymptoms,
-            undefined,
-            undefined,
-            options?.language?.startsWith("ar") ?? false
-          );
+          return await symptomPatternRecognitionService.detectPatterns(uid);
         } catch {
           return null;
         }
@@ -366,11 +465,8 @@ class HealthContextService {
       Array.isArray(topDiscoveriesResult.value)
         ? topDiscoveriesResult.value.map((d) => ({
             title: d.title,
-            titleAr: d.titleAr,
             description: d.description,
-            descriptionAr: d.descriptionAr,
             recommendation: d.recommendation,
-            recommendationAr: d.recommendationAr,
             category: d.category,
             confidence: d.confidence,
             strength: d.strength,
@@ -400,7 +496,11 @@ class HealthContextService {
     const labResults: HealthContext["labResults"] =
       labResultsResult?.status === "fulfilled" &&
       Array.isArray(labResultsResult.value)
-        ? labResultsResult.value
+        ? (labResultsResult.value as Array<{
+              testName: string;
+              testDate: Date;
+              results: Array<{ name: string; value: unknown; unit?: string; referenceRange?: string; status?: string }>;
+            }>)
             .slice(0, 10) // Cap to last 10 tests
             .map((r) => {
               const flagged = r.results.filter(
@@ -424,22 +524,23 @@ class HealthContextService {
         : [];
 
     // Process symptom pattern recognition results
-    const symptomPatterns: HealthContext["symptomPatterns"] =
-      symptomPatternsResult?.status === "fulfilled" &&
-      symptomPatternsResult.value !== null
-        ? symptomPatternsResult.value.patterns
-            .filter((p) => p.confidence >= 40)
-            .slice(0, 5)
-            .map((p) => ({
-              name: p.name,
-              confidence: p.confidence,
-              severity: p.severity,
-              duration: p.duration,
-              matchedSymptoms: p.symptoms,
-              triggers: p.triggers,
-              description: p.description,
-            }))
-        : [];
+    const symptomPatternsArray = (
+      symptomPatternsResult?.status === "fulfilled" && Array.isArray(symptomPatternsResult.value)
+        ? symptomPatternsResult.value
+        : []
+    ) as unknown as Array<{ name: string; confidence: number; severity?: string; duration?: string; symptoms?: string[]; triggers?: string[]; description?: string }>;
+    const symptomPatterns: HealthContext["symptomPatterns"] = symptomPatternsArray
+      .filter((p) => p.confidence >= 40)
+      .slice(0, 5)
+      .map((p) => ({
+        name: p.name,
+        confidence: p.confidence,
+        severity: p.severity,
+        duration: p.duration,
+        matchedSymptoms: p.symptoms,
+        triggers: p.triggers,
+        description: p.description,
+      }));
 
     // Process risk assessment results
     const riskAssessment: HealthContext["riskAssessment"] =
@@ -824,230 +925,6 @@ class HealthContextService {
 
     // Fetch VHI from new API (best-effort — does not block context assembly)
     let vhiSummary: string | null = null;
-    try {
-      // Fetch user profile
-      const userDoc = await getDoc(doc(db, 'users', uid));
-      const userData = userDoc.data() || {};
-      console.log('User data found:', {
-        hasName: !!userData.name,
-        hasFamilyId: !!userData.familyId,
-        familyId: userData.familyId
-      });
-
-      // Fetch ALL medications (both active and inactive for context)
-      let medications = [];
-      try {
-        const medicationsQuery = query(
-          collection(db, 'medications'),
-          where('userId', '==', uid),
-          orderBy('startDate', 'desc')
-        );
-        const medicationsSnapshot = await getDocs(medicationsQuery);
-        medications = medicationsSnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            name: data.name || 'Unknown medication',
-            dosage: data.dosage || '',
-            frequency: data.frequency || '',
-            startDate: data.startDate?.toDate?.()?.toLocaleDateString() || '',
-            endDate: data.endDate?.toDate?.()?.toLocaleDateString() || '',
-            notes: data.notes || '',
-            isActive: data.isActive !== false, // Default to true if not specified
-            reminders: data.reminders || [],
-          };
-        });
-        console.log(`Found ${medications.length} medications`);
-      } catch (error) {
-        console.log('Error fetching medications:', error);
-      }
-
-      // Fetch ALL symptoms (extended time range)
-      let symptoms = [];
-      try {
-        const ninetyDaysAgo = new Date();
-        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-        
-        const symptomsQuery = query(
-          collection(db, 'symptoms'),
-          where('userId', '==', uid),
-          where('timestamp', '>=', ninetyDaysAgo),
-          orderBy('timestamp', 'desc'),
-          limit(50)
-        );
-        const symptomsSnapshot = await getDocs(symptomsQuery);
-        symptoms = symptomsSnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            name: data.name || data.symptom || 'Unknown symptom',
-            severity: data.severity || 'moderate',
-            date: data.timestamp?.toDate?.()?.toLocaleDateString() || data.date || '',
-            bodyPart: data.bodyPart || data.location || '',
-            duration: data.duration || '',
-            notes: data.notes || data.description || '',
-          };
-        });
-        console.log(`Found ${symptoms.length} symptoms`);
-      } catch (error) {
-        console.log('Error fetching symptoms:', error);
-      }
-
-      // Fetch medical history
-      let medicalHistoryData = [];
-      let familyMedicalHistory = [];
-      try {
-        const historyQuery = query(
-          collection(db, 'medicalHistory'),
-          where('userId', '==', uid),
-          orderBy('diagnosedDate', 'desc')
-        );
-        const historySnapshot = await getDocs(historyQuery);
-        
-        historySnapshot.docs.forEach(doc => {
-          const data = doc.data();
-          const entry = {
-            condition: data.condition || data.name || '',
-            diagnosedDate: data.diagnosedDate?.toDate?.()?.toLocaleDateString() || '',
-            status: data.status || 'ongoing',
-            notes: data.notes || '',
-            relationship: data.relationship || '',
-          };
-          
-          if (data.isFamily) {
-            familyMedicalHistory.push(entry);
-          } else {
-            medicalHistoryData.push(entry);
-          }
-        });
-        console.log(`Found ${medicalHistoryData.length} medical history entries and ${familyMedicalHistory.length} family history entries`);
-      } catch (error) {
-        console.log('Error fetching medical history:', error);
-      }
-
-      // Fetch family members
-      let familyMembers = [];
-      try {
-        if (userData.familyId) {
-          const familyQuery = query(
-            collection(db, 'users'),
-            where('familyId', '==', userData.familyId)
-          );
-          const familySnapshot = await getDocs(familyQuery);
-          
-          for (const familyDoc of familySnapshot.docs) {
-            if (familyDoc.id !== uid) {
-              const memberData = familyDoc.data();
-              
-              // Fetch recent symptoms for family member
-              let memberSymptoms = [];
-              try {
-                const memberSymptomsQuery = query(
-                  collection(db, 'symptoms'),
-                  where('userId', '==', familyDoc.id),
-                  orderBy('timestamp', 'desc'),
-                  limit(5)
-                );
-                const memberSymptomsSnapshot = await getDocs(memberSymptomsQuery);
-                memberSymptoms = memberSymptomsSnapshot.docs.map(doc => doc.data().name || doc.data().symptom);
-              } catch (e) {
-                // Silently fail for family member symptoms
-              }
-              
-              familyMembers.push({
-                id: familyDoc.id,
-                name: memberData.name || memberData.displayName || 'Family Member',
-                relationship: memberData.relationship || memberData.relation || memberData.role || 'Family Member',
-                age: memberData.age,
-                conditions: memberData.conditions || [],
-                email: memberData.email,
-                phone: memberData.phone || memberData.emergencyPhone,
-                healthStatus: memberSymptoms.length > 0 ? 'Has recent symptoms' : 'Good',
-                recentSymptoms: memberSymptoms,
-              });
-            }
-          }
-        }
-        console.log(`Found ${familyMembers.length} family members`);
-      } catch (error) {
-        console.log('Error fetching family members:', error);
-      }
-
-      // Fetch recent alerts
-      let recentAlerts = [];
-      try {
-        const alertsQuery = query(
-          collection(db, 'alerts'),
-          where('userId', '==', uid),
-          orderBy('timestamp', 'desc'),
-          limit(20)
-        );
-        const alertsSnapshot = await getDocs(alertsQuery);
-        recentAlerts = alertsSnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            type: data.type || 'general',
-            timestamp: data.timestamp?.toDate() || new Date(),
-            details: data.message || data.details || '',
-            severity: data.severity || 'info',
-          };
-        });
-        console.log(`Found ${recentAlerts.length} alerts`);
-      } catch (error) {
-        console.log('Error fetching alerts:', error);
-      }
-
-      // Construct comprehensive health context
-      const healthContext: HealthContext = {
-        profile: {
-          name: userData.displayName || userData.name || 'User',
-          age: userData.age || 0,
-          gender: userData.gender || 'Not specified',
-          bloodType: userData.bloodType || 'Unknown',
-          height: userData.height || 'Not specified',
-          weight: userData.weight || 'Not specified',
-          emergencyContact: userData.emergencyContact || userData.emergencyPhone || 'Not set',
-          phone: userData.phone,
-          email: userData.email || auth.currentUser?.email || '',
-        },
-        medicalHistory: {
-          conditions: medicalHistoryData,
-          allergies: userData.allergies || [],
-          surgeries: userData.surgeries || [],
-          familyHistory: familyMedicalHistory,
-        },
-        medications: medications,
-        symptoms: symptoms,
-        familyMembers: familyMembers,
-        recentAlerts: recentAlerts,
-        vitalSigns: {
-          heartRate: userData.lastHeartRate,
-          bloodPressure: userData.lastBloodPressure,
-          temperature: userData.lastTemperature,
-          oxygenLevel: userData.lastOxygenLevel,
-          glucoseLevel: userData.lastGlucoseLevel,
-          weight: userData.lastWeight,
-          lastUpdated: userData.vitalsLastUpdated?.toDate(),
-        },
-      };
-
-      console.log('Health context built successfully:', {
-        profileComplete: !!healthContext.profile.name,
-        medicationsCount: medications.length,
-        activeMedications: medications.filter(m => m.isActive).length,
-        symptomsCount: symptoms.length,
-        conditionsCount: medicalHistoryData.length,
-        familyHistoryCount: familyMedicalHistory.length,
-        familyMembersCount: familyMembers.length,
-        alertsCount: recentAlerts.length,
-      });
-
-      return healthContext;
-    } catch (error) {
-      console.error('Error fetching health context:', error);
-      throw error;
-    }
 
     // Construct comprehensive health context
     const healthContext: HealthContext = {
@@ -1126,7 +1003,7 @@ CURRENT MEDICATIONS:
 ${activeMedications.length > 0 ? activeMedications.map(med => 
   `• ${med.name}: ${med.dosage}, ${med.frequency}
   Started: ${med.startDate}${med.endDate ? `, Ends: ${med.endDate}` : ' (ongoing)'}
-  ${med.reminders.length > 0 ? `Reminders: ${med.reminders.join(', ')}` : ''}
+  ${(med.reminders?.length ?? 0) > 0 ? `Reminders: ${(med.reminders ?? []).join(', ')}` : ''}
   ${med.notes ? `Notes: ${med.notes}` : ''}`
 ).join('\n') : '• No current medications'}
 

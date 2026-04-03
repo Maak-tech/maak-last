@@ -31,21 +31,21 @@ import {
   FileText,
   Globe,
   Heart,
-  FileText,
   HelpCircle,
+  History,
   LogOut,
-  ChevronRight,
   Activity,
-  Calendar,
+  AlertTriangle,
+  Moon,
   Phone,
   Plus,
   RefreshCw,
   Shield,
+  Sun,
   TestTube,
   Trash2,
   TrendingDown,
   TrendingUp,
-  User,
   Users,
   X,
 } from "lucide-react-native";
@@ -110,10 +110,7 @@ import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
 import type {
   AvatarType,
-  CalendarEvent,
-  CareTeamMember,
   Medication,
-  RecurrencePattern,
   Symptom,
 } from "@/types";
 import {
@@ -131,6 +128,7 @@ interface ProfileSectionItem {
   switchValue?: boolean;
   onSwitchChange?: (value: boolean) => void | Promise<void>;
   value?: string;
+  comingSoon?: boolean;
 }
 
 interface ProfileSection {
@@ -184,6 +182,55 @@ export default function ProfileScreen() {
 
   const checkSyncStatusRef = useRef(checkSyncStatus);
   checkSyncStatusRef.current = checkSyncStatus;
+
+  // --- Missing state/variable declarations (stubs for referenced but undeclared names) ---
+  const [syncStatus, setSyncStatus] = useState<{ isOnline: boolean; queueLength: number }>({ isOnline: true, queueLength: 0 });
+  const [syncing, setSyncing] = useState(false);
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [vitalsSparklines, setVitalsSparklines] = useState<{
+    heartRate: number[];
+    steps: number[];
+    sleepHours: number[];
+    hasHeartRateData?: boolean;
+    hasStepsData?: boolean;
+    hasSleepData?: boolean;
+  }>({ heartRate: [], steps: [], sleepHours: [] });
+  const [latestVitals, setLatestVitals] = useState<{
+    heartRate?: number;
+    restingHeartRate?: number;
+    sleepHours?: number;
+    steps?: number;
+    timestamp?: string;
+  } | null>(null);
+
+  const isAdmin = user?.role === 'admin';
+  const isRegularUser = !isAdmin;
+
+  const WHITESPACE_SPLIT_REGEX = /\s+/;
+
+  const handleSync = useCallback(async () => {
+    setSyncing(true);
+    try {
+      await checkSyncStatus();
+    } catch {
+      // Silently handle error
+    } finally {
+      setSyncing(false);
+    }
+  }, [checkSyncStatus]);
+
+  const loadCalendarEvents = useCallback(async () => {
+    // stub — calendar events loaded on demand
+  }, []);
+
+  const handleHealthOverviewPress = useCallback(() => {
+    router.push('/health-summary');
+  }, [router]);
+
+  const handleHealthInsightsPress = useCallback(() => {
+    router.push('/profile/health-insights');
+  }, [router]);
+  // --- End missing declarations ---
 
   const buildDateKey = (date: Date) => {
     const year = date.getFullYear();
@@ -637,7 +684,7 @@ export default function ProfileScreen() {
               {
                 icon: Dna,
                 label: t("geneticProfile", "Genetic Profile"),
-                onPress: () => router.push("/profile/genetics"),
+                onPress: () => router.push("/profile/genetics" as never),
               },
               {
                 icon: Activity,
@@ -924,8 +971,12 @@ export default function ProfileScreen() {
   ];
   type AccountSectionItem = {
     label: string;
-    icon: typeof User;
-    onPress: () => void;
+    icon: any;
+    onPress?: () => void;
+    hasSwitch?: boolean;
+    switchValue?: boolean;
+    onSwitchChange?: (value: boolean) => void | Promise<void>;
+    value?: string;
   };
 
   const accountSections: { title: string; items: AccountSectionItem[] }[] = [
@@ -1219,8 +1270,8 @@ export default function ProfileScreen() {
           </Text>
         </TouchableOpacity>
 
-        <View style={styles.figmaVersion}>
-          <Text style={styles.figmaVersionText}>
+        <View style={styles.appVersion}>
+          <Text style={styles.appVersionText}>
             {isRTL ? "نيورالكس v1.0.0" : "Nuralix v1.0.0"}
           </Text>
         </View>

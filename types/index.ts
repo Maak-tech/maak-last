@@ -1,16 +1,36 @@
+export type AvatarType = 'default' | 'custom' | 'initials';
+
+export interface EmergencyContact {
+  id: string;
+  name: string;
+  phone: string;
+  relation: string;
+  isPrimary?: boolean;
+}
+
 export interface User {
   id: string;
-  email: string;
-  name: string;
+  email?: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
   avatar?: string;
+  avatarType?: AvatarType;
   familyId?: string;
-  role: 'admin' | 'member';
+  role: 'admin' | 'member' | 'caregiver';
+  gender?: string;
+  dateOfBirth?: Date;
+  bloodType?: string;
+  phone?: string;
   createdAt: Date;
   onboardingCompleted: boolean;
+  dashboardTourCompleted?: boolean;
+  isPremium?: boolean;
   preferences: {
     language: 'en' | 'ar';
     notifications: boolean;
-    emergencyContacts: string[];
+    emergencyContacts: EmergencyContact[];
+    careTeam?: Array<{ name: string; role: string; phone?: string }>;
   };
 }
 
@@ -18,11 +38,22 @@ export interface Symptom {
   id: string;
   userId: string;
   type: string;
-  severity: 1 | 2 | 3 | 4 | 5;
+  severity: number;
   description?: string;
   timestamp: Date;
   location?: string;
   triggers?: string[];
+  tags?: string[];
+}
+
+export interface Mood {
+  id: string;
+  userId: string;
+  mood: 'happy' | 'good' | 'neutral' | 'sad' | 'anxious' | 'stressed' | 'energetic' | 'tired' | 'angry' | 'calm' | 'overwhelmed';
+  intensity: 1 | 2 | 3 | 4 | 5;
+  notes?: string;
+  timestamp: Date;
+  activities?: string[];
 }
 
 export interface Medication {
@@ -36,6 +67,12 @@ export interface Medication {
   reminders: MedicationReminder[];
   notes?: string;
   isActive: boolean;
+  tags?: string[];
+  quantity?: number;
+  refillDate?: Date;
+  pharmacy?: string;
+  prescriber?: string;
+  purpose?: string;
 }
 
 export interface MedicationReminder {
@@ -54,6 +91,9 @@ export interface MedicalHistory {
   notes?: string;
   isFamily: boolean;
   relation?: string;
+  familyMemberId?: string;
+  familyMemberName?: string;
+  tags?: string[];
 }
 
 export interface FamilyMember {
@@ -80,12 +120,15 @@ export interface VitalSign {
 export interface EmergencyAlert {
   id: string;
   userId: string;
-  type: 'fall' | 'emergency' | 'medication' | 'vitals';
+  type: 'fall' | 'emergency' | 'medication' | 'vitals' | 'caregiver_alert';
   severity: 'low' | 'medium' | 'high' | 'critical';
   message: string;
   timestamp: Date;
   resolved: boolean;
+  resolvedAt?: Date;
+  acknowledgedAt?: Date;
   responders?: string[];
+  metadata?: Record<string, unknown>;
 }
 
 export interface FamilyInvitationCode {
@@ -109,7 +152,6 @@ export interface Family {
   members: string[]; // array of user IDs
   status: 'active' | 'inactive';
   createdAt: Date;
-  createdBy: string;
   patientCount: number;
 };
 
@@ -432,6 +474,174 @@ export type EmailTemplate = {
   isActive: boolean;
   createdAt: Date;
 };
+
+// ─── Organization ────────────────────────────────────────────────────────────
+
+export type OrgPlan = "starter" | "growth" | "enterprise";
+
+export type OrgRole =
+  | "org_admin"
+  | "provider"
+  | "care_coordinator"
+  | "viewer";
+
+export interface Organization {
+  id: string;
+  name: string;
+  type?: string;
+  plan: OrgPlan;
+  createdAt: Date;
+  createdBy: string;
+  isActive: boolean;
+  billing?: {
+    seatCount: number;
+    patientCount: number;
+  };
+}
+
+export interface OrgMember {
+  id: string;
+  orgId: string;
+  userId: string;
+  displayName: string;
+  email?: string;
+  role: OrgRole;
+  invitedBy: string;
+  isActive: boolean;
+  joinedAt?: Date;
+}
+
+// ─── Allergy ─────────────────────────────────────────────────────────────────
+
+export interface Allergy {
+  id: string;
+  userId?: string;
+  name: string;
+  substance?: string;
+  reaction?: string;
+  severity?:
+    | "mild"
+    | "moderate"
+    | "severe"
+    | "severe-life-threatening"
+    | "life_threatening";
+  diagnosedDate?: string | Date;
+  discoveredDate?: Date;
+  timestamp?: Date;
+  status?: string;
+  notes?: string;
+}
+
+// ─── Clinical Integration ────────────────────────────────────────────────────
+
+export type ClinicalIntegrationType = "clinic" | "lab" | "radiology";
+
+export type ClinicalIntegrationStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "connected";
+
+export interface ClinicalIntegrationRequest {
+  id: string;
+  userId: string;
+  type: ClinicalIntegrationType;
+  status: ClinicalIntegrationStatus;
+  providerName?: string;
+  providerAddress?: string;
+  notes?: string;
+  createdAt: Date;
+  updatedAt?: Date;
+  resolvedAt?: Date;
+}
+
+// ─── Lab Results ─────────────────────────────────────────────────────────────
+
+export interface LabResultValue {
+  name: string;
+  value: number | string;
+  unit?: string;
+  referenceRange?: string;
+  status?: "normal" | "high" | "low" | "abnormal" | "critical";
+}
+
+export interface LabResult {
+  id: string;
+  userId: string;
+  testName: string;
+  testType: "blood" | "urine" | "imaging" | "other";
+  testDate: Date;
+  orderedBy?: string;
+  facility?: string;
+  results: LabResultValue[];
+  notes?: string;
+  attachments?: string[];
+  tags?: string[];
+}
+
+// ─── Cycle Tracking ───────────────────────────────────────────────────────────
+
+export interface CycleDailyEntry {
+  id: string;
+  userId: string;
+  date: Date;
+  flowIntensity?: "none" | "light" | "medium" | "heavy" | "spotting";
+  crampsSeverity?: 0 | 1 | 2 | 3;
+  mood?: 1 | 2 | 3 | 4 | 5;
+  sleepQuality?: 1 | 2 | 3 | 4 | 5;
+  energyLevel?: 1 | 2 | 3 | 4 | 5;
+  dischargeType?: "none" | "clear" | "white" | "yellow" | "brown" | "other";
+  spotting?: boolean;
+  birthControlMethod?:
+    | "none"
+    | "pill"
+    | "condom"
+    | "iud"
+    | "patch"
+    | "ring"
+    | "injection"
+    | "implant"
+    | "other";
+  birthControlTaken?: boolean;
+  birthControlSideEffects?: string[];
+  notes?: string;
+  createdAt: Date;
+  updatedAt?: Date;
+}
+
+// ─── Calendar Events ──────────────────────────────────────────────────────────
+
+export interface CalendarEvent {
+  id: string;
+  userId: string;
+  familyId?: string;
+  title: string;
+  type:
+    | "appointment"
+    | "medication"
+    | "reminder"
+    | "cycle"
+    | "lab"
+    | "vaccination"
+    | "exercise"
+    | "other";
+  description?: string;
+  startDate: Date;
+  endDate?: Date;
+  allDay?: boolean;
+  location?: string;
+  recurrencePattern?: "none" | "daily" | "weekly" | "monthly" | "yearly";
+  recurrenceEndDate?: Date;
+  recurrenceCount?: number;
+  relatedItemId?: string;
+  relatedItemType?: string;
+  color?: string;
+  reminders?: Array<{ minutesBefore: number; sent: boolean }>;
+  tags?: string[];
+  attendees?: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export * from "./clinicalNote";
 export * from "./vhi";

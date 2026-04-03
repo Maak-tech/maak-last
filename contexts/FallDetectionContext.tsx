@@ -1,6 +1,9 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
   createContext,
+  useCallback,
   useContext,
+  useEffect,
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
@@ -151,11 +154,9 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
         return;
       }
 
-      // user.id is already verified above — skip redundant session check
-      const authUserId = user.id;
-
-      // Simulate fall detection
-      await handleFallDetected(alertId);
+      // Simulate fall detection with a test alert ID
+      const testAlertId = `test-${Date.now()}`;
+      await handleFallDetected(testAlertId);
 
       console.log('🧪 Test fall detection completed');
     } catch (error) {

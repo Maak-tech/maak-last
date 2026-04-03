@@ -249,16 +249,17 @@ class ObservabilityEventEmitter {
   }
 
   async emit(
-    event: Omit<ObservabilityEvent, "id" | "timestamp">
+    event: Omit<ObservabilityEvent, "id" | "timestamp"> | Omit<HealthEvent, "id" | "timestamp"> | Omit<AlertEvent, "id" | "timestamp">
   ): Promise<string> {
     if (!this.isEnabled) return "";
 
-    const correlationId = event.correlationId || generateCorrelationId();
-    const fullEvent: ObservabilityEvent = {
+    const e = event as Record<string, unknown>;
+    const correlationId = (e.correlationId as string | undefined) || generateCorrelationId();
+    const fullEvent = {
       ...event,
       timestamp: new Date(),
       correlationId,
-    };
+    } as ObservabilityEvent;
 
     this.buffer.push(fullEvent);
 
@@ -266,23 +267,29 @@ class ObservabilityEventEmitter {
       this.flush();
     }
 
-    if (event.severity === "error" || event.severity === "critical") {
+    const severity = e.severity as string | undefined;
+    const domain = e.domain as string | undefined;
+    const message = e.message as string | undefined;
+    const source = e.source as string | undefined;
+    const metadata = e.metadata as Record<string, unknown> | undefined;
+
+    if (severity === "error" || severity === "critical") {
       logger.error(
-        `[${event.domain}] ${event.message}`,
-        event.metadata,
-        event.source
+        `[${domain}] ${message}`,
+        metadata,
+        source
       );
-    } else if (event.severity === "warn") {
+    } else if (severity === "warn" || severity === "warning") {
       logger.warn(
-        `[${event.domain}] ${event.message}`,
-        event.metadata,
-        event.source
+        `[${domain}] ${message}`,
+        metadata,
+        source
       );
     } else {
       logger.info(
-        `[${event.domain}] ${event.message}`,
-        event.metadata,
-        event.source
+        `[${domain}] ${message}`,
+        metadata,
+        source
       );
     }
 
@@ -290,16 +297,17 @@ class ObservabilityEventEmitter {
   }
 
   async emitImmediate(
-    event: Omit<ObservabilityEvent, "id" | "timestamp">
+    event: Omit<ObservabilityEvent, "id" | "timestamp"> | Omit<HealthEvent, "id" | "timestamp"> | Omit<AlertEvent, "id" | "timestamp">
   ): Promise<string> {
     if (!this.isEnabled) return "";
 
-    const correlationId = event.correlationId || generateCorrelationId();
-    const fullEvent: ObservabilityEvent = {
+    const e = event as Record<string, unknown>;
+    const correlationId = (e.correlationId as string | undefined) || generateCorrelationId();
+    const fullEvent = {
       ...event,
       timestamp: new Date(),
       correlationId,
-    };
+    } as ObservabilityEvent;
 
     try {
       await api.post(
@@ -314,23 +322,29 @@ class ObservabilityEventEmitter {
       );
     }
 
-    if (event.severity === "error" || event.severity === "critical") {
+    const severity = e.severity as string | undefined;
+    const domain = e.domain as string | undefined;
+    const message = e.message as string | undefined;
+    const source = e.source as string | undefined;
+    const metadata = e.metadata as Record<string, unknown> | undefined;
+
+    if (severity === "error" || severity === "critical") {
       logger.error(
-        `[${event.domain}] ${event.message}`,
-        event.metadata,
-        event.source
+        `[${domain}] ${message}`,
+        metadata,
+        source
       );
-    } else if (event.severity === "warn") {
+    } else if (severity === "warn" || severity === "warning") {
       logger.warn(
-        `[${event.domain}] ${event.message}`,
-        event.metadata,
-        event.source
+        `[${domain}] ${message}`,
+        metadata,
+        source
       );
     } else {
       logger.info(
-        `[${event.domain}] ${event.message}`,
-        event.metadata,
-        event.source
+        `[${domain}] ${message}`,
+        metadata,
+        source
       );
     }
 
@@ -353,7 +367,7 @@ class ObservabilityEventEmitter {
       metadata?: Record<string, unknown>;
     } = {}
   ): Promise<string> {
-    const event: Omit<HealthEvent, "id" | "timestamp"> = {
+    const event: Omit<ObservabilityEvent, "id" | "timestamp"> = {
       eventType,
       domain: "health_data",
       severity: options.severity || "info",
@@ -361,13 +375,8 @@ class ObservabilityEventEmitter {
       message,
       source: "health_service",
       userId: options.userId,
-      vitalType: options.vitalType,
-      value: options.value,
-      unit: options.unit,
-      isAbnormal: options.isAbnormal,
-      thresholdBreached: options.thresholdBreached,
       correlationId: options.correlationId,
-      metadata: options.metadata,
+      metadata: options.metadata as Record<string, string | number | boolean | null> | undefined,
     };
 
     return this.emit(event);
@@ -390,22 +399,16 @@ class ObservabilityEventEmitter {
       metadata?: Record<string, unknown>;
     } = {}
   ): Promise<string> {
-    const event: Omit<AlertEvent, "id" | "timestamp"> = {
+    const event: Omit<ObservabilityEvent, "id" | "timestamp"> = {
       eventType,
       domain: "alerts",
       severity: options.severity || "warn",
       status: options.status || "pending",
       message,
       source: "alert_service",
-      alertId,
-      alertType,
-      escalationLevel: options.escalationLevel || 0,
       userId: options.userId,
-      familyId: options.familyId,
-      acknowledgedBy: options.acknowledgedBy,
-      resolvedBy: options.resolvedBy,
       correlationId: options.correlationId,
-      metadata: options.metadata,
+      metadata: options.metadata as Record<string, string | number | boolean | null> | undefined,
     };
 
     return this.emit(event);
@@ -434,7 +437,7 @@ class ObservabilityEventEmitter {
       durationMs: options.durationMs,
       error: options.error,
       correlationId: options.correlationId,
-      metadata: options.metadata,
+      metadata: options.metadata as Record<string, string | number | boolean | null> | undefined,
     };
 
     return this.emit(event);
@@ -463,7 +466,7 @@ class ObservabilityEventEmitter {
       durationMs: options.durationMs,
       error: options.error,
       correlationId: options.correlationId,
-      metadata: options.metadata,
+      metadata: options.metadata as Record<string, string | number | boolean | null> | undefined,
     };
 
     return this.emitImmediate(event);

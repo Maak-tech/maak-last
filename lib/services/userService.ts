@@ -26,7 +26,7 @@ const normalizeEmergencyContacts = (
 
   for (const [index, contact] of rawContacts.entries()) {
     if (typeof contact === "string" && contact.trim()) {
-      contacts.push({ id: `legacy-${index}`, name: "Emergency Contact", phone: contact.trim() });
+      contacts.push({ id: `legacy-${index}`, name: "Emergency Contact", phone: contact.trim(), relation: "" });
       continue;
     }
 
@@ -45,7 +45,7 @@ const normalizeEmergencyContacts = (
           : "";
 
       if (name && phone) {
-        contacts.push({ id: id || `normalized-${index}`, name, phone });
+        contacts.push({ id: id || `normalized-${index}`, name, phone, relation: "" });
       }
     }
   }
@@ -122,6 +122,10 @@ export const userService = {
     email: string,
     name: string
   ): Promise<User> {
+    const nameParts = (name || "").split(" ");
+    const firstName = nameParts[0] || "User";
+    const lastName = nameParts.slice(1).join(" ") || "";
+
     const existingUser = await this.getUser(userId);
 
     if (existingUser) {
@@ -134,9 +138,9 @@ export const userService = {
         !(existingUser.firstName || existingUser.lastName) &&
         typeof legacyName === "string" && legacyName
       ) {
-        const nameParts = legacyName.split(" ");
-        updates.firstName = nameParts[0] || "User";
-        updates.lastName = nameParts.slice(1).join(" ") || "";
+        const legacyParts = legacyName.split(" ");
+        updates.firstName = legacyParts[0] || "User";
+        updates.lastName = legacyParts.slice(1).join(" ") || "";
         needsUpdate = true;
       } else {
         const currentFirstName = existingUser.firstName || "";
@@ -154,16 +158,6 @@ export const userService = {
           updates.lastName = lastName;
           needsUpdate = true;
         }
-      }
-
-      if (avatarType && existingUser.avatarType !== avatarType) {
-        updates.avatarType = avatarType;
-        needsUpdate = true;
-      }
-
-      if (gender && existingUser.gender !== gender) {
-        updates.gender = gender;
-        needsUpdate = true;
       }
 
       if (needsUpdate) {
@@ -186,8 +180,6 @@ export const userService = {
       ...(email && { email }),
       firstName,
       lastName,
-      ...(avatarType && { avatarType }),
-      ...(gender && { gender }),
       role: "admin",
       createdAt: new Date(),
       onboardingCompleted: false,
@@ -262,17 +254,18 @@ export const userService = {
 
   /** Join a family */
   async joinFamily(userId: string, familyId: string): Promise<void> {
+    // Get current user to check existing family
     const currentUser = await this.getUser(userId);
     const oldFamilyId = currentUser?.familyId;
+    console.log('Current user data:', {
+      userId,
+      currentFamilyId: currentUser?.familyId,
+      userName: currentUser?.name,
+    });
 
-      // Get current user to check existing family
-      const currentUser = await this.getUser(userId);
-      console.log('📋 Current user data:', {
-        userId,
-        currentFamilyId: currentUser?.familyId,
-        userName: currentUser?.name,
-      });
-      const oldFamilyId = currentUser?.familyId;
+    if (oldFamilyId && oldFamilyId !== familyId) {
+      await this.leavePreviousFamily(userId, oldFamilyId);
+    }
 
     await api.post(`/api/family/${familyId}/join`, { userId });
     _familyMembersCache.delete(familyId);
@@ -320,7 +313,7 @@ export const userService = {
   /** Update user role (admin only) */
   async updateUserRole(
     userId: string,
-    newRole: 'admin' | 'member',
+    newRole: User['role'],
     requestingUserId: string
   ): Promise<void> {
     const isAdmin = await this.isUserAdmin(requestingUserId);

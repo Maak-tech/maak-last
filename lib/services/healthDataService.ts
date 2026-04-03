@@ -44,14 +44,23 @@ const AndroidHealthPermissions = [
 
 export interface VitalSigns {
   heartRate?: number;
+  restingHeartRate?: number;
+  walkingHeartRateAverage?: number;
+  heartRateVariability?: number;
   bloodPressure?: {
     systolic: number;
     diastolic: number;
   };
+  bloodGlucose?: number;
+  respiratoryRate?: number;
   weight?: number;
   height?: number;
+  bodyFatPercentage?: number;
   steps?: number;
   sleepHours?: number;
+  activeEnergy?: number;
+  distanceWalkingRunning?: number;
+  waterIntake?: number;
   bodyTemperature?: number;
   oxygenSaturation?: number;
   timestamp: Date;

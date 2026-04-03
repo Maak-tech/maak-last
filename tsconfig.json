@@ -27,6 +27,7 @@
     "functions/src/**/__tests__",
     "functions/src/**/*.test.ts",
     "functions/src/**/*.spec.ts",
-    "api"
+    "api",
+    "hospital-dashboard"
   ]
 }

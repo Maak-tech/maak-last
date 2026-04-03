@@ -8,7 +8,7 @@ import { pushNotificationService } from "@/lib/services/pushNotificationService"
 import { userService } from "@/lib/services/userService";
 import { logger } from "@/lib/utils/logger";
 import { observabilityEmitter } from "./eventEmitter";
-import type { EscalationLevel, EscalationPolicy } from "./types";
+import type { EscalationPolicy, EscalationPolicyLevel } from "./types";
 
 type ActiveEscalation = {
   id?: string;
@@ -384,7 +384,7 @@ class EscalationService {
   private async executeEscalationLevel(
     escalationId: string,
     escalation: Omit<ActiveEscalation, "id">,
-    level: EscalationLevel
+    level: EscalationPolicyLevel
   ): Promise<void> {
     logger.info(
       `Executing escalation level ${level.level}`,
@@ -442,7 +442,7 @@ class EscalationService {
         escalation.alertType,
         level.level
       );
-      const notificationBody = level.message.replace("{userName}", userName);
+      const notificationBody = (level.message ?? "").replace("{userName}", userName);
       const sound =
         level.level >= 3
           ? ("emergency" as const)

@@ -53,7 +53,7 @@ export default function HospitalIndex() {
       {/* Action buttons */}
       <TouchableOpacity
         style={styles.primaryButton}
-        onPress={() => router.push('/hospital/enroll')}
+        onPress={() => router.push('/hospital/enroll' as any)}
       >
         <Text style={styles.primaryButtonText}>
           {enrolled ? 'Re-enroll Face' : 'Enroll My Face'}
@@ -63,7 +63,7 @@ export default function HospitalIndex() {
 
       <TouchableOpacity
         style={styles.secondaryButton}
-        onPress={() => router.push('/hospital/qr')}
+        onPress={() => router.push('/hospital/qr' as any)}
       >
         <Text style={styles.secondaryButtonText}>Show QR Code</Text>
         <Text style={styles.buttonSubtextDark}>Share with hospital staff to pull up your records</Text>

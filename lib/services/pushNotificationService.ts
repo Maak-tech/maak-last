@@ -23,9 +23,11 @@ export interface PushNotificationData {
   title: string;
   body: string;
   data?: {
-    type: 'fall_alert' | 'medication_reminder' | 'symptom_alert' | 'medication_alert' | 'emergency_alert';
+    type: 'fall_alert' | 'medication_reminder' | 'symptom_alert' | 'medication_alert' | 'emergency_alert' | 'escalation_alert' | 'caregiver_alert';
     alertId?: string;
     userId?: string;
+    familyId?: string;
+    caregiverId?: string;
     medicationId?: string;
     medicationName?: string;
     symptomType?: string;
