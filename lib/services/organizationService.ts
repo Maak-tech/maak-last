@@ -30,6 +30,7 @@ function mapOrg(data: Record<string, unknown>): Organization {
     plan: (data.plan as OrgPlan) ?? "free",
     createdAt: toDate(data.createdAt),
     createdBy: (data.createdBy as string) ?? "",
+    isActive: (data.isActive as boolean) ?? true,
     settings: data.settings as Organization["settings"],
     billing: data.billing as Organization["billing"],
   };

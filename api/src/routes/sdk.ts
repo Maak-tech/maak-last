@@ -3,7 +3,7 @@ import { and, count, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import crypto from "node:crypto";
 import { alerts, apiKeys, cohortMembers, cohorts, genetics, healthTimeline, medications, patientRosters, users, vhi, vitals, webhookEndpoints } from "../db/schema";
 import { db as dbInstance } from "../db";
-import type { DB } from "../db";
+import type { Database } from "../db";
 import {
   buildFhirBundle,
   medicationToFhirMedicationRequest,
@@ -19,7 +19,7 @@ import { subscribeToUser, unsubscribeFromUser } from "./realtime";
  * Throws a 403-style Error if not — SDK callers must only access their own patients.
  */
 async function assertPatientInRoster(
-  db: DB,
+  db: Database,
   orgId: string,
   patientId: string
 ): Promise<void> {
@@ -77,7 +77,7 @@ const requireApiKey = new Elysia({ name: "require-api-key" })
 );
 
 export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
-  .decorate("db", null as unknown as import("../db").DB) // will be overridden by parent
+  .decorate("db", null as unknown as import("../db").Database) // will be overridden by parent
   .use(requireApiKey)
 
   // ── Patient VHI ─────────────────────────────────────────────────────────────
@@ -327,7 +327,9 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
       }
 
       // Surface the top elevating and declining factors as pre-formatted insights
-      const elevating = (patientVhi.data?.elevatingFactors ?? []).slice(0, 5).map((f) => ({
+      type EFactor = { factor: string; category: string; impact: string; explanation: string };
+      type DFactor = EFactor & { recommendation: string };
+      const elevating = ((patientVhi.data?.elevatingFactors ?? []) as EFactor[]).slice(0, 5).map((f) => ({
         type: "elevating" as const,
         factor: f.factor,
         category: f.category,
@@ -335,7 +337,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
         explanation: f.explanation,
       }));
 
-      const declining = (patientVhi.data?.decliningFactors ?? []).slice(0, 5).map((f) => ({
+      const declining = ((patientVhi.data?.decliningFactors ?? []) as DFactor[]).slice(0, 5).map((f) => ({
         type: "declining" as const,
         factor: f.factor,
         category: f.category,
@@ -348,7 +350,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
         computedAt: patientVhi.computedAt,
         overallScore: patientVhi.data?.currentState?.overallScore,
         insights: [...declining, ...elevating],
-        pendingActions: (patientVhi.data?.pendingActions ?? []).filter((a) => !a.acknowledged),
+        pendingActions: (patientVhi.data?.pendingActions ?? []).filter((a: { acknowledged?: boolean }) => !a.acknowledged),
       };
     },
     {
@@ -433,8 +435,8 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
       // 4. Assemble FHIR R4 Bundle
       const baseUrl = new URL(request.url).origin;
       const patient = userToFhirPatient(userRow);
-      const observations = vitalRows.map((v) => vitalToFhirObservation(v, params.patientId));
-      const medRequests = medRows.map((m) =>
+      const observations = vitalRows.map((v: (typeof vitalRows)[number]) => vitalToFhirObservation(v, params.patientId));
+      const medRequests = medRows.map((m: (typeof medRows)[number]) =>
         medicationToFhirMedicationRequest(m, params.patientId)
       );
 
@@ -665,7 +667,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
 
       if (rows.length === 0) return [];
 
-      const ids = rows.map((r) => r.id);
+      const ids = rows.map((r: (typeof rows)[number]) => r.id);
       const memberCounts = await db
         .select({ cohortId: cohortMembers.cohortId, n: count(cohortMembers.id) })
         .from(cohortMembers)
@@ -675,7 +677,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
       const countMap: Record<string, number> = {};
       for (const c of memberCounts) countMap[c.cohortId] = Number(c.n);
 
-      return rows.map((r) => ({
+      return rows.map((r: (typeof rows)[number]) => ({
         id: r.id,
         name: r.name,
         description: r.description,

@@ -136,7 +136,7 @@ export default function DiscoveryCardsSection() {
     return (
       <View style={styles.container}>
         <View style={styles.emptyContainer}>
-          <ActivityIndicator color={theme.colors.primary.main} size="sm" />
+          <ActivityIndicator color={theme.colors.primary.main} size="small" />
         </View>
       </View>
     );
@@ -182,9 +182,7 @@ export default function DiscoveryCardsSection() {
             {isRTL ? "اكتشافات صحية" : "Health Discoveries"}
           </Heading>
           {newDiscoveries.length > 0 && (
-            <Badge size="sm" style={{}} variant="outline">
-              {newDiscoveries.length} {isRTL ? "جديد" : "new"}
-            </Badge>
+            <Badge size="sm" label={`${newDiscoveries.length} ${isRTL ? "جديد" : "new"}`} />
           )}
         </View>
         <TouchableOpacity

@@ -604,7 +604,7 @@ class AnomalyDetectionService {
       const finalSeverity: AnomalySeverity =
         multivariateResult?.severity === "critical"
           ? "critical"
-          : singleAnomaly.severity;
+          : (singleAnomaly.severity ?? "warning");
 
       // Enrich with context
       const context = await this.enrichAnomalyContext(userId, singleAnomaly);
@@ -702,9 +702,9 @@ class AnomalyDetectionService {
       };
 
       for (const a of anomalies) {
-        stats.byVitalType[a.vitalType] =
-          (stats.byVitalType[a.vitalType] || 0) + 1;
-        stats.bySeverity[a.severity]++;
+        const vt = a.vitalType ?? a.type;
+        if (vt) stats.byVitalType[vt] = (stats.byVitalType[vt] || 0) + 1;
+        if (a.severity) stats.bySeverity[a.severity]++;
         const age = now - a.timestamp.getTime();
         if (age <= oneDayMs) stats.last24h++;
         if (age <= sevenDaysMs) stats.last7d++;

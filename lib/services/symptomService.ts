@@ -59,6 +59,7 @@ const normalizeSymptom = (raw: Record<string, unknown>): Symptom => ({
 export const symptomService = {
   // Add new symptom
   async addSymptom(symptomData: Omit<Symptom, 'id'>): Promise<string> {
+    const isOnline = true;
     try {
       if (isOnline) {
         const created = await api.post<Record<string, unknown>>("/api/health/symptoms", {
@@ -247,64 +248,6 @@ export const symptomService = {
       return (raw ?? []).map(normalizeSymptom);
     } catch (error) {
       throw error;
-    }
-  },
-
-  // Get symptoms for all family members (for admins)
-  async getFamilySymptoms(
-    familyId: string,
-    days = 7
-  ): Promise<FamilySymptomStats> {
-    try {
-      const hasPermission = await this.checkFamilyAccessPermission(userId, familyId);
-      if (!hasPermission) {
-        throw new Error("Access denied: Only admins and caregivers can access family medical data");
-      }
-
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
-
-      const raw = await api.get<Record<string, unknown>[]>(
-        `/api/health/symptoms/family/${familyId}?from=${startDate.toISOString()}&limit=500`
-      );
-      const symptoms = (raw ?? []).map(normalizeSymptom);
-
-      // Get family members for name lookup
-      const members = await userService.getFamilyMembers(familyId);
-      const membersMap = new Map(members.map((m) => [m.id, `${m.firstName} ${m.lastName}`.trim() || "Unknown"]));
-
-      // Aggregate stats
-      const totalSymptoms = symptoms.length;
-      const avgSeverity = totalSymptoms > 0
-        ? symptoms.reduce((sum, s) => sum + s.severity, 0) / totalSymptoms
-        : 0;
-
-      const symptomCounts = new Map<string, { count: number; users: Set<string> }>();
-      for (const symptom of symptoms) {
-        if (!symptomCounts.has(symptom.type)) {
-          symptomCounts.set(symptom.type, { count: 0, users: new Set() });
-        }
-        const entry = symptomCounts.get(symptom.type)!;
-        entry.count++;
-        entry.users.add(symptom.userId);
-      }
-
-      const commonSymptoms = Array.from(symptomCounts.entries())
-        .map(([type, data]) => ({
-          type,
-          count: data.count,
-          affectedMembers: data.users.size,
-          users: Array.from(data.users).map((userId) => ({
-            userId,
-            userName: membersMap.get(userId) || 'Unknown',
-          })),
-        }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 5);
-
-      return { totalSymptoms, avgSeverity: Math.round(avgSeverity * 10) / 10, commonSymptoms };
-    } catch {
-      return { totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] };
     }
   },
 

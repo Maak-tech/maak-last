@@ -976,7 +976,7 @@ class RealtimeAgentService {
         // Create WebSocket with authentication headers
         let ws: WebSocket;
         try {
-          ws = createWebSocketWithHeaders(wsUrl, undefined, {
+          ws = createWebSocketWithHeaders(wsUrl, {
             headers: {
               Authorization: `Bearer ${clientSecret}`,
               "OpenAI-Beta": "realtime=v1",

@@ -375,7 +375,7 @@ export class NotificationResponseHandler {
       const { moodService } = await import("../moodService");
       await moodService.addMood({
         userId,
-        mood: mood as "happy" | "content" | "neutral",
+        mood: mood as "happy" | "calm" | "neutral",
         intensity: intensity as 1 | 2 | 3 | 4 | 5,
         timestamp: new Date(),
         notes: "Logged via notification",
@@ -410,7 +410,7 @@ export class NotificationResponseHandler {
       const { moodService } = await import("../moodService");
       await moodService.addMood({
         userId,
-        mood: status === "good" ? "content" : "neutral",
+        mood: status === "good" ? "calm" : "neutral",
         intensity: (status === "good" ? 4 : 3) as 1 | 2 | 3 | 4 | 5,
         timestamp: new Date(),
         notes: "Evening check-in via notification",

@@ -46,7 +46,7 @@ export const allergyService = {
           notes: allergyData.notes,
         });
 
-        _allergyCache.delete(allergyData.userId);
+        _allergyCache.delete(allergyData.userId!);
         const newAllergy = { id: created.id as string, ...allergyData };
         const currentAllergies = await offlineService.getOfflineCollection<Allergy>("allergies");
         await offlineService.storeOfflineData("allergies", [...currentAllergies, newAllergy]);

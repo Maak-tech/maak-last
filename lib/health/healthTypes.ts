@@ -26,6 +26,7 @@ export interface DeviceInfo {
 export interface ProviderConnection {
   provider: ProviderType;
   isConnected: boolean;
+  connectedAt?: string;      // ISO timestamp of when connection was established
   lastSyncAt?: string;       // ISO timestamp
   authorizedMetrics: string[];
   selectedMetrics?: string[];
@@ -105,6 +106,8 @@ export interface OuraTokens {
   accessToken: string;
   refreshToken: string;
   expiresAt: number;
+  userId?: string;
+  scope?: string;
 }
 
 export interface GarminTokens {

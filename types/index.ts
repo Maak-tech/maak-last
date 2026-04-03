@@ -1,4 +1,4 @@
-export type AvatarType = 'default' | 'custom' | 'initials';
+export type AvatarType = 'default' | 'custom' | 'initials' | 'man' | 'woman' | 'boy' | 'girl' | 'grandpa' | 'grandma';
 
 export interface EmergencyContact {
   id: string;
@@ -477,7 +477,9 @@ export type EmailTemplate = {
 
 // ─── Organization ────────────────────────────────────────────────────────────
 
-export type OrgPlan = "starter" | "growth" | "enterprise";
+export type OrgPlan = "starter" | "growth" | "enterprise" | "free";
+
+export type OrgType = "clinic" | "hospital" | "pharmacy" | "research" | "other";
 
 export type OrgRole =
   | "org_admin"
@@ -493,6 +495,7 @@ export interface Organization {
   createdAt: Date;
   createdBy: string;
   isActive: boolean;
+  settings?: Record<string, unknown>;
   billing?: {
     seatCount: number;
     patientCount: number;
@@ -506,9 +509,22 @@ export interface OrgMember {
   displayName: string;
   email?: string;
   role: OrgRole;
+  specialty?: string;
   invitedBy: string;
   isActive: boolean;
   joinedAt?: Date;
+}
+
+export interface OrgCohort {
+  id: string;
+  orgId: string;
+  name: string;
+  description?: string;
+  condition?: string;
+  program?: string;
+  createdAt: Date;
+  createdBy: string;
+  patientCount: number;
 }
 
 // ─── Allergy ─────────────────────────────────────────────────────────────────
@@ -640,6 +656,34 @@ export interface CalendarEvent {
   tags?: string[];
   attendees?: string[];
   createdAt: Date;
+  updatedAt: Date;
+}
+
+// ─── Period Tracking ──────────────────────────────────────────────────────────
+
+export interface PeriodEntry {
+  id: string;
+  userId: string;
+  startDate: Date;
+  endDate?: Date;
+  flowIntensity?: "none" | "light" | "medium" | "heavy" | "spotting";
+  symptoms?: string[];
+  notes?: string;
+  createdAt: Date;
+}
+
+export interface PeriodCycle {
+  id: string;
+  userId: string;
+  averageCycleLength: number;
+  averagePeriodLength: number;
+  lastPeriodStart: Date;
+  nextPeriodPredicted: Date;
+  nextPeriodWindowStart: Date;
+  nextPeriodWindowEnd: Date;
+  ovulationPredicted: Date;
+  predictionConfidence: number;
+  cycleLengthStdDev?: number;
   updatedAt: Date;
 }
 

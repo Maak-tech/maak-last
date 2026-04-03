@@ -334,7 +334,10 @@ export async function analyzeLabResults(
 
         const prompt = `A patient has the following flagged lab results:\n${flaggedSummary}\n\nProvide a concise 2-3 sentence plain-language interpretation. For each flagged marker, note whether the trend is improving or worsening. Focus on what the pattern suggests about their health and give 1-2 practical lifestyle recommendations. Do NOT provide specific medical diagnoses, drug names, or treatment plans. Respond strictly with JSON: {"narrative": "...", "narrativeAr": "..."}`;
 
-        const response = await openaiService.generateHealthInsights(prompt);
+        const rawResponse = await openaiService.generateHealthInsights(prompt);
+        const response = typeof rawResponse === "string"
+          ? (() => { try { return JSON.parse(rawResponse) as { narrative?: string; narrativeAr?: string }; } catch { return null; } })()
+          : null;
         if (response?.narrative && typeof response.narrative === "string") {
           aiNarrative = response.narrative;
         }

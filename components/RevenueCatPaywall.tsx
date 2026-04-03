@@ -181,7 +181,7 @@ export function RevenueCatPaywall({
             t("subscription.restoreSuccessMessage")
           );
         }}
-        options={{ offering: offerings }}
+        options={{ offering: offerings?.current ?? undefined }}
       />
 
       {/* Subscription disclosure + Terms/Privacy links - Required by Apple §3.1.2 */}

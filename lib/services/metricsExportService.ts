@@ -12,7 +12,7 @@ import { safeFormatDate, safeFormatDateTime } from "@/utils/dateFormat";
 import { authClient } from "@/lib/authClient";
 import type { HealthProvider } from "../health/healthMetricsCatalog";
 import { getProviderConnection } from "../health/healthSync";
-import type { NormalizedMetricPayload } from "../health/healthTypes";
+import type { NormalizedMetricPayload, ProviderConnection } from "../health/healthTypes";
 import { medicalHistoryService } from "./medicalHistoryService";
 import { medicationService } from "./medicationService";
 import { moodService } from "./moodService";
@@ -36,7 +36,6 @@ export type HealthReportData = {
   moods: Mood[];
 };
 
-type ProviderConnection = Awaited<ReturnType<typeof getProviderConnection>>;
 
 const getExportDateRange = (
   options: ExportOptions
@@ -70,10 +69,27 @@ const getMetricKeysToFetch = (
   connection: ProviderConnection,
   availableMetricKeys: string[]
 ): string[] => {
-  if (connection?.connected && connection.selectedMetrics.length > 0) {
-    return connection.selectedMetrics;
+  if (connection?.isConnected && (connection.selectedMetrics ?? []).length > 0) {
+    return connection.selectedMetrics ?? [];
   }
   return availableMetricKeys;
+};
+
+/** Convert raw HealthMetricReading[] into NormalizedMetricPayload[] */
+const normalizeReadingsToPayloads = (
+  readings: import("../health/healthTypes").HealthMetricReading[],
+  providerName: string
+): NormalizedMetricPayload[] => {
+  const map = new Map<string, NormalizedMetricPayload>();
+  for (const r of readings) {
+    let payload = map.get(r.type);
+    if (!payload) {
+      payload = { provider: providerName, metricKey: r.type, unit: r.unit, samples: [] };
+      map.set(r.type, payload);
+    }
+    payload.samples.push({ value: r.value, unit: r.unit, startDate: r.recordedAt });
+  }
+  return Array.from(map.values());
 };
 
 const fetchProviderMetrics = async (params: {
@@ -87,26 +103,20 @@ const fetchProviderMetrics = async (params: {
   switch (provider) {
     case "apple_health": {
       const { appleHealthService } = await import("./appleHealthService");
-      const availability = await appleHealthService.checkAvailability();
-      if (!availability.available) {
+      const available = await appleHealthService.isAvailable();
+      if (!available) {
         return [];
       }
-      return appleHealthService.fetchMetrics(
-        metricsToFetch,
-        startDate,
-        endDate
-      );
+      const { readings } = await appleHealthService.syncReadings(metricsToFetch, startDate);
+      return normalizeReadingsToPayloads(readings, "apple_health");
     }
     case "health_connect": {
       const { healthConnectService } = await import("./healthConnectService");
-      return healthConnectService.fetchMetrics(
-        metricsToFetch,
-        startDate,
-        endDate
-      );
+      const { readings } = await healthConnectService.syncReadings(metricsToFetch, startDate);
+      return normalizeReadingsToPayloads(readings, "health_connect");
     }
     case "fitbit": {
-      if (!connection?.connected) {
+      if (!connection?.isConnected) {
         return [];
       }
       const { fitbitService } = await import("./fitbitService");
@@ -132,7 +142,7 @@ const appendCatalogFallbackMetrics = (
   allMetrics: NormalizedMetricPayload[],
   getAvailableMetricsForProvider: (provider: HealthProvider) => Array<{
     key: string;
-    displayName: string;
+    displayName?: string;
     unit?: string;
   }>
 ): void => {
@@ -174,14 +184,19 @@ const fetchMetricsForExport = async (
 
   for (const provider of providersToTry) {
     try {
-      const connection = await getProviderConnection(provider);
+      const connection = await getProviderConnection("", provider);
       const availableMetrics = getAvailableMetricsForProvider(provider);
       if (availableMetrics.length === 0) {
         continue;
       }
 
+      const resolvedConnection: ProviderConnection = connection ?? {
+        provider,
+        isConnected: false,
+        authorizedMetrics: [],
+      };
       const metricsToFetch = getMetricKeysToFetch(
-        connection,
+        resolvedConnection,
         availableMetrics.map((metric) => metric.key)
       );
       const metrics = await fetchProviderMetrics({
@@ -189,7 +204,7 @@ const fetchMetricsForExport = async (
         metricsToFetch,
         startDate,
         endDate,
-        connection,
+        connection: resolvedConnection,
       });
 
       allMetrics.push(...metrics);
@@ -366,7 +381,7 @@ const addVitalsCsvRows = (
       rows.push(
         [
           metric.metricKey,
-          escapeCsvValue(metric.displayName),
+          escapeCsvValue(metric.displayName ?? ""),
           metric.unit || "",
           aggregated.value.toString(),
           aggregated.date,
@@ -704,7 +719,7 @@ const buildVitalTableRows = (
 };
 
 const buildSingleVitalSection = (metric: NormalizedMetricPayload): string => {
-  let section = `${sectionStart(metric.displayName)}${buildVitalMetricInfo(metric)}`;
+  let section = `${sectionStart(metric.displayName ?? "")}${buildVitalMetricInfo(metric)}`;
   if (metric.samples.length === 0) {
     return `${section}<div class="no-data">No data available for this metric</div>${sectionEnd}`;
   }

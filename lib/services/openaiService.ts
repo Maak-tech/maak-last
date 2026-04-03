@@ -156,6 +156,30 @@ class OpenAIService {
     return this.requestChatCompletion(messages, false);
   }
 
+  /**
+   * Generate health insights from a plain text prompt.
+   * Wraps the prompt in a minimal ChatMessage array and returns the response text.
+   */
+  async generateHealthInsights(prompt: string): Promise<string> {
+    const messages: ChatMessage[] = [
+      {
+        id: Date.now().toString(),
+        role: 'user',
+        content: prompt,
+        timestamp: new Date(),
+      },
+    ];
+    return this.requestChatCompletion(messages, false);
+  }
+
+  /**
+   * Returns true when the AI backend reports that it is configured and reachable.
+   * Reads from the cached health-check result (refreshed every 60 s).
+   */
+  get isConfigured(): boolean {
+    return this.cachedHealth?.configured ?? false;
+  }
+
   private async requestChatCompletion(
     messages: ChatMessage[],
     usePremiumKey: boolean

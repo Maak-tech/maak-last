@@ -312,7 +312,7 @@ export default function PremiumScreen() {
           <ChevronLeft color={theme.colors.text.primary} size={24} />
         </TouchableOpacity>
         <Heading
-          level={5}
+          level={4}
           style={getTextStyle(
             theme,
             "heading",

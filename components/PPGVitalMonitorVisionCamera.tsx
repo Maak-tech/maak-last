@@ -79,7 +79,7 @@ import {
 } from "@/lib/services/ppgEmbeddingsService";
 import {
   type PPGResult,
-  processPPGSignalWithML,
+  processPPGSignalEnhanced,
 } from "@/lib/utils/BiometricUtils";
 import {
   calculateRealTimeSignalQuality,
@@ -1247,7 +1247,15 @@ export default function PPGVitalMonitorVisionCamera({
           -Math.max(qualitySampleInterval * 5, 30)
         ); // Use last ~5 seconds for quality assessment
 
-        const signalQualityScore = calculateRealTimeSignalQuality(recentSignal);
+        const recentFrameSamples = recentSignal.map((v) => ({
+          redAverage: v,
+          greenAverage: v,
+          blueAverage: v,
+          timestamp: 0,
+          quality: 1,
+        }));
+        const signalQualityMetrics = calculateRealTimeSignalQuality(recentFrameSamples);
+        const signalQualityScore = signalQualityMetrics.score;
 
         // Update signal quality state
         setSignalQuality(signalQualityScore);
@@ -1509,14 +1517,22 @@ export default function PPGVitalMonitorVisionCamera({
         }
       }
 
-      // Process PPG signal using ML models (PaPaGei) with fallback to traditional processing
-      // ML processing provides better accuracy and robustness, especially for noisy signals
-      const ppgResult = await processPPGSignalWithML(
-        ppgSignalRef.current,
-        TARGET_FPS,
-        true, // Use ML processing
-        userId
-      );
+      // Process PPG signal using enhanced processing with fallback
+      const ppgFrames = ppgSignalRef.current.map((v) => ({
+        r: [v],
+        g: [v],
+        b: [v],
+        timestamp: 0,
+      }));
+      const _ppgRaw = await processPPGSignalEnhanced(ppgFrames, TARGET_FPS);
+      const ppgResult = {
+        ..._ppgRaw,
+        success: _ppgRaw.heartRate !== null,
+        isEstimate: _ppgRaw.confidence < 50,
+        heartRateVariability: _ppgRaw.hrv,
+        respiratoryRate: null as number | null,
+        error: _ppgRaw.heartRate === null ? "Insufficient signal data" : undefined,
+      };
 
       if (ppgResult.success && Number.isFinite(ppgResult.heartRate)) {
         const heartRate = ppgResult.heartRate as number;
@@ -1525,20 +1541,24 @@ export default function PPGVitalMonitorVisionCamera({
           isQuick ? null : ppgResult.heartRateVariability || null
         );
         setRespiratoryRate(isQuick ? null : ppgResult.respiratoryRate || null);
-        setSignalQuality(ppgResult.signalQuality);
+        const signalQualityNum =
+          ppgResult.signalQuality === "excellent" ? 1 :
+          ppgResult.signalQuality === "good" ? 0.75 :
+          ppgResult.signalQuality === "fair" ? 0.5 : 0.25;
+        setSignalQuality(signalQualityNum);
         setMLConfidence(
           Number.isFinite(ppgResult.confidence) ? ppgResult.confidence! : null
         );
 
         const shouldSave = !ppgResult.isEstimate;
-        const hrvToSave = isQuick ? undefined : ppgResult.heartRateVariability;
+        const hrvToSave = isQuick ? undefined : (ppgResult.heartRateVariability ?? undefined);
         const respiratoryToSave = isQuick
           ? undefined
-          : ppgResult.respiratoryRate;
+          : (ppgResult.respiratoryRate ?? undefined);
         const saveSuccess = shouldSave
           ? await saveVitalToFirestore({
               heartRate,
-              signalQuality: ppgResult.signalQuality,
+              signalQuality: signalQualityNum,
               hrv: hrvToSave,
               respiratoryRate: respiratoryToSave,
               measurementDuration: measurementDurationSeconds,
@@ -1734,7 +1754,11 @@ export default function PPGVitalMonitorVisionCamera({
 
       // Process every frame - runAtTargetFps removed (may have been dropping frames)
       try {
-        const redAverage = extractRedChannelAverage(frame);
+        const redAverage = extractRedChannelAverage(
+          new Uint8Array(frame.toArrayBuffer()),
+          frame.width,
+          frame.height
+        );
 
         // Debug: Log first few extraction results regardless of success/failure
         if (frameCountSV.value < 3) {

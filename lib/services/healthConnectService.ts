@@ -12,7 +12,8 @@ async function getHealthConnect() {
   if (Platform.OS !== "android") return null;
   try {
     // react-native-health-connect
-    const hc = await import("react-native-health-connect");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
+    const hc = require("react-native-health-connect") as any;
     return hc;
   } catch {
     return null;

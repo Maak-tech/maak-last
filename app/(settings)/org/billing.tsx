@@ -141,6 +141,7 @@ const PLAN_COLORS: Record<
   OrgPlan,
   { bg: string; text: string; border: string }
 > = {
+  free: { bg: "#F8FAFC", text: "#64748B", border: "#E2E8F0" },
   starter: { bg: "#F1F5F9", text: "#475569", border: "#CBD5E1" },
   growth: { bg: "#EFF6FF", text: "#2563EB", border: "#BFDBFE" },
   enterprise: { bg: "#F5F3FF", text: "#7C3AED", border: "#DDD6FE" },
@@ -837,7 +838,7 @@ export default function BillingScreen() {
               </Caption>
               {(["starter", "growth", "enterprise"] as OrgPlan[]).map((p) => (
                 <View key={p} style={{ flex: 1, alignItems: "center" }}>
-                  <FeatureCell isHighlighted={plan === p} value={feature[p]} />
+                  <FeatureCell isHighlighted={plan === p} value={(feature as Record<string, boolean | string>)[p]} />
                 </View>
               ))}
             </View>

@@ -264,8 +264,7 @@ async function evaluateAndCreateHealthEventIfNeeded(
         }
       );
 
-      const alertType: "vital_critical" | "vital_error" =
-        evaluation.severity === "critical" ? "vital_critical" : "vital_error";
+      const alertType: "vitals" = "vitals";
 
       const alertId = await alertService.createAlert({
         userId,
@@ -299,8 +298,9 @@ async function evaluateAndCreateHealthEventIfNeeded(
       try {
         await createHealthEvent({
           userId,
-          type: "VITAL_ALERT",
-          severity: evaluation.severity === "critical" ? "critical" : "high",
+          type: "vital_abnormal",
+          title: `Abnormal ${vitalType} detected`,
+          severity: evaluation.severity === "critical" ? "critical" : "warning",
           reasons: [
             evaluation.message ||
               `Abnormal ${vitalType} detected: ${value} ${reading.unit}`,
@@ -702,7 +702,7 @@ export async function syncDexcomCGMData(userId: string): Promise<void> {
  */
 export async function syncFreestyleLibreCGMData(userId: string): Promise<void> {
   try {
-    const currentGlucose = await freestyleLibreService.getCurrentGlucose();
+    const currentGlucose = await freestyleLibreService.getCurrentGlucose(userId);
     if (currentGlucose) {
       // Save current glucose reading
       await saveVitalSample(
@@ -726,7 +726,7 @@ export async function syncFreestyleLibreCGMData(userId: string): Promise<void> {
 /**
  * Get latest glucose reading from all connected CGM devices
  */
-export async function getLatestGlucoseReading(_userId: string): Promise<{
+export async function getLatestGlucoseReading(userId: string): Promise<{
   value: number;
   unit: string;
   timestamp: Date;
@@ -754,7 +754,7 @@ export async function getLatestGlucoseReading(_userId: string): Promise<{
 
     // Try Freestyle Libre as fallback
     try {
-      const libreReading = await freestyleLibreService.getCurrentGlucose();
+      const libreReading = await freestyleLibreService.getCurrentGlucose(userId);
       if (libreReading) {
         return {
           value: libreReading.value,

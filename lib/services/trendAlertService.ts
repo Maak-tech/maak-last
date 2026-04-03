@@ -47,10 +47,10 @@ export async function checkTrendsForNewVital(
 
     if (readings.length < 3) return; // Not enough data for trend analysis
 
-    const trendAnalysis = analyzeVitalTrend(readings, vitalType, unit, 7);
+    const trendAnalysis = analyzeVitalTrend(readings, vitalType, userId, null, null, 7);
 
     if (trendAnalysis && isTrendConcerning(trendAnalysis)) {
-      await createTrendAlert(userId, trendAnalysis, "vital_trend");
+      await createTrendAlert(trendAnalysis, "vital_trend");
     }
   } catch {
     // Don't throw - trend checking is non-critical
@@ -85,10 +85,10 @@ export async function checkTrendsForNewSymptom(
 
     if (readings.length === 0) return;
 
-    const trendAnalysis = analyzeSymptomTrend(readings, symptomType, 7);
+    const trendAnalysis = analyzeSymptomTrend(readings, symptomType, userId, 7);
 
     if (trendAnalysis && isTrendConcerning(trendAnalysis)) {
-      await createTrendAlert(userId, trendAnalysis, "symptom_trend");
+      await createTrendAlert(trendAnalysis, "symptom_trend");
     }
   } catch {
     // Don't throw - trend checking is non-critical
@@ -135,11 +135,13 @@ export async function checkAllTrendsForUser(userId: string): Promise<void> {
       const trendAnalysis = analyzeVitalTrend(
         sorted.map((r) => ({ value: r.value, timestamp: r.timestamp })),
         type,
-        sorted[0]?.unit || "",
+        userId,
+        null,
+        null,
         7
       );
       if (trendAnalysis && isTrendConcerning(trendAnalysis)) {
-        await createTrendAlert(userId, trendAnalysis, "vital_trend");
+        await createTrendAlert(trendAnalysis, "vital_trend");
       }
     }
 
@@ -159,9 +161,9 @@ export async function checkAllTrendsForUser(userId: string): Promise<void> {
     for (const [type, readings] of Object.entries(symptomsByType)) {
       if (readings.length === 0) continue;
       const sorted = readings.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-      const trendAnalysis = analyzeSymptomTrend(sorted, type, 7);
+      const trendAnalysis = analyzeSymptomTrend(sorted, type, userId, 7);
       if (trendAnalysis && isTrendConcerning(trendAnalysis)) {
-        await createTrendAlert(userId, trendAnalysis, "symptom_trend");
+        await createTrendAlert(trendAnalysis, "symptom_trend");
       }
     }
   } catch {

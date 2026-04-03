@@ -595,10 +595,11 @@ export const samsungHealthService = {
         scope: tokens.scope || "",
       });
 
-      await saveProviderConnection({
+      await saveProviderConnection("", {
         provider: "samsung_health",
-        connected: true,
+        isConnected: true,
         connectedAt: toIsoDate(),
+        authorizedMetrics: selectedMetrics || [],
         selectedMetrics: selectedMetrics || [],
       });
     } catch (error: unknown) {

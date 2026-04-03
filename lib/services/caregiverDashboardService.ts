@@ -327,7 +327,7 @@ class CaregiverDashboardService {
             time: safeFormatTime(nextEntry.nextDose, "en-US", {
               hour: "2-digit",
               minute: "2-digit",
-            }),
+            }) ?? '',
             dosage: nextEntry.medication.dosage,
           }
         : undefined;

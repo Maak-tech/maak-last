@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
+import * as Device from "expo-device";
 import { Platform } from "react-native";
 import { api } from "@/lib/apiClient";
 import { authClient } from "@/lib/authClient";
@@ -542,6 +543,20 @@ export const healthDataService = {
    * @param days    How many days back to fetch (default 90).
    * @param maxDocs Maximum Firestore documents to read (default 1000).
    */
+  async getLatestVitalsFromProviders(): Promise<VitalSigns | null> {
+    try {
+      if (Platform.OS === "ios") {
+        return await this.getIOSVitals();
+      }
+      if (Platform.OS === "android") {
+        return await this.getAndroidVitals();
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  },
+
   async getUserVitals(
     userId: string,
     days = 90,

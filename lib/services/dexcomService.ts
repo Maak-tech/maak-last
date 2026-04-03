@@ -178,10 +178,11 @@ export const dexcomService = {
       });
 
       // Save connection state
-      await saveProviderConnection({
+      await saveProviderConnection("", {
         provider: "dexcom",
-        connected: true,
-        connectedAt: new Date().toISOString(),
+        isConnected: true,
+        lastSyncAt: new Date().toISOString(),
+        authorizedMetrics: selectedMetrics || ["blood_glucose"],
         selectedMetrics: selectedMetrics || ["blood_glucose"],
       });
     } catch (error: unknown) {
@@ -368,7 +369,7 @@ export const dexcomService = {
         results.push({
           provider: "dexcom",
           metricKey: "blood_glucose",
-          displayName: metric.displayName,
+          displayName: metric.labelEn,
           unit: "mg/dL",
           samples,
         });

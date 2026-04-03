@@ -453,10 +453,11 @@ export const ouraService = {
         scope: tokens.scope || "",
       });
 
-      await saveProviderConnection({
+      await saveProviderConnection(userId, {
         provider: "oura",
-        connected: true,
+        isConnected: true,
         connectedAt: new Date().toISOString(),
+        authorizedMetrics: selectedMetrics || [],
         selectedMetrics: selectedMetrics || [],
       });
     } catch (error: unknown) {

@@ -10,11 +10,26 @@
 import { api } from "@/lib/apiClient";
 import { logger } from "@/lib/utils/logger";
 import type {
-  CreateHealthEventInput,
+  EmitHealthEventInput,
   HealthEvent,
   HealthEventSeverity,
-  UpdateHealthEventInput,
 } from "./types";
+
+// Local aliases to preserve internal naming used throughout this file
+type CreateHealthEventInput = EmitHealthEventInput & {
+  reasons?: string[];
+  source?: string;
+  vitalValues?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+};
+
+type UpdateHealthEventInput = {
+  status: "OPEN" | "ACKED" | "ESCALATED" | "RESOLVED";
+  acknowledgedBy?: string;
+  resolvedBy?: string;
+  escalatedBy?: string;
+  metadata?: Record<string, unknown>;
+};
 
 /**
  * Generate a trace ID for correlation
@@ -299,16 +314,17 @@ export async function createVitalAlertEvent(
 
   // Map severity levels
   const severityMap: Record<string, HealthEventSeverity> = {
-    attention: "medium",
-    urgent: "high",
+    attention: "warning",
+    urgent: "error",
   };
 
-  const eventSeverity = severityMap[evaluation.severity] || "medium";
+  const eventSeverity = severityMap[evaluation.severity] || "warning";
 
   try {
     const eventId = await createHealthEvent({
       userId,
-      type: "VITAL_ALERT",
+      type: "vital_abnormal",
+      title: "Vital sign alert",
       severity: eventSeverity,
       reasons: evaluation.reasons,
       source,

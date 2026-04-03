@@ -29,7 +29,7 @@ async function generateUploadUrl(key: string): Promise<string> {
 }
 
 export const clinicalNotesRoutes = new Elysia({ prefix: "/api/notes" })
-  .decorate("db", null as unknown as import("../db").DB)
+  .decorate("db", null as unknown as import("../db").Database)
   .use(requireAuth)
 
   // ── List notes ──────────────────────────────────────────────────────────────

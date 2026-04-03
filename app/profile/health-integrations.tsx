@@ -238,7 +238,7 @@ export default function HealthIntegrationsScreen() {
 
         // Use static list instead of providers array to avoid dependency issues
         for (const providerId of allProviderIds) {
-          const connection = await getProviderConnection(providerId);
+          const connection = await getProviderConnection("", providerId);
           if (connection) {
             connectionsMap.set(providerId, connection);
           }
@@ -550,7 +550,7 @@ export default function HealthIntegrationsScreen() {
                             isRTL && { textAlign: "left" },
                           ]}
                         >
-                          {t("connected")} • {connection.selectedMetrics.length}{" "}
+                          {t("connected")} • {(connection.selectedMetrics ?? []).length}{" "}
                           {t("metrics")}
                         </Text>
                       </View>

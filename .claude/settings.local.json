@@ -60,7 +60,13 @@
       "Bash(head -130 app/\\\\\\(tabs\\\\\\)/index.tsx)",
       "Bash(npm install:*)",
       "Bash(grep -n '\"\"/profile/genetics\"\"' app/health-summary.tsx app/profile/health-integrations.tsx)",
-      "Bash(grep -n '\"\"notifications\"\"' lib/services/alertService.ts)"
+      "Bash(grep -n '\"\"notifications\"\"' lib/services/alertService.ts)",
+      "Bash(\"C:\\\\Users\\\\nours\\\\Documents\\\\GitHub\\\\Nuralix2\\\\hospital-dashboard\\\\.env.example\":*)",
+      "Bash(cat \"C:\\\\Users\\\\nours\\\\Documents\\\\GitHub\\\\Nuralix2\\\\hospital-dashboard\\\\web\\\\app\\\\\\(auth\\)\\\\login\\\\page.tsx\")",
+      "Bash(ls \"C:\\\\Users\\\\nours\\\\Documents\\\\GitHub\\\\Nuralix2\\\\hospital-dashboard\\\\web\\\\app\\\\\\(auth\\)\")",
+      "Bash(grep -n \"vhi\\\\|VHI\\\\|Risk\\\\|Declining\" /c/Users/nours/Documents/GitHub/Nuralix2/app/family/[memberId].tsx)",
+      "Bash(grep -E \"\\\\.tsx$\")",
+      "Bash(ls -la /c/Users/nours/Documents/GitHub/Nuralix2/app/\\\\\\(tabs\\\\\\)/)"
     ]
   }
 }

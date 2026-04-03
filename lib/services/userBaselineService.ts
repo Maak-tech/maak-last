@@ -806,7 +806,7 @@ export const userBaselineService = {
         title: isArabic ? "تغيير في نمطك الصحي" : "Health Pattern Change",
         body: isArabic ? top.insightAr : top.insight,
         data: {
-          type: "vital_alert" as const,
+          type: "symptom_alert" as const,
           clickAction: top.dimension === "medication" ? "medications" : "analytics",
         },
         priority: "high",
@@ -836,20 +836,16 @@ export const userBaselineService = {
     }>
   > {
     try {
-      const vitalsRaw = await fetchVitalSamples(userId, 30);
       const { getVitalAnomalySignals } = await import(
         "./healthInsightScoringService"
       );
-      // Convert to VitalSample shape expected by scoring service
-      const scoringSamples = vitalsRaw.map((v) => ({
-        id: `${v.type}_${v.timestamp.getTime()}`,
-        type: v.type,
-        value: v.value,
-        unit: v.unit,
-        timestamp: v.timestamp,
-        source: undefined as string | undefined,
+      const signals = await getVitalAnomalySignals(userId);
+      return signals.map((s) => ({
+        type: s.vitalType,
+        zScore: s.zScore,
+        latest: 0,
+        baseline: 0,
       }));
-      return getVitalAnomalySignals(scoringSamples);
     } catch {
       return [];
     }

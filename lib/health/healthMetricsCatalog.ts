@@ -25,6 +25,10 @@ export interface HealthMetricDefinition {
   supportedProviders: HealthProvider[];
   /** Expected typical range for a healthy adult [min, max] */
   normalRange?: [number, number];
+  /** Optional human-readable display name (overrides labelEn when set) */
+  displayName?: string;
+  /** Samsung Health data type mapping */
+  samsungHealth?: { dataType: string; field?: string; endpoint?: string };
 }
 
 export const HEALTH_METRICS_CATALOG: HealthMetricDefinition[] = [

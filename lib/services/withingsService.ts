@@ -553,10 +553,11 @@ export const withingsService = {
         userId: withingsUserId,
       });
 
-      await saveProviderConnection({
+      await saveProviderConnection("", {
         provider: "withings",
-        connected: true,
+        isConnected: true,
         connectedAt: new Date().toISOString(),
+        authorizedMetrics: selectedMetrics || [],
         selectedMetrics: selectedMetrics || [],
       });
 

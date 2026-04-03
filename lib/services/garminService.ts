@@ -58,8 +58,8 @@ export const garminService = {
   },
 
   isConnected: async (): Promise<boolean> => {
-    const conn = await getProviderConnection("garmin");
-    return !!conn?.connected;
+    const conn = await getProviderConnection("", "garmin");
+    return !!conn?.isConnected;
   },
 
   /**
@@ -97,10 +97,11 @@ export const garminService = {
 
     await api.post("/api/health/garmin/exchange", { code, state });
 
-    await saveProviderConnection({
+    await saveProviderConnection("", {
       provider: "garmin",
-      connected: true,
+      isConnected: true,
       connectedAt: new Date().toISOString(),
+      authorizedMetrics: selectedMetrics,
       selectedMetrics,
     });
   },

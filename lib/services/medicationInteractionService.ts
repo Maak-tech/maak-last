@@ -24,6 +24,8 @@ export type MedicationInteractionAlert = {
   interaction: MedicationInteraction;
   activeMedications: string[];
   createdAt: Date;
+  severity?: string;
+  title?: string;
 };
 
 // ─── Singleton Service ────────────────────────────────────────────────────────

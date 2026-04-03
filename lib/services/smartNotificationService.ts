@@ -3776,7 +3776,7 @@ class SmartNotificationService {
     try {
       // Use your existing symptom service
       const { symptomService } = await import("./symptomService");
-      return await symptomService.getUserSymptoms(userId, 30); // Last 30 days
+      return await symptomService.getUserSymptoms(userId, 30) as unknown as Record<string, unknown>[]; // Last 30 days
     } catch {
       return [];
     }
@@ -3798,7 +3798,7 @@ class SmartNotificationService {
     try {
       // Use your existing mood service
       const { moodService } = await import("./moodService");
-      return await moodService.getUserMoods(userId, 30); // Last 30 days
+      return await moodService.getUserMoods(userId, 30) as unknown as Record<string, unknown>[]; // Last 30 days
     } catch {
       return [];
     }

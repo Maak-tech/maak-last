@@ -766,7 +766,7 @@ export const autoLogHealthSignalsFromText = async (
         extraction.events.map((event) =>
           calendarService.addEvent(userId, {
             title: event.title,
-            type: event.type,
+            type: (event.type === "lab_result" ? "lab" : event.type) as "medication" | "other" | "lab" | "appointment" | "reminder" | "cycle" | "vaccination" | "exercise",
             startDate: event.startDate,
             endDate: event.endDate,
             allDay: event.allDay,

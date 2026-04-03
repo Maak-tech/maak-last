@@ -409,16 +409,16 @@ export const fitbitService = {
       // Get available metrics for Fitbit
       const availableMetrics = getAvailableMetricsForProvider("fitbit");
       const selectedMetricKeys = availableMetrics
-        .filter((m) => tokenData.scope?.includes(m.fitbit?.scope || ""))
+        .filter((m) => tokenData.scope?.includes(m.key))
         .map((m) => m.key);
 
       // Save connection
-      await saveProviderConnection({
+      await saveProviderConnection("", {
         provider: "fitbit",
-        connected: true,
-        connectedAt: new Date().toISOString(),
+        isConnected: true,
+        lastSyncAt: new Date().toISOString(),
+        authorizedMetrics: selectedMetricKeys,
         selectedMetrics: selectedMetricKeys,
-        grantedMetrics: selectedMetricKeys,
       });
 
       // Save Fitbit user ID to backend for webhook matching
@@ -525,15 +525,32 @@ export const fitbitService = {
       while (currentDate <= end) {
         const dateStr = currentDate.toISOString().split("T")[0]; // YYYY-MM-DD
 
+        // Fitbit endpoint map (metric key → API path template)
+        const fitbitEndpointMap: Record<string, string> = {
+          heart_rate: `/user/-/activities/heart/date/{date}/1d.json`,
+          resting_heart_rate: `/user/-/activities/heart/date/{date}/1d.json`,
+          steps: `/user/-/activities/steps/date/{date}/1d.json`,
+          active_energy: `/user/-/activities/calories/date/{date}/1d.json`,
+          distance_walking_running: `/user/-/activities/distance/date/{date}/1d.json`,
+          flights_climbed: `/user/-/activities/floors/date/{date}/1d.json`,
+          blood_oxygen: `/user/-/spo2/date/{date}.json`,
+          body_temperature: `/user/-/temp/skin/date/{date}.json`,
+          weight: `/user/-/body/log/weight/date/{date}.json`,
+          body_fat_percentage: `/user/-/body/log/fat/date/{date}.json`,
+          sleep_analysis: `/user/-/sleep/date/{date}.json`,
+          water_intake: `/user/-/foods/log/water/date/{date}.json`,
+        };
+
         // Fetch metrics in parallel
         const metricPromises = selectedMetrics.map(async (metricKey) => {
           const metric = getMetricByKey(metricKey);
-          if (!(metric?.fitbit?.available && metric.fitbit.endpoint)) {
+          const endpointTemplate = fitbitEndpointMap[metricKey];
+          if (!endpointTemplate) {
             return null;
           }
 
           try {
-            const endpoint = metric.fitbit.endpoint.replace("{date}", dateStr);
+            const endpoint = endpointTemplate.replace("{date}", dateStr);
             const url = `${FITBIT_API_BASE}${endpoint}`;
 
             const response = await fetch(url, {
@@ -575,8 +592,8 @@ export const fitbitService = {
               metricPayload = {
                 provider: "fitbit",
                 metricKey,
-                displayName: metric.displayName,
-                unit: metric.unit,
+                displayName: metric?.labelEn,
+                unit: metric?.unit,
                 samples: [],
               };
               results.push(metricPayload);
