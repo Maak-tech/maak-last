@@ -203,6 +203,10 @@ function RootLayout() {
                         name="family"
                         options={{ headerShown: false }}
                       />
+                      <Stack.Screen
+                        name="hospital"
+                        options={{ headerShown: false }}
+                      />
                       <Stack.Screen name="+not-found" />
                     </Stack>
                   </FallDetectionProvider>
@@ -215,3 +219,5 @@ function RootLayout() {
     </ErrorBoundary>
   );
 }
+
+export default Sentry.wrap(RootLayout);

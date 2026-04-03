@@ -1,0 +1,43 @@
+version: "3.9"
+services:
+  compreface:
+    image: exadel/compreface:1.2.0
+    environment:
+      POSTGRES_USER: compreface
+      POSTGRES_PASSWORD: compreface
+      POSTGRES_DB: frs
+      SAVE_IMAGES_TO_DB: "false"
+    ports: ["8000:8000"]
+    volumes: ["compreface_data:/var/lib/postgresql/data"]
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: hospital
+      POSTGRES_PASSWORD: hospital
+      POSTGRES_DB: hospital_db
+    ports: ["5432:5432"]
+    volumes: ["hospital_db_data:/var/lib/postgresql/data"]
+
+  server:
+    build: ./server
+    environment:
+      DATABASE_URL: postgres://hospital:hospital@postgres:5432/hospital_db
+      COMPREFACE_URL: http://compreface:8000
+      COMPREFACE_API_KEY: ${COMPREFACE_API_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      DB_ENCRYPTION_KEY: ${DB_ENCRYPTION_KEY}
+      PORT: 3001
+    ports: ["3001:3001"]
+    depends_on: [compreface, postgres]
+
+  web:
+    build: ./web
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+    ports: ["3000:3000"]
+    depends_on: [server]
+
+volumes:
+  compreface_data:
+  hospital_db_data:

@@ -509,6 +509,6 @@ export default function OnboardingScreen() {
           onPurchaseComplete={handlePurchaseComplete}
         />
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }

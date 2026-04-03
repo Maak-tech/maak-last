@@ -307,9 +307,6 @@ export const medicationService = {
       }).catch(() => {
         // Silently handle dismissal errors
       });
-    } catch (error) {
-      console.error('Error marking medication as taken:', error);
-      throw error;
     }
   },
 
@@ -360,6 +357,7 @@ export const medicationService = {
     userId: string,
     hours = 24
   ): Promise<UpcomingReminder[]> {
+    try {
     const medications = await this.getUserMedications(userId);
     const reminders: UpcomingReminder[] = [];
 
@@ -422,6 +420,10 @@ export const medicationService = {
       }
     }
     this.invalidateCache(userId);
+  } catch (error) {
+      console.error('Error resetting daily reminders:', error);
+      throw error;
+    }
   },
 
   // Check if user has permission to access family data (admin or caregiver)

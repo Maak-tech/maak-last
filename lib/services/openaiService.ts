@@ -151,9 +151,7 @@ class OpenAIService {
   }
 
   async createChatCompletion(messages: ChatMessage[]): Promise<string> {
-    if (!this.apiKey) {
-      throw new Error('OpenAI API key not configured');
-    }
+    return this.requestChatCompletion(messages, false);
   }
 
   private async requestChatCompletion(
@@ -216,15 +214,6 @@ class OpenAIService {
         );
       }
 
-      const data = await response.json();
-      
-      if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-        throw new Error('Invalid response format from OpenAI API');
-      }
-      
-      return data.choices[0].message.content;
-    } catch (error) {
-      console.error('Error in createChatCompletion:', error);
       throw error;
     }
   }

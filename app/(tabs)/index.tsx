@@ -8,6 +8,11 @@ import {
   RefreshControl,
   Alert,
   Linking,
+  Modal,
+  Pressable,
+  StyleProp,
+  TextStyle,
+  ViewStyle,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
@@ -26,6 +31,7 @@ import {
   User,
   Phone,
   AlertCircle,
+  Bell,
 } from 'lucide-react-native';
 import { symptomService } from '@/lib/services/symptomService';
 import { medicationService } from '@/lib/services/medicationService';
@@ -35,6 +41,13 @@ import { Symptom, Medication, User as UserType } from '@/types';
 import FamilyDataFilter, {
   FilterOption,
 } from '@/app/components/FamilyDataFilter';
+import VHIContextBanner from '@/components/VHIContextBanner';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import GradientScreen from '@/components/figma/GradientScreen';
+import WavyBackground from '@/components/figma/WavyBackground';
+import { Heading } from '@/components/design-system/Typography';
+import AnomalyDashboardSection from '@/components/AnomalyDashboardSection';
+import ProactiveHealthSuggestions from '@/components/ProactiveHealthSuggestions';
 
 export default function DashboardScreen() {
   const { t, i18n } = useTranslation();
@@ -57,6 +70,29 @@ export default function DashboardScreen() {
     type: 'personal',
     label: '',
   });
+
+  const insets = useSafeAreaInsets();
+  const wavyHeaderTopPadding = 16;
+  const [showAlertsModal, setShowAlertsModal] = useState(false);
+  const [showTour, setShowTour] = useState(false);
+  const [tourSteps] = useState<Array<{ title: string; body: string }>>([]);
+  const [tourStep, setTourStep] = useState(0);
+  const activeTourStep = tourSteps[tourStep] || { title: '', body: '' };
+  const enabledWidgets: string[] = ['medications', 'symptoms', 'family'];
+
+  const handleAlertsBadgePress = () => setShowAlertsModal(true);
+
+  const renderWidget = (_widgetId: string) => null;
+
+  const handleTourFinish = () => setShowTour(false);
+  const handleTourNext = () => {
+    if (tourStep >= tourSteps.length - 1) {
+      setShowTour(false);
+    } else {
+      setTourStep((s) => s + 1);
+    }
+  };
+  const handleTourBack = () => setTourStep((s) => Math.max(0, s - 1));
 
   const isRTL = i18n.language === 'ar';
   const isAdmin = user?.role === 'admin';
@@ -722,6 +758,9 @@ export default function DashboardScreen() {
               </View>
             </WavyBackground>
           </View>
+
+          {/* VHI Context Banner — shown when composite risk > 60 */}
+          <VHIContextBanner />
 
           {/* Render widgets dynamically */}
           {enabledWidgets.map((widgetId) => renderWidget(widgetId))}
@@ -1579,6 +1618,7 @@ export default function DashboardScreen() {
           </Text>
         </View>
       </ScrollView>
-    </SafeAreaView>
+      </View>
+    </GradientScreen>
   );
 }

@@ -160,9 +160,8 @@ export default function HelpSupportScreen() {
         </Text>
 
         <View style={styles.headerSpacer} />
-      </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+
         {/* Welcome Section */}
         <View style={styles.welcomeSection}>
           <View style={styles.welcomeIcon}>
@@ -373,7 +372,7 @@ export default function HelpSupportScreen() {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </GradientScreen>
   );
 }
 

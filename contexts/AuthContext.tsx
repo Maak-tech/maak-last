@@ -379,15 +379,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const updateUser = async (userData: Partial<User>) => {
     if (!user) return;
-
-  const resetPassword = useCallback(async (email: string) => {
-    const { error } = await authClient.requestPasswordReset({
-      email,
-      redirectTo: "nuralix://reset-password",
-    });
-    if (error) throw new Error(mapAuthError(error, "resetPassword"));
-  }, []);
-
+    try {
       const updatedUser = { ...user, ...userData };
       setUser(updatedUser);
     } catch (error) {

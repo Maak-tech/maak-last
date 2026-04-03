@@ -131,9 +131,6 @@ export const alertService = {
         metadata: { alertType: alertData.type, userId: alertData.userId },
       });
       return docRef.id;
-    } catch (error) {
-      console.error('Error creating alert:', error);
-      throw error;
     }
   },
 
@@ -327,9 +324,6 @@ export const alertService = {
         },
         metadata: { alertId, userId },
       });
-    } catch (error) {
-      console.error('Error adding responder:', error);
-      throw error;
     }
   },
 
