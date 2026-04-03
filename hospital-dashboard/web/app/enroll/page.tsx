@@ -29,7 +29,7 @@ export default function EnrollPage() {
   useEffect(() => {
     const stored = sessionStorage.getItem('hospital_staff')
     if (stored) {
-      try { setStaff(JSON.parse(stored) as StaffInfo) } catch { /* ignore */ }
+      try { setStaff(JSON.parse(stored) as StaffInfo) } catch (err) { console.warn('[enroll] Failed to parse staff info:', err) }
     }
     const token = sessionStorage.getItem('hospital_token')
     if (!token) router.push('/login')
@@ -58,10 +58,19 @@ export default function EnrollPage() {
     try {
       const data = await api.manualSearch(searchQuery)
       setSearchResults(data.results)
-    } catch { /* ignore */ } finally {
+    } catch (err) {
+      console.warn('[enroll] Patient search failed:', err)
+    } finally {
       setSearching(false)
     }
   }
+
+  // Revoke blob URL when it's replaced or on unmount — prevents memory leak
+  useEffect(() => {
+    return () => {
+      if (capturedUrl) URL.revokeObjectURL(capturedUrl)
+    }
+  }, [capturedUrl])
 
   const capturePhoto = useCallback(() => {
     if (!videoRef.current || !canvasRef.current) return

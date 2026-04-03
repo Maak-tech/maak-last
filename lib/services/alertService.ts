@@ -142,7 +142,7 @@ export const alertService = {
     const result = await api.get<EmergencyAlert[]>(
       `/api/alerts?limit=${limitCount}`
     );
-    return (result ?? []).map(normalizeAlert);
+    return (Array.isArray(result) ? result : []).map(normalizeAlert);
   },
 
   async getFamilyAlerts(
@@ -182,7 +182,7 @@ export const alertService = {
     try {
       // Fetch current alert data for timeline + escalation
       const alertList = await api.get<EmergencyAlert[]>(`/api/alerts?limit=200`);
-      const alertData = alertList?.find((a) => a.id === alertId);
+      const alertData = (Array.isArray(alertList) ? alertList : []).find((a) => a.id === alertId);
 
       observabilityEmitter.emit({
         eventType: "alert_service",
@@ -223,13 +223,13 @@ export const alertService = {
             actorId: resolverId,
             actorType: "user",
           })
-          .catch(() => {
-            // Non-critical — alert already resolved
+          .catch((err: unknown) => {
+            console.warn('[alert] Failed to create resolution timeline event:', err);
           });
 
-        // Escalation resolution (non-critical)
-        escalationService.resolveEscalation(alertId, resolverId).catch(() => {
-          // Expected to fail if no escalation was active
+        // Escalation resolution (non-critical — expected to fail when no escalation is active)
+        escalationService.resolveEscalation(alertId, resolverId).catch((err: unknown) => {
+          console.debug('[alert] resolveEscalation (no-op when no active escalation):', err);
         });
       }
 
@@ -390,8 +390,8 @@ export const alertService = {
         { title: "Caregiver Alert", body: message, data: { type: "caregiver_alert", alertId, caregiverId, familyId } },
         caregiverId
       )
-      .catch(() => {
-        // Silently fail if notification fails
+      .catch((err: unknown) => {
+        console.warn('[alert] Failed to send caregiver push notification:', err);
       });
 
     return alertId;

@@ -908,13 +908,13 @@ export async function getEffectivenessInsights(
       `/api/health/vitals?type=${vitalType}&from=${cutoff.toISOString()}&limit=100`
     );
 
-    if (!vitalsRaw || vitalsRaw.length === 0) return null;
+    if (!Array.isArray(vitalsRaw) || vitalsRaw.length === 0) return null;
 
     // Get medication reminders to find taken dates
     const medsRaw = await api.get<Record<string, unknown>[]>(
       "/api/health/medications"
     );
-    const med = (medsRaw ?? []).find((m) => m.id === medicationId);
+    const med = (Array.isArray(medsRaw) ? medsRaw : []).find((m) => m.id === medicationId);
     if (!med) return null;
 
     const medData = med as unknown as Medication;
@@ -975,7 +975,8 @@ export async function getEffectivenessInsights(
       insight,
       insightAr,
     };
-  } catch {
+  } catch (err) {
+    console.warn('[medicationIntelligence] getEffectivenessInsights failed:', err);
     return null;
   }
 }

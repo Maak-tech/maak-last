@@ -18,10 +18,12 @@
 
 import { Elysia, t } from "elysia";
 import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
+import crypto from "node:crypto";
 import { requireAuth } from "../middleware/requireAuth";
 import { alerts, familyMembers } from "../db/schema";
 import type { InferSelectModel } from "drizzle-orm";
 import { dispatchWebhookEvent } from "../lib/webhookDispatcher";
+import type { Database } from "../db";
 
 type AlertRow = InferSelectModel<typeof alerts>;
 
@@ -51,8 +53,7 @@ function toEmergencyAlert(row: AlertRow) {
  *   - callerId === alertOwnerId (owner), OR
  *   - callerId is a family admin or caregiver in the same family as alertOwnerId.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function hasAlertAccess(db: any, callerId: string, alertOwnerId: string | null): Promise<boolean> {
+async function hasAlertAccess(db: Database, callerId: string, alertOwnerId: string | null): Promise<boolean> {
   if (!alertOwnerId) return false;
   if (alertOwnerId === callerId) return true;
 

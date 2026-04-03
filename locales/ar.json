@@ -141,7 +141,7 @@
   "home": "الرئيسية",
   "dashboard": "لوحة التحكم",
   "track": "تتبع",
-  "nora": "زينة",
+  "nora": "نورة",
   "events": "الأحداث",
   "symptoms": "الأعراض الصحية",
   "medications": "الأدوية",
@@ -1097,5 +1097,9 @@
   "predictedWithConfidence": "متوقع (ثقة {{percent}}٪)",
   "acknowledge": "تأكيد",
   "escalate": "تصعيد",
-  "resolve": "حل"
+  "resolve": "حل",
+  "simulatorNotSupported": "غير مدعوم على المحاكي",
+  "retry": "إعادة المحاولة",
+  "reminders": "التذكيرات",
+  "window": "النافذة"
 }

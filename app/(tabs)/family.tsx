@@ -22,6 +22,7 @@ import { createThemedStyles, getTextStyle } from '@/utils/styles';
 import { userService } from '@/lib/services/userService';
 import { familyInviteService } from '@/lib/services/familyInviteService';
 import { api } from '@/lib/apiClient';
+import { vhiService } from '@/lib/services/vhiService';
 import { User } from '@/types';
 import {
   Plus,
@@ -109,15 +110,15 @@ export default function FamilyScreen() {
           const familyAlerts = await api.get<{ isAcknowledged: boolean }[]>(
             `/api/alerts/family?userIds=${userIds}`
           );
-          setFamilyAlertCount((familyAlerts ?? []).filter((a) => !a.isAcknowledged).length);
+          setFamilyAlertCount((Array.isArray(familyAlerts) ? familyAlerts : []).filter((a) => !a.isAcknowledged).length);
         } catch { /* silently ignore — alerts are non-critical */ }
       }
 
-      // Fetch current user's VHI score
+      // Fetch current user's VHI score via the typed vhiService
       try {
-        const vhiData = await api.get<{ data?: { currentState?: { overallScore?: number } } }>('/api/vhi');
-        setMyVhiScore(vhiData?.data?.currentState?.overallScore ?? null);
-      } catch { /* silently ignore */ }
+        const vhi = await vhiService.getMyVHI();
+        setMyVhiScore(vhi?.data?.currentState?.overallScore ?? null);
+      } catch { /* silently ignore — VHI score is supplemental */ }
     } catch (error) {
       console.error('Error loading family members:', error);
       Alert.alert(

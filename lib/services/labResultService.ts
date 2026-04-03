@@ -87,7 +87,8 @@ class LabResultService {
         ...(updates.notes !== undefined && { notes: updates.notes }),
         ...(updates.tags !== undefined && { tags: updates.tags }),
       });
-    } catch {
+    } catch (err) {
+      if (err instanceof Error) throw err;
       throw new Error("Failed to update lab result");
     }
   }
@@ -98,7 +99,8 @@ class LabResultService {
   async deleteLabResult(labResultId: string): Promise<void> {
     try {
       await api.delete(`/api/health/labs/${labResultId}`);
-    } catch {
+    } catch (err) {
+      if (err instanceof Error) throw err;
       throw new Error("Failed to delete lab result");
     }
   }
@@ -111,20 +113,27 @@ class LabResultService {
       const raw = await api.get<Record<string, unknown>>(`/api/health/labs/${labResultId}`);
       if (!raw || (raw as { error?: string }).error) return null;
       return normalizeLabResult(raw);
-    } catch {
+    } catch (err) {
+      console.warn('[labResult] getLabResult failed:', err);
       return null;
     }
   }
 
   /**
-   * Get all lab results for a user
+   * Get all lab results for a user.
+   *
+   * NOTE: `userId` is forwarded as a query param so that family admins can
+   * request a family member's labs. The API enforces authorization — callers
+   * can only fetch their own labs or those of family members they manage.
    */
   async getUserLabResults(userId: string, limitCount?: number): Promise<LabResult[]> {
     try {
-      const url = limitCount ? `/api/health/labs?limit=${limitCount}` : "/api/health/labs";
-      const raw = await api.get<Record<string, unknown>[]>(url);
-      return (raw ?? []).map(normalizeLabResult);
-    } catch {
+      const params = new URLSearchParams({ userId });
+      if (limitCount) params.set('limit', String(limitCount));
+      const raw = await api.get<Record<string, unknown>[]>(`/api/health/labs?${params.toString()}`);
+      return (Array.isArray(raw) ? raw : []).map(normalizeLabResult);
+    } catch (err) {
+      console.warn('[labResult] getUserLabResults failed:', err);
       return [];
     }
   }
@@ -136,7 +145,8 @@ class LabResultService {
     try {
       const all = await this.getUserLabResults(userId);
       return all.filter((r) => r.testType === testType);
-    } catch {
+    } catch (err) {
+      console.warn('[labResult] getLabResultsByType failed:', err);
       return [];
     }
   }
@@ -154,7 +164,8 @@ class LabResultService {
       return all.filter(
         (r) => r.testDate >= startDate && r.testDate <= endDate
       );
-    } catch {
+    } catch (err) {
+      console.warn('[labResult] getLabResultsByDateRange failed:', err);
       return [];
     }
   }
@@ -166,7 +177,8 @@ class LabResultService {
     try {
       const all = await this.getUserLabResults(userId);
       return all.filter((r) => r.tags?.includes(tag.toLowerCase()));
-    } catch {
+    } catch (err) {
+      console.warn('[labResult] getLabResultsByTag failed:', err);
       return [];
     }
   }

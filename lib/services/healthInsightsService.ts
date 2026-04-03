@@ -650,7 +650,7 @@ class HealthInsightsService {
       const rows = await api.get<Record<string, unknown>[]>(
         `/api/health/moods?from=${encodeURIComponent(start.toISOString())}&limit=${fetchLimit}`
       );
-      return rows.map((m) => ({
+      return (Array.isArray(rows) ? rows : []).map((m) => ({
         id: m.id as string,
         userId: m.userId as string,
         mood: m.mood as Mood["mood"],

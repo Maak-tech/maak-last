@@ -154,10 +154,12 @@ class CorrelationAnalysisService {
       const frequencyAfter = symptomsAfter.length / daysAfter;
 
       // Calculate correlation strength based on improvement
-      const severityImprovement =
-        (avgSeverityBefore - avgSeverityAfter) / avgSeverityBefore;
-      const frequencyImprovement =
-        (frequencyBefore - frequencyAfter) / frequencyBefore;
+      const severityImprovement = avgSeverityBefore === 0
+        ? 0
+        : (avgSeverityBefore - avgSeverityAfter) / avgSeverityBefore;
+      const frequencyImprovement = frequencyBefore === 0
+        ? 0
+        : (frequencyBefore - frequencyAfter) / frequencyBefore;
 
       const overallImprovement =
         (severityImprovement + frequencyImprovement) / 2;
@@ -943,7 +945,7 @@ class CorrelationAnalysisService {
       const rows = await api.get<Record<string, unknown>[]>(
         `/api/health/moods?from=${encodeURIComponent(startDate.toISOString())}&limit=${fetchLimit}`
       );
-      return rows.map((m) => ({
+      return (Array.isArray(rows) ? rows : []).map((m) => ({
         id: m.id as string,
         userId: m.userId as string,
         mood: m.mood as Mood["mood"],
@@ -970,7 +972,7 @@ class CorrelationAnalysisService {
       const rows = await api.get<Record<string, unknown>[]>(
         `/api/health/vitals?from=${encodeURIComponent(startDate.toISOString())}&limit=${fetchLimit}`
       );
-      return rows
+      return (Array.isArray(rows) ? rows : [])
         .filter((v) => typeof v.value === "number" && v.type)
         .map((v) => ({
           id: v.id as string,

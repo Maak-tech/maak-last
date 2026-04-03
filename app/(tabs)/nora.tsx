@@ -125,7 +125,10 @@ export default function NoraScreen() {
   useEffect(
     () => () => {
       isMountedRef.current = false;
+      // Stop voice recognition if the screen unmounts while listening
+      voiceService.stopListening().catch(() => {});
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 
@@ -203,8 +206,13 @@ export default function NoraScreen() {
 
   const handleVoiceInput = async () => {
     if (isListening) {
-      await voiceService.stopListening();
-      setIsListening(false);
+      try {
+        await voiceService.stopListening();
+      } catch (_err) {
+        // stopListening failure is non-critical — ensure state is reset either way
+      } finally {
+        setIsListening(false);
+      }
       return;
     }
 

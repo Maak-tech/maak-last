@@ -257,11 +257,6 @@ export const userService = {
     // Get current user to check existing family
     const currentUser = await this.getUser(userId);
     const oldFamilyId = currentUser?.familyId;
-    console.log('Current user data:', {
-      userId,
-      currentFamilyId: currentUser?.familyId,
-      userName: currentUser?.name,
-    });
 
     if (oldFamilyId && oldFamilyId !== familyId) {
       await this.leavePreviousFamily(userId, oldFamilyId);

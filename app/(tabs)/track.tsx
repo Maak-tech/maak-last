@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
+  Alert,
   View,
   Text,
   ScrollView,
@@ -302,7 +303,16 @@ export default function TrackScreen() {
         upcomingMedications,
       });
     } catch (error) {
-      console.error('Error loading tracking data:', error);
+      console.error('[Track] Error loading tracking data:', error);
+      if (!isRefresh) {
+        // Only alert on initial load — pull-to-refresh failures are less disruptive
+        Alert.alert(
+          isRTL ? 'خطأ في التحميل' : 'Load Error',
+          isRTL
+            ? 'تعذّر تحميل بيانات التتبع. تحقق من اتصالك وحاول مجدداً.'
+            : 'Failed to load tracking data. Check your connection and try again.'
+        );
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);

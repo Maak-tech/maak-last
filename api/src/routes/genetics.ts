@@ -6,12 +6,18 @@ import { requireAuth } from "../middleware/requireAuth";
 import { genetics } from "../db/schema";
 import { runDnaParsingJob } from "../jobs/dnaParsingJob";
 
+const TIGRIS_ACCESS_KEY = process.env.TIGRIS_ACCESS_KEY;
+const TIGRIS_SECRET_KEY = process.env.TIGRIS_SECRET_KEY;
+if (!TIGRIS_ACCESS_KEY || !TIGRIS_SECRET_KEY) {
+  console.error("[genetics] TIGRIS_ACCESS_KEY and TIGRIS_SECRET_KEY must be set — DNA upload will be unavailable");
+}
+
 const tigris = new S3Client({
   region: "auto",
   endpoint: process.env.TIGRIS_ENDPOINT ?? "https://fly.storage.tigris.dev",
   credentials: {
-    accessKeyId: process.env.TIGRIS_ACCESS_KEY ?? "",
-    secretAccessKey: process.env.TIGRIS_SECRET_KEY ?? "",
+    accessKeyId: TIGRIS_ACCESS_KEY ?? "",
+    secretAccessKey: TIGRIS_SECRET_KEY ?? "",
   },
 });
 
@@ -112,7 +118,11 @@ export const geneticsRoutes = new Elysia({ prefix: "/api/genetics" })
       // Rejecting keys that don't start with the caller's userId prefix prevents
       // one user from supplying a crafted key to download another user's raw DNA file.
       const expectedPrefix = `genetics/${userId}/`;
-      if (!body.uploadKey.startsWith(expectedPrefix)) {
+      if (
+        !body.uploadKey.startsWith(expectedPrefix) ||
+        body.uploadKey.includes("..") ||
+        body.uploadKey.includes("//")
+      ) {
         set.status = 400;
         return { error: "Invalid upload key" };
       }

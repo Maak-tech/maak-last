@@ -76,6 +76,7 @@ export default function QRScreen() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const countdown = useCountdown(expiresAt)
+  const isExpired = countdown === 'Expired'
 
   const loadQR = useCallback(async (forceRefresh = false) => {
     if (!user?.id) return
@@ -142,13 +143,20 @@ export default function QRScreen() {
 
       {!loading && !error && qrToken && (
         <View style={styles.qrContainer}>
-          <View style={styles.qrWrapper}>
+          {/* Dim the QR visually when expired so staff cannot scan a stale token */}
+          <View style={[styles.qrWrapper, isExpired && styles.qrWrapperExpired]}>
             <QRCodePlaceholder value={qrToken} />
+            {isExpired && (
+              <View style={styles.expiredOverlay}>
+                <Text style={styles.expiredOverlayText}>Expired</Text>
+                <Text style={styles.expiredOverlaySubtext}>Refreshing…</Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.expiryBadge}>
-            <View style={styles.expiryDot} />
-            <Text style={styles.expiryText}>{countdown}</Text>
+            <View style={[styles.expiryDot, isExpired && styles.expiryDotExpired]} />
+            <Text style={[styles.expiryText, isExpired && styles.expiryTextExpired]}>{countdown}</Text>
           </View>
 
           <View style={styles.tokenPreview}>
@@ -237,6 +245,36 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#374151',
+  },
+  qrWrapperExpired: {
+    opacity: 0.4,
+  },
+  expiredOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  expiredOverlayText: {
+    color: '#ef4444',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  expiredOverlaySubtext: {
+    color: '#9ca3af',
+    fontSize: 12,
+  },
+  expiryDotExpired: {
+    backgroundColor: '#ef4444',
+  },
+  expiryTextExpired: {
+    color: '#ef4444',
   },
   expiryBadge: {
     flexDirection: 'row',

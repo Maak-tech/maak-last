@@ -46,10 +46,6 @@ export default function LoginScreen() {
       // This ensures it's available when onAuthStateChanged triggers
       if (familyCode.trim()) {
         try {
-          console.log(
-            '💾 Storing family code before authentication:',
-            familyCode.trim()
-          );
           const AsyncStorage = await import(
             '@react-native-async-storage/async-storage'
           );
@@ -57,9 +53,8 @@ export default function LoginScreen() {
             'pendingFamilyCode',
             familyCode.trim()
           );
-          console.log('✅ Family code stored successfully');
         } catch (error) {
-          console.error('Error storing family code:', error);
+          console.error('[Login] Error storing family code:', error);
           Alert.alert(
             'Notice',
             'There was an issue storing your family code. Please use the family code in the Family tab after login.'
@@ -78,7 +73,6 @@ export default function LoginScreen() {
       }
 
       // Navigate back to index so it can handle the authenticated user
-      console.log('🔄 Login successful, navigating back to index');
       router.replace('/');
     } catch (error: any) {
       console.error('Login error:', error);

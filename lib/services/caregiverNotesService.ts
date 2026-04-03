@@ -51,7 +51,7 @@ export async function getNotes(
   const raw = await api.get<Record<string, unknown>[]>(
     `/api/family/caregiver-notes?memberId=${memberId}&limit=${maxNotes}`
   );
-  return (raw ?? []).map(normalizeNote).reverse();
+  return (Array.isArray(raw) ? raw : []).map(normalizeNote).reverse();
 }
 
 /** Delete a caregiver note */

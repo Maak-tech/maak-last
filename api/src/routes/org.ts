@@ -29,14 +29,14 @@ import {
   cohorts,
   cohortMembers,
 } from "../db/schema";
+import type { Database } from "../db";
 // ── Authorization helpers ──────────────────────────────────────────────────────
 
 /**
  * Returns the caller's org membership row, or null if they are not a member.
  * Used by all org-gated endpoints to enforce role-based access control.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getOrgMembership(db: any, userId: string, orgId: string): Promise<{ role: string | null } | null> {
+async function getOrgMembership(db: Database, userId: string, orgId: string): Promise<{ role: string | null } | null> {
   const [row] = await db
     .select({ role: orgMembers.role })
     .from(orgMembers)

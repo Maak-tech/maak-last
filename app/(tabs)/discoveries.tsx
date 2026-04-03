@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from "expo-router";
-import { ChevronLeft, Filter, Sparkles, X } from "lucide-react-native";
+import { ChevronLeft, Sparkles } from "lucide-react-native";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -41,15 +41,20 @@ export default function DiscoveriesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState<DiscoveryType | "all">("all");
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async (isRefresh = false) => {
     if (!user?.id) return;
     if (!isRefresh) setLoading(true);
+    setLoadError(null);
     try {
       const all = await discoveryService.getAllDiscoveries(user.id, isRTL);
       setDiscoveries(all);
-    } catch {
-      // silently handle
+    } catch (err) {
+      console.warn('[discoveries] Failed to load discoveries:', err);
+      setLoadError(
+        isRTL ? "تعذّر تحميل الاكتشافات. اسحب للأسفل للمحاولة مجدداً." : "Failed to load discoveries. Pull down to retry."
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -124,6 +129,20 @@ export default function DiscoveriesScreen() {
         <View style={styles.center}>
           <ActivityIndicator color={theme.colors.primary.main} size="large" />
         </View>
+      ) : loadError ? (
+        <View style={styles.center}>
+          <Text style={[styles.errorText, { color: theme.colors.status?.error ?? "#EF4444" }]}>
+            {loadError}
+          </Text>
+          <TouchableOpacity
+            onPress={() => load()}
+            style={[styles.retryBtn, { borderColor: theme.colors.primary.main }]}
+          >
+            <Text style={{ color: theme.colors.primary.main, fontSize: 14, fontWeight: "600" }}>
+              {isRTL ? "إعادة المحاولة" : "Retry"}
+            </Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -190,4 +209,6 @@ const styles = StyleSheet.create({
   emptyDesc: { fontSize: 14, textAlign: "center", lineHeight: 20 },
   clearFilter: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20, borderWidth: 1, marginTop: 4 },
   list: { padding: 16, gap: 12 },
+  errorText: { fontSize: 15, textAlign: "center", paddingHorizontal: 32, lineHeight: 22 },
+  retryBtn: { marginTop: 16, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20, borderWidth: 1 },
 });

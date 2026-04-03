@@ -60,10 +60,6 @@ export default function RegisterScreen() {
       // This ensures it's available when onAuthStateChanged triggers
       if (familyCode.trim()) {
         try {
-          console.log(
-            '💾 Storing family code before registration:',
-            familyCode.trim()
-          );
           const AsyncStorage = await import(
             '@react-native-async-storage/async-storage'
           );
@@ -71,9 +67,8 @@ export default function RegisterScreen() {
             'pendingFamilyCode',
             familyCode.trim()
           );
-          console.log('✅ Family code stored successfully');
         } catch (error) {
-          console.error('Error storing family code:', error);
+          console.error('[Register] Error storing family code:', error);
           Alert.alert(
             'Notice',
             'There was an issue storing your family code. Please use the family code in the Family tab after registration.'
@@ -91,13 +86,7 @@ export default function RegisterScreen() {
         );
       }
 
-      // Navigate back to index so it can handle the authenticated user routing
-      // This ensures proper auth state establishment before navigation
-      console.log(
-        '✅ Registration successful, redirecting to index for proper routing...'
-      );
-
-      // Small delay to ensure auth state is fully established
+      // Small delay to ensure auth state is fully established before routing
       setTimeout(() => {
         router.replace('/');
       }, 100);

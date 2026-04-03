@@ -24,6 +24,11 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     },
   })
   if (!response.ok) {
+    // On 401 the session is expired or invalid — clear it and redirect to login
+    if (response.status === 401 && typeof window !== 'undefined') {
+      clearToken()
+      window.location.href = '/login'
+    }
     const err = await response.json().catch(() => ({ error: response.statusText }))
     throw new Error((err as { error?: string }).error ?? 'Request failed')
   }
@@ -118,7 +123,8 @@ export const api = {
     apiFetch<{ confirmed: boolean }>(`/patient/confirm/${sessionToken}`, { method: 'POST' }),
 
   getFullTwin: (patientId: string, sessionToken: string) =>
-    apiFetch<TwinData>(`/patient/${patientId}/twin?sessionToken=${sessionToken}`, {
+    // Session token passed via header only — never in URL (prevents logging in server/proxy access logs)
+    apiFetch<TwinData>(`/patient/${patientId}/twin`, {
       headers: { 'X-Session-Token': sessionToken },
     }),
 

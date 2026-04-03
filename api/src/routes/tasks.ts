@@ -2,11 +2,11 @@ import { Elysia, t } from "elysia";
 import { and, eq } from "drizzle-orm";
 import { requireAuth } from "../middleware/requireAuth";
 import { tasks, orgMembers } from "../db/schema";
+import type { Database } from "../db";
 
 // Verify the calling user is a member of the specified org.
 // Returns the membership row or null.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function requireOrgMember(db: any, userId: string, orgId: string) {
+async function requireOrgMember(db: Database, userId: string, orgId: string) {
   const [row] = await db
     .select({ role: orgMembers.role })
     .from(orgMembers)

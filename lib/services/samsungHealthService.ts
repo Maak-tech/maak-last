@@ -144,7 +144,7 @@ const dataTypeParsers: Record<
     if (rows.length === 0) {
       return [];
     }
-    return rows.map((item) => ({
+    return (Array.isArray(rows) ? rows : []).map((item) => ({
       value: item.heart_rate || item.value || item.bpm || 0,
       unit: "bpm",
       startDate: toIsoDate(item.timestamp || item.start_time || item.date),
@@ -159,7 +159,7 @@ const dataTypeParsers: Record<
     if (rows.length === 0) {
       return [];
     }
-    return rows.map((item) => ({
+    return (Array.isArray(rows) ? rows : []).map((item) => ({
       value: item.resting_heart_rate || item.value || 0,
       unit: "bpm",
       startDate: toIsoDate(item.timestamp || item.date),
@@ -173,7 +173,7 @@ const dataTypeParsers: Record<
     if (rows.length === 0) {
       return [];
     }
-    return rows.map((item) => ({
+    return (Array.isArray(rows) ? rows : []).map((item) => ({
       value: item.hrv || item.sdnn || item.rmssd || item.value || 0,
       unit: "ms",
       startDate: toIsoDate(item.timestamp || item.date),
@@ -187,7 +187,7 @@ const dataTypeParsers: Record<
     if (rows.length === 0) {
       return [];
     }
-    return rows.map((item) => ({
+    return (Array.isArray(rows) ? rows : []).map((item) => ({
       value: item.systolic || item.systolic_pressure || 0,
       unit: "mmHg",
       startDate: toIsoDate(item.timestamp || item.date),
@@ -201,7 +201,7 @@ const dataTypeParsers: Record<
     if (rows.length === 0) {
       return [];
     }
-    return rows.map((item) => ({
+    return (Array.isArray(rows) ? rows : []).map((item) => ({
       value: item.diastolic || item.diastolic_pressure || 0,
       unit: "mmHg",
       startDate: toIsoDate(item.timestamp || item.date),
@@ -215,7 +215,7 @@ const dataTypeParsers: Record<
     if (rows.length === 0) {
       return [];
     }
-    return rows.map((item) => ({
+    return (Array.isArray(rows) ? rows : []).map((item) => ({
       value: item.spo2 || item.oxygen_saturation || item.value || 0,
       unit: "%",
       startDate: toIsoDate(item.timestamp || item.date),
@@ -229,7 +229,7 @@ const dataTypeParsers: Record<
     if (rows.length === 0) {
       return [];
     }
-    return rows.map((item) => ({
+    return (Array.isArray(rows) ? rows : []).map((item) => ({
       value:
         item.respiratory_rate || item.breaths_per_minute || item.value || 0,
       unit: "breaths/min",
@@ -244,7 +244,7 @@ const dataTypeParsers: Record<
     if (rows.length === 0) {
       return [];
     }
-    return rows.map((item) => ({
+    return (Array.isArray(rows) ? rows : []).map((item) => ({
       value: item.temperature || item.body_temperature || item.value || 0,
       unit: "°C",
       startDate: toIsoDate(item.timestamp || item.date),
@@ -258,7 +258,7 @@ const dataTypeParsers: Record<
     if (rows.length === 0) {
       return [];
     }
-    return rows.map((item) => ({
+    return (Array.isArray(rows) ? rows : []).map((item) => ({
       value: item.weight || item.body_weight || item.value || 0,
       unit: "kg",
       startDate: toIsoDate(item.timestamp || item.date),
@@ -284,7 +284,7 @@ const dataTypeParsers: Record<
     if (rows.length === 0) {
       return [];
     }
-    return rows.map((item) => ({
+    return (Array.isArray(rows) ? rows : []).map((item) => ({
       value: item.height || item.value || 0,
       unit: "cm",
       startDate: toIsoDate(item.timestamp || item.date),
@@ -298,7 +298,7 @@ const dataTypeParsers: Record<
     if (rows.length === 0) {
       return [];
     }
-    return rows.map((item) => ({
+    return (Array.isArray(rows) ? rows : []).map((item) => ({
       value: item.bmi || item.body_mass_index || item.value || 0,
       unit: "kg/m²",
       startDate: toIsoDate(item.timestamp || item.date),
@@ -312,7 +312,7 @@ const dataTypeParsers: Record<
     if (rows.length === 0) {
       return [];
     }
-    return rows.map((item) => ({
+    return (Array.isArray(rows) ? rows : []).map((item) => ({
       value: item.body_fat || item.fat_percentage || item.value || 0,
       unit: "%",
       startDate: toIsoDate(item.timestamp || item.date),
@@ -326,7 +326,7 @@ const dataTypeParsers: Record<
     if (rows.length === 0) {
       return [];
     }
-    return rows.map((item) => ({
+    return (Array.isArray(rows) ? rows : []).map((item) => ({
       value: item.steps || item.step_count || item.count || item.value || 0,
       unit: "count",
       startDate: toIsoDate(item.timestamp || item.start_time || item.date),
@@ -341,7 +341,7 @@ const dataTypeParsers: Record<
     if (rows.length === 0) {
       return [];
     }
-    return rows.map((item) => ({
+    return (Array.isArray(rows) ? rows : []).map((item) => ({
       value:
         item.active_calories ||
         item.calories_burned ||
@@ -360,7 +360,7 @@ const dataTypeParsers: Record<
     if (rows.length === 0) {
       return [];
     }
-    return rows.map((item) => ({
+    return (Array.isArray(rows) ? rows : []).map((item) => ({
       // Samsung Health typically returns distance in meters, convert to km
       value: (item.distance || item.total_distance || item.value || 0) / 1000,
       unit: "km",
@@ -375,7 +375,7 @@ const dataTypeParsers: Record<
     if (rows.length === 0) {
       return [];
     }
-    return rows.map((item) => ({
+    return (Array.isArray(rows) ? rows : []).map((item) => ({
       value:
         item.floors || item.floors_climbed || item.count || item.value || 0,
       unit: "count",
@@ -390,7 +390,7 @@ const dataTypeParsers: Record<
     if (rows.length === 0) {
       return [];
     }
-    return rows.map((item) => ({
+    return (Array.isArray(rows) ? rows : []).map((item) => ({
       // Convert from milliseconds or seconds to minutes if needed
       value:
         item.duration_minutes ??
@@ -410,7 +410,7 @@ const dataTypeParsers: Record<
     if (rows.length === 0) {
       return [];
     }
-    return rows.map((item) => ({
+    return (Array.isArray(rows) ? rows : []).map((item) => ({
       value: item.exercise_type || item.workout_type || item.type || "workout",
       unit: "",
       startDate: toIsoDate(item.timestamp || item.start_time || item.date),
@@ -425,7 +425,7 @@ const dataTypeParsers: Record<
     if (rows.length === 0) {
       return [];
     }
-    return rows.map((item) => ({
+    return (Array.isArray(rows) ? rows : []).map((item) => ({
       // Total sleep in hours
       value: item.total_sleep_minutes
         ? item.total_sleep_minutes / 60
@@ -447,7 +447,7 @@ const dataTypeParsers: Record<
     if (rows.length === 0) {
       return [];
     }
-    return rows.map((item) => ({
+    return (Array.isArray(rows) ? rows : []).map((item) => ({
       value: item.amount || item.water_ml || item.value || 0,
       unit: "ml",
       startDate: toIsoDate(item.timestamp || item.date),
@@ -461,7 +461,7 @@ const dataTypeParsers: Record<
     if (rows.length === 0) {
       return [];
     }
-    return rows.map((item) => ({
+    return (Array.isArray(rows) ? rows : []).map((item) => ({
       value: item.glucose || item.blood_glucose || item.value || 0,
       unit: "mg/dL",
       startDate: toIsoDate(item.timestamp || item.date),
@@ -855,7 +855,7 @@ function parseMetricData(metricKey: string, data: unknown): MetricSample[] {
     return [];
   }
 
-  return rows.map((item) => ({
+  return (Array.isArray(rows) ? rows : []).map((item) => ({
     value: item.value || item.count || 0,
     unit: "",
     startDate: toIsoDate(item.timestamp || item.date),

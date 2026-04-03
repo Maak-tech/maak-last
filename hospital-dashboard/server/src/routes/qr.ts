@@ -11,6 +11,12 @@ qrRoutes.get('/patient/qr/:patientId', jwtAuth, async (c) => {
   const staff = c.get('staff')
   const { patientId } = c.req.param()
 
+  // Validate UUID format before hitting the DB
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!UUID_RE.test(patientId)) {
+    return c.json({ error: 'Invalid patient ID format' }, 400)
+  }
+
   const patient = await queryOne('SELECT id FROM patients WHERE id = $1', [patientId])
   if (!patient) return c.json({ error: 'Patient not found' }, 404)
 

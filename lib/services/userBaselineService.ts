@@ -450,7 +450,8 @@ export const userBaselineService = {
         ...baseline,
         computedAt: baseline.computedAt.toISOString(),
       });
-    } catch {
+    } catch (err) {
+      console.warn('[userBaseline] Failed to persist baseline:', err);
       // Non-critical — proceed with in-memory baseline
     }
 
@@ -472,7 +473,8 @@ export const userBaselineService = {
       const ageHours = (Date.now() - computedAt.getTime()) / 3_600_000;
       if (ageHours > BASELINE_CACHE_HOURS) return null;
       return { ...data, computedAt } as UserHealthBaseline;
-    } catch {
+    } catch (err) {
+      console.warn('[userBaseline] getCachedBaseline failed:', err);
       return null;
     }
   },
@@ -756,8 +758,8 @@ export const userBaselineService = {
           }
         }
       }
-    } catch {
-      // Partial deviations returned
+    } catch (err) {
+      console.warn('[userBaseline] detectDeviations partial failure (returning partial results):', err);
     }
 
     // Sort by severity (significant first)
@@ -814,8 +816,8 @@ export const userBaselineService = {
 
       // Record notification time
       await api.post("/api/user/baseline/last-notification", {}).catch(() => {});
-    } catch {
-      // Non-critical — silently ignore
+    } catch (err) {
+      console.warn('[userBaseline] checkAndNotifySignificantDeviations failed:', err);
     }
   },
 
@@ -846,7 +848,8 @@ export const userBaselineService = {
         latest: 0,
         baseline: 0,
       }));
-    } catch {
+    } catch (err) {
+      console.warn('[userBaseline] getZScoreVitalAnomalies failed:', err);
       return [];
     }
   },

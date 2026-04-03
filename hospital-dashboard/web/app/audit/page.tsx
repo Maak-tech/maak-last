@@ -34,7 +34,7 @@ export default function AuditPage() {
       try {
         const s = JSON.parse(staffJson) as { role: string }
         if (s.role !== 'admin') { router.push('/dashboard'); return }
-      } catch { /* ignore */ }
+      } catch (err) { console.warn('[audit] Failed to parse staff info for role check:', err) }
     }
   }, [router])
 

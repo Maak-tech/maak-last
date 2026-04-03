@@ -1,4 +1,4 @@
-import { Elysia, t } from "elysia";
+import { Elysia, t, error } from "elysia";
 import { and, count, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import crypto from "node:crypto";
 import { alerts, apiKeys, cohortMembers, cohorts, genetics, healthTimeline, medications, patientRosters, users, vhi, vitals, webhookEndpoints } from "../db/schema";
@@ -42,18 +42,34 @@ async function assertPatientInRoster(
   }
 }
 
+// ── Per-API-key rate limiter (100 requests / 60s) ─────────────────────────────
+const SDK_RATE_WINDOW_MS = 60_000;
+const SDK_RATE_LIMIT = 100;
+const sdkRateMap = new Map<string, { count: number; windowStart: number }>();
+
+function checkSdkRateLimit(apiKeyId: string): boolean {
+  const now = Date.now();
+  const entry = sdkRateMap.get(apiKeyId);
+  if (!entry || now - entry.windowStart > SDK_RATE_WINDOW_MS) {
+    sdkRateMap.set(apiKeyId, { count: 1, windowStart: now });
+    return true;
+  }
+  if (entry.count >= SDK_RATE_LIMIT) return false;
+  entry.count++;
+  return true;
+}
+
 // API key authentication middleware for SDK routes
 const requireApiKey = new Elysia({ name: "require-api-key" })
   .decorate("db", dbInstance)
   .derive(
   { as: "global" },
-  async ({ request, db, set }) => {
+  async ({ request, db }) => {
     const authHeader = request.headers.get("authorization");
     const key = authHeader?.replace("Bearer ", "");
 
     if (!key || !key.startsWith("nk_")) {
-      set.status = 401;
-      throw new Error("Valid API key required");
+      return error(401, { error: "Valid API key required" });
     }
 
     // Hash the key and look up in DB
@@ -65,12 +81,17 @@ const requireApiKey = new Elysia({ name: "require-api-key" })
       .limit(1);
 
     if (!apiKey || !apiKey.isActive) {
-      set.status = 401;
-      throw new Error("Invalid or inactive API key");
+      return error(401, { error: "Invalid or inactive API key" });
     }
 
-    // Update last used timestamp (async, non-blocking)
-    db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, apiKey.id)).catch(console.error);
+    // Per-key rate limit
+    if (!checkSdkRateLimit(apiKey.id)) {
+      return error(429, { error: "Rate limit exceeded — max 100 requests per 60 seconds per API key" });
+    }
+
+    // Update last used timestamp (non-blocking — log failures for observability)
+    db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, apiKey.id))
+      .catch((err: unknown) => console.error('[sdk] Failed to update lastUsedAt for key', apiKey.id, err));
 
     return { orgId: apiKey.orgId, apiKeyId: apiKey.id, scopes: apiKey.scopes ?? [] };
   }
@@ -79,13 +100,22 @@ const requireApiKey = new Elysia({ name: "require-api-key" })
 export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
   .decorate("db", null as unknown as import("../db").Database) // will be overridden by parent
   .use(requireApiKey)
+  // Convert errors thrown by assertPatientInRoster (and similar guards) to proper HTTP responses.
+  // Plain JS throw produces a 500; this handler inspects the attached statusCode property.
+  .onError(({ error: err, set }) => {
+    const statusCode = (err as { statusCode?: number }).statusCode;
+    if (typeof statusCode === "number") {
+      set.status = statusCode;
+      return { error: (err as Error).message };
+    }
+  })
 
   // ── Patient VHI ─────────────────────────────────────────────────────────────
   .get(
     "/patients/:patientId/vhi",
     async ({ db, params, scopes, orgId }) => {
       if (!scopes.includes("vhi:read") && !scopes.includes("*")) {
-        throw new Error("Insufficient scope: vhi:read required");
+        return error(403, { error: "Insufficient scope: vhi:read required" });
       }
       await assertPatientInRoster(db, orgId, params.patientId);
 
@@ -126,7 +156,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
     "/patients/:patientId/genetics",
     async ({ db, params, scopes, orgId }) => {
       if (!scopes.includes("genetics:read") && !scopes.includes("*")) {
-        throw new Error("Insufficient scope: genetics:read required");
+        return error(403, { error: "Insufficient scope: genetics:read required" });
       }
       await assertPatientInRoster(db, orgId, params.patientId);
 
@@ -170,7 +200,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
     async ({ db, params, scopes, set, orgId }) => {
       if (!scopes.includes("vhi:read") && !scopes.includes("*")) {
         set.status = 403;
-        throw new Error("Insufficient scope: vhi:read required");
+        return error(403, { error: "Insufficient scope: vhi:read required" });
       }
       await assertPatientInRoster(db, orgId, params.patientId);
 
@@ -217,7 +247,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
     async ({ db, params, query, scopes, set, orgId }) => {
       if (!scopes.includes("timeline:read") && !scopes.includes("*")) {
         set.status = 403;
-        throw new Error("Insufficient scope: timeline:read required");
+        return error(403, { error: "Insufficient scope: timeline:read required" });
       }
       await assertPatientInRoster(db, orgId, params.patientId);
 
@@ -267,7 +297,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
     async ({ db, params, query, scopes, set, orgId }) => {
       if (!scopes.includes("alerts:read") && !scopes.includes("*")) {
         set.status = 403;
-        throw new Error("Insufficient scope: alerts:read required");
+        return error(403, { error: "Insufficient scope: alerts:read required" });
       }
       await assertPatientInRoster(db, orgId, params.patientId);
 
@@ -311,7 +341,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
     async ({ db, params, scopes, set, orgId }) => {
       if (!scopes.includes("vhi:read") && !scopes.includes("*")) {
         set.status = 403;
-        throw new Error("Insufficient scope: vhi:read required");
+        return error(403, { error: "Insufficient scope: vhi:read required" });
       }
       await assertPatientInRoster(db, orgId, params.patientId);
 
@@ -379,7 +409,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
     async ({ db, params, scopes, set, orgId, request }) => {
       if (!scopes.includes("timeline:read") && !scopes.includes("*")) {
         set.status = 403;
-        throw new Error("Insufficient scope: timeline:read required");
+        return error(403, { error: "Insufficient scope: timeline:read required" });
       }
       await assertPatientInRoster(db, orgId, params.patientId);
 
@@ -461,7 +491,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
     async ({ db, orgId, body, scopes, set }) => {
       if (!scopes.includes("webhook:write") && !scopes.includes("*")) {
         set.status = 403;
-        throw new Error("Insufficient scope: webhook:write required");
+        return error(403, { error: "Insufficient scope: webhook:write required" });
       }
       const id = crypto.randomUUID();
       const secret = crypto.randomBytes(32).toString("hex");
@@ -494,7 +524,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
     async ({ db, orgId, params, set, scopes }) => {
       if (!scopes.includes("webhook:write") && !scopes.includes("*")) {
         set.status = 403;
-        throw new Error("Insufficient scope: webhook:write required");
+        return error(403, { error: "Insufficient scope: webhook:write required" });
       }
       // Verify the webhook belongs to this org before deactivating
       const [existing] = await db
@@ -532,7 +562,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
     async ({ db, orgId, body, scopes, set }) => {
       if (!scopes.includes("key:manage") && !scopes.includes("*")) {
         set.status = 403;
-        throw new Error("Insufficient scope: key:manage required");
+        return error(403, { error: "Insufficient scope: key:manage required" });
       }
       const rawKey = `nk_${crypto.randomBytes(32).toString("hex")}`;
       const keyHash = crypto.createHash("sha256").update(rawKey).digest("hex");
@@ -587,7 +617,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
     async ({ db, orgId, scopes, set }) => {
       if (!scopes.includes("key:manage") && !scopes.includes("*")) {
         set.status = 403;
-        throw new Error("Insufficient scope: key:manage required");
+        return error(403, { error: "Insufficient scope: key:manage required" });
       }
       const keys = await db
         .select({
@@ -618,7 +648,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
     async ({ db, orgId, params, set, scopes }) => {
       if (!scopes.includes("key:manage") && !scopes.includes("*")) {
         set.status = 403;
-        throw new Error("Insufficient scope: key:manage required");
+        return error(403, { error: "Insufficient scope: key:manage required" });
       }
       const [existing] = await db
         .select({ id: apiKeys.id, orgId: apiKeys.orgId })
@@ -628,7 +658,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
 
       if (!existing || existing.orgId !== orgId) {
         set.status = 404;
-        throw new Error("API key not found");
+        return error(404, { error: "API key not found" });
       }
 
       await db
@@ -656,7 +686,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
     async ({ db, orgId, scopes, set }) => {
       if (!scopes.includes("roster:read") && !scopes.includes("*")) {
         set.status = 403;
-        throw new Error("Insufficient scope: roster:read required");
+        return error(403, { error: "Insufficient scope: roster:read required" });
       }
 
       const rows = await db
@@ -702,7 +732,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
     async ({ db, orgId, params, scopes, set }) => {
       if (!scopes.includes("roster:read") && !scopes.includes("*")) {
         set.status = 403;
-        throw new Error("Insufficient scope: roster:read required");
+        return error(403, { error: "Insufficient scope: roster:read required" });
       }
 
       // Verify cohort belongs to this org
@@ -714,7 +744,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
 
       if (!cohort) {
         set.status = 404;
-        throw new Error("Cohort not found");
+        return error(404, { error: "Cohort not found" });
       }
 
       const members = await db

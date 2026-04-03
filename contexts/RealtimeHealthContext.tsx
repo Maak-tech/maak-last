@@ -199,7 +199,7 @@ export const RealtimeHealthProvider: React.FC<{
         ).catch(() => []);
 
         // Filter to unacknowledged anomalies only, matching the original query
-        const unacknowledged = raw.filter((item) => !item.isAcknowledged);
+        const unacknowledged = (Array.isArray(raw) ? raw : []).filter((item) => !item.isAcknowledged);
 
         if (isInitialLoad) {
           // On the first fetch, just record the latest id as baseline — do not fire events

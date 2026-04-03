@@ -933,12 +933,12 @@ class SmartNotificationService {
       for (const id of identifiersToCancel) {
         try {
           await Notifications.cancelScheduledNotificationAsync(id);
-        } catch {
-          // Silently handle individual cancellation error
+        } catch (err) {
+          console.warn('[smartNotification] cancelScheduledNotificationAsync failed for id', id, err);
         }
       }
-    } catch (_error) {
-      // Silently handle errors when clearing notifications
+    } catch (err) {
+      console.warn('[smartNotification] clearScheduledNotifications failed:', err);
     }
   }
 
@@ -4311,8 +4311,8 @@ class SmartNotificationService {
           },
         });
       });
-    } catch (_error) {
-      /* no-op */
+    } catch (err) {
+      console.warn('[smartNotification] generateFamilyHealthUpdates failed:', err);
     }
 
     return notifications;
@@ -4434,8 +4434,8 @@ class SmartNotificationService {
           ],
         });
       }
-    } catch (_error) {
-      /* no-op */
+    } catch (err) {
+      console.warn('[smartNotification] generateCaregiverCoordinationAlerts failed:', err);
     }
 
     return notifications;

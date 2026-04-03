@@ -89,7 +89,7 @@ export const allergyService = {
     try {
       if (isOnline) {
         const raw = await api.get<Record<string, unknown>[]>("/api/health/allergies");
-        const allAllergies = (raw ?? [])
+        const allAllergies = (Array.isArray(raw) ? raw : [])
           .map(normalizeAllergy)
           .sort((a, b) => {
             const timeA = a.timestamp?.getTime() || 0;

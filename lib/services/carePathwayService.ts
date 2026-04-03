@@ -88,7 +88,8 @@ class CarePathwayService {
         `/api/org/${orgId}/pathways`
       );
       return result?.data ?? [];
-    } catch {
+    } catch (err) {
+      console.warn('[carePathway] listPathways failed:', err);
       return [];
     }
   }
@@ -105,7 +106,8 @@ class CarePathwayService {
         `/api/org/${orgId}/pathways?triggerCondition=${encodeURIComponent(triggerCondition)}&isActive=true`
       );
       return result?.data ?? [];
-    } catch {
+    } catch (err) {
+      console.warn('[carePathway] getPathwaysForTrigger failed:', err);
       return [];
     }
   }
@@ -120,7 +122,8 @@ class CarePathwayService {
   ): Promise<void> {
     try {
       await api.patch(`/api/org/${orgId}/pathways/${pathwayId}`, { isActive });
-    } catch {
+    } catch (err) {
+      console.warn('[carePathway] setPathwayActive failed:', err);
     }
   }
 
@@ -155,7 +158,8 @@ class CarePathwayService {
         }
       );
       return result;
-    } catch {
+    } catch (err) {
+      console.warn('[carePathway] enrollPatient failed:', err);
       return null;
     }
   }
@@ -172,7 +176,8 @@ class CarePathwayService {
         `/api/org/pathway-enrollments?orgId=${orgId}&status=active&limit=${maxResults}`
       );
       return result?.data ?? [];
-    } catch {
+    } catch (err) {
+      console.warn('[carePathway] listActiveEnrollments failed:', err);
       return [];
     }
   }
@@ -189,7 +194,8 @@ class CarePathwayService {
         `/api/org/pathway-enrollments?patientId=${patientId}&orgId=${orgId}`
       );
       return result?.data ?? [];
-    } catch {
+    } catch (err) {
+      console.warn('[carePathway] listPatientEnrollments failed:', err);
       return [];
     }
   }
@@ -208,7 +214,8 @@ class CarePathwayService {
         currentStepId: nextStep.id,
         nextStepAt: nextStepAt.toISOString(),
       });
-    } catch {
+    } catch (err) {
+      console.warn('[carePathway] advanceToNextStep failed:', err);
     }
   }
 
@@ -221,7 +228,8 @@ class CarePathwayService {
         status: "completed",
         completedAt: new Date().toISOString(),
       });
-    } catch {
+    } catch (err) {
+      console.warn('[carePathway] completeEnrollment failed:', err);
     }
   }
 
@@ -234,7 +242,8 @@ class CarePathwayService {
         status: "cancelled",
         cancelledReason: reason,
       });
-    } catch {
+    } catch (err) {
+      console.warn('[carePathway] cancelEnrollment failed:', err);
     }
   }
 

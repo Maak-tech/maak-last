@@ -2,7 +2,6 @@ import { Hono } from 'hono'
 import { query, queryOne } from '../lib/db.js'
 import { writeAudit } from '../lib/audit.js'
 import { jwtAuth, requireRole } from '../middleware/jwtAuth.js'
-import { pool } from '../lib/db.js'
 
 type Session = {
   id: string
@@ -38,6 +37,11 @@ patientRoutes.get('/patient/preview/:sessionToken', jwtAuth, async (c) => {
 
   const session = await getValidSession(sessionToken)
   if (!session) return c.json({ error: 'Session expired or not found' }, 401)
+
+  // Session must belong to the requesting staff member.
+  if (session.staff_id !== staff.staffId) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
 
   const patient = await queryOne<Patient>(
     'SELECT id, name, date_of_birth, blood_type FROM patients WHERE id = $1',
@@ -79,7 +83,20 @@ patientRoutes.post('/patient/confirm/:sessionToken', jwtAuth, async (c) => {
   const session = await getValidSession(sessionToken)
   if (!session) return c.json({ error: 'Session expired or not found' }, 401)
 
-  await pool.query(
+  // Verify the session belongs to the requesting staff member.
+  // Without this check, any authenticated staff could confirm another staff's
+  // recognition session and gain access to an unrelated patient's full twin.
+  if (session.staff_id !== staff.staffId) {
+    await writeAudit({
+      staffId: staff.staffId,
+      patientId: session.patient_id,
+      action: 'session_ownership_violation',
+      success: false,
+    })
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+
+  await query(
     "UPDATE recognition_sessions SET confirmed = true, access_level = 'confirmed', confirmed_at = now() WHERE id = $1",
     [sessionToken]
   )
@@ -110,7 +127,7 @@ patientRoutes.get(
 
     const patientId = session.patient_id
 
-    const [patient, twin, alerts, vitals, medications] = await Promise.all([
+    const results = await Promise.allSettled([
       queryOne<Patient>('SELECT * FROM patients WHERE id = $1', [patientId]),
       queryOne(
         'SELECT * FROM digital_twins WHERE patient_id = $1 ORDER BY computed_at DESC LIMIT 1',
@@ -127,6 +144,13 @@ patientRoutes.get(
       query('SELECT * FROM medications WHERE patient_id = $1 AND is_active = true', [patientId]),
     ])
 
+    const [patientRes, twinRes, alertsRes, vitalsRes, medsRes] = results
+
+    if (patientRes.status === 'rejected') {
+      console.error('[patient] Failed to fetch patient:', patientRes.reason)
+      return c.json({ error: 'Failed to fetch patient data' }, 500)
+    }
+    const patient = patientRes.value
     if (!patient) return c.json({ error: 'Patient not found' }, 404)
 
     await writeAudit({
@@ -145,10 +169,10 @@ patientRoutes.get(
         bloodType: patient.blood_type,
         emergencyContacts: patient.emergency_contacts ?? [],
       },
-      vhi: twin,
-      recentAlerts: alerts,
-      vitalsTrends: vitals,
-      activeMedications: medications,
+      vhi:              twinRes.status   === 'fulfilled' ? twinRes.value   : null,
+      recentAlerts:     alertsRes.status === 'fulfilled' ? alertsRes.value : [],
+      vitalsTrends:     vitalsRes.status === 'fulfilled' ? vitalsRes.value : [],
+      activeMedications: medsRes.status  === 'fulfilled' ? medsRes.value   : [],
     })
   }
 )
@@ -161,7 +185,8 @@ patientRoutes.get(
   async (c) => {
     const staff = c.get('staff')
     const { patientId } = c.req.param()
-    const sessionToken = c.req.header('X-Session-Token') ?? c.req.query('sessionToken')
+    // Header only — query param was removed to prevent session token leaking into server access logs
+    const sessionToken = c.req.header('X-Session-Token')
 
     if (!sessionToken) return c.json({ error: 'Session token required' }, 400)
 
@@ -170,7 +195,7 @@ patientRoutes.get(
       return c.json({ error: 'Confirmed session required' }, 403)
     }
 
-    const [patient, twin, alerts, vitals, medications] = await Promise.all([
+    const results = await Promise.allSettled([
       queryOne<Patient>('SELECT * FROM patients WHERE id = $1', [patientId]),
       queryOne(
         'SELECT * FROM digital_twins WHERE patient_id = $1 ORDER BY computed_at DESC LIMIT 1',
@@ -190,6 +215,13 @@ patientRoutes.get(
       ),
     ])
 
+    const [patientRes, twinRes, alertsRes, vitalsRes, medsRes] = results
+
+    if (patientRes.status === 'rejected') {
+      console.error('[patient/twin] Failed to fetch patient:', patientRes.reason)
+      return c.json({ error: 'Failed to fetch patient data' }, 500)
+    }
+    const patient = patientRes.value
     if (!patient) return c.json({ error: 'Patient not found' }, 404)
 
     await writeAudit({
@@ -208,10 +240,10 @@ patientRoutes.get(
         bloodType: patient.blood_type,
         emergencyContacts: patient.emergency_contacts ?? [],
       },
-      vhi: twin,
-      recentAlerts: alerts,
-      vitalsTrends: vitals,
-      activeMedications: medications,
+      vhi:              twinRes.status   === 'fulfilled' ? twinRes.value   : null,
+      recentAlerts:     alertsRes.status === 'fulfilled' ? alertsRes.value : [],
+      vitalsTrends:     vitalsRes.status === 'fulfilled' ? vitalsRes.value : [],
+      activeMedications: medsRes.status  === 'fulfilled' ? medsRes.value   : [],
     })
   }
 )

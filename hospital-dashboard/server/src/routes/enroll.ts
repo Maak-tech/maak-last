@@ -4,14 +4,14 @@ import { query, queryOne } from '../lib/db.js'
 import { writeAudit } from '../lib/audit.js'
 import { encrypt, decrypt } from '../lib/encryption.js'
 import { CompreFaceProvider } from '../lib/biometric/CompreFaceProvider.js'
-import { jwtAuth } from '../middleware/jwtAuth.js'
+import { jwtAuth, requireRole } from '../middleware/jwtAuth.js'
 
 const compreface = new CompreFaceProvider()
 
 export const enrollRoutes = new Hono()
 
-// POST /enroll — enroll a patient's face
-enrollRoutes.post('/enroll', jwtAuth, async (c) => {
+// POST /enroll — enroll a patient's face (doctor/nurse/admin only)
+enrollRoutes.post('/enroll', jwtAuth, requireRole('doctor', 'nurse', 'admin'), async (c) => {
   const staff = c.get('staff')
   const formData = await c.req.formData()
   const patientId = formData.get('patientId') as string
@@ -37,12 +37,19 @@ enrollRoutes.post('/enroll', jwtAuth, async (c) => {
   if (existing) return c.json({ error: 'Patient already enrolled. Revoke first.' }, 409)
 
   const imageBuffer = Buffer.from(await imageFile.arrayBuffer())
+  if (imageBuffer.length === 0) {
+    return c.json({ error: 'Image file is empty' }, 400)
+  }
   const subjectId = uuidv4()
 
   try {
     await compreface.enroll(subjectId, imageBuffer)
   } catch (err) {
-    return c.json({ error: 'Face enrollment failed', detail: String(err) }, 500)
+    // Log internally but do NOT surface internal error details to the client —
+    // the CompreFace error message may contain the service URL, API key, or
+    // other internal infrastructure information.
+    console.error('[enroll] CompreFace enroll failed:', err)
+    return c.json({ error: 'Face enrollment failed. Please try again or use QR fallback.' }, 500)
   }
 
   const enrollmentId = uuidv4()
@@ -64,8 +71,8 @@ enrollRoutes.post('/enroll', jwtAuth, async (c) => {
   return c.json({ enrolled: true, enrollmentId })
 })
 
-// DELETE /enroll/:patientId — revoke enrollment
-enrollRoutes.delete('/enroll/:patientId', jwtAuth, async (c) => {
+// DELETE /enroll/:patientId — revoke enrollment (admin/doctor only — more restrictive than enroll)
+enrollRoutes.delete('/enroll/:patientId', jwtAuth, requireRole('doctor', 'admin'), async (c) => {
   const staff = c.get('staff')
   const { patientId } = c.req.param()
 
@@ -90,8 +97,8 @@ enrollRoutes.delete('/enroll/:patientId', jwtAuth, async (c) => {
   return c.json({ revoked: true })
 })
 
-// GET /enroll/:patientId/status
-enrollRoutes.get('/enroll/:patientId/status', jwtAuth, async (c) => {
+// GET /enroll/:patientId/status (doctor/nurse/admin only)
+enrollRoutes.get('/enroll/:patientId/status', jwtAuth, requireRole('doctor', 'nurse', 'admin'), async (c) => {
   const { patientId } = c.req.param()
   const enrollment = await queryOne<{ enrolled_at: string }>(
     'SELECT enrolled_at FROM biometric_enrollments WHERE patient_id = $1 AND is_active = true',

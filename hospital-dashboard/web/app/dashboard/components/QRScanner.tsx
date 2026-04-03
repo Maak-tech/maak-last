@@ -13,7 +13,17 @@ export default function QRScanner({ onSession }: Props) {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    if (!token.trim()) return
+    const trimmed = token.trim()
+    if (!trimmed) return
+    if (trimmed.length > 500) {
+      setError('Invalid token format — token is too long')
+      return
+    }
+    // UUID format validation: 8-4-4-4-12 hex characters
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed)) {
+      setError('Invalid QR code format')
+      return
+    }
     setLoading(true)
     setError(null)
     try {

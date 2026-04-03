@@ -1,5 +1,6 @@
 import { Elysia, t } from "elysia";
 import { and, eq, lt } from "drizzle-orm";
+import crypto from "node:crypto";
 import { requireAuth } from "../middleware/requireAuth";
 import { families, familyMembers, familyInvitations, vhi, genetics, alerts, users, caregiverNotes } from "../db/schema";
 
@@ -55,9 +56,11 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
         .from(familyMembers)
         .where(eq(familyMembers.familyId, params.familyId));
 
-      // Fetch VHI for each member to build caregiver dashboard
+      // Fetch VHI for each member to build caregiver dashboard.
+      // Each member fetch is isolated so one failure does not block the others.
       const memberData = await Promise.all(
         members.map(async (member) => {
+          try {
           const [memberVhi] = await db
             .select()
             .from(vhi)
@@ -104,6 +107,22 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
                   }
                 : null,
           };
+          } catch (err) {
+            console.error(`[family] Failed to load data for member ${member.userId}:`, err);
+            // Return a minimal stub so the rest of the dashboard still renders
+            return {
+              memberId: member.userId,
+              role: member.role,
+              vhiScore: null,
+              vhiTrajectory: null,
+              compositeRisk: null,
+              topDecliningFactors: [],
+              pendingActions: [],
+              recentAlerts: [],
+              geneticRiskSummary: null,
+              error: 'Failed to load member data',
+            };
+          }
         })
       );
 
@@ -715,7 +734,7 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
         .from(caregiverNotes)
         .where(eq(caregiverNotes.memberId, query.memberId))
         .orderBy(caregiverNotes.createdAt)
-        .limit(query.limit ? Number(query.limit) : 20);
+        .limit(query.limit ? Math.min(Math.max(1, Number(query.limit)), 100) : 20);
     },
     {
       query: t.Object({

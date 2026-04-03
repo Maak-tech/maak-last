@@ -207,7 +207,6 @@ class HealthContextService {
       throw new Error('No user ID provided');
     }
 
-    console.log('Fetching comprehensive health context for user:', uid);
 
     // Fetch user profile first (needed for familyId + gender)
     const userRaw = await api.get<Record<string, unknown>>("/api/user/profile").catch(() => null);

@@ -614,7 +614,8 @@ class RiskAssessmentService {
       return histories.flatMap((result) =>
         result.status === "fulfilled" ? result.value : []
       );
-    } catch {
+    } catch (err) {
+      console.warn('[riskAssessment] getFamilyMedicalHistory failed:', err);
       return [];
     }
   }
@@ -728,7 +729,7 @@ class RiskAssessmentService {
     // Check for high blood pressure readings
     const bpReadings = vitals.filter((v) => v.type === "bloodPressure");
     const highBPReadings = bpReadings.filter((v) => {
-      const [systolic] = v.value.toString().split("/").map(Number);
+      const [systolic] = (v.value ?? "0/0").toString().split("/").map(Number);
       return systolic >= 140;
     });
     if (highBPReadings.length > bpReadings.length * 0.5) {
@@ -842,7 +843,7 @@ class RiskAssessmentService {
       const raw = await api.get<Record<string, unknown>[]>(
         `/api/health/vitals?from=${thirtyDaysAgo.toISOString()}&limit=100`
       );
-      return (raw ?? []).map((d) => ({
+      return (Array.isArray(raw) ? raw : []).map((d) => ({
         id: (d.id as string) ?? "",
         userId,
         type: d.type as string,
@@ -851,7 +852,8 @@ class RiskAssessmentService {
         timestamp: d.recordedAt ? new Date(d.recordedAt as string) : new Date(),
         source: d.source as string | undefined,
       } as VitalSign));
-    } catch {
+    } catch (err) {
+      console.warn('[riskAssessment] getRecentVitals failed:', err);
       return [];
     }
   }
@@ -859,7 +861,8 @@ class RiskAssessmentService {
   private async getRecentMoods(userId: string): Promise<Mood[]> {
     try {
       return await moodService.getUserMoods(userId, 60);
-    } catch {
+    } catch (err) {
+      console.warn('[riskAssessment] getRecentMoods failed:', err);
       return [];
     }
   }

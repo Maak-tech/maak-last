@@ -106,6 +106,8 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
         { role: "assistant" as const, content: reply, timestamp: now },
       ];
 
+      // Persist conversation non-blocking — the reply is already returned to the
+      // client; a persistence failure should not degrade the chat experience.
       db.insert(noraConversations)
         .values({
           id: conversationId,
@@ -117,7 +119,10 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
           target: [noraConversations.id],
           set: { messages: fullMessages, updatedAt: new Date() },
         })
-        .catch(console.error);
+        .catch((err: unknown) => {
+          // Log with context so errors are actionable in Railway logs
+          console.error(`[nora] Failed to persist conversation ${conversationId} for user ${userId}:`, err)
+        });
 
       return { reply, conversationId };
     },

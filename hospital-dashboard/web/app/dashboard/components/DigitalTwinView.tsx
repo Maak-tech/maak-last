@@ -135,7 +135,7 @@ export default function DigitalTwinView({ data }: Props) {
                       const height = Math.max(8, ((r.value - min) / range) * 100)
                       return (
                         <div
-                          key={i}
+                          key={`${r.recorded_at}-${r.value}-${i}`}
                           className="flex-1 bg-blue-500/60 rounded-sm"
                           style={{ height: `${height}%` }}
                           title={`${new Date(r.recorded_at).toLocaleDateString()}: ${r.value} ${r.unit}`}
@@ -177,7 +177,7 @@ export default function DigitalTwinView({ data }: Props) {
           <h3 className="font-semibold text-white mb-3">Emergency Contacts</h3>
           <ul className="space-y-2">
             {patient.emergencyContacts.map((contact, i) => (
-              <li key={i} className="flex items-center justify-between">
+              <li key={`${contact.phone}-${contact.relation}-${i}`} className="flex items-center justify-between">
                 <div>
                   <p className="text-white text-xs font-medium">{contact.name}</p>
                   <p className="text-gray-400 text-xs">{contact.relation}</p>

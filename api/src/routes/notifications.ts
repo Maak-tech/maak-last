@@ -1,5 +1,6 @@
 import { Elysia, t } from "elysia";
 import { and, eq, inArray } from "drizzle-orm";
+import crypto from "node:crypto";
 import { requireAuth } from "../middleware/requireAuth";
 import { pushTokens, notificationTemplates, familyMembers, orgMembers } from "../db/schema";
 

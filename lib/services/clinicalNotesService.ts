@@ -94,7 +94,7 @@ class ClinicalNotesService {
 
     const qs = params.toString();
     const rows = await api.get<NoteApiRecord[]>(`/api/notes${qs ? `?${qs}` : ""}`);
-    return (rows ?? []).map(mapNote);
+    return (Array.isArray(rows) ? rows : []).map(mapNote);
   }
 
   /** Fetch a single clinical note by ID. */
@@ -102,7 +102,8 @@ class ClinicalNotesService {
     try {
       const raw = await api.get<NoteApiRecord>(`/api/notes/${noteId}`);
       return raw ? mapNote(raw) : null;
-    } catch {
+    } catch (err) {
+      console.warn('[clinicalNotes] getNote failed:', err);
       return null;
     }
   }

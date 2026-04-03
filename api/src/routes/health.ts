@@ -3,6 +3,7 @@ import { and, desc, eq, gte, inArray, isNull, lte } from "drizzle-orm";
 import crypto from "node:crypto";
 import { requireAuth } from "../middleware/requireAuth";
 import { vitals, symptoms, medications, medicationReminders, moods, labResults, allergies, medicalHistory, familyMembers, users, periodCycles, cycleDailyEntries, healthTimeline, ppgEmbeddings, escalations, anomalies, medicationAdherence } from "../db/schema";
+import type { Database } from "../db";
 
 const DateRangeQuery = t.Object({
   from: t.Optional(t.String()),
@@ -20,8 +21,7 @@ const DateRangeQuery = t.Object({
  * Returns null when authorized, or an error object `{ error: string }` when not.
  * Pattern: `const authErr = await assertFamilyAccess(db, userId, targetUserId); if (authErr) { set.status = 403; return authErr; }`
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function assertFamilyAccess(db: any, callerId: string, targetUserId: string): Promise<{ error: string } | null> {
+async function assertFamilyAccess(db: Database, callerId: string, targetUserId: string): Promise<{ error: string } | null> {
   if (callerId === targetUserId) return null;
 
   const [targetMembership] = await db
@@ -359,15 +359,32 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
   // ── Lab Results ───────────────────────────────────────────────────────────────
   .get(
     "/labs",
-    async ({ db, userId }) => {
+    async ({ db, userId, query, set }) => {
+      // Optional ?userId param allows family admins to fetch a member's labs
+      const targetId = query.userId ?? userId;
+      if (targetId !== userId) {
+        const authErr = await assertFamilyAccess(db, userId, targetId);
+        if (authErr) { set.status = 403; return authErr; }
+      }
+      const filters = [eq(labResults.userId, targetId)];
+      if (query.from) filters.push(gte(labResults.testDate, new Date(query.from)));
+      if (query.to) filters.push(lte(labResults.testDate, new Date(query.to)));
       return db
         .select()
         .from(labResults)
-        .where(eq(labResults.userId, userId))
+        .where(and(...filters))
         .orderBy(desc(labResults.testDate))
-        .limit(50);
+        .limit(query.limit ?? 50);
     },
-    { detail: { tags: ["health"], summary: "Get lab results" } }
+    {
+      query: t.Object({
+        userId: t.Optional(t.String()),
+        from: t.Optional(t.String()),
+        to: t.Optional(t.String()),
+        limit: t.Optional(t.Numeric()),
+      }),
+      detail: { tags: ["health"], summary: "Get lab results (own or family member's with admin access)" },
+    }
   )
 
   // ── Allergies ─────────────────────────────────────────────────────────────────
@@ -438,7 +455,9 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
   // Symptoms for a specific user (admin/caregiver access)
   .get(
     "/symptoms/user/:userId",
-    async ({ db, userId, params, query }) => {
+    async ({ db, userId, params, query, set }) => {
+      const authErr = await assertFamilyAccess(db, userId, params.userId);
+      if (authErr) { set.status = 403; return authErr; }
       const filters = [eq(symptoms.userId, params.userId)];
       if (query.from) filters.push(gte(symptoms.recordedAt, new Date(query.from)));
       if (query.to) filters.push(lte(symptoms.recordedAt, new Date(query.to)));
@@ -453,7 +472,17 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
   // Family symptoms (all members, admin only)
   .get(
     "/symptoms/family/:familyId",
-    async ({ db, userId, params, query }) => {
+    async ({ db, userId, params, query, set }) => {
+      // Verify the caller belongs to this family with admin or caregiver role
+      const [callerMembership] = await db
+        .select({ role: familyMembers.role })
+        .from(familyMembers)
+        .where(and(eq(familyMembers.userId, userId), eq(familyMembers.familyId, params.familyId)))
+        .limit(1);
+      if (!callerMembership || (callerMembership.role !== "admin" && callerMembership.role !== "caregiver")) {
+        set.status = 403;
+        return { error: "Only family admins and caregivers can access family health data" };
+      }
       const memberRows = await db.select({ userId: familyMembers.userId }).from(familyMembers).where(eq(familyMembers.familyId, params.familyId));
       if (memberRows.length === 0) return [];
       const memberIds = memberRows.map((m) => m.userId);
@@ -477,6 +506,9 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     async ({ db, userId, params, set }) => {
       const [med] = await db.select().from(medications).where(eq(medications.id, params.id)).limit(1);
       if (!med) { set.status = 404; return { error: "Medication not found" }; }
+      // Ensure the caller owns this medication (or has family access)
+      const authErr = await assertFamilyAccess(db, userId, med.userId);
+      if (authErr) { set.status = 403; return authErr; }
       return med;
     },
     {
@@ -489,6 +521,9 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     async ({ db, userId, params, body, set }) => {
       const [existing] = await db.select({ id: medications.id, userId: medications.userId }).from(medications).where(eq(medications.id, params.id)).limit(1);
       if (!existing) { set.status = 404; return { error: "Medication not found" }; }
+      // Only the owner (or family admin/caregiver) may modify a medication
+      const authErr = await assertFamilyAccess(db, userId, existing.userId);
+      if (authErr) { set.status = 403; return authErr; }
 
       const [updated] = await db
         .update(medications)
@@ -531,7 +566,9 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
   // Medications for a specific user (admin/caregiver)
   .get(
     "/medications/user/:userId",
-    async ({ db, params }) => {
+    async ({ db, userId, params, set }) => {
+      const authErr = await assertFamilyAccess(db, userId, params.userId);
+      if (authErr) { set.status = 403; return authErr; }
       return db.select().from(medications).where(and(eq(medications.userId, params.userId), eq(medications.isActive, true)));
     },
     {
@@ -542,7 +579,16 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
   // All active medications for a family
   .get(
     "/medications/family/:familyId",
-    async ({ db, params }) => {
+    async ({ db, userId, params, set }) => {
+      const [callerMembership] = await db
+        .select({ role: familyMembers.role })
+        .from(familyMembers)
+        .where(and(eq(familyMembers.userId, userId), eq(familyMembers.familyId, params.familyId)))
+        .limit(1);
+      if (!callerMembership || (callerMembership.role !== "admin" && callerMembership.role !== "caregiver")) {
+        set.status = 403;
+        return { error: "Only family admins and caregivers can access family health data" };
+      }
       const memberRows = await db.select({ userId: familyMembers.userId }).from(familyMembers).where(eq(familyMembers.familyId, params.familyId));
       if (memberRows.length === 0) return [];
       const memberIds = memberRows.map((m) => m.userId);
@@ -573,8 +619,11 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
         return { error: "Medication not found" };
       }
 
-      // Caller must be the owner or a caregiver (family auth is enforced client-side;
-      // here we verify the caller is the owner OR the caregiver field is provided).
+      // Caller must be the owner OR a family member with access.
+      // "Family auth is enforced client-side" is never acceptable — enforce server-side.
+      const authErr = await assertFamilyAccess(db, userId, med.userId);
+      if (authErr) { set.status = 403; return authErr; }
+
       const takenBy = body?.caregiverId !== userId ? body?.caregiverId : undefined;
 
       // Find earliest pending reminder
@@ -674,7 +723,9 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
   )
   .get(
     "/moods/user/:userId",
-    async ({ db, params, query }) => {
+    async ({ db, userId, params, query, set }) => {
+      const authErr = await assertFamilyAccess(db, userId, params.userId);
+      if (authErr) { set.status = 403; return authErr; }
       const filters = [eq(moods.userId, params.userId)];
       if (query.from) filters.push(gte(moods.recordedAt, new Date(query.from)));
       if (query.to) filters.push(lte(moods.recordedAt, new Date(query.to)));
@@ -688,7 +739,16 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
   )
   .get(
     "/moods/family/:familyId",
-    async ({ db, params, query }) => {
+    async ({ db, userId, params, query, set }) => {
+      const [callerMembership] = await db
+        .select({ role: familyMembers.role })
+        .from(familyMembers)
+        .where(and(eq(familyMembers.userId, userId), eq(familyMembers.familyId, params.familyId)))
+        .limit(1);
+      if (!callerMembership || (callerMembership.role !== "admin" && callerMembership.role !== "caregiver")) {
+        set.status = 403;
+        return { error: "Only family admins and caregivers can access family health data" };
+      }
       const memberRows = await db.select({ userId: familyMembers.userId }).from(familyMembers).where(eq(familyMembers.familyId, params.familyId));
       if (memberRows.length === 0) return [];
       const memberIds = memberRows.map((m) => m.userId);
@@ -825,6 +885,8 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     async ({ db, userId, params, set }) => {
       const [lab] = await db.select().from(labResults).where(eq(labResults.id, params.id)).limit(1);
       if (!lab) { set.status = 404; return { error: "Lab result not found" }; }
+      const authErr = await assertFamilyAccess(db, userId, lab.userId);
+      if (authErr) { set.status = 403; return authErr; }
       return lab;
     },
     {
@@ -925,6 +987,8 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     async ({ db, userId, params, set }) => {
       const [entry] = await db.select().from(medicalHistory).where(eq(medicalHistory.id, params.id)).limit(1);
       if (!entry) { set.status = 404; return { error: "Medical history entry not found" }; }
+      const authErr = await assertFamilyAccess(db, userId, entry.userId);
+      if (authErr) { set.status = 403; return authErr; }
       return entry;
     },
     {
@@ -1533,13 +1597,14 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
         expires_in: number;
       };
 
-      // Store encrypted tokens in preferences JSONB (simple base64 for now;
-      // replace with KMS/Vault in production)
+      // Store AES-256-GCM encrypted tokens in preferences JSONB.
+      // Key loaded from TOKEN_ENCRYPTION_KEY env var (64-char hex).
+      const { encryptToken } = await import("../lib/tokenEncryption");
       const { users } = await import("../db/schema");
       const { sql } = await import("drizzle-orm");
       const tokenPayload = {
-        garminAccessToken: Buffer.from(tokens.access_token).toString("base64"),
-        garminRefreshToken: Buffer.from(tokens.refresh_token).toString("base64"),
+        garminAccessToken: encryptToken(tokens.access_token),
+        garminRefreshToken: encryptToken(tokens.refresh_token),
         garminTokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
         garminConnected: true,
         garminConnectedAt: new Date().toISOString(),

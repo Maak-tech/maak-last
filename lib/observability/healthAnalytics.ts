@@ -431,7 +431,7 @@ class HealthAnalyticsService {
     const zScore = (reading.value - baseline.mean) / baseline.standardDeviation;
     const absZScore = Math.abs(zScore);
     const deviationFromBaseline =
-      ((reading.value - baseline.mean) / baseline.mean) * 100;
+      baseline.mean === 0 ? 0 : ((reading.value - baseline.mean) / baseline.mean) * 100;
 
     const confidence = Math.min(baseline.sampleCount / 100, 1);
     const adjustedThreshold = defaultThreshold * (2 - confidence);

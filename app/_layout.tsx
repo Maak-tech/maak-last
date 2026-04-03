@@ -108,9 +108,7 @@ function RootLayout() {
     const requestPermissions = async () => {
       const { status } = await Notifications.requestPermissionsAsync();
       if (status !== 'granted') {
-        console.log('Notification permissions not granted');
-      } else {
-        console.log('Notification permissions granted');
+        console.warn('[App] Notification permissions not granted');
       }
     };
     

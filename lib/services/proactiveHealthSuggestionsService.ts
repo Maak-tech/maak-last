@@ -855,7 +855,7 @@ class ProactiveHealthSuggestionsService {
       const rows = await api.get<Record<string, unknown>[]>(
         `/api/health/vitals?from=${thirtyDaysAgo.toISOString()}&limit=100`
       );
-      return rows.map((v) => ({
+      return (Array.isArray(rows) ? rows : []).map((v) => ({
         ...v,
         timestamp: v.recordedAt ? new Date(v.recordedAt as string) : new Date(),
       }));
@@ -1066,7 +1066,7 @@ class ProactiveHealthSuggestionsService {
       const recentAvg = values.slice(0, 3).reduce((a, b) => a + b, 0) / 3;
       const olderAvg = values.slice(-3).reduce((a, b) => a + b, 0) / 3;
 
-      const percentChange = ((recentAvg - olderAvg) / olderAvg) * 100;
+      const percentChange = olderAvg === 0 ? 0 : ((recentAvg - olderAvg) / olderAvg) * 100;
 
       if (Math.abs(percentChange) > 10) {
         const trend = percentChange > 0 ? "increasing" : "decreasing";

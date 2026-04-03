@@ -6,8 +6,12 @@ export class CompreFaceProvider extends BiometricProvider {
 
   constructor() {
     super()
+    const apiKey = process.env.COMPREFACE_API_KEY
+    if (!apiKey) {
+      console.warn('[CompreFace] COMPREFACE_API_KEY is not set — biometric recognition will fail.')
+    }
     this.baseUrl = process.env.COMPREFACE_URL ?? 'http://localhost:8000'
-    this.apiKey = process.env.COMPREFACE_API_KEY ?? ''
+    this.apiKey = apiKey ?? ''
   }
 
   async enroll(subjectId: string, imageBuffer: Buffer): Promise<void> {
@@ -60,12 +64,16 @@ export class CompreFaceProvider extends BiometricProvider {
   }
 
   async deleteSubject(subjectId: string): Promise<void> {
-    await fetch(
+    const response = await fetch(
       `${this.baseUrl}/api/v1/recognition/faces?subject=${encodeURIComponent(subjectId)}`,
       {
         method: 'DELETE',
         headers: { 'x-api-key': this.apiKey },
       }
     )
+    if (!response.ok) {
+      const text = await response.text().catch(() => response.statusText)
+      throw new Error(`CompreFace deleteSubject failed: ${response.status} ${text}`)
+    }
   }
 }

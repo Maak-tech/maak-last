@@ -9,7 +9,6 @@ import {
   Alert,
   Linking,
   Modal,
-  Pressable,
   StyleProp,
   TextStyle,
   ViewStyle,
@@ -76,25 +75,7 @@ export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const wavyHeaderTopPadding = 16;
   const [showAlertsModal, setShowAlertsModal] = useState(false);
-  const [showTour, setShowTour] = useState(false);
-  const [tourSteps] = useState<Array<{ title: string; body: string }>>([]);
-  const [tourStep, setTourStep] = useState(0);
-  const activeTourStep = tourSteps[tourStep] || { title: '', body: '' };
-  const enabledWidgets: string[] = ['medications', 'symptoms', 'family'];
-
   const handleAlertsBadgePress = () => setShowAlertsModal(true);
-
-  const renderWidget = (_widgetId: string) => null;
-
-  const handleTourFinish = () => setShowTour(false);
-  const handleTourNext = () => {
-    if (tourStep >= tourSteps.length - 1) {
-      setShowTour(false);
-    } else {
-      setTourStep((s) => s + 1);
-    }
-  };
-  const handleTourBack = () => setTourStep((s) => Math.max(0, s - 1));
 
   const [loadingAlerts, setLoadingAlerts] = useState(false);
   const [userAlerts, setUserAlerts] = useState<any[]>([]);
@@ -794,14 +775,38 @@ export default function DashboardScreen() {
         },
         {
           text: isRTL ? 'إشعار العائلة' : 'Notify Family',
-          onPress: () => {
-            // TODO: Implement family notification
-            Alert.alert(
-              isRTL ? 'تم إرسال الإشعار' : 'Notification Sent',
-              isRTL 
-                ? 'تم إرسال إشعار طوارئ لجميع أفراد العائلة'
-                : 'Emergency notification sent to all family members'
-            );
+          onPress: async () => {
+            if (!user?.id || !user?.familyId) {
+              Alert.alert(
+                isRTL ? 'لا توجد عائلة' : 'No Family',
+                isRTL ? 'لم تنضم إلى مجموعة عائلية بعد.' : 'You have not joined a family group yet.'
+              );
+              return;
+            }
+            try {
+              await alertService.createAlert({
+                userId: user.id,
+                type: 'emergency',
+                severity: 'high',
+                message: isRTL
+                  ? 'طلب مساعدة طارئة من أحد أفراد العائلة'
+                  : 'Emergency help requested by a family member',
+                timestamp: new Date(),
+                resolved: false,
+                responders: [],
+              });
+              Alert.alert(
+                isRTL ? 'تم إرسال الإشعار' : 'Notification Sent',
+                isRTL
+                  ? 'تم إرسال إشعار طوارئ لجميع أفراد العائلة'
+                  : 'Emergency notification sent to all family members'
+              );
+            } catch {
+              Alert.alert(
+                isRTL ? 'خطأ' : 'Error',
+                isRTL ? 'فشل إرسال الإشعار. حاول مرة أخرى.' : 'Failed to send notification. Please try again.'
+              );
+            }
           },
         },
       ]
@@ -957,9 +962,6 @@ export default function DashboardScreen() {
 
           {/* VHI Context Banner — shown when composite risk > 60 */}
           <VHIContextBanner />
-
-          {/* Render widgets dynamically */}
-          {enabledWidgets.map((widgetId) => renderWidget(widgetId))}
 
           {/* Vital anomaly monitoring — only shown when there are active alerts */}
           <View style={styles.section as ViewStyle}>
@@ -1278,85 +1280,6 @@ export default function DashboardScreen() {
                     })}
                   </ScrollView>
                 )}
-              </View>
-            </View>
-          </Modal>
-
-          <Modal
-            animationType="fade"
-            onRequestClose={handleTourFinish}
-            transparent={true}
-            visible={showTour && tourSteps.length > 0}
-          >
-            <View style={styles.tourOverlay as ViewStyle}>
-              <View style={styles.tourCard as ViewStyle}>
-                <Text
-                  style={[styles.tourTitle, isRTL && styles.rtlText]}
-                >
-                  {activeTourStep.title}
-                </Text>
-                <Text style={[styles.tourBody, isRTL && styles.rtlText]}>
-                  {activeTourStep.body}
-                </Text>
-                <View style={styles.tourProgressRow as ViewStyle}>
-                  <Text style={styles.tourProgressText as StyleProp<TextStyle>}>
-                    {tourStep + 1}/{tourSteps.length}
-                  </Text>
-                  <View style={styles.tourDots as ViewStyle}>
-                    {tourSteps.map((_, index) => (
-                      <View
-                        key={`tour-dot-${index}`}
-                        style={[
-                          styles.tourDot,
-                          index === tourStep && styles.tourDotActive,
-                        ]}
-                      />
-                    ))}
-                  </View>
-                </View>
-                <View style={styles.tourFooter as ViewStyle}>
-                  <Pressable
-                    onPress={handleTourFinish}
-                    style={styles.tourButton as ViewStyle}
-                  >
-                    <Text style={styles.tourButtonText as StyleProp<TextStyle>}>
-                      {isRTL ? "تخطي" : "Skip"}
-                    </Text>
-                  </Pressable>
-                  <View style={styles.tourActions as ViewStyle}>
-                    {tourStep > 0 && (
-                      <Pressable
-                        onPress={handleTourBack}
-                        style={styles.tourButton as ViewStyle}
-                      >
-                        <Text
-                          style={styles.tourButtonText as StyleProp<TextStyle>}
-                        >
-                          {isRTL ? "رجوع" : "Back"}
-                        </Text>
-                      </Pressable>
-                    )}
-                    <Pressable
-                      onPress={handleTourNext}
-                      style={[styles.tourButton, styles.tourButtonPrimary]}
-                    >
-                      <Text
-                        style={[
-                          styles.tourButtonText,
-                          styles.tourButtonTextPrimary,
-                        ]}
-                      >
-                        {tourStep >= tourSteps.length - 1
-                          ? isRTL
-                            ? "إنهاء"
-                            : "Done"
-                          : isRTL
-                            ? "التالي"
-                            : "Next"}
-                      </Text>
-                    </Pressable>
-                  </View>
-                </View>
               </View>
             </View>
           </Modal>

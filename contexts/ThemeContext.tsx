@@ -74,9 +74,13 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     setThemeMode(newMode);
   };
 
-  // Don't render until theme is loaded
+  // Render with a default light theme while loading to avoid blank screen flash
   if (!isLoaded) {
-    return null;
+    return (
+      <ThemeContext.Provider value={{ theme: Theme.light, themeMode: 'system', isDark: false, setThemeMode: () => {}, toggleTheme: () => {} }}>
+        {children}
+      </ThemeContext.Provider>
+    );
   }
 
   const value: ThemeContextType = {

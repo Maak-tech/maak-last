@@ -151,7 +151,7 @@ class ConsentService {
     const rows = await api.get<Record<string, unknown>[]>(
       `/api/consent/${userId}`
     );
-    return (rows ?? []).map(mapConsent);
+    return (Array.isArray(rows) ? rows : []).map(mapConsent);
   }
 
   /**
@@ -162,7 +162,7 @@ class ConsentService {
     const rows = await api.get<Record<string, unknown>[]>(
       `/api/org/${orgId}/consents`
     );
-    return (rows ?? []).map(mapConsent);
+    return (Array.isArray(rows) ? rows : []).map(mapConsent);
   }
 
   /**

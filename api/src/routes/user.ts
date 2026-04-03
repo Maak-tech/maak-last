@@ -133,7 +133,15 @@ export const userRoutes = new Elysia({ prefix: "/api/user" })
 
   .put(
     "/preferences",
-    async ({ db, userId, body }) => {
+    async ({ db, userId, body, set }) => {
+      // Block security-sensitive keys that could be used to elevate privileges
+      const BLOCKED_KEYS = new Set(["isPremium", "role", "familyId", "garminAccessToken", "garminRefreshToken"]);
+      const forbidden = Object.keys(body.preferences).filter((k) => BLOCKED_KEYS.has(k));
+      if (forbidden.length > 0) {
+        set.status = 400;
+        return { error: `Cannot set protected preference keys: ${forbidden.join(", ")}` };
+      }
+
       await db
         .update(users)
         .set({ preferences: body.preferences, updatedAt: new Date() })
@@ -154,7 +162,14 @@ export const userRoutes = new Elysia({ prefix: "/api/user" })
   // Safe for concurrent callers updating different keys (e.g. dashboardWidgetService).
   .patch(
     "/preferences",
-    async ({ db, userId, body }) => {
+    async ({ db, userId, body, set }) => {
+      // Block security-sensitive keys that could be used to elevate privileges
+      const BLOCKED_KEYS = new Set(["isPremium", "role", "familyId", "garminAccessToken", "garminRefreshToken"]);
+      const forbidden = Object.keys(body.updates).filter((k) => BLOCKED_KEYS.has(k));
+      if (forbidden.length > 0) {
+        set.status = 400;
+        return { error: `Cannot set protected preference keys: ${forbidden.join(", ")}` };
+      }
       // jsonb || jsonb merges top-level keys atomically on the server.
       // This avoids the race condition of GET → merge → PUT across concurrent requests.
       await db

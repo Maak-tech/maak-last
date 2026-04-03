@@ -234,6 +234,8 @@ export async function analyzeLabResults(
 
     for (const result of results) {
       for (const val of result.results ?? []) {
+        // Guard against malformed entries with missing name or value
+        if (!val?.name) continue;
         const numVal =
           typeof val.value === "number"
             ? val.value
@@ -369,7 +371,9 @@ export async function analyzeLabResults(
       aiNarrative,
       aiNarrativeAr,
       generatedAt: new Date().toISOString(),
-    }).catch(() => {});
+    }).catch((err) => {
+      console.debug('[labInsights] Failed to cache lab insights summary:', err);
+    });
 
     return summary;
   } catch (_error) {

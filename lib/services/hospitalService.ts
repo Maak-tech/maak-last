@@ -18,7 +18,15 @@ async function hospitalFetch<T>(path: string, options?: RequestInit): Promise<T>
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   })
-  if (!res.ok) throw new Error(`Hospital API error: ${res.status}`)
+  if (!res.ok) {
+    // Parse response body for a more descriptive error message.
+    let detail = ''
+    try {
+      const body = await res.json() as { error?: string; message?: string }
+      detail = body.error ?? body.message ?? ''
+    } catch { /* ignore parse failure */ }
+    throw new Error(`Hospital API error ${res.status}${detail ? `: ${detail}` : ''}`)
+  }
   return res.json() as Promise<T>
 }
 

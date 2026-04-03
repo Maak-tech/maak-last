@@ -29,8 +29,8 @@ export interface PushNotificationData {
     familyId?: string;
     caregiverId?: string;
     medicationId?: string;
-    medicationName?: string;
-    symptomType?: string;
+    // medicationName and symptomType intentionally omitted — those are PHI and
+    // must NOT be included in push payloads transmitted via Apple/Google servers.
     severity?: 'low' | 'medium' | 'high' | 'critical';
     clickAction?: string;
   };
@@ -91,8 +91,8 @@ export const pushNotificationService = {
 
       // Fallback: local notification (Expo Go / web)
       await scheduleLocalNotification(notification);
-    } catch {
-      // Silently handle
+    } catch (err) {
+      console.warn('[pushNotification] sendToUser failed:', err);
     }
   },
 
@@ -128,8 +128,8 @@ export const pushNotificationService = {
       await Promise.all(
         membersToNotify.map((m) => this.sendToUser(m.id, notification))
       );
-    } catch {
-      // Silently handle
+    } catch (err) {
+      console.warn('[pushNotification] sendToFamily failed:', err);
     }
   },
 
@@ -164,8 +164,8 @@ export const pushNotificationService = {
       await Promise.all(
         adminsToNotify.map((m) => this.sendToUser(m.id, notification))
       );
-    } catch {
-      // Silently handle
+    } catch (err) {
+      console.warn('[pushNotification] sendToAdmins failed:', err);
     }
   },
 
@@ -225,20 +225,22 @@ export const pushNotificationService = {
     }
   },
 
-  // Send medication reminder to a user
+  // Send medication reminder to a user.
+  // HIPAA: body must NOT contain medication name or dosage — those are PHI that
+  // travel through Apple/Google push servers. The patient sees the detail inside
+  // the app after tapping the notification.
   async sendMedicationReminder(
     userId: string,
     medicationId: string,
-    medicationName: string,
-    dosage: string
+    _medicationName: string,
+    _dosage: string
   ): Promise<void> {
     const notification: PushNotificationData = {
       title: '💊 Medication Reminder',
-      body: `Time to take ${medicationName} (${dosage})`,
+      body: 'Time to take your medication. Tap to view details.',
       data: {
         type: 'medication_reminder',
-        medicationId,
-        medicationName,
+        medicationId,           // ID only — no PHI
         clickAction: 'OPEN_MEDICATIONS',
       },
       sound: 'default',
@@ -250,15 +252,17 @@ export const pushNotificationService = {
     await this.sendToUser(userId, notification);
   },
 
-  // Send medication alert (missed dose) to family
+  // Send medication alert (missed dose) to family.
+  // HIPAA: body must NOT contain the medication name — that is PHI transmitted
+  // through third-party push servers. Caregivers see the detail inside the app.
   async sendMedicationAlert(
     userId: string,
-    medicationName: string,
+    _medicationName: string,
     familyId?: string
   ): Promise<void> {
     const notification: PushNotificationData = {
       title: '⚠️ Missed Medication',
-      body: `${medicationName} was not taken as scheduled. Please check on the patient.`,
+      body: 'A scheduled dose was not taken. Please check on the patient.',
       data: {
         type: 'medication_alert',
         userId,
@@ -303,25 +307,24 @@ export const pushNotificationService = {
     }
   },
 
-  // Send symptom alert to family
+  // Send symptom alert to family.
+  // HIPAA: body must NOT contain the symptom type — that is PHI (diagnosis-adjacent
+  // information) transmitted through third-party push servers. Caregivers see the
+  // specific symptom inside the app after tapping the notification.
   async sendSymptomAlert(
     userId: string,
     userName: string,
-    symptomType: string,
+    _symptomType: string,
     severity: number,
     familyId?: string
   ): Promise<void> {
     if (severity < 4 || !familyId) return;
 
-    const severityText = severity === 5 ? "very severe" : "severe";
-    const severityEmoji = severity === 5 ? "🚨" : "⚠️";
-
     const notification: PushNotificationData = {
-      title: '⚠️ Health Alert',
-      body: `${userName} is experiencing ${severityText} ${symptomType}`,
+      title: severity === 5 ? '🚨 Health Alert' : '⚠️ Health Alert',
+      body: `${userName} has reported a health concern. Please check on them.`,
       data: {
         type: 'symptom_alert',
-        symptomType,
         severity: severity === 5 ? 'critical' : 'high',
         userId,
         clickAction: 'OPEN_SYMPTOMS',
@@ -364,8 +367,8 @@ export const pushNotificationService = {
           if (success) return;
         }
       }
-    } catch {
-      // Silently fallback
+    } catch (err) {
+      console.warn('[pushNotification] sendFamilyUpdateToAdmins FCM path failed, using fallback:', err);
     }
 
     // Fallback: local notification broadcast to admins
@@ -417,8 +420,8 @@ export const pushNotificationService = {
         deviceId: deviceInfo?.deviceId ?? Constants.sessionId,
         deviceName: deviceInfo?.deviceName ?? `${Platform.OS} Device`,
       });
-    } catch {
-      // Silently handle — fallback to fcmService direct save
+    } catch (err) {
+      console.warn('[pushNotification] API token save failed, using fcmService fallback:', err);
       await fcmService.saveFCMToken(token);
     }
   },

@@ -44,9 +44,15 @@ export default function DashboardPage() {
   useEffect(() => {
     const stored = sessionStorage.getItem('hospital_staff')
     if (stored) {
-      try { setStaff(JSON.parse(stored) as StaffInfo) } catch { /* ignore */ }
+      try {
+        setStaff(JSON.parse(stored) as StaffInfo)
+      } catch (err) {
+        console.warn('[Dashboard] Failed to parse stored staff info — clearing session:', err)
+        sessionStorage.removeItem('hospital_staff')
+        router.push('/login')
+      }
     }
-  }, [])
+  }, [router])
 
   const loadPreview = useCallback(async (sessionToken: string) => {
     setIdentifyLoading(true)
@@ -102,7 +108,12 @@ export default function DashboardPage() {
   }, [])
 
   async function handleLogout() {
-    try { await api.logout() } catch { /* ignore */ }
+    try {
+      await api.logout()
+    } catch (err) {
+      // Logout API failure should not block the local session from being cleared
+      console.warn('[Dashboard] Logout API call failed (clearing local session anyway):', err)
+    }
     clearToken()
     sessionStorage.removeItem('hospital_staff')
     router.push('/login')

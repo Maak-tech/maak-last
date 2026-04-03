@@ -111,10 +111,12 @@ export default function AnalyticsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [period, setPeriod] = useState<Period>("30d");
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async (isRefresh = false) => {
     if (!user) return;
     if (!isRefresh) setLoading(true);
+    setLoadError(null);
     try {
       const days = period === "7d" ? 7 : period === "30d" ? 30 : 90;
       const from = new Date();
@@ -122,14 +124,15 @@ export default function AnalyticsScreen() {
       const data = await api.get<VitalPoint[]>(
         `/api/health/vitals?from=${from.toISOString()}&limit=500`
       );
-      setVitals(data ?? []);
-    } catch {
-      // silently handle
+      setVitals(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.warn('[analytics] Failed to load vitals:', err);
+      setLoadError(isRTL ? "تعذّر تحميل البيانات. اسحب للأسفل للمحاولة." : "Failed to load data. Pull down to retry.");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user, period]);
+  }, [user, period, isRTL]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -176,6 +179,20 @@ export default function AnalyticsScreen() {
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator color={theme.colors.primary.main} size="large" />
+        </View>
+      ) : loadError ? (
+        <View style={styles.center}>
+          <Text style={[styles.emptyTitle, { color: theme.colors.status?.error ?? "#EF4444", textAlign: "center", paddingHorizontal: 32 }]}>
+            {loadError}
+          </Text>
+          <TouchableOpacity
+            onPress={() => load()}
+            style={{ marginTop: 16, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20, borderWidth: 1, borderColor: theme.colors.primary.main }}
+          >
+            <Text style={{ color: theme.colors.primary.main, fontSize: 14, fontWeight: "600" }}>
+              {isRTL ? "إعادة المحاولة" : "Retry"}
+            </Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <ScrollView

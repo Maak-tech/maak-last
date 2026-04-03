@@ -135,7 +135,8 @@ class CaregiverDashboardService {
         averageHealthScore: Math.round(averageHealthScore * 10) / 10,
         members: memberData,
       };
-    } catch (_error) {
+    } catch (err) {
+      if (err instanceof Error) throw err;
       throw new Error("Failed to get caregiver overview");
     }
   }
@@ -290,7 +291,8 @@ class CaregiverDashboardService {
         attentionReasons,
         ...vhiFields,
       };
-    } catch (_error) {
+    } catch (err) {
+      if (err instanceof Error) throw err;
       throw new Error("Failed to get member dashboard data");
     }
   }
@@ -350,7 +352,8 @@ class CaregiverDashboardService {
         hasAlerts,
         emergencyContacts: user.preferences?.emergencyContacts || [],
       };
-    } catch (_error) {
+    } catch (err) {
+      if (err instanceof Error) throw err;
       throw new Error("Failed to get elderly user dashboard");
     }
   }
@@ -410,7 +413,8 @@ class CaregiverDashboardService {
         alertType: "sos",
         message: `Emergency SOS from ${user.firstName} ${user.lastName}: ${message}`,
       });
-    } catch (_error) {
+    } catch (err) {
+      if (err instanceof Error) throw err;
       throw new Error("Failed to send emergency alert");
     }
   }

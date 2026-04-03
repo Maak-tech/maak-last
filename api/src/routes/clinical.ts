@@ -3,9 +3,9 @@ import { and, desc, eq } from "drizzle-orm";
 import crypto from "node:crypto";
 import { requireAuth } from "../middleware/requireAuth";
 import { clinicalIntegrationRequests, orgMembers } from "../db/schema";
+import type { Database } from "../db";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function requireOrgMember(db: any, userId: string, orgId: string) {
+async function requireOrgMember(db: Database, userId: string, orgId: string) {
   const [row] = await db
     .select({ role: orgMembers.role })
     .from(orgMembers)

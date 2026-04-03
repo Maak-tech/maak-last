@@ -80,7 +80,7 @@ class ApiKeyService {
    */
   async listApiKeys(orgId: string): Promise<ApiKey[]> {
     const rows = await api.get<Record<string, unknown>[]>(`/api/org/${orgId}/keys`);
-    return (rows ?? []).map(mapApiKey);
+    return (Array.isArray(rows) ? rows : []).map(mapApiKey);
   }
 
   /**

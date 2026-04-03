@@ -48,7 +48,10 @@ export default function CameraCapture({ onCapture, loading }: Props) {
     if (!ctx) return
     ctx.drawImage(video, 0, 0)
     canvas.toBlob((blob) => {
-      if (!blob) return
+      if (!blob) {
+        setError('Failed to capture image from camera. Please try again.')
+        return
+      }
       const fd = new FormData()
       fd.append('image', blob, 'capture.jpg')
       onCapture(fd)

@@ -80,11 +80,14 @@ export const vhiRoutes = new Elysia({ prefix: "/api/vhi" })
       const data = current.data;
       const now = new Date().toISOString();
 
-      data.pendingActions = data.pendingActions.map((action) =>
-        action.id === params.actionId
-          ? { ...action, acknowledged: true, acknowledgedAt: now }
-          : action
-      );
+      // Guard: pendingActions may be null/undefined in older VHI documents.
+      data.pendingActions = Array.isArray(data.pendingActions)
+        ? data.pendingActions.map((action) =>
+            action.id === params.actionId
+              ? { ...action, acknowledged: true, acknowledgedAt: now }
+              : action
+          )
+        : [];
 
       await db.update(vhi).set({ data, updatedAt: new Date() }).where(eq(vhi.userId, userId));
 

@@ -153,7 +153,7 @@ class AnomalyDetectionService {
         `/api/health/vitals?from=${ninetyDaysAgo.toISOString()}&limit=500`
       );
 
-      const filtered = (raw ?? []).filter((v) => v.type === vitalType);
+      const filtered = (Array.isArray(raw) ? raw : []).filter((v) => v.type === vitalType);
       if (filtered.length < 10) {
         return null;
       }
@@ -248,7 +248,9 @@ class AnomalyDetectionService {
 
     if (count % this.BASELINE_REFRESH_INTERVAL === 0) {
       // Non-blocking baseline refresh
-      this.refreshBaseline(userId, vitalType).catch(() => {});
+      this.refreshBaseline(userId, vitalType).catch((err) => {
+        console.warn('[anomalyDetection] refreshBaseline failed:', err);
+      });
     }
   }
 
@@ -429,7 +431,7 @@ class AnomalyDetectionService {
         `/api/health/vitals?from=${ninetyDaysAgo.toISOString()}&limit=500`
       );
 
-      const filtered = (raw ?? []).filter((v) => v.type === vitalType);
+      const filtered = (Array.isArray(raw) ? raw : []).filter((v) => v.type === vitalType);
       if (filtered.length === 0) return null;
 
       // Filter readings to the requested time bucket
@@ -560,7 +562,7 @@ class AnomalyDetectionService {
         const raw = await api.get<Record<string, unknown>[]>(
           `/api/health/vitals?from=${oneHourAgo.toISOString()}&limit=20`
         );
-        const otherReadings = (raw ?? [])
+        const otherReadings = (Array.isArray(raw) ? raw : [])
           .map((v) => ({
             type: v.type as string,
             value:

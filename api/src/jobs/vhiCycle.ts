@@ -12,6 +12,12 @@ import { db } from "../db";
 import { runForecastCycle } from "./forecastCycle";
 import { dispatchWebhookEvent } from "../lib/webhookDispatcher";
 import {
+  pushToUser,
+  pushToFamilyAdmins,
+  pushToUserAndFamilyAdmins,
+  getUserDisplayName,
+} from "../lib/push";
+import {
   users,
   vhi,
   vitals,
@@ -34,7 +40,7 @@ const WINDOW_DAYS = 21; // minimum days to establish baseline confidence
 const RISK_HIGH = 75;
 const RISK_MODERATE = 50;
 
-async function runVhiCycle() {
+export async function runVhiCycle() {
   console.log(`[vhiCycle] Starting at ${new Date().toISOString()}`);
 
   // Fetch all users with enough data to compute VHI
@@ -129,6 +135,20 @@ export async function processUser(userId: string) {
   ]);
 
   const geneticsData = userGenetics[0] ?? null;
+
+  // Skip users with no signal at all — avoids writing a VHI of all-null dimensions
+  // that would mislead consumers into thinking the user has been assessed.
+  const hasSomeData =
+    recentVitals.length > 0 ||
+    recentSymptoms.length > 0 ||
+    recentMoods.length > 0 ||
+    activeMeds.length > 0 ||
+    geneticsData != null;
+
+  if (!hasSomeData) {
+    console.log(`[vhiCycle] Skipping user ${userId} — no health data yet`);
+    return;
+  }
 
   // ── COMPUTE phase ─────────────────────────────────────────────────────────────
 
@@ -390,6 +410,74 @@ export async function processUser(userId: string) {
     }).catch((err) =>
       console.error(`[vhiCycle] medication.missed webhook failed for ${userId}:`, err)
     );
+  }
+
+  // ── Push notification routing ──────────────────────────────────────────────
+  // Plan: compositeRisk >= 60 → patient only
+  //        compositeRisk >= 75 → patient + family admins
+  //        compositeRisk >= 85 → patient + family admins (urgent)
+  // PHI rule: no raw vitals/diagnoses in notification bodies.
+
+  dispatchPushAlerts(userId, compositeRisk, vhiData.decliningFactors[0]?.factor ?? null).catch(
+    (err) => console.error(`[vhiCycle] Push alert dispatch failed for ${userId}:`, err)
+  );
+}
+
+/**
+ * Dispatch push notifications to patient and/or family admins based on risk level.
+ * All three thresholds send non-PHI generic messages per HIPAA guidance.
+ */
+async function dispatchPushAlerts(
+  userId: string,
+  compositeRisk: number,
+  topDecliningFactor: string | null
+): Promise<void> {
+  if (compositeRisk < 60) return;
+
+  if (compositeRisk >= 85) {
+    // Urgent — patient + admins, high priority
+    const displayName = await getUserDisplayName(userId);
+    await pushToUserAndFamilyAdmins(
+      userId,
+      {
+        title: "Health Update",
+        body: "Your health identity shows significant changes. Open Nuralix to review.",
+        data: { screen: "nora", compositeRisk },
+        priority: "high",
+      },
+      {
+        title: `Health Alert — ${displayName}`,
+        body: `${displayName}'s health score needs attention. Tap to review their profile.`,
+        data: { screen: "family", userId, compositeRisk },
+        priority: "high",
+      }
+    );
+  } else if (compositeRisk >= 75) {
+    // High — patient + admins, normal priority
+    const displayName = await getUserDisplayName(userId);
+    await pushToUserAndFamilyAdmins(
+      userId,
+      {
+        title: "Health Update",
+        body: "Your health identity shows changes today. Ask Nora about your health.",
+        data: { screen: "nora", compositeRisk },
+      },
+      {
+        title: `Health Update — ${displayName}`,
+        body: `${displayName}'s health score has changed. Open the family dashboard to review.`,
+        data: { screen: "family", userId, compositeRisk },
+      }
+    );
+  } else {
+    // compositeRisk >= 60 — patient only
+    // PHI rule: topDecliningFactor is NOT included in the push body — it may contain
+    // medication names, lab values, or other PHI that would appear on a locked screen.
+    // Nora provides the full context inside the app after the user taps the notification.
+    await pushToUser(userId, {
+      title: "Health Update",
+      body: "Your health identity shows changes today. Ask Nora.",
+      data: { screen: "nora", compositeRisk },
+    });
   }
 }
 

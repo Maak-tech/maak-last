@@ -179,7 +179,7 @@ export const clinicalNotesRoutes = new Elysia({ prefix: "/api/notes" })
       const [updated] = await db
         .update(clinicalNotes)
         .set(updates)
-        .where(eq(clinicalNotes.id, params.id))
+        .where(and(eq(clinicalNotes.id, params.id), eq(clinicalNotes.userId, userId)))
         .returning();
 
       return sanitizeNote(updated);

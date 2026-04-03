@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/contexts/ThemeContext';
-import { Home, Activity, Pill, Users, User, BookOpen } from 'lucide-react-native';
+import { Home, Activity, Pill, Users, User, BookOpen, Sparkles } from 'lucide-react-native';
 
 export default function TabLayout() {
   const { t } = useTranslation();
@@ -49,6 +49,15 @@ export default function TabLayout() {
         name="symptoms"
         options={{
           href: null, // Access via track tab
+        }}
+      />
+      <Tabs.Screen
+        name="nora"
+        options={{
+          title: t('nora') || 'Nora',
+          tabBarIcon: ({ size, color }) => (
+            <Sparkles size={size || 24} color={color} />
+          ),
         }}
       />
       <Tabs.Screen

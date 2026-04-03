@@ -28,6 +28,9 @@ authRoutes.post('/auth/login', async (c) => {
   )
 
   if (!staff) {
+    // Run a dummy bcrypt compare to normalize response time and prevent
+    // user-enumeration via timing difference (user-not-found vs wrong-password).
+    await bcrypt.compare(password, '$2b$12$invalidhashpadding000000000000000000000000000000000000000')
     await writeAudit({ action: 'login_failed', ipAddress: ip, success: false })
     return c.json({ error: 'Invalid credentials' }, 401)
   }

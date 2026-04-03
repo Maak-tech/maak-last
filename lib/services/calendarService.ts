@@ -135,7 +135,7 @@ class CalendarService {
       const raw = await api.get<Record<string, unknown>[]>(
         `/api/calendar?${params.toString()}`
       );
-      return (raw ?? []).map(normalizeEvent);
+      return (Array.isArray(raw) ? raw : []).map(normalizeEvent);
     } catch (_error) {
       return [];
     }
@@ -153,7 +153,7 @@ class CalendarService {
       const raw = await api.get<Record<string, unknown>[]>(
         `/api/calendar/family/${familyId}?${params.toString()}`
       );
-      return (raw ?? []).map(normalizeEvent);
+      return (Array.isArray(raw) ? raw : []).map(normalizeEvent);
     } catch (_error) {
       return [];
     }

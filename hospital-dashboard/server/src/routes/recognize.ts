@@ -9,16 +9,51 @@ import { jwtAuth } from '../middleware/jwtAuth.js'
 const compreface = new CompreFaceProvider()
 const SESSION_TTL_MINUTES = 30
 
+// ── In-process rate limiter for recognition endpoints ─────────────────────────
+// Limits each staff member to MAX_REQUESTS attempts per WINDOW_MS.
+// This guards against brute-force enumeration via the face recognition API.
+const RATE_LIMIT_WINDOW_MS = 60_000  // 1 minute
+const MAX_REQUESTS_PER_WINDOW = 20   // 20 attempts/min per staff is generous for clinical use
+const _rateLimitCounters = new Map<string, { count: number; resetAt: number }>()
+
+function checkRateLimit(staffId: string): boolean {
+  const now = Date.now()
+  const entry = _rateLimitCounters.get(staffId)
+  if (!entry || now >= entry.resetAt) {
+    _rateLimitCounters.set(staffId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
+    return true
+  }
+  entry.count += 1
+  if (entry.count > MAX_REQUESTS_PER_WINDOW) return false
+  return true
+}
+
 export const recognizeRoutes = new Hono()
 
 // POST /recognize — face recognition → sessionToken (NO PHI returned)
 recognizeRoutes.post('/recognize', jwtAuth, async (c) => {
   const staff = c.get('staff')
   const ip = c.req.header('x-forwarded-for') ?? 'unknown'
+
+  if (!checkRateLimit(staff.staffId)) {
+    return c.json({ error: 'Too many recognition attempts. Please wait before trying again.' }, 429)
+  }
+
   const formData = await c.req.formData()
   const imageFile = formData.get('image') as File | null
 
   if (!imageFile) return c.json({ error: 'No image provided' }, 400)
+
+  // Validate image size (max 5 MB)
+  if (imageFile.size > 5 * 1024 * 1024) {
+    return c.json({ error: 'Image too large. Maximum size is 5 MB.' }, 400)
+  }
+
+  // Validate MIME type
+  const mime = imageFile.type
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(mime)) {
+    return c.json({ error: 'Invalid image format. Use JPEG, PNG, or WebP.' }, 400)
+  }
 
   const imageBuffer = Buffer.from(await imageFile.arrayBuffer())
   const result = await compreface.recognize(imageBuffer)
@@ -89,9 +124,16 @@ recognizeRoutes.post('/recognize', jwtAuth, async (c) => {
 recognizeRoutes.post('/recognize/manual', jwtAuth, async (c) => {
   const { name } = await c.req.json<{ name: string }>()
 
+  if (!name || typeof name !== 'string' || name.trim().length < 1 || name.length > 100) {
+    return c.json({ error: 'Name must be between 1 and 100 characters' }, 400)
+  }
+
+  // Escape LIKE wildcard characters in the user-supplied name so that a search
+  // for "%" doesn't match all patients and cause a full-table dump.
+  const escapedName = name.replace(/[%_\\]/g, '\\$&')
   const patients = await query<{ id: string; name: string }>(
-    'SELECT id, name FROM patients WHERE lower(name) LIKE lower($1) LIMIT 5',
-    [`%${name}%`]
+    "SELECT id, name FROM patients WHERE lower(name) LIKE lower($1) ESCAPE '\\' LIMIT 5",
+    [`%${escapedName}%`]
   )
 
   if (patients.length === 0) return c.json({ results: [] })

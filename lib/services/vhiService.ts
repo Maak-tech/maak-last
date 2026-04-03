@@ -32,8 +32,6 @@ export type VHIGeneticBaseline = NonNullable<VirtualHealthIdentity["geneticBasel
 // ── VHI wrapper returned by the API ──────────────────────────────────────────
 // The server wraps the VirtualHealthIdentity document in a thin envelope that
 // adds `updatedAt` and keeps the identity data in a `data` field.
-export type VHIData = VirtualHealthIdentity;
-
 export type VHI = {
   userId: string;
   version: number;

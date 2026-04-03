@@ -205,7 +205,7 @@ async function fetchAllRecoveryVitals(userId: string): Promise<VitalsByType> {
   const recoveryTypeSet = new Set<string>(RECOVERY_VITAL_TYPES);
   const byType: VitalsByType = {};
 
-  for (const d of raw ?? []) {
+  for (const d of (Array.isArray(raw) ? raw : [])) {
     const type = d.type as string;
     if (!recoveryTypeSet.has(type)) continue; // filter to recovery types only
     const value = typeof d.value === "number" ? d.value : Number.parseFloat(String(d.value ?? 0));
@@ -673,7 +673,8 @@ class RecoveryScoreService {
 
       _cache.set(userId, { result, timestamp: Date.now() });
       return result;
-    } catch {
+    } catch (err) {
+      console.warn('[recoveryScore] calculateRecoveryScore failed, returning fallback:', err);
       // Safe default on any unhandled error
       const fallback: RecoveryScoreResult = {
         score: 50,

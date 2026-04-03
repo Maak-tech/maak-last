@@ -55,7 +55,6 @@ export const fcmService = {
         return { success: false, error: "Failed to get push token" };
       }
 
-      console.log('📱 FCM Token obtained:', tokenData.data);
       return { success: true, token: tokenData.data };
     } catch (error) {
       console.error('❌ Error getting FCM token:', error);
@@ -75,7 +74,6 @@ export const fcmService = {
         deviceName: `${Platform.OS} Device`,
       });
 
-      console.log('✅ FCM token saved to user document');
       return true;
     } catch {
       return false;
@@ -125,9 +123,7 @@ export const fcmService = {
       const tokenResult = await this.getFCMToken();
 
       if (!tokenResult.success || !tokenResult.token) {
-        console.log(
-          '📱 FCM token not available, falling back to local notifications'
-        );
+        console.warn('[fcmService] Push token not available — falling back to local notifications');
         return false;
       }
 

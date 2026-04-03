@@ -68,7 +68,9 @@ const RC_REVOKE_EVENTS = new Set([
  * RevenueCat sends the raw body hash in `X-RevenueCat-Signature`.
  */
 function verifyRevenueCatSignature(rawBody: string, signature: string): boolean {
-  if (!RC_WEBHOOK_SECRET) return true; // skip verification in dev
+  // Fail closed — if the secret is not configured, reject ALL webhook calls.
+  // An unconfigured secret in production would silently accept forged billing events.
+  if (!RC_WEBHOOK_SECRET) return false;
   const expected = crypto
     .createHmac("sha256", RC_WEBHOOK_SECRET)
     .update(rawBody)
@@ -238,20 +240,24 @@ export const webhookRoutes = new Elysia({ prefix: "/webhooks" })
       const rawBody = await request.clone().text();
       const signature = request.headers.get("x-autumn-signature") ?? "";
 
-      if (AUTUMN_WEBHOOK_SECRET) {
+      // Fail closed — reject ALL Autumn webhook calls if the secret is not configured.
+      if (!AUTUMN_WEBHOOK_SECRET) {
+        set.status = 401;
+        return { error: "Webhook secret not configured" };
+      }
+
+      try {
         const expected = crypto
           .createHmac("sha256", AUTUMN_WEBHOOK_SECRET)
           .update(rawBody)
           .digest("hex");
-        try {
-          if (!crypto.timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(signature, "hex"))) {
-            set.status = 401;
-            return { error: "Invalid signature" };
-          }
-        } catch {
+        if (!crypto.timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(signature, "hex"))) {
           set.status = 401;
           return { error: "Invalid signature" };
         }
+      } catch {
+        set.status = 401;
+        return { error: "Invalid signature" };
       }
 
       const event = body as Record<string, unknown>;

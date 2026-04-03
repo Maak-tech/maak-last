@@ -105,6 +105,7 @@ import {
   type ExportFormat,
   exportMetrics,
 } from "@/lib/services/metricsExportService";
+import * as ImagePicker from "expo-image-picker";
 import { offlineService } from "@/lib/services/offlineService";
 import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
@@ -138,7 +139,7 @@ interface ProfileSection {
 
 export default function ProfileScreen() {
   const { t, i18n } = useTranslation();
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const { isEnabled: fallDetectionEnabled, toggleFallDetection } =
     useFallDetectionContext();
   const { themeMode, setThemeMode, isDark } = useTheme();
@@ -175,8 +176,8 @@ export default function ProfileScreen() {
         isOnline: status.isOnline,
         queueLength: status.queueLength,
       });
-    } catch {
-      // Silently handle error
+    } catch (err) {
+      console.warn('[profile] checkSyncStatus failed:', err);
     }
   }, []);
 
@@ -212,8 +213,8 @@ export default function ProfileScreen() {
     setSyncing(true);
     try {
       await checkSyncStatus();
-    } catch {
-      // Silently handle error
+    } catch (err) {
+      console.warn('[profile] handleSync failed:', err);
     } finally {
       setSyncing(false);
     }
@@ -396,7 +397,7 @@ export default function ProfileScreen() {
         setNotificationsEnabled(JSON.parse(notifications));
       }
     } catch (error) {
-      console.log('Error loading settings:', error);
+      console.error('[Profile] Error loading notification settings:', error);
     }
   };
 
@@ -795,6 +796,47 @@ export default function ProfileScreen() {
     user?.firstName && user?.lastName
       ? `${user.firstName} ${user.lastName}`
       : user?.firstName || (isRTL ? "مستخدم" : "User");
+  const handleAvatarChange = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        isRTL ? "إذن مطلوب" : "Permission Required",
+        isRTL
+          ? "يحتاج التطبيق إلى إذن للوصول إلى مكتبة الصور."
+          : "The app needs permission to access your photo library."
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+      base64: false,
+    });
+
+    if (result.canceled || !result.assets?.[0]?.uri) return;
+
+    const uri = result.assets[0].uri;
+
+    try {
+      if (!user?.id || !updateUser) return;
+      await userService.updateUser(user.id, { avatar: uri, avatarType: "custom" });
+      await updateUser({ avatar: uri, avatarType: "custom" });
+      Alert.alert(
+        isRTL ? "تم التحديث" : "Updated",
+        isRTL ? "تم تحديث الصورة الشخصية بنجاح." : "Profile picture updated successfully."
+      );
+    } catch (err) {
+      console.error("[Profile] Avatar update failed:", err);
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "فشل تحديث الصورة. حاول مرة أخرى." : "Failed to update avatar. Please try again."
+      );
+    }
+  };
+
   const getAvatarInitials = (name: string) => {
     const parts = name.trim().split(WHITESPACE_SPLIT_REGEX).filter(Boolean);
     if (parts.length === 0) {
@@ -1101,13 +1143,7 @@ export default function ProfileScreen() {
               source={user?.avatar ? { uri: user.avatar } : undefined}
               name={user?.name}
               size="xl"
-              onPress={() => {
-                // TODO: Implement avatar change functionality
-                Alert.alert(
-                  isRTL ? 'تغيير الصورة' : 'Change Avatar',
-                  isRTL ? 'ستتوفر هذه الميزة قريباً' : 'This feature will be available soon'
-                );
-              }}
+              onPress={handleAvatarChange}
             />
           </View>
 

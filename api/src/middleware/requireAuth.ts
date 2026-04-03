@@ -1,4 +1,4 @@
-import { Elysia } from "elysia";
+import { Elysia, error } from "elysia";
 import { auth } from "../lib/auth";
 import { db } from "../db";
 
@@ -11,8 +11,7 @@ export const requireAuth = new Elysia({ name: "require-auth" })
       const session = await auth.api.getSession({ headers: request.headers });
 
       if (!session) {
-        set.status = 401;
-        throw new Error("Unauthorized");
+        return error(401, { error: "Unauthorized" });
       }
 
       return {

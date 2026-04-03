@@ -128,12 +128,12 @@ async function saveVitalSample(
   // This will be picked up by the real-time WebSocket service
   import("./trendAlertService")
     .then(({ checkTrendsForNewVital }) => {
-      checkTrendsForNewVital(userId, vitalType, unit).catch(() => {
-        // Silently handle errors - trend checking is non-critical
+      checkTrendsForNewVital(userId, vitalType, unit).catch((err) => {
+        console.warn('[vitalSync] checkTrendsForNewVital failed:', err);
       });
     })
-    .catch(() => {
-      // Silently handle import errors
+    .catch((err) => {
+      console.warn('[vitalSync] Failed to import trendAlertService:', err);
     });
 
   // Run personalized anomaly detection (non-blocking)
@@ -149,12 +149,12 @@ async function saveVitalSample(
             timestamp,
             userId,
           })
-          .catch(() => {
-            // Silently handle errors - anomaly detection is non-critical
+          .catch((err) => {
+            console.warn('[vitalSync] anomalyDetection.checkAndPersistAnomaly failed:', err);
           });
       })
-      .catch(() => {
-        // Silently handle import errors
+      .catch((err) => {
+        console.warn('[vitalSync] Failed to import anomalyDetectionService:', err);
       });
   }
 
@@ -164,9 +164,13 @@ async function saveVitalSample(
     .then(({ userBaselineService }) => {
       userBaselineService
         .checkAndNotifySignificantDeviations(userId)
-        .catch(() => {});
+        .catch((err) => {
+          console.warn('[vitalSync] checkAndNotifySignificantDeviations failed:', err);
+        });
     })
-    .catch(() => {});
+    .catch((err) => {
+      console.warn('[vitalSync] Failed to import userBaselineService:', err);
+    });
 }
 
 /**

@@ -59,7 +59,8 @@ class ClinicalIntegrationService {
         (a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
-    } catch {
+    } catch (err) {
+      console.warn('[clinicalIntegration] getIntegrationRequests failed:', err);
       return [];
     }
   }

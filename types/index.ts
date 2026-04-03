@@ -79,7 +79,7 @@ export interface MedicationReminder {
   id: string;
   time: string;
   taken: boolean;
-  takenAt?: Date | any; // Can be Date or Firestore Timestamp
+  takenAt?: Date | string; // ISO string from API or Date object in client
 }
 
 export interface MedicalHistory {

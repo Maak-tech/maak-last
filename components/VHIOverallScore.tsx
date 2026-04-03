@@ -11,7 +11,7 @@ import { Text } from "@/components/design-system/Typography";
 import { useTheme } from "@/contexts/ThemeContext";
 
 type Props = {
-  score: number; // 0–100
+  score: number | null | undefined; // 0–100, or null/undefined while loading
   trajectory?: "worsening" | "stable" | "improving";
   changeCount?: number; // how many factors changed today
   isRTL?: boolean;
@@ -24,6 +24,9 @@ export default function VHIOverallScore({
   isRTL = false,
 }: Props) {
   const { theme } = useTheme();
+
+  // Not yet computed
+  if (score == null) return null;
 
   const scoreColor =
     score >= 75

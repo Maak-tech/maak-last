@@ -4,20 +4,81 @@ import { jwtAuth, requireRole } from '../middleware/jwtAuth.js'
 
 export const auditRoutes = new Hono()
 
+// GET /audit — paginated audit log with optional filters
+// Query params:
+//   page      (default 1)
+//   limit     (default 50, max 200)
+//   staffId   — filter by staff member UUID
+//   patientId — filter by patient UUID
+//   action    — filter by action string (e.g. "recognition_attempt", "data_access")
+//   from      — ISO date string lower bound on created_at
+//   to        — ISO date string upper bound on created_at
 auditRoutes.get('/audit', jwtAuth, requireRole('admin'), async (c) => {
-  const page = Number(c.req.query('page') ?? 1)
-  const limit = Number(c.req.query('limit') ?? 50)
+  const page   = Math.max(1, Number(c.req.query('page')  ?? 1))
+  const limit  = Math.min(200, Math.max(1, Number(c.req.query('limit') ?? 50)))
   const offset = (page - 1) * limit
 
+  const staffId   = c.req.query('staffId')   ?? null
+  const patientId = c.req.query('patientId') ?? null
+  const action    = c.req.query('action')    ?? null
+  const from      = c.req.query('from')      ?? null
+  const to        = c.req.query('to')        ?? null
+
+  // Build dynamic WHERE clause
+  const conditions: string[] = []
+  const params: unknown[]    = []
+
+  if (staffId) {
+    params.push(staffId)
+    conditions.push(`l.staff_id = $${params.length}`)
+  }
+  if (patientId) {
+    params.push(patientId)
+    conditions.push(`l.patient_id = $${params.length}`)
+  }
+  if (action) {
+    params.push(action)
+    conditions.push(`l.action = $${params.length}`)
+  }
+  if (from) {
+    params.push(from)
+    conditions.push(`l.created_at >= $${params.length}`)
+  }
+  if (to) {
+    params.push(to)
+    conditions.push(`l.created_at <= $${params.length}`)
+  }
+
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+
+  // Paginated results
+  params.push(limit, offset)
   const logs = await query(
-    `SELECT l.*, s.name as staff_name, p.name as patient_name
+    `SELECT l.*, s.name AS staff_name, p.name AS patient_name
      FROM access_audit_logs l
-     LEFT JOIN hospital_staff s ON l.staff_id = s.id
-     LEFT JOIN patients p ON l.patient_id = p.id
+     LEFT JOIN hospital_staff s ON l.staff_id  = s.id
+     LEFT JOIN patients       p ON l.patient_id = p.id
+     ${where}
      ORDER BY l.created_at DESC
-     LIMIT $1 OFFSET $2`,
-    [limit, offset]
+     LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    params
   )
 
-  return c.json({ logs, page, limit })
+  // Total count for the same filters (without pagination params)
+  const countParams = params.slice(0, -2)
+  const [countRow] = await query<{ total: string }>(
+    `SELECT COUNT(*) AS total
+     FROM access_audit_logs l
+     ${where}`,
+    countParams
+  )
+  const total = Number(countRow?.total ?? 0)
+
+  return c.json({
+    logs,
+    page,
+    limit,
+    total,
+    pages: Math.ceil(total / limit),
+  })
 })
