@@ -63,8 +63,8 @@ export default function DiscoveryCardsSection() {
           lastLoadRef.current = Date.now();
           lastUserIdRef.current = user.id;
         }
-      } catch {
-        // Silently fail
+      } catch (err) {
+        console.warn('[DiscoveryCardsSection] Failed to load top discoveries:', err);
       } finally {
         if (!cancelled) setLoading(false);
       }

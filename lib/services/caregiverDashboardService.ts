@@ -271,8 +271,9 @@ class CaregiverDashboardService {
             ),
           };
         }
-      } catch {
+      } catch (err) {
         // VHI not yet computed or API unavailable — proceed without it
+        console.warn('[caregiverDashboard] VHI data unavailable for member:', err);
       }
 
       return {

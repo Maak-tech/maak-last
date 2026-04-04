@@ -20,8 +20,9 @@ export const symptomPatternRecognitionService = {
       const data = await api.get<PatternInsight[]>(
         `/api/health/symptom-patterns?userId=${userId}`
       );
-      return data ?? [];
-    } catch {
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      console.warn('[symptomPatternRecognition] detectPatterns failed:', err);
       return [];
     }
   },
@@ -39,7 +40,8 @@ export const symptomPatternRecognitionService = {
         { userId, symptoms }
       );
       return data ?? { patterns: [] };
-    } catch {
+    } catch (err) {
+      console.warn('[symptomPatternRecognition] analyzeSymptomPatterns failed:', err);
       return { patterns: [] };
     }
   },

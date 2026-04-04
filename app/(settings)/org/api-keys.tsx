@@ -647,7 +647,8 @@ export default function ApiKeysScreen() {
                   `${plaintext}\n\nCopy it now — this is the only time it will be shown.`,
                   [{ text: "I've copied it", style: "default" }]
                 );
-              } catch {
+              } catch (err) {
+                console.warn('[api-keys] Failed to rotate API key:', err);
                 Alert.alert("Error", "Failed to rotate API key.");
               }
             },

@@ -84,7 +84,7 @@ export const clinicalRoutes = new Elysia({ prefix: "/api/clinical" })
       body: t.Object({
         orgId: t.String(),
         patientId: t.Optional(t.String()),
-        integrationType: t.String(),
+        integrationType: t.String({ maxLength: 100 }),
         requestData: t.Optional(t.Any()),
       }),
       detail: { tags: ["clinical"], summary: "Create a clinical integration request (org member)" },

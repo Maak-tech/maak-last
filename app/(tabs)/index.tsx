@@ -801,7 +801,8 @@ export default function DashboardScreen() {
                   ? 'تم إرسال إشعار طوارئ لجميع أفراد العائلة'
                   : 'Emergency notification sent to all family members'
               );
-            } catch {
+            } catch (err) {
+              console.warn('[index] Failed to send emergency notification:', err);
               Alert.alert(
                 isRTL ? 'خطأ' : 'Error',
                 isRTL ? 'فشل إرسال الإشعار. حاول مرة أخرى.' : 'Failed to send notification. Please try again.'

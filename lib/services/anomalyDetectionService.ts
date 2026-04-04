@@ -464,7 +464,8 @@ class AnomalyDetectionService {
       };
       this.todBaselineCache.set(cacheKey, result);
       return result;
-    } catch {
+    } catch (err) {
+      console.warn('[anomalyDetection] Failed to compute time-of-day baseline:', err);
       return null;
     }
   }
@@ -504,8 +505,8 @@ class AnomalyDetectionService {
       if (activeMeds.length > 0) {
         recentMedications = activeMeds.map((m) => m.name).slice(0, 5);
       }
-    } catch {
-      // Silently fail
+    } catch (err) {
+      console.warn('[anomalyDetection] Failed to load medications for context:', err);
     }
 
     // Determine if this reading is within the normal range for this time of day.
@@ -522,8 +523,8 @@ class AnomalyDetectionService {
         const deviation = Math.abs((anomaly.value as number) - todBaseline.mean);
         isTypicalForTime = deviation <= 1.5 * todBaseline.stddev;
       }
-    } catch {
-      // Silently fail — default stays false
+    } catch (err) {
+      console.warn('[anomalyDetection] Failed to compute time-of-day deviation for enrichment:', err);
     }
 
     return {
@@ -584,8 +585,8 @@ class AnomalyDetectionService {
           }
         }
         recentReadings = [newReading, ...byType.values()];
-      } catch {
-        // Fall back to single-vital only
+      } catch (err) {
+        console.warn('[anomalyDetection] Failed to load context vitals for multivariate check — using single vital only:', err);
       }
 
       // Run multivariate check if we have multiple vital types
@@ -644,8 +645,8 @@ class AnomalyDetectionService {
           zScore: singleAnomaly.zScore,
           timestamp: anomaly.timestamp.toISOString(),
         });
-      } catch {
-        // Non-critical — silently skip
+      } catch (err) {
+        console.warn('[anomalyDetection] Failed to persist anomaly analytics event:', err);
       }
 
       logger.info(
@@ -732,13 +733,8 @@ class AnomalyDetectionService {
   /**
    * Acknowledge an anomaly
    */
-  async acknowledgeAnomaly(userId: string, anomalyId: string): Promise<void> {
-    // No dedicated endpoint for acknowledgement — silently no-op
-    try {
-      // no-op
-    } catch {
-      // Silently skip
-    }
+  async acknowledgeAnomaly(_userId: string, _anomalyId: string): Promise<void> {
+    // No dedicated endpoint for acknowledgement — no-op until API is implemented
   }
 }
 

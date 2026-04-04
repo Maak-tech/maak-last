@@ -131,8 +131,9 @@ class NoraChatService {
     try {
       const result = await api.get<{ configured: boolean }>("/api/nora/health");
       return result.configured;
-    } catch {
-      // If the health endpoint doesn't exist yet, assume configured
+    } catch (err) {
+      // If the health endpoint doesn't exist yet, assume configured (avoids blocking UI)
+      console.warn('[noraChat] isConfigured health check failed — assuming configured:', err);
       return true;
     }
   }

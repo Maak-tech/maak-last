@@ -113,7 +113,8 @@ export const allergyService = {
           return timeB - timeA;
         })
         .slice(0, limitCount);
-    } catch {
+    } catch (err) {
+      console.warn('[allergy] getUserAllergies API failed, falling back to offline cache:', err);
       if (isOnline) {
         const cachedAllergies = await offlineService.getOfflineCollection<Allergy>("allergies");
         return cachedAllergies

@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { v4 as uuidv4 } from 'uuid'
 import { query, queryOne } from '../lib/db.js'
 import { writeAudit } from '../lib/audit.js'
-import { decrypt } from '../lib/encryption.js'
+import { decrypt, hmac } from '../lib/encryption.js'
 import { CompreFaceProvider } from '../lib/biometric/CompreFaceProvider.js'
 import { jwtAuth } from '../middleware/jwtAuth.js'
 
@@ -70,19 +70,33 @@ recognizeRoutes.post('/recognize', jwtAuth, async (c) => {
     return c.json({ matched: false, fallback: 'Use QR code or manual search' }, 404)
   }
 
-  // Find patient from encrypted subject ID
-  const enrollments = await query<{ patient_id: string; compreface_subject_id: string }>(
-    'SELECT patient_id, compreface_subject_id FROM biometric_enrollments WHERE is_active = true'
+  // Fast O(1) HMAC-based lookup: compute HMAC of the returned subjectId and
+  // find the matching enrollment directly, instead of decrypting every row.
+  // Falls back to full-table decrypt scan for older rows that pre-date the HMAC column.
+  const subjectHmac = hmac(result.subjectId)
+  const enrollmentByHmac = await queryOne<{ patient_id: string }>(
+    'SELECT patient_id FROM biometric_enrollments WHERE subject_id_hmac = $1 AND is_active = true',
+    [subjectHmac]
   )
 
-  let patientId: string | null = null
-  for (const e of enrollments) {
-    try {
-      if (decrypt(e.compreface_subject_id) === result.subjectId) {
-        patientId = e.patient_id
-        break
+  let patientId: string | null = enrollmentByHmac?.patient_id ?? null
+
+  // Legacy fallback: for enrollments created before the subject_id_hmac column was added,
+  // subject_id_hmac will be NULL — scan only those rows.
+  if (!patientId) {
+    const legacyEnrollments = await query<{ patient_id: string; compreface_subject_id: string }>(
+      'SELECT patient_id, compreface_subject_id FROM biometric_enrollments WHERE is_active = true AND subject_id_hmac IS NULL'
+    )
+    for (const e of legacyEnrollments) {
+      try {
+        if (decrypt(e.compreface_subject_id) === result.subjectId) {
+          patientId = e.patient_id
+          break
+        }
+      } catch (err) {
+        console.warn('[recognize] Failed to decrypt compreface_subject_id for legacy enrollment:', err)
       }
-    } catch { /* skip malformed entries */ }
+    }
   }
 
   if (!patientId) {
@@ -146,6 +160,12 @@ recognizeRoutes.post('/recognize/manual', jwtAuth, async (c) => {
 recognizeRoutes.post('/recognize/select', jwtAuth, async (c) => {
   const staff = c.get('staff')
   const { patientId } = await c.req.json<{ patientId: string }>()
+
+  // Validate UUID format to prevent injection and unnecessary DB round-trips
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!patientId || !UUID_RE.test(patientId)) {
+    return c.json({ error: 'Invalid patient ID format' }, 400)
+  }
 
   const patient = await queryOne('SELECT id FROM patients WHERE id = $1', [patientId])
   if (!patient) return c.json({ error: 'Patient not found' }, 404)

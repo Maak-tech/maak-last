@@ -14,8 +14,9 @@ class AuditService {
   async log(entry: LogParams): Promise<void> {
     try {
       await api.post("/api/audit/log", entry);
-    } catch {
-      // Audit logging must never throw or break calling code
+    } catch (err) {
+      // Audit logging must never throw or break calling code — but log the failure
+      console.error('[audit] Failed to write audit log entry — audit trail may be incomplete:', err);
     }
   }
 

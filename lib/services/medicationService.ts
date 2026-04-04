@@ -228,7 +228,7 @@ export const medicationService = {
     try {
       if (isOnline) {
         const raw = await api.get<Record<string, unknown>[]>("/api/health/medications");
-        const medications = (raw ?? [])
+        const medications = (Array.isArray(raw) ? raw : [])
           .map(normalizeMedicationFromApi)
           .sort(compareMedicationStartDateDesc);
 
@@ -303,8 +303,8 @@ export const medicationService = {
         medicationName: medication.name,
         reminderId,
         reminderTime: reminder.time,
-      }).catch(() => {
-        // Silently handle dismissal errors
+      }).catch((err: unknown) => {
+        console.warn('[medication] Failed to dismiss reminder notifications:', err);
       });
     }
   },
@@ -315,7 +315,8 @@ export const medicationService = {
       const raw = await api.get<Record<string, unknown>>(`/api/health/medications/${medicationId}`);
       if (!raw || (raw as { error?: string }).error) return null;
       return normalizeMedicationFromApi(raw);
-    } catch {
+    } catch (err) {
+      console.warn('[medication] getMedication failed:', err);
       return null;
     }
   },
@@ -366,7 +367,7 @@ export const medicationService = {
           const now = new Date();
           const [hourStr, minuteStr] = reminder.time.split(':');
           const reminderTime = new Date();
-          reminderTime.setHours(parseInt(hourStr), parseInt(minuteStr), 0, 0);
+          reminderTime.setHours(parseInt(hourStr, 10), parseInt(minuteStr, 10), 0, 0);
 
         // If reminder time has passed today, set it for tomorrow
         if (reminderTime < now) reminderTime.setDate(reminderTime.getDate() + 1);
@@ -433,7 +434,8 @@ export const medicationService = {
         user?.familyId === familyId &&
         (user?.role === "admin" || user?.role === "caregiver")
       );
-    } catch {
+    } catch (err) {
+      console.warn('[medication] checkFamilyAccessPermission failed:', err);
       return false;
     }
   },
@@ -448,7 +450,7 @@ export const medicationService = {
     const raw = await api.get<Record<string, unknown>[]>(
       `/api/health/medications/family/${familyId}`
     );
-    return (raw ?? [])
+    return (Array.isArray(raw) ? raw : [])
       .map(normalizeMedicationFromApi)
       .sort(compareMedicationStartDateDesc);
   },
@@ -467,7 +469,7 @@ export const medicationService = {
     const raw = await api.get<Record<string, unknown>[]>(
       `/api/health/medications/user/${memberId}`
     );
-    return (raw ?? [])
+    return (Array.isArray(raw) ? raw : [])
       .map(normalizeMedicationFromApi)
       .sort(compareMedicationStartDateDesc);
   },
@@ -526,7 +528,8 @@ export const medicationService = {
         todaysCompliance: Math.round(todaysCompliance),
         upcomingReminders,
       };
-    } catch {
+    } catch (err) {
+      console.warn('[medication] getMemberMedicationStats failed:', err);
       return {
         totalMedications: 0,
         activeMedications: 0,

@@ -269,15 +269,16 @@ export const withingsService = {
    * Generate a random state parameter for CSRF protection
    */
   generateState: (): string => {
-    // Generate a cryptographically random state string
+    // Generate a cryptographically random state string for CSRF protection.
+    // OAuth state MUST be cryptographically secure — a predictable value allows
+    // CSRF attacks against the OAuth callback.
     const array = new Uint8Array(32);
-    if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+    if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
       crypto.getRandomValues(array);
     } else {
-      // Fallback for environments without crypto.getRandomValues
-      for (let i = 0; i < array.length; i++) {
-        array[i] = Math.floor(Math.random() * 256);
-      }
+      // Throw rather than silently fall back to Math.random() — a predictable
+      // CSRF state would be worse than failing to start the OAuth flow.
+      throw new Error("[withingsService] crypto.getRandomValues is unavailable — cannot generate secure OAuth state");
     }
     return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join(
       ""
@@ -561,12 +562,16 @@ export const withingsService = {
         selectedMetrics: selectedMetrics || [],
       });
 
-      // Save Withings user ID to backend for webhook matching
+      // Register Withings user ID with backend for webhook routing.
+      // This allows the server to route Withings push notifications to the correct user.
       if (withingsUserId) {
         try {
-          await api.patch("/api/user/profile", { withingsUserId });
-        } catch (_error) {
-          // Silently handle update error - not critical for OAuth flow
+          await api.post("/api/integrations/register", {
+            provider: "withings",
+            providerUserId: withingsUserId,
+          });
+        } catch (err) {
+          console.warn("[withingsService] Failed to register integration for webhook routing (non-critical):", err);
         }
       }
 
@@ -676,7 +681,8 @@ export const withingsService = {
       });
 
       return newTokens.access_token;
-    } catch {
+    } catch (err) {
+      console.warn('[withings/withingsService] refreshTokenIfNeeded failed:', err);
       return null;
     }
   },
@@ -942,7 +948,8 @@ export const withingsService = {
       }
 
       return results;
-    } catch {
+    } catch (err) {
+      console.warn('[withings/withingsService] fetchHealthData failed:', err);
       return [];
     }
   },
@@ -981,8 +988,8 @@ export const withingsService = {
     // Default to subscribing to all relevant categories
     // 1: Weight, 2: Temperature, 4: Blood pressure/Heart rate, 16: Activity, 44: Sleep
     const categories = appli ? [appli] : [1, 2, 4, 16, 44];
-    const callbackUrl =
-      "https://us-central1-maak-5caad.cloudfunctions.net/withingsWebhook";
+    const apiBase = (process.env.EXPO_PUBLIC_API_URL ?? "https://api.nuralix.ai").replace(/\/$/, "");
+    const callbackUrl = `${apiBase}/webhooks/withings`;
 
     // Subscribe to each category
     for (const category of categories) {
@@ -1039,7 +1046,8 @@ export const withingsService = {
 
       await withingsService.disconnect();
       return true;
-    } catch {
+    } catch (err) {
+      console.warn('[withings/withingsService] revokeAccess failed:', err);
       return false;
     }
   },

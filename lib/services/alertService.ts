@@ -169,7 +169,7 @@ export const alertService = {
       const result = await api.get<EmergencyAlert[]>(
         `/api/alerts/family?userIds=${userIds.join(",")}&limit=${limitCount}&resolved=false`
       );
-      const finalAlerts = (result ?? []).map(normalizeAlert);
+      const finalAlerts = (Array.isArray(result) ? result : []).map(normalizeAlert);
       familyAlertsCache.set(cacheKey, { cachedAt: Date.now(), alerts: finalAlerts });
       return finalAlerts;
     })().finally(() => familyAlertsInFlight.delete(cacheKey));
@@ -418,7 +418,8 @@ export const alertService = {
       const count = result?.count ?? 0;
       _activeAlertsCountCache.set(_userId, { count, timestamp: Date.now() });
       return count;
-    } catch {
+    } catch (err) {
+      console.warn('[alert] Failed to fetch active alert count:', err);
       return 0;
     }
   },
@@ -431,10 +432,11 @@ export const alertService = {
 
     try {
       const result = await api.get<EmergencyAlert[]>("/api/alerts/active");
-      const alerts = (result ?? []).map(normalizeAlert);
+      const alerts = (Array.isArray(result) ? result : []).map(normalizeAlert);
       _activeAlertsCache.set(_userId, { alerts, timestamp: Date.now() });
       return alerts;
-    } catch {
+    } catch (err) {
+      console.warn('[alert] Failed to fetch active alerts:', err);
       return [];
     }
   },

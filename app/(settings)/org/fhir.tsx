@@ -43,15 +43,10 @@ import { getTextStyle } from "@/utils/styles";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const FIREBASE_PROJECT = "maak-5caad";
-// Firebase Hosting rewrites unify FHIR + OAuth + REST under one domain:
-//   /fhir/**                        → fhirApi Cloud Function
-//   /.well-known/smart-configuration → fhirApi Cloud Function
-//   /auth/**                        → smartAuth Cloud Function
-//   /.well-known/jwks.json          → smartAuth Cloud Function
-const HOSTING_BASE = `https://${FIREBASE_PROJECT}.web.app`;
-const FHIR_BASE = HOSTING_BASE;
-const AUTH_BASE = HOSTING_BASE;
+// API base — Elysia/Railway backend (formerly Firebase Hosting)
+const API_BASE = (process.env.EXPO_PUBLIC_API_URL ?? "https://api.nuralix.ai").replace(/\/$/, "");
+const FHIR_BASE = API_BASE;
+const AUTH_BASE = API_BASE;
 
 const SMART_OAUTH_ENDPOINTS = [
   {

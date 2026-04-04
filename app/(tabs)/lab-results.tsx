@@ -98,9 +98,9 @@ export default function LabResultsScreen() {
     if (!isRefresh) setLoading(true);
     try {
       const data = await api.get<LabResult[]>("/api/health/lab-results");
-      setResults(data ?? []);
-    } catch {
-      // silently handle
+      setResults(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.warn('[lab-results] Failed to load lab results:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);

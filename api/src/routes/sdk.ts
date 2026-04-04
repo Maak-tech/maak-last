@@ -179,12 +179,12 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
       // Return only condition-level summaries — no rsids, no raw variants
       return {
         processingStatus: patientGenetics.processingStatus,
-        conditions: (patientGenetics.prsScores as Array<{condition: string; percentile: number; level: string}> | null)?.map(({ condition, percentile, level }) => ({
+        conditions: (Array.isArray(patientGenetics.prsScores) ? patientGenetics.prsScores as Array<{condition: string; percentile: number; level: string}> : []).map(({ condition, percentile, level }) => ({
           condition,
           percentile,
           level,
-        })) ?? [],
-        pharmacogenomicsAlerts: patientGenetics.pharmacogenomics as Array<{drug: string; interaction: string}> | null ?? [],
+        })),
+        pharmacogenomicsAlerts: (Array.isArray(patientGenetics.pharmacogenomics) ? patientGenetics.pharmacogenomics as Array<{drug: string; interaction: string}> : []),
         relevantConditions: patientGenetics.twinRelevantConditions,
       };
     },
@@ -250,6 +250,17 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
         return error(403, { error: "Insufficient scope: timeline:read required" });
       }
       await assertPatientInRoster(db, orgId, params.patientId);
+
+      // Validate date strings before passing to Postgres — new Date("invalid") yields
+      // Invalid Date (NaN), which causes a runtime Postgres error.
+      if (query.from && isNaN(new Date(query.from).getTime())) {
+        set.status = 400;
+        return error(400, { error: "Invalid 'from' date — use ISO 8601 format (e.g. 2026-01-01)" });
+      }
+      if (query.to && isNaN(new Date(query.to).getTime())) {
+        set.status = 400;
+        return error(400, { error: "Invalid 'to' date — use ISO 8601 format (e.g. 2026-12-31)" });
+      }
 
       let q = db
         .select({
@@ -359,7 +370,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
       // Surface the top elevating and declining factors as pre-formatted insights
       type EFactor = { factor: string; category: string; impact: string; explanation: string };
       type DFactor = EFactor & { recommendation: string };
-      const elevating = ((patientVhi.data?.elevatingFactors ?? []) as EFactor[]).slice(0, 5).map((f) => ({
+      const elevating = (Array.isArray(patientVhi.data?.elevatingFactors) ? patientVhi.data.elevatingFactors as EFactor[] : []).slice(0, 5).map((f) => ({
         type: "elevating" as const,
         factor: f.factor,
         category: f.category,
@@ -367,7 +378,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
         explanation: f.explanation,
       }));
 
-      const declining = ((patientVhi.data?.decliningFactors ?? []) as DFactor[]).slice(0, 5).map((f) => ({
+      const declining = (Array.isArray(patientVhi.data?.decliningFactors) ? patientVhi.data.decliningFactors as DFactor[] : []).slice(0, 5).map((f) => ({
         type: "declining" as const,
         factor: f.factor,
         category: f.category,
@@ -380,7 +391,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
         computedAt: patientVhi.computedAt,
         overallScore: patientVhi.data?.currentState?.overallScore,
         insights: [...declining, ...elevating],
-        pendingActions: (patientVhi.data?.pendingActions ?? []).filter((a: { acknowledged?: boolean }) => !a.acknowledged),
+        pendingActions: (Array.isArray(patientVhi.data?.pendingActions) ? patientVhi.data.pendingActions : []).filter((a: { acknowledged?: boolean }) => !a.acknowledged),
       };
     },
     {
@@ -512,8 +523,8 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
     },
     {
       body: t.Object({
-        url: t.String(),
-        events: t.Array(t.String()),
+        url: t.String({ maxLength: 2048, pattern: "^https?://" }),
+        events: t.Array(t.String({ maxLength: 100 }), { minItems: 1, maxItems: 50 }),
       }),
       detail: { tags: ["sdk"], summary: "[SDK] Register a webhook endpoint" },
     }
@@ -564,6 +575,20 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
         set.status = 403;
         return error(403, { error: "Insufficient scope: key:manage required" });
       }
+
+      // Scope escalation prevention: a key can only grant scopes it already holds.
+      // Wildcard ("*") keys may not grant wildcard to new keys — must list explicitly.
+      const callerHasWildcard = scopes.includes("*");
+      if (!callerHasWildcard) {
+        const invalidScopes = body.scopes.filter((s: string) => s === "*" || !scopes.includes(s));
+        if (invalidScopes.length > 0) {
+          set.status = 403;
+          return error(403, {
+            error: `Cannot grant scopes you do not hold: ${invalidScopes.join(", ")}`,
+          });
+        }
+      }
+
       const rawKey = `nk_${crypto.randomBytes(32).toString("hex")}`;
       const keyHash = crypto.createHash("sha256").update(rawKey).digest("hex");
       const keyPrefix = rawKey.slice(0, 12) + "...";

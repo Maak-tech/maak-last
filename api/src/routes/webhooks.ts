@@ -17,10 +17,11 @@
  */
 
 import { Elysia, t } from "elysia";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import crypto from "node:crypto";
-import { subscriptions, users } from "../db/schema";
+import { connectedIntegrations, subscriptions, users } from "../db/schema";
 import { db } from "../db";
+import { broadcastToUser } from "./realtime";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -91,7 +92,7 @@ async function autumnAttach(customerId: string, productId: string): Promise<void
     console.warn("[webhooks] AUTUMN_API_KEY not set — skipping Autumn attach");
     return;
   }
-  await fetch(`${AUTUMN_BASE}/attach`, {
+  const res = await fetch(`${AUTUMN_BASE}/attach`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${AUTUMN_API_KEY}`,
@@ -100,6 +101,9 @@ async function autumnAttach(customerId: string, productId: string): Promise<void
     body: JSON.stringify({ customerId, productId }),
     signal: AbortSignal.timeout(10_000), // Autumn must respond within 10 s
   });
+  if (!res.ok) {
+    throw new Error(`Autumn attach returned HTTP ${res.status} for customerId=${customerId}`);
+  }
 }
 
 /**
@@ -111,7 +115,7 @@ async function autumnDetach(customerId: string, productId: string): Promise<void
     console.warn("[webhooks] AUTUMN_API_KEY not set — skipping Autumn detach");
     return;
   }
-  await fetch(`${AUTUMN_BASE}/detach`, {
+  const res = await fetch(`${AUTUMN_BASE}/detach`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${AUTUMN_API_KEY}`,
@@ -120,6 +124,9 @@ async function autumnDetach(customerId: string, productId: string): Promise<void
     body: JSON.stringify({ customerId, productId }),
     signal: AbortSignal.timeout(10_000), // Autumn must respond within 10 s
   });
+  if (!res.ok) {
+    throw new Error(`Autumn detach returned HTTP ${res.status} for customerId=${customerId}`);
+  }
 }
 
 // ── Elysia plugin ──────────────────────────────────────────────────────────────
@@ -283,4 +290,78 @@ export const webhookRoutes = new Elysia({ prefix: "/webhooks" })
         summary: "Autumn billing event webhook",
       },
     }
-  );
+  )
+
+  /**
+   * POST /webhooks/withings
+   *
+   * Withings notifies this endpoint when new health data is available for a user.
+   * Payload (form-encoded): userid, startdate, enddate, appli
+   *
+   * We look up the Nuralix user via the `connected_integrations` table, then
+   * broadcast a "data_ready" signal via the realtime WebSocket channel so the
+   * mobile app can trigger a sync on next wake.
+   *
+   * NOTE: Withings sends form-encoded data, not JSON — use t.Any() to accept it.
+   */
+  .post(
+    "/withings",
+    async ({ db, request, set }) => {
+      // Withings sends form-encoded bodies; parse manually
+      const rawBody = await request.clone().text();
+      const params = new URLSearchParams(rawBody);
+      const withingsUserId = params.get("userid");
+      const startdate = params.get("startdate");
+      const enddate = params.get("enddate");
+      const appli = params.get("appli");
+
+      if (!withingsUserId) {
+        // Malformed webhook — return 200 anyway to prevent Withings retries
+        console.warn("[webhooks/withings] Missing userid in payload");
+        return { ok: true };
+      }
+
+      // Look up which Nuralix user this Withings user ID belongs to
+      const [integration] = await db
+        .select({ userId: connectedIntegrations.userId })
+        .from(connectedIntegrations)
+        .where(
+          and(
+            eq(connectedIntegrations.provider, "withings"),
+            eq(connectedIntegrations.providerUserId, withingsUserId),
+            eq(connectedIntegrations.isActive, true)
+          )
+        )
+        .limit(1);
+
+      if (!integration) {
+        // User may have disconnected Withings — log and acknowledge
+        console.warn(`[webhooks/withings] No active integration for Withings userId=${withingsUserId}`);
+        return { ok: true };
+      }
+
+      console.log(
+        `[webhooks/withings] Data ready for userId=${integration.userId} appli=${appli} range=${startdate}-${enddate}`
+      );
+
+      // Broadcast a "withings.data_ready" event to any connected WebSocket clients
+      // for this user (mobile app, web dashboard). The client can then trigger a sync.
+      // appli values: 1=weight, 4=heart_rate, 16=sleep, 44=spo2, 54=activity, etc.
+      broadcastToUser(integration.userId, "withings.data_ready", {
+        appli,
+        startdate,
+        enddate,
+        provider: "withings",
+      });
+
+      return { ok: true };
+    },
+    {
+      detail: {
+        tags: ["webhooks"],
+        summary: "Withings health data available notification",
+      },
+    }
+  )
+
+;

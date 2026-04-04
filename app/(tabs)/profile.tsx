@@ -279,7 +279,7 @@ export default function ProfileScreen() {
     const stepsByDate = new Map<string, number[]>();
     const sleepByDate = new Map<string, number[]>();
 
-    for (const d of raw ?? []) {
+    for (const d of (Array.isArray(raw) ? raw : [])) {
       const type = d.type as string | undefined;
       if (!type) {
         continue;

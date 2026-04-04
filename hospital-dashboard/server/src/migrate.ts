@@ -51,11 +51,18 @@ CREATE TABLE IF NOT EXISTS biometric_enrollments (
   id                    TEXT PRIMARY KEY,
   patient_id            TEXT NOT NULL REFERENCES patients(id),
   compreface_subject_id TEXT NOT NULL,
+  -- HMAC-SHA256(subjectId) stored as a fast lookup index — no IV, deterministic.
+  -- Allows O(1) lookup in recognize.ts instead of decrypting every row.
+  subject_id_hmac       TEXT,
   enrolled_by           TEXT NOT NULL REFERENCES hospital_staff(id),
   is_active             BOOLEAN DEFAULT true,
   enrolled_at           TIMESTAMPTZ DEFAULT now(),
   deactivated_at        TIMESTAMPTZ
 );
+
+-- Add subject_id_hmac to existing tables that were created before this column existed
+ALTER TABLE biometric_enrollments ADD COLUMN IF NOT EXISTS subject_id_hmac TEXT;
+CREATE INDEX IF NOT EXISTS idx_enrollments_hmac ON biometric_enrollments(subject_id_hmac) WHERE is_active = true;
 
 CREATE TABLE IF NOT EXISTS digital_twins (
   id           TEXT PRIMARY KEY,

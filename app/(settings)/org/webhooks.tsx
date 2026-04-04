@@ -577,7 +577,8 @@ export default function WebhooksScreen() {
                   `${newSecret}\n\nStore this securely — it will not be shown again.`,
                   [{ text: "I've copied it", style: "default" }]
                 );
-              } catch {
+              } catch (err) {
+                console.warn('[webhooks] Failed to rotate signing secret:', err);
                 Alert.alert("Error", "Failed to rotate signing secret.");
               }
             },

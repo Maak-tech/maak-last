@@ -679,7 +679,8 @@ export const samsungHealthService = {
       });
 
       return newTokens.access_token;
-    } catch {
+    } catch (err) {
+      console.warn('[withings/samsungHealthService] refreshTokenIfNeeded failed:', err);
       return null;
     }
   },
@@ -745,7 +746,8 @@ export const samsungHealthService = {
       }
 
       return results;
-    } catch {
+    } catch (err) {
+      console.warn('[withings/samsungHealthService] fetchHealthData failed:', err);
       return [];
     }
   },
@@ -831,7 +833,8 @@ export const samsungHealthService = {
 
       await samsungHealthService.disconnect();
       return true;
-    } catch {
+    } catch (err) {
+      console.warn('[withings/samsungHealthService] revokeAccess failed:', err);
       return false;
     }
   },

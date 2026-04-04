@@ -153,7 +153,7 @@ export const alertsRoutes = new Elysia({ prefix: "/api/alerts" })
         return { error: "userIds query param required" };
       }
 
-      const requestedIds = query.userIds.split(",").filter(Boolean);
+      const requestedIds = query.userIds.split(",").filter(Boolean).slice(0, 100);
       if (requestedIds.length === 0) return [];
 
       // Verify requesting user belongs to a family
@@ -282,9 +282,9 @@ export const alertsRoutes = new Elysia({ prefix: "/api/alerts" })
     },
     {
       body: t.Object({
-        type: t.String(),
-        severity: t.String(),
-        message: t.String(),
+        type: t.String({ maxLength: 100 }),
+        severity: t.Union([t.Literal("low"), t.Literal("medium"), t.Literal("high"), t.Literal("critical")]),
+        message: t.String({ maxLength: 1000 }),
         userId: t.Optional(t.String()),
         metadata: t.Optional(t.Any()),
       }),

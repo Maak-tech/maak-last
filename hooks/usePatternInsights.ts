@@ -43,7 +43,7 @@ async function fetchRecentVitals(
   const raw = await api.get<Record<string, unknown>[]>(
     `/api/health/vitals?from=${since.toISOString()}&limit=200`
   ).catch(() => []);
-  return (raw ?? []).map((d) => ({
+  return (Array.isArray(raw) ? raw : []).map((d) => ({
     id: d.id as string,
     type: d.type as string,
     value: d.value as number,

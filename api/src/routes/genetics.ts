@@ -137,7 +137,7 @@ export const geneticsRoutes = new Elysia({ prefix: "/api/genetics" })
       return { ok: true, message: "DNA processing started. Check /me/status for updates." };
     },
     {
-      body: t.Object({ uploadKey: t.String() }),
+      body: t.Object({ uploadKey: t.String({ maxLength: 500 }) }),
       detail: { tags: ["genetics"], summary: "Trigger DNA processing after upload" },
     }
   )

@@ -506,7 +506,7 @@ export default function PatientDetailScreen() {
 
         if (anomalyRes.status === "fulfilled") {
           setAnomalies(
-            (anomalyRes.value ?? []).map((d) => ({
+            (Array.isArray(anomalyRes.value) ? anomalyRes.value : []).map((d) => ({
               id: (d.id as string) ?? "",
               vitalType: (d.vitalType as string) ?? "vital",
               severity: d.severity as "critical" | "warning",
@@ -518,7 +518,7 @@ export default function PatientDetailScreen() {
 
         if (medRes.status === "fulfilled") {
           setMedications(
-            (medRes.value ?? []).map((d) => ({
+            (Array.isArray(medRes.value) ? medRes.value : []).map((d) => ({
               id: (d.id as string) ?? "",
               name: (d.name as string) ?? "Unknown",
               dosage: d.dosage as string | undefined,
@@ -554,8 +554,8 @@ export default function PatientDetailScreen() {
               }),
           });
         }
-      } catch {
-        // partial failures handled by Promise.allSettled above
+      } catch (err) {
+        console.warn('[patient-detail] Unexpected error during data load:', err);
       } finally {
         if (isMountedRef.current) {
           setLoading(false);
@@ -581,7 +581,8 @@ export default function PatientDetailScreen() {
             try {
               await taskService.updateStatus(task.id, "completed", user.id);
               setTasks((prev) => prev.filter((t) => t.id !== task.id));
-            } catch {
+            } catch (err) {
+              console.warn('[patient-detail] Failed to complete task:', err);
               Alert.alert("Error", "Failed to complete task.");
             }
           },

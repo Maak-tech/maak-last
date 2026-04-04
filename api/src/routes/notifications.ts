@@ -138,12 +138,12 @@ export const notificationRoutes = new Elysia({ prefix: "/api/notifications" })
     },
     {
       body: t.Object({
-        userIds: t.Array(t.String()),
+        userIds: t.Array(t.String(), { maxItems: 1000 }),
         notification: t.Object({
-          title: t.String(),
-          body: t.String(),
+          title: t.String({ maxLength: 500 }),
+          body: t.String({ maxLength: 1000 }),
           data: t.Optional(t.Record(t.String(), t.Unknown())),
-          sound: t.Optional(t.String()),
+          sound: t.Optional(t.String({ maxLength: 100 })),
           priority: t.Optional(
             t.Union([t.Literal("normal"), t.Literal("high")])
           ),

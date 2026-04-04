@@ -53,13 +53,18 @@ export const taskRoutes = new Elysia({ prefix: "/api/tasks" })
       body: t.Object({
         orgId: t.String(),
         patientId: t.String(),
-        type: t.String(),
-        priority: t.Optional(t.String()),
-        source: t.String(),
-        title: t.String(),
-        description: t.Optional(t.String()),
+        type: t.String({ maxLength: 100 }),
+        priority: t.Optional(t.Union([
+          t.Literal("low"),
+          t.Literal("normal"),
+          t.Literal("high"),
+          t.Literal("urgent"),
+        ])),
+        source: t.String({ maxLength: 100 }),
+        title: t.String({ minLength: 1, maxLength: 500 }),
+        description: t.Optional(t.String({ maxLength: 5000 })),
         assignedTo: t.Optional(t.String()),
-        dueAt: t.Optional(t.String()),
+        dueAt: t.Optional(t.String({ maxLength: 50 })),
         context: t.Optional(t.Any()),
         // assignedBy is intentionally omitted — always set to the calling userId
       }),
@@ -135,7 +140,13 @@ export const taskRoutes = new Elysia({ prefix: "/api/tasks" })
     {
       params: t.Object({ id: t.String() }),
       body: t.Object({
-        status: t.String(),
+        status: t.Union([
+          t.Literal("open"),
+          t.Literal("in_progress"),
+          t.Literal("completed"),
+          t.Literal("cancelled"),
+          t.Literal("escalated"),
+        ]),
         completedBy: t.Optional(t.String()),
       }),
       detail: { tags: ["tasks"], summary: "Update task status (org member)" },

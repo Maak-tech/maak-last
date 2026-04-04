@@ -35,7 +35,8 @@ export function useMyOrganization(): UseMyOrganizationResult {
       const data = await api.get<{ org: Organization; member: OrgMember }>("/api/org/me");
       setOrg(data?.org ?? null);
       setMember(data?.member ?? null);
-    } catch {
+    } catch (err) {
+      console.warn('[useMyOrganization] Failed to load organization:', err);
       setOrg(null);
       setMember(null);
     } finally {

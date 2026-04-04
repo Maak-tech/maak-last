@@ -64,8 +64,9 @@ export default function GlobalSearch({ visible, onClose }: Props) {
         const data = await api.get<SearchResult[]>(
           `/api/search?q=${encodeURIComponent(query.trim())}`
         );
-        setResults(data ?? []);
-      } catch {
+        setResults(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.warn('[search] Failed to fetch search results:', err);
         setResults([]);
       } finally {
         setLoading(false);

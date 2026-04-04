@@ -954,6 +954,29 @@ export const cohorts = pgTable(
   (t) => [index("cohorts_org_idx").on(t.orgId)]
 );
 
+// ── Connected Integrations ─────────────────────────────────────────────────────
+// Stores provider user IDs for third-party health integrations (Withings, Fitbit, Oura, etc.)
+// so that server-side webhooks can route incoming notifications to the correct Nuralix user.
+// The providerUserId is the ID assigned to this user by the external provider (e.g. Withings userid).
+export const connectedIntegrations = pgTable(
+  "connected_integrations",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id").notNull(),
+    provider: text("provider").notNull(), // 'withings' | 'fitbit' | 'oura' | 'garmin' | 'dexcom'
+    providerUserId: text("provider_user_id").notNull(), // provider-assigned user ID
+    isActive: boolean("is_active").notNull().default(true),
+    connectedAt: timestamp("connected_at").defaultNow().notNull(),
+    disconnectedAt: timestamp("disconnected_at"),
+    metadata: jsonb("metadata"), // provider-specific data (scopes, region, etc.)
+  },
+  (t) => [
+    index("connected_integrations_user_idx").on(t.userId),
+    index("connected_integrations_provider_idx").on(t.provider, t.providerUserId),
+    unique("connected_integrations_unique_provider").on(t.userId, t.provider),
+  ]
+);
+
 // Join table: which patients belong to which cohort.
 // One patient can belong to multiple cohorts within the same org.
 export const cohortMembers = pgTable(

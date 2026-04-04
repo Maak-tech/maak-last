@@ -28,13 +28,16 @@ export default function AuditPage() {
   useEffect(() => {
     const token = sessionStorage.getItem('hospital_token')
     if (!token) { router.push('/login'); return }
-    // Check role
+    // Check role — redirect to dashboard if not admin or if parse fails.
+    // A parse failure must also redirect: without a valid role we cannot
+    // confirm admin access, so we must deny access rather than silently skip the check.
     const staffJson = sessionStorage.getItem('hospital_staff')
-    if (staffJson) {
-      try {
-        const s = JSON.parse(staffJson) as { role: string }
-        if (s.role !== 'admin') { router.push('/dashboard'); return }
-      } catch (err) { console.warn('[audit] Failed to parse staff info for role check:', err) }
+    try {
+      const s = staffJson ? JSON.parse(staffJson) as { role: string } : null
+      if (!s || s.role !== 'admin') { router.push('/dashboard'); return }
+    } catch (err) {
+      console.warn('[audit] Failed to parse staff info for role check — denying access:', err)
+      router.push('/dashboard')
     }
   }, [router])
 

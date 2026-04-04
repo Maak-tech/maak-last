@@ -108,7 +108,8 @@ class OrganizationService {
     try {
       const raw = await api.get<Record<string, unknown>>(`/api/org/${orgId}`);
       return raw ? mapOrg(raw) : null;
-    } catch {
+    } catch (err) {
+      console.warn('[organization] failed to fetch organization:', err);
       return null;
     }
   }
@@ -153,7 +154,7 @@ class OrganizationService {
 
   async getMembers(orgId: string): Promise<OrgMember[]> {
     const rows = await api.get<Record<string, unknown>[]>(`/api/org/${orgId}/members`);
-    return (rows ?? []).map(mapMember);
+    return (Array.isArray(rows) ? rows : []).map(mapMember);
   }
 
   async getUserRoleInOrg(
@@ -163,7 +164,8 @@ class OrganizationService {
     try {
       const row = await api.get<{ role: OrgRole } | null>(`/api/org/${orgId}/members/${userId}`);
       return row?.role ?? null;
-    } catch {
+    } catch (err) {
+      console.warn('[organization] failed to fetch user role in org:', err);
       return null;
     }
   }
@@ -174,7 +176,7 @@ class OrganizationService {
     const rows = await api.get<Array<{ org: Record<string, unknown>; member: Record<string, unknown> }>>(
       "/api/user/organizations"
     );
-    return (rows ?? []).map(({ org, member }) => ({
+    return (Array.isArray(rows) ? rows : []).map(({ org, member }) => ({
       org: mapOrg(org),
       member: mapMember(member),
     }));
@@ -204,7 +206,7 @@ class OrganizationService {
     const rows = await api.get<Record<string, unknown>[]>(
       `/api/org/${orgId}/cohorts`
     );
-    return (rows ?? []).map(mapCohort);
+    return (Array.isArray(rows) ? rows : []).map(mapCohort);
   }
 
   async updateCohort(
@@ -253,7 +255,8 @@ class OrganizationService {
     try {
       const raw = await api.get<Record<string, unknown>>(`/api/org/${orgId}/roster/${userId}`);
       return raw ? mapRoster(raw) : null;
-    } catch {
+    } catch (err) {
+      console.warn('[organization] failed to fetch patient roster entry:', err);
       return null;
     }
   }
@@ -283,7 +286,7 @@ class OrganizationService {
     const rows = await api.get<Record<string, unknown>[]>(
       `/api/org/${orgId}/roster${qs ? `?${qs}` : ""}`
     );
-    return (rows ?? []).map(mapRoster);
+    return (Array.isArray(rows) ? rows : []).map(mapRoster);
   }
 
   async updateRiskScore(
@@ -326,7 +329,8 @@ class OrganizationService {
     try {
       const rows = await api.get<unknown[]>(`/api/org/${orgId}/notification-settings`);
       return rows ? { templates: rows } : null;
-    } catch {
+    } catch (err) {
+      console.warn('[organization] failed to fetch notification settings:', err);
       return null;
     }
   }

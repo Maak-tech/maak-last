@@ -46,7 +46,7 @@ export const medicationInteractionService = {
       >(
         `/api/medications/interaction-alerts?userId=${encodeURIComponent(userId)}`
       );
-      return (raw ?? []).map((item) => ({
+      return (Array.isArray(raw) ? raw : []).map((item) => ({
         ...item,
         createdAt: new Date(item.createdAt),
       }));

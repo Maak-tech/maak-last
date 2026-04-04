@@ -539,7 +539,7 @@ class EscalationService {
         `/api/health/escalations?familyId=${encodeURIComponent(familyId)}&status=active`
       );
 
-      return (raw ?? []).map((item) => ({
+      return (Array.isArray(raw) ? raw : []).map((item) => ({
         ...(item as unknown as ActiveEscalation),
         createdAt: item.createdAt ? new Date(item.createdAt as string) : new Date(),
         lastEscalatedAt: item.lastEscalatedAt

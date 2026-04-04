@@ -322,7 +322,8 @@ export default function MyConsentsScreen() {
                       : c
                   )
                 );
-              } catch {
+              } catch (err) {
+                console.warn('[my-consents] Failed to revoke consent:', err);
                 Alert.alert(
                   "Error",
                   "Failed to revoke consent. Please try again."

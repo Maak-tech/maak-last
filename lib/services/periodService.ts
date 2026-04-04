@@ -246,7 +246,7 @@ export const periodService = {
       const raw = await api.get<Record<string, unknown>[]>(
         `/api/health/period-entries?limit=${limitCount}`
       );
-      return (raw ?? []).map(normalizeEntry);
+      return (Array.isArray(raw) ? raw : []).map(normalizeEntry);
     } catch (error) {
       throw new Error(`Failed to get period entries: ${error}`);
     }

@@ -16,8 +16,15 @@ export function clearToken() {
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const token = getToken()
+  // Merge caller-supplied signal with a 15-second timeout so no hospital API call
+  // can hang indefinitely. AbortSignal.any() uses the first signal to fire.
+  const timeoutSignal = AbortSignal.timeout(15_000)
+  const signal = options?.signal
+    ? AbortSignal.any([options.signal, timeoutSignal])
+    : timeoutSignal
   const response = await fetch(API_URL + path, {
     ...options,
+    signal,
     headers: {
       ...(options?.headers ?? {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -122,11 +129,9 @@ export const api = {
   confirmIdentity: (sessionToken: string) =>
     apiFetch<{ confirmed: boolean }>(`/patient/confirm/${sessionToken}`, { method: 'POST' }),
 
-  getFullTwin: (patientId: string, sessionToken: string) =>
-    // Session token passed via header only — never in URL (prevents logging in server/proxy access logs)
-    apiFetch<TwinData>(`/patient/${patientId}/twin`, {
-      headers: { 'X-Session-Token': sessionToken },
-    }),
+  // NOTE: Full twin data is fetched via /patient/by-session/:sessionToken (see fetchTwinBySession
+  // in dashboard/page.tsx). The /patient/:patientId/twin endpoint exists server-side for callers
+  // that already have a patientId, but the dashboard always uses the session-based route.
 
   getAuditLogs: (page = 1) =>
     apiFetch<{ logs: Array<Record<string, unknown>>; page: number; limit: number }>(

@@ -80,7 +80,7 @@ class TaskService {
     if (filters.patientId) params.set("patientId", filters.patientId);
     if (filters.maxResults) params.set("limit", String(filters.maxResults));
     const raw = await api.get<Record<string, unknown>[]>(`/api/tasks?${params.toString()}`);
-    return (raw ?? []).map(normalizeTask);
+    return (Array.isArray(raw) ? raw : []).map(normalizeTask);
   }
 
   async listMyTasks(orgId: string, userId: string): Promise<Task[]> {

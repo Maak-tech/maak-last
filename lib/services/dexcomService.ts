@@ -163,8 +163,9 @@ export const dexcomService = {
           const userData = await userResponse.json();
           userId = userData.accountId || userData.userId || "self";
         }
-      } catch {
+      } catch (err) {
         // If user endpoint fails, use "self" as default
+        console.warn('[dexcom] Failed to fetch Dexcom user ID — using "self":', err);
         userId = tokens.userId || tokens.accountId || "self";
       }
 

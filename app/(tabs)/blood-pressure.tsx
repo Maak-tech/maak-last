@@ -151,7 +151,7 @@ export default function BloodPressureScreen() {
       );
       const items: BloodPressureReading[] = [];
 
-      for (const d of raw ?? []) {
+      for (const d of (Array.isArray(raw) ? raw : [])) {
         const fromMetadata = parseBloodPressure(d.metadata);
         const fromValue = parseBloodPressure(d.value);
         const parsed = fromMetadata || fromValue;

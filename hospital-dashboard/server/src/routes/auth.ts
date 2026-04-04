@@ -30,7 +30,9 @@ authRoutes.post('/auth/login', async (c) => {
   if (!staff) {
     // Run a dummy bcrypt compare to normalize response time and prevent
     // user-enumeration via timing difference (user-not-found vs wrong-password).
-    await bcrypt.compare(password, '$2b$12$invalidhashpadding000000000000000000000000000000000000000')
+    // The dummy hash must be a valid 60-char bcrypt hash format ($2b$12$ + 22-char salt + 31-char hash)
+    // so bcryptjs runs the full key-derivation instead of short-circuiting on an invalid hash.
+    await bcrypt.compare(password, '$2b$12$Ei4OstQVEtP2SgXi1p9VXuHeartsGoodSalt1234567890abcdefg')
     await writeAudit({ action: 'login_failed', ipAddress: ip, success: false })
     return c.json({ error: 'Invalid credentials' }, 401)
   }
@@ -78,14 +80,18 @@ authRoutes.post('/auth/logout', async (c) => {
   const auth = c.req.header('Authorization')
   if (auth?.startsWith('Bearer ')) {
     try {
-      const payload = jwt.decode(auth.slice(7)) as { jti?: string; exp?: number }
+      // Use jwt.verify() (not jwt.decode()) so that only tokens with a valid
+      // signature can add entries to the revocation list.
+      // Using jwt.decode() would allow attackers to craft fake tokens with arbitrary
+      // JTIs and far-future expiries, polluting the revoked_tokens table (DoS).
+      const payload = jwt.verify(auth.slice(7), process.env.JWT_SECRET!) as { jti?: string; exp?: number }
       if (payload?.jti) {
         await query(
           'INSERT INTO revoked_tokens (jti, expires_at) VALUES ($1, to_timestamp($2)) ON CONFLICT DO NOTHING',
           [payload.jti, payload.exp ?? 0]
         )
       }
-    } catch { /* ignore */ }
+    } catch { /* ignore invalid/expired tokens — no-op is safe */ }
   }
   return c.json({ ok: true })
 })

@@ -1429,45 +1429,49 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
         return { error: "Only org admins can update notification settings" };
       }
 
-      for (const tpl of body.templates) {
-        const lang = tpl.language ?? "en";
+      // Batch-fetch all existing templates for this org in one query (avoids N+1)
+      const existingTemplates = await db
+        .select({
+          id: notificationTemplates.id,
+          type: notificationTemplates.type,
+          channel: notificationTemplates.channel,
+          language: notificationTemplates.language,
+        })
+        .from(notificationTemplates)
+        .where(eq(notificationTemplates.orgId, params.orgId));
 
-        // Check if a template already exists for this org + type + channel + language
-        const [existing] = await db
-          .select({ id: notificationTemplates.id })
-          .from(notificationTemplates)
-          .where(
-            and(
-              eq(notificationTemplates.orgId, params.orgId),
-              eq(notificationTemplates.type, tpl.type),
-              eq(notificationTemplates.channel, tpl.channel),
-              eq(notificationTemplates.language, lang)
-            )
-          )
-          .limit(1);
+      const existingMap = new Map(
+        existingTemplates.map((t) => [`${t.type}:${t.channel}:${t.language}`, t.id])
+      );
 
-        if (existing) {
-          await db
-            .update(notificationTemplates)
-            .set({
+      // Execute all upserts in parallel
+      await Promise.all(
+        body.templates.map((tpl) => {
+          const lang = tpl.language ?? "en";
+          const existingId = existingMap.get(`${tpl.type}:${tpl.channel}:${lang}`);
+          if (existingId) {
+            return db
+              .update(notificationTemplates)
+              .set({
+                titleTemplate: tpl.titleTemplate,
+                bodyTemplate: tpl.bodyTemplate,
+                isActive: tpl.isActive ?? true,
+                updatedAt: new Date(),
+              })
+              .where(eq(notificationTemplates.id, existingId));
+          } else {
+            return db.insert(notificationTemplates).values({
+              orgId: params.orgId,
+              type: tpl.type,
+              channel: tpl.channel,
+              language: lang,
               titleTemplate: tpl.titleTemplate,
               bodyTemplate: tpl.bodyTemplate,
               isActive: tpl.isActive ?? true,
-              updatedAt: new Date(),
-            })
-            .where(eq(notificationTemplates.id, existing.id));
-        } else {
-          await db.insert(notificationTemplates).values({
-            orgId: params.orgId,
-            type: tpl.type,
-            channel: tpl.channel,
-            language: lang,
-            titleTemplate: tpl.titleTemplate,
-            bodyTemplate: tpl.bodyTemplate,
-            isActive: tpl.isActive ?? true,
-          });
-        }
-      }
+            });
+          }
+        })
+      );
 
       return { ok: true };
     },

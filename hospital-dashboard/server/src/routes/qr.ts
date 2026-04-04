@@ -42,15 +42,17 @@ qrRoutes.post('/qr/resolve', jwtAuth, async (c) => {
   const staff = c.get('staff')
   const { token } = await c.req.json<{ token: string }>()
 
+  // Atomic claim: mark used_at in the same statement that finds the valid token.
+  // This prevents TOCTOU — two concurrent scans of the same QR code cannot
+  // both succeed because the first UPDATE wins and the second finds used_at IS NOT NULL.
   const qrToken = await queryOne<{ id: string; patient_id: string }>(
-    'SELECT id, patient_id FROM qr_tokens WHERE token = $1 AND used_at IS NULL AND expires_at > now()',
+    `UPDATE qr_tokens SET used_at = now()
+     WHERE token = $1 AND used_at IS NULL AND expires_at > now()
+     RETURNING id, patient_id`,
     [token]
   )
 
   if (!qrToken) return c.json({ error: 'Invalid or expired QR code' }, 404)
-
-  // Mark QR token as used
-  await query('UPDATE qr_tokens SET used_at = now() WHERE id = $1', [qrToken.id])
 
   const sessionId = uuidv4()
   const expiresAt = new Date(Date.now() + 30 * 60 * 1000)

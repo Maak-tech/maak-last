@@ -99,17 +99,17 @@ export const userRoutes = new Elysia({ prefix: "/api/user" })
     },
     {
       body: t.Object({
-        name: t.Optional(t.String()),
-        phone: t.Optional(t.String()),
+        name: t.Optional(t.String({ maxLength: 255 })),
+        phone: t.Optional(t.String({ maxLength: 20 })),
         dateOfBirth: t.Optional(t.String()),
-        gender: t.Optional(t.String()),
-        bloodType: t.Optional(t.String()),
-        heightCm: t.Optional(t.Number()),
-        weightKg: t.Optional(t.Number()),
-        language: t.Optional(t.String()),
-        avatarUrl: t.Optional(t.String()),
-        emergencyContactName: t.Optional(t.String()),
-        emergencyContactPhone: t.Optional(t.String()),
+        gender: t.Optional(t.String({ maxLength: 30 })),
+        bloodType: t.Optional(t.String({ maxLength: 10 })),
+        heightCm: t.Optional(t.Number({ minimum: 0, maximum: 300 })),
+        weightKg: t.Optional(t.Number({ minimum: 0, maximum: 700 })),
+        language: t.Optional(t.String({ maxLength: 10 })),
+        avatarUrl: t.Optional(t.String({ maxLength: 2000 })),
+        emergencyContactName: t.Optional(t.String({ maxLength: 255 })),
+        emergencyContactPhone: t.Optional(t.String({ maxLength: 20 })),
       }),
       detail: { tags: ["user"], summary: "Update current user profile" },
     }
@@ -219,6 +219,7 @@ export const userRoutes = new Elysia({ prefix: "/api/user" })
           target: userBaselines.userId,
           set: { data: body as Record<string, unknown>, computedAt: new Date() },
         });
+      return { ok: true };
     },
     {
       body: t.Any(),
@@ -251,6 +252,7 @@ export const userRoutes = new Elysia({ prefix: "/api/user" })
           target: userBaselines.userId,
           set: { lastNotificationAt: new Date() },
         });
+      return { ok: true };
     },
     { detail: { tags: ["user"], summary: "Record baseline notification sent" } }
   )

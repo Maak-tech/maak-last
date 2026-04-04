@@ -508,7 +508,8 @@ class VoiceService {
       const hasPermissions = await this.hasMicrophonePermissions();
       const hasApiKey = openaiService.isConfigured;
       return hasPermissions && hasApiKey === true && Audio !== null;
-    } catch {
+    } catch (err) {
+      console.warn('[voice] isAvailable check failed:', err);
       return false;
     }
   }

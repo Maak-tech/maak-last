@@ -25,6 +25,20 @@ export const calendarRoutes = new Elysia({ prefix: "/api/calendar" })
         }
       }
 
+      // Validate date fields before passing to Postgres
+      if (isNaN(new Date(body.startDate).getTime())) {
+        set.status = 400;
+        return { error: "Invalid startDate — use ISO 8601 format" };
+      }
+      if (body.endDate && isNaN(new Date(body.endDate).getTime())) {
+        set.status = 400;
+        return { error: "Invalid endDate — use ISO 8601 format" };
+      }
+      if (body.recurrenceEndDate && isNaN(new Date(body.recurrenceEndDate).getTime())) {
+        set.status = 400;
+        return { error: "Invalid recurrenceEndDate — use ISO 8601 format" };
+      }
+
       const [event] = await db
         .insert(calendarEvents)
         .values({
@@ -52,23 +66,23 @@ export const calendarRoutes = new Elysia({ prefix: "/api/calendar" })
     },
     {
       body: t.Object({
-        title: t.String(),
-        type: t.String(),
-        startDate: t.String(),
-        endDate: t.Optional(t.String()),
+        title: t.String({ minLength: 1, maxLength: 255 }),
+        type: t.String({ maxLength: 50 }),
+        startDate: t.String({ maxLength: 50 }),
+        endDate: t.Optional(t.String({ maxLength: 50 })),
         allDay: t.Optional(t.Boolean()),
-        description: t.Optional(t.String()),
-        location: t.Optional(t.String()),
+        description: t.Optional(t.String({ maxLength: 5000 })),
+        location: t.Optional(t.String({ maxLength: 500 })),
         familyId: t.Optional(t.String()),
-        recurrencePattern: t.Optional(t.String()),
-        recurrenceEndDate: t.Optional(t.String()),
-        recurrenceCount: t.Optional(t.Number()),
+        recurrencePattern: t.Optional(t.String({ maxLength: 100 })),
+        recurrenceEndDate: t.Optional(t.String({ maxLength: 50 })),
+        recurrenceCount: t.Optional(t.Number({ minimum: 1, maximum: 1000 })),
         relatedItemId: t.Optional(t.String()),
-        relatedItemType: t.Optional(t.String()),
-        color: t.Optional(t.String()),
-        reminders: t.Optional(t.Array(t.Object({ minutesBefore: t.Number(), sent: t.Boolean() }))),
-        tags: t.Optional(t.Array(t.String())),
-        attendees: t.Optional(t.Array(t.String())),
+        relatedItemType: t.Optional(t.String({ maxLength: 100 })),
+        color: t.Optional(t.String({ maxLength: 20 })),
+        reminders: t.Optional(t.Array(t.Object({ minutesBefore: t.Number({ minimum: 0, maximum: 43200 }), sent: t.Boolean() }), { maxItems: 10 })),
+        tags: t.Optional(t.Array(t.String({ maxLength: 50 }), { maxItems: 20 })),
+        attendees: t.Optional(t.Array(t.String(), { maxItems: 100 })),
       }),
       detail: { tags: ["calendar"], summary: "Add a calendar event" },
     }
@@ -191,6 +205,28 @@ export const calendarRoutes = new Elysia({ prefix: "/api/calendar" })
         return { error: "Access denied" };
       }
 
+      // When reassigning to a new familyId, verify the caller is a member of that family.
+      // Without this check, a user could share an event with a family they don't belong to.
+      if (body.familyId !== undefined && body.familyId !== event.familyId) {
+        if (body.familyId === null) {
+          // Removing family association is always allowed by the event owner
+          if (event.userId !== userId) {
+            set.status = 403;
+            return { error: "Only the event owner can remove the family association" };
+          }
+        } else {
+          const [newFamilyMembership] = await db
+            .select({ role: familyMembers.role })
+            .from(familyMembers)
+            .where(and(eq(familyMembers.userId, userId), eq(familyMembers.familyId, body.familyId)))
+            .limit(1);
+          if (!newFamilyMembership) {
+            set.status = 403;
+            return { error: "You are not a member of the target family" };
+          }
+        }
+      }
+
       const updates: Record<string, unknown> = { updatedAt: new Date() };
       if (body.title !== undefined) updates.title = body.title;
       if (body.description !== undefined) updates.description = body.description;
@@ -216,14 +252,23 @@ export const calendarRoutes = new Elysia({ prefix: "/api/calendar" })
     {
       params: t.Object({ id: t.String() }),
       body: t.Partial(t.Object({
-        title: t.String(), description: t.String(), type: t.String(),
-        startDate: t.String(), endDate: t.Union([t.String(), t.Null()]),
-        allDay: t.Boolean(), location: t.String(), familyId: t.String(),
-        recurrencePattern: t.String(), recurrenceEndDate: t.Union([t.String(), t.Null()]),
-        recurrenceCount: t.Union([t.Number(), t.Null()]),
-        relatedItemId: t.String(), relatedItemType: t.String(), color: t.String(),
-        reminders: t.Array(t.Object({ minutesBefore: t.Number(), sent: t.Boolean() })),
-        tags: t.Array(t.String()), attendees: t.Array(t.String()),
+        title: t.String({ minLength: 1, maxLength: 255 }),
+        description: t.String({ maxLength: 5000 }),
+        type: t.String({ maxLength: 50 }),
+        startDate: t.String({ maxLength: 50 }),
+        endDate: t.Union([t.String({ maxLength: 50 }), t.Null()]),
+        allDay: t.Boolean(),
+        location: t.String({ maxLength: 500 }),
+        familyId: t.String(),
+        recurrencePattern: t.String({ maxLength: 100 }),
+        recurrenceEndDate: t.Union([t.String({ maxLength: 50 }), t.Null()]),
+        recurrenceCount: t.Union([t.Number({ minimum: 1, maximum: 1000 }), t.Null()]),
+        relatedItemId: t.String(),
+        relatedItemType: t.String({ maxLength: 100 }),
+        color: t.String({ maxLength: 20 }),
+        reminders: t.Array(t.Object({ minutesBefore: t.Number({ minimum: 0, maximum: 43200 }), sent: t.Boolean() }), { maxItems: 10 }),
+        tags: t.Array(t.String({ maxLength: 50 }), { maxItems: 20 }),
+        attendees: t.Array(t.String(), { maxItems: 100 }),
       })),
       detail: { tags: ["calendar"], summary: "Update a calendar event" },
     }

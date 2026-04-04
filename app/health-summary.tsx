@@ -97,8 +97,8 @@ export default function HealthSummaryScreen() {
     try {
       const data = await api.get<VHISummary>("/api/vhi");
       setVhi(data);
-    } catch {
-      // silently handle
+    } catch (err) {
+      console.warn('[health-summary] Failed to load VHI:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -116,7 +116,7 @@ export default function HealthSummaryScreen() {
   const genetic = d?.geneticBaseline;
   const score = d?.currentState?.overallScore ?? 0;
   const trajectory = d?.currentState?.riskScores?.trajectory ?? "stable";
-  const pendingCount = (d?.pendingActions ?? []).filter((a) => !a.acknowledged).length;
+  const pendingCount = (Array.isArray(d?.pendingActions) ? d.pendingActions : []).filter((a) => !a.acknowledged).length;
 
   const trajectoryColor = trajectory === "improving" ? "#10B981" : trajectory === "worsening" ? "#EF4444" : "#F59E0B";
   const trajectoryLabel = isRTL

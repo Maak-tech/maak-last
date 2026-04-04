@@ -343,8 +343,8 @@ export default function FamilyMemberHealthView() {
               };
               setVitals(bgVitals);
             }
-          } catch {
-            // Fall through to Firestore vitals
+          } catch (err) {
+            console.warn('[memberId] Health context vitals unavailable, falling back:', err);
           }
 
           // Fallback to Firestore vitals collection if health context had no vitals
@@ -355,8 +355,8 @@ export default function FamilyMemberHealthView() {
                 bgVitals = latestVitals;
                 setVitals(bgVitals);
               }
-            } catch {
-              // Silently fail
+            } catch (err) {
+              console.warn('[memberId] Firestore vitals fallback failed:', err);
             }
           }
 
@@ -374,13 +374,13 @@ export default function FamilyMemberHealthView() {
                   timestamp: liveVitals.timestamp ?? bgVitals.timestamp,
                 });
               }
-            } catch {
-              // Keep Firestore data if Apple Health fetch fails
+            } catch (err) {
+              console.warn('[memberId] Apple Health overlay failed, keeping existing data:', err);
             }
           }
         });
-      } catch (_error) {
-        // Silently handle error
+      } catch (err) {
+        console.warn('[memberId] loadMemberHealthData failed:', err);
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -425,7 +425,8 @@ export default function FamilyMemberHealthView() {
           summary,
           insights: topInsights,
         };
-      } catch {
+      } catch (err) {
+        console.warn('[memberId] loadMemberInsights failed:', err);
         if (!cached) {
           setInsightsSummary(null);
           setInsights([]);
@@ -450,8 +451,8 @@ export default function FamilyMemberHealthView() {
     try {
       const notes = await caregiverNotesService.getNotes(memberId, 20);
       setCaregiverNotes(notes);
-    } catch {
-      // Silently fail
+    } catch (err) {
+      console.warn('[memberId] loadCaregiverNotes failed:', err);
     } finally {
       setLoadingNotes(false);
     }
@@ -471,7 +472,8 @@ export default function FamilyMemberHealthView() {
       );
       setCaregiverNotes((prev) => [note, ...prev]);
       setNewNoteText("");
-    } catch {
+    } catch (err) {
+      console.warn('[memberId] addNote failed:', err);
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL ? "فشل إضافة الملاحظة" : "Failed to add note"
@@ -487,7 +489,8 @@ export default function FamilyMemberHealthView() {
       try {
         await caregiverNotesService.deleteNote(memberId, noteId);
         setCaregiverNotes((prev) => prev.filter((n) => n.id !== noteId));
-      } catch {
+      } catch (err) {
+        console.warn('[memberId] deleteNote failed:', err);
         Alert.alert(
           isRTL ? "خطأ" : "Error",
           isRTL ? "فشل حذف الملاحظة" : "Failed to delete note"

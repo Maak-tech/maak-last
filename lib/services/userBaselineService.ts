@@ -202,7 +202,7 @@ async function fetchVitalSamples(
   const raw = await api.get<Record<string, unknown>[]>(
     `/api/health/vitals?from=${since.toISOString()}&limit=500`
   );
-  return (raw ?? []).map((v) => ({
+  return (Array.isArray(raw) ? raw : []).map((v) => ({
     type: v.type as string,
     value: v.value as number,
     unit: v.unit as string | undefined,
@@ -263,7 +263,8 @@ async function fetchMedicationAdherence(
 
     if (totalReminders === 0) return 100;
     return Math.round((takenReminders / totalReminders) * 100);
-  } catch {
+  } catch (err) {
+    console.warn('[userBaseline] fetchMedicationAdherence failed:', err);
     return 100;
   }
 }
@@ -280,7 +281,8 @@ async function fetchPeriodBaseline(
       averagePeriodLength: cycle.averagePeriodLength ?? 5,
       pmsSymptoms: [],
     };
-  } catch {
+  } catch (err) {
+    console.warn('[userBaseline] fetchPeriodBaseline failed:', err);
     return null;
   }
 }

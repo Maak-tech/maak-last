@@ -186,14 +186,14 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     },
     {
       body: t.Object({
-        type: t.String(),
+        type: t.String({ maxLength: 100 }),
         userId: t.Optional(t.String()),
-        severity: t.Optional(t.Number()),
-        location: t.Optional(t.String()),
-        duration: t.Optional(t.Number()),
-        notes: t.Optional(t.String()),
-        triggers: t.Optional(t.Array(t.String())),
-        tags: t.Optional(t.Array(t.String())),
+        severity: t.Optional(t.Number({ minimum: 1, maximum: 10 })),
+        location: t.Optional(t.String({ maxLength: 200 })),
+        duration: t.Optional(t.Number({ minimum: 0, maximum: 43200 })), // max 30 days in minutes
+        notes: t.Optional(t.String({ maxLength: 2000 })),
+        triggers: t.Optional(t.Array(t.String({ maxLength: 100 }), { maxItems: 50 })),
+        tags: t.Optional(t.Array(t.String({ maxLength: 50 }), { maxItems: 50 })),
         recordedAt: t.String(),
       }),
       detail: { tags: ["health"], summary: "Log a symptom" },
@@ -241,17 +241,17 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     },
     {
       body: t.Object({
-        name: t.String(),
+        name: t.String({ maxLength: 255 }),
         userId: t.Optional(t.String()),
-        dosage: t.Optional(t.String()),
-        frequency: t.Optional(t.String()),
-        instructions: t.Optional(t.String()),
+        dosage: t.Optional(t.String({ maxLength: 100 })),
+        frequency: t.Optional(t.String({ maxLength: 100 })),
+        instructions: t.Optional(t.String({ maxLength: 2000 })),
         startDate: t.Optional(t.String()),
         endDate: t.Optional(t.String()),
         reminders: t.Optional(t.Any()),
-        tags: t.Optional(t.Array(t.String())),
-        quantity: t.Optional(t.Number()),
-        notes: t.Optional(t.String()),
+        tags: t.Optional(t.Array(t.String({ maxLength: 50 }), { maxItems: 50 })),
+        quantity: t.Optional(t.Number({ minimum: 0, maximum: 10000 })),
+        notes: t.Optional(t.String({ maxLength: 2000 })),
       }),
       detail: { tags: ["health"], summary: "Add a medication" },
     }
@@ -1580,6 +1580,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
           client_id: clientId,
           client_secret: clientSecret,
         }).toString(),
+        signal: AbortSignal.timeout(15_000), // Garmin OAuth must respond within 15 s
       });
 
       if (!tokenRes.ok) {

@@ -368,8 +368,8 @@ export default function NoraScreen() {
           }
 
           await AsyncStorage.setItem(lastChatKey, new Date().toISOString());
-        } catch {
-          // Proactive messages are optional — silently ignore any errors
+        } catch (err) {
+          console.warn('[nora] Proactive message load failed (non-critical):', err);
         }
       });
     } catch (_error) {

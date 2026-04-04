@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia";
-import { and, eq, lt } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 import crypto from "node:crypto";
 import { requireAuth } from "../middleware/requireAuth";
 import { families, familyMembers, familyInvitations, vhi, genetics, alerts, users, caregiverNotes } from "../db/schema";
@@ -98,12 +98,12 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
             geneticRiskSummary:
               memberGenetics?.familySharingConsent
                 ? {
-                    conditions: (memberGenetics.prsScores as Array<{condition: string; percentile: number; level: string}> | null)?.map(({ condition, percentile, level }) => ({
+                    conditions: (Array.isArray(memberGenetics.prsScores) ? memberGenetics.prsScores as Array<{condition: string; percentile: number; level: string}> : []).map(({ condition, percentile, level }) => ({
                       condition,
                       percentile,
                       level,
-                    })) ?? [],
-                    pharmacogenomicsAlerts: memberGenetics.pharmacogenomics as Array<{drug: string; interaction: string}> | null ?? [],
+                    })),
+                    pharmacogenomicsAlerts: (Array.isArray(memberGenetics.pharmacogenomics) ? memberGenetics.pharmacogenomics as Array<{drug: string; interaction: string}> : []),
                   }
                 : null,
           };
@@ -286,10 +286,11 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
       // Update user's familyId in users table
       await db.update(users).set({ familyId, updatedAt: new Date() }).where(eq(users.id, userId));
 
-      // Also store role in preferences
-      const [current] = await db.select({ preferences: users.preferences }).from(users).where(eq(users.id, userId)).limit(1);
-      const prefs = ((current?.preferences ?? {}) as Record<string, unknown>);
-      await db.update(users).set({ preferences: { ...prefs, role: "admin" } }).where(eq(users.id, userId));
+      // Atomically merge role into preferences using Postgres JSONB operator
+      // to avoid a SELECT-then-UPDATE race condition.
+      await db.update(users).set({
+        preferences: sql`COALESCE(${users.preferences}, '{}'::jsonb) || '{"role":"admin"}'::jsonb`,
+      }).where(eq(users.id, userId));
 
       return { id: familyId, name: body.name ?? "My Family" };
     },
@@ -358,10 +359,11 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
       // Update user's familyId
       await db.update(users).set({ familyId, updatedAt: new Date() }).where(eq(users.id, targetUserId));
 
-      // Store role in preferences
-      const [current] = await db.select({ preferences: users.preferences }).from(users).where(eq(users.id, targetUserId)).limit(1);
-      const prefs = ((current?.preferences ?? {}) as Record<string, unknown>);
-      await db.update(users).set({ preferences: { ...prefs, role } }).where(eq(users.id, targetUserId));
+      // Atomically merge role into preferences using Postgres JSONB operator
+      // to avoid a SELECT-then-UPDATE race condition.
+      await db.update(users).set({
+        preferences: sql`COALESCE(${users.preferences}, '{}'::jsonb) || ${JSON.stringify({ role })}::jsonb`,
+      }).where(eq(users.id, targetUserId));
 
       return { ok: true, familyId, role };
     },
@@ -420,13 +422,12 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
           and(eq(familyMembers.familyId, params.familyId), eq(familyMembers.userId, params.memberId))
         );
 
-      // Clear member's familyId and reset cached role to "member"
-      const [current] = await db.select({ preferences: users.preferences }).from(users).where(eq(users.id, params.memberId)).limit(1);
-      const prefs = ((current?.preferences ?? {}) as Record<string, unknown>);
+      // Clear member's familyId and atomically reset cached role to "member"
+      // using Postgres JSONB operator to avoid a SELECT-then-UPDATE race condition.
       await db.update(users).set({
         familyId: null,
         updatedAt: new Date(),
-        preferences: { ...prefs, role: "member" },
+        preferences: sql`COALESCE(${users.preferences}, '{}'::jsonb) || '{"role":"member"}'::jsonb`,
       }).where(eq(users.id, params.memberId));
 
       return { ok: true };
@@ -456,7 +457,9 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
       // Generate a unique 6-digit code (retry on collision)
       let code = "";
       for (let attempt = 0; attempt < 5; attempt++) {
-        code = Math.floor(100_000 + Math.random() * 900_000).toString();
+        // crypto.randomInt(min, max) is cryptographically secure (unlike Math.random())
+        // Family invite codes must be unpredictable to prevent enumeration attacks
+        code = crypto.randomInt(100_000, 1_000_000).toString();
         const [existing] = await db
           .select({ id: familyInvitations.id })
           .from(familyInvitations)
@@ -695,9 +698,9 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
     {
       body: t.Object({
         memberId: t.String(),
-        note: t.String(),
-        caregiverName: t.Optional(t.String()),
-        tags: t.Optional(t.Array(t.String())),
+        note: t.String({ minLength: 1, maxLength: 5000 }),
+        caregiverName: t.Optional(t.String({ maxLength: 255 })),
+        tags: t.Optional(t.Array(t.String({ maxLength: 50 }), { maxItems: 50 })),
       }),
       detail: { tags: ["family"], summary: "Add a caregiver note" },
     }
@@ -766,6 +769,7 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
       }
 
       await db.delete(caregiverNotes).where(eq(caregiverNotes.id, params.noteId));
+      return { ok: true };
     },
     { detail: { tags: ["family"], summary: "Delete a caregiver note" } }
   );

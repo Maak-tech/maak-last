@@ -21,7 +21,9 @@ export const revenueCatService = {
       const apiKey = Platform.OS === "ios" ? RC_IOS_KEY : RC_ANDROID_KEY;
       if (!apiKey) return;
       Purchases.configure({ apiKey });
-      if (userId) Purchases.logIn(userId).catch(() => {});
+      if (userId) Purchases.logIn(userId).catch((err: unknown) => {
+        console.warn('[revenueCat] logIn failed:', err);
+      });
     } catch {
       // RevenueCat SDK not available in this build
     }
@@ -30,7 +32,8 @@ export const revenueCatService = {
   async getCustomerInfo(): Promise<CustomerInfo | null> {
     try {
       return await Purchases.getCustomerInfo();
-    } catch {
+    } catch (err) {
+      console.warn('[revenueCat] getCustomerInfo failed:', err);
       return null;
     }
   },
@@ -38,7 +41,8 @@ export const revenueCatService = {
   async getOfferings(): Promise<PurchasesOfferings | null> {
     try {
       return await Purchases.getOfferings();
-    } catch {
+    } catch (err) {
+      console.warn('[revenueCat] getOfferings failed:', err);
       return null;
     }
   },
@@ -80,7 +84,8 @@ export const revenueCatService = {
         expirationDate,
         subscriptionPeriod,
       };
-    } catch {
+    } catch (err) {
+      console.warn('[revenueCat] getSubscriptionStatus failed:', err);
       return null;
     }
   },

@@ -86,7 +86,7 @@ export const freestyleLibreService = {
       >(
         `/api/integrations/freestyle-libre/readings?userId=${encodeURIComponent(userId)}&since=${sinceParam}`
       );
-      return (raw ?? []).map((item) => ({
+      return (Array.isArray(raw) ? raw : []).map((item) => ({
         value: item.value,
         unit: item.unit,
         timestamp: new Date(item.timestamp),

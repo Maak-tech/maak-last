@@ -111,14 +111,14 @@ export default function FamilyScreen() {
             `/api/alerts/family?userIds=${userIds}`
           );
           setFamilyAlertCount((Array.isArray(familyAlerts) ? familyAlerts : []).filter((a) => !a.isAcknowledged).length);
-        } catch { /* silently ignore — alerts are non-critical */ }
+        } catch (err) { console.warn('[family] Failed to load family alert count:', err); }
       }
 
       // Fetch current user's VHI score via the typed vhiService
       try {
         const vhi = await vhiService.getMyVHI();
         setMyVhiScore(vhi?.data?.currentState?.overallScore ?? null);
-      } catch { /* silently ignore — VHI score is supplemental */ }
+      } catch (err) { console.warn('[family] Failed to load VHI score:', err); }
     } catch (error) {
       console.error('Error loading family members:', error);
       Alert.alert(

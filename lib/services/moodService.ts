@@ -122,7 +122,7 @@ export const moodService = {
         const raw = await api.get<Record<string, unknown>[]>(
           `/api/health/moods?limit=${limitCount}`
         );
-        const moodsList = (raw ?? []).map(normalizeMood);
+        const moodsList = (Array.isArray(raw) ? raw : []).map(normalizeMood);
         await offlineService.storeOfflineData("moods", moodsList);
         _moodCache.set(cacheKey, { data: moodsList, timestamp: Date.now() });
         return moodsList;
@@ -134,7 +134,8 @@ export const moodService = {
         .filter((m) => m.userId === userId)
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
         .slice(0, limitCount);
-    } catch {
+    } catch (err) {
+      console.warn('[mood] getUserMoods failed:', err);
       if (isOnline) {
         const cachedMoods = await offlineService.getOfflineCollection<Mood>("moods");
         return cachedMoods
@@ -151,7 +152,8 @@ export const moodService = {
     try {
       const user = await userService.getUser(userId);
       return user?.familyId === familyId && (user?.role === "admin" || user?.role === "caregiver");
-    } catch {
+    } catch (err) {
+      console.warn('[mood] checkFamilyAccessPermission failed:', err);
       return false;
     }
   },
@@ -165,7 +167,7 @@ export const moodService = {
     const raw = await api.get<Record<string, unknown>[]>(
       `/api/health/moods/family/${familyId}?limit=${limitCount}`
     );
-    return (raw ?? []).map(normalizeMood);
+    return (Array.isArray(raw) ? raw : []).map(normalizeMood);
   },
 
   // Get mood stats for all family members (for admins and caregivers)
@@ -192,7 +194,7 @@ export const moodService = {
         userService.getFamilyMembers(familyId),
       ]);
 
-      const moodsList = (raw ?? []).map(normalizeMood);
+      const moodsList = (Array.isArray(raw) ? raw : []).map(normalizeMood);
       const membersMap = new Map(
         members.map((m) => [m.id, `${m.firstName} ${m.lastName}`.trim() || "Unknown"])
       );
@@ -223,7 +225,8 @@ export const moodService = {
         .sort((a, b) => b.count - a.count);
 
       return { totalMoods, avgIntensity: Math.round(avgIntensity * 10) / 10, moodDistribution };
-    } catch {
+    } catch (err) {
+      console.warn('[mood] getFamilyMoodStats failed:', err);
       return { totalMoods: 0, avgIntensity: 0, moodDistribution: [] };
     }
   },
@@ -262,7 +265,7 @@ export const moodService = {
       const raw = await api.get<Record<string, unknown>[]>(
         `/api/health/moods?from=${startDate.toISOString()}&limit=500`
       );
-      const moodsList = (raw ?? []).map(normalizeMood);
+      const moodsList = (Array.isArray(raw) ? raw : []).map(normalizeMood);
 
       const totalMoods = moodsList.length;
       const avgIntensity = totalMoods > 0
@@ -277,7 +280,8 @@ export const moodService = {
         .sort((a, b) => b.count - a.count);
 
       return { totalMoods, avgIntensity: Math.round(avgIntensity * 10) / 10, moodDistribution };
-    } catch {
+    } catch (err) {
+      console.warn('[mood] getMoodStats failed:', err);
       return { totalMoods: 0, avgIntensity: 0, moodDistribution: [] };
     }
   },
@@ -287,7 +291,7 @@ export const moodService = {
     const raw = await api.get<Record<string, unknown>[]>(
       `/api/health/moods/user/${memberId}?limit=${limitCount}`
     );
-    return (raw ?? []).map(normalizeMood);
+    return (Array.isArray(raw) ? raw : []).map(normalizeMood);
   },
 
   // Get mood stats for a specific family member (for admins)
@@ -303,7 +307,7 @@ export const moodService = {
       const raw = await api.get<Record<string, unknown>[]>(
         `/api/health/moods/user/${memberId}?from=${startDate.toISOString()}&limit=500`
       );
-      const moodsList = (raw ?? []).map(normalizeMood);
+      const moodsList = (Array.isArray(raw) ? raw : []).map(normalizeMood);
 
       const totalMoods = moodsList.length;
       const avgIntensity = totalMoods > 0
@@ -318,7 +322,8 @@ export const moodService = {
         .sort((a, b) => b.count - a.count);
 
       return { totalMoods, avgIntensity: Math.round(avgIntensity * 10) / 10, moodDistribution };
-    } catch {
+    } catch (err) {
+      console.warn('[mood] getMemberMoodStats failed:', err);
       return { totalMoods: 0, avgIntensity: 0, moodDistribution: [] };
     }
   },

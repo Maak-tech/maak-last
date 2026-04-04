@@ -123,7 +123,26 @@
       "Bash(sed -n '128,138p' /c/Users/nours/Documents/GitHub/Nuralix2/lib/services/vitalSyncService.ts)",
       "Bash(sed -n '551,554p' /c/Users/nours/Documents/GitHub/Nuralix2/lib/services/vitalSyncService.ts)",
       "Bash(sed -n '695,698p' /c/Users/nours/Documents/GitHub/Nuralix2/lib/services/vitalSyncService.ts)",
-      "Bash(grep -r \"analyzeLabResults\\\\|invalidateLabInsights\" /c/Users/nours/Documents/GitHub/Nuralix2 --include=*.ts --include=*.tsx --exclude-dir=node_modules)"
+      "Bash(grep -r \"analyzeLabResults\\\\|invalidateLabInsights\" /c/Users/nours/Documents/GitHub/Nuralix2 --include=*.ts --include=*.tsx --exclude-dir=node_modules)",
+      "Bash(find /c/Users/nours/Documents/GitHub/Nuralix2 -name *agentCycle* -o -name *agent*Cycle*)",
+      "Bash(find /c/Users/nours/Documents/GitHub/Nuralix2/lib/services/ -type f \\\\\\(-name *.ts -o -name *.tsx \\\\\\))",
+      "Bash(find /c/Users/nours/Documents/GitHub/Nuralix2/app/ -type f \\\\\\(-name *.ts -o -name *.tsx \\\\\\))",
+      "Bash(grep -B3 -A1 \"^\\\\s*[a-zA-Z_].*\\\\.insert\\\\|\\\\.update\\\\|\\\\.delete\\\\|\\\\.query\" /c/Users/nours/Documents/GitHub/Nuralix2/lib/services/*)",
+      "Bash(find \"/c/Users/nours/Documents/GitHub/Nuralix2/lib/services/\" -name \"*.ts\" -exec grep -l \"async\\\\|Promise\" {})",
+      "Bash(grep -E \"^\\\\s+\\(const|let|var\\).*=\\\\s*[a-zA-Z_].*\\\\\\(|^\\\\s+[a-zA-Z_].*\\\\\\(.*\\\\\\).*\\(;|$\\)\")",
+      "Bash(while read:*)",
+      "Bash(do echo:*)",
+      "Read(//c/Users/nours/Documents/GitHub/Nuralix2/**)",
+      "Bash(grep -n \"for\\\\|await\" /c/Users/nours/Documents/GitHub/Nuralix2/api/src/routes/*.ts)",
+      "Bash(grep -B2 -A10 \"for\\\\s*\\(\" /c/Users/nours/Documents/GitHub/Nuralix2/api/src/routes/*.ts)",
+      "Bash(grep -n \"for\\\\s*\\(\" /c/Users/nours/Documents/GitHub/Nuralix2/api/src/routes/*.ts)",
+      "Bash(grep -n \"\\\\.forEach\\\\|\\\\.map.*await\\\\|\\\\.map.*\\\\=>\" /c/Users/nours/Documents/GitHub/Nuralix2/api/src/routes/*.ts)",
+      "Bash(sed -n '125,133p' /c/Users/nours/Documents/GitHub/Nuralix2/app/\\\\\\(tabs\\\\\\)/nora.tsx)",
+      "Bash(sed -n '137,145p' /c/Users/nours/Documents/GitHub/Nuralix2/app/\\\\\\(tabs\\\\\\)/nora.tsx)",
+      "Bash(sed -n '141,179p' /c/Users/nours/Documents/GitHub/Nuralix2/app/\\\\\\(tabs\\\\\\)/nora.tsx)",
+      "Bash(sed -n '148,152p' /c/Users/nours/Documents/GitHub/Nuralix2/app/\\\\\\(tabs\\\\\\)/nora.tsx)",
+      "Bash(sed -n '296,299p' /c/Users/nours/Documents/GitHub/Nuralix2/app/\\\\\\(tabs\\\\\\)/nora.tsx)",
+      "Bash(grep -n 'catch {' /c/Users/nours/Documents/GitHub/Nuralix2/lib/services/*.ts /c/Users/nours/Documents/GitHub/Nuralix2/api/src/**/*.ts)"
     ]
   }
 }

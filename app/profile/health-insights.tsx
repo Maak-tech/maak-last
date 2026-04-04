@@ -92,8 +92,8 @@ export default function HealthInsightsScreen() {
     try {
       const data = await api.get<VHIResponse>("/api/vhi");
       setVhi(data);
-    } catch {
-      // silently handle
+    } catch (err) {
+      console.warn('[health-insights] Failed to load VHI:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -118,7 +118,9 @@ export default function HealthInsightsScreen() {
           },
         };
       });
-    } catch { /* ignore */ } finally {
+    } catch (err) {
+      console.warn('[health-insights] Failed to acknowledge VHI action:', err);
+    } finally {
       setAcknowledging(null);
     }
   };
@@ -138,9 +140,9 @@ export default function HealthInsightsScreen() {
     ? trajectory === "improving" ? "تحسن" : trajectory === "worsening" ? "تراجع" : "مستقر"
     : trajectory === "improving" ? "Improving" : trajectory === "worsening" ? "Worsening" : "Stable";
 
-  const elevating = d?.elevatingFactors ?? [];
-  const declining = d?.decliningFactors ?? [];
-  const pending = (d?.pendingActions ?? []).filter((a) => !a.acknowledged);
+  const elevating = Array.isArray(d?.elevatingFactors) ? d.elevatingFactors : [];
+  const declining = Array.isArray(d?.decliningFactors) ? d.decliningFactors : [];
+  const pending = (Array.isArray(d?.pendingActions) ? d.pendingActions : []).filter((a) => !a.acknowledged);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>

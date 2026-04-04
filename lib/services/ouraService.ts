@@ -441,7 +441,8 @@ export const ouraService = {
           const userData = await userResponse.json();
           userId = userData.id || userData.user_id || "unknown";
         }
-      } catch {
+      } catch (err) {
+        console.warn('[oura] Failed to fetch personal info for userId:', err);
         userId = tokens.userId || tokens.user_id || "unknown";
       }
 
@@ -537,7 +538,8 @@ export const ouraService = {
       });
 
       return newTokens.access_token;
-    } catch {
+    } catch (err) {
+      console.warn('[oura] Failed to refresh access token:', err);
       return null;
     }
   },
@@ -693,8 +695,8 @@ export const ouraService = {
             }
             allSamples[metricKey].push(...samples);
           }
-        } catch {
-          // Continue with other endpoints even if one fails
+        } catch (err) {
+          console.warn('[oura] Failed to fetch data from endpoint', endpoint + ':', err);
         }
       }
 
@@ -719,7 +721,8 @@ export const ouraService = {
       }
 
       return results;
-    } catch {
+    } catch (err) {
+      console.warn('[oura] Failed to fetch health data:', err);
       return [];
     }
   },
@@ -801,7 +804,8 @@ export const ouraService = {
       // Oura doesn't have a revoke endpoint, just delete local tokens
       await ouraService.disconnect();
       return true;
-    } catch {
+    } catch (err) {
+      console.warn('[oura] Failed to revoke access tokens:', err);
       return false;
     }
   },

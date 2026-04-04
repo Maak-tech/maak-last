@@ -97,7 +97,8 @@ class ConsentService {
         `/api/consent/${userId}/${orgId}`
       );
       return raw ? mapConsent(raw) : null;
-    } catch {
+    } catch (err) {
+      console.warn('[consent] getConsent failed:', err);
       return null;
     }
   }

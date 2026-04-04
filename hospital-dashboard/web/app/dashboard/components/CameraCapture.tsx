@@ -25,7 +25,8 @@ export default function CameraCapture({ onCapture, loading }: Props) {
           setStreamActive(true)
           setError(null)
         }
-      } catch {
+      } catch (err) {
+        console.error('[CameraCapture] getUserMedia failed:', err)
         setError('Camera access denied or not available.')
       }
     }

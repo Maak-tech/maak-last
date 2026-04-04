@@ -114,12 +114,12 @@ export const symptomService = {
         // Check for concerning trends (non-blocking)
         import("./trendAlertService")
           .then(({ checkTrendsForNewSymptom }) => {
-            checkTrendsForNewSymptom(symptomData.userId, symptomData.type).catch(() => {
-              // Silently handle errors — trend checking is non-critical
+            checkTrendsForNewSymptom(symptomData.userId, symptomData.type).catch((err: unknown) => {
+              console.warn('[symptom] checkTrendsForNewSymptom failed:', err);
             });
           })
-          .catch(() => {
-            // Silently handle import errors
+          .catch((err: unknown) => {
+            console.warn('[symptom] Failed to import trendAlertService:', err);
           });
 
         return created.id as string;
@@ -175,7 +175,7 @@ export const symptomService = {
         const raw = await api.get<Record<string, unknown>[]>(
           `/api/health/symptoms?limit=${limitCount}`
         );
-        const symptoms = (raw ?? []).map(normalizeSymptom);
+        const symptoms = (Array.isArray(raw) ? raw : []).map(normalizeSymptom);
 
         // Cache for offline access and in-memory
         await offlineService.storeOfflineData("symptoms", symptoms);
@@ -225,7 +225,8 @@ export const symptomService = {
     try {
       const user = await userService.getUser(userId);
       return user?.familyId === familyId && (user?.role === "admin" || user?.role === "caregiver");
-    } catch {
+    } catch (err) {
+      console.warn('[symptom] checkFamilyAccessPermission failed:', err);
       return false;
     }
   },
@@ -245,7 +246,7 @@ export const symptomService = {
       const raw = await api.get<Record<string, unknown>[]>(
         `/api/health/symptoms/family/${familyId}?limit=${limitCount}`
       );
-      return (raw ?? []).map(normalizeSymptom);
+      return (Array.isArray(raw) ? raw : []).map(normalizeSymptom);
     } catch (error) {
       throw error;
     }
@@ -293,7 +294,7 @@ export const symptomService = {
       const raw = await api.get<Record<string, unknown>[]>(
         `/api/health/symptoms?from=${startDate.toISOString()}&limit=500`
       );
-      const symptoms = (raw ?? []).map(normalizeSymptom);
+      const symptoms = (Array.isArray(raw) ? raw : []).map(normalizeSymptom);
 
       const totalSymptoms = symptoms.length;
       const avgSeverity = totalSymptoms > 0
@@ -317,7 +318,8 @@ export const symptomService = {
       };
       _symptomStatsCache.set(statsCacheKey, { data: result, timestamp: Date.now() });
       return result;
-    } catch {
+    } catch (err) {
+      console.warn('[symptom] getSymptomStats failed:', err);
       return { totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] };
     }
   },
@@ -327,7 +329,7 @@ export const symptomService = {
     const raw = await api.get<Record<string, unknown>[]>(
       `/api/health/symptoms/user/${memberId}?limit=${limitCount}`
     );
-    return (raw ?? []).map(normalizeSymptom);
+    return (Array.isArray(raw) ? raw : []).map(normalizeSymptom);
   },
 
   // Get symptom stats for a specific family member (for admins)
@@ -339,7 +341,7 @@ export const symptomService = {
       const raw = await api.get<Record<string, unknown>[]>(
         `/api/health/symptoms/user/${memberId}?from=${startDate.toISOString()}&limit=500`
       );
-      const symptoms = (raw ?? []).map(normalizeSymptom);
+      const symptoms = (Array.isArray(raw) ? raw : []).map(normalizeSymptom);
 
       const totalSymptoms = symptoms.length;
       const avgSeverity = totalSymptoms > 0
@@ -357,7 +359,8 @@ export const symptomService = {
         .slice(0, 5);
 
       return { totalSymptoms, avgSeverity: Math.round(avgSeverity * 10) / 10, commonSymptoms };
-    } catch {
+    } catch (err) {
+      console.warn('[symptom] getMemberSymptomStats failed:', err);
       return { totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] };
     }
   },

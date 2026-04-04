@@ -134,6 +134,7 @@ async function deliverToTokens(tokens: string[], msg: PushMessage): Promise<void
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
       body: JSON.stringify(messages),
+      signal: AbortSignal.timeout(15_000), // Expo Push API must respond within 15 s
     });
 
     if (!res.ok) {

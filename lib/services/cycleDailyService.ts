@@ -82,8 +82,8 @@ export const cycleDailyService = {
           updatedAt: new Date(),
         } as CycleDailyEntry);
         await offlineService.storeOfflineData("cycleDailyEntries", updated);
-      } catch {
-        // Cache update errors are not critical
+      } catch (err) {
+        console.warn('[cycleDaily] upsert cache update failed (non-critical):', err);
       }
     };
 
@@ -198,7 +198,7 @@ export const cycleDailyService = {
       const raw = await api.get<Record<string, unknown>[]>(
         `/api/health/cycle-daily?${params.toString()}`
       );
-      const entries = (raw ?? []).map(normalizeEntry);
+      const entries = (Array.isArray(raw) ? raw : []).map(normalizeEntry);
 
       // Refresh local cache
       await offlineService.storeOfflineData("cycleDailyEntries", entries);
@@ -226,8 +226,8 @@ export const cycleDailyService = {
           );
         const updated = cached.filter((e) => e.id !== entryId);
         await offlineService.storeOfflineData("cycleDailyEntries", updated);
-      } catch {
-        // Cache update errors are not critical
+      } catch (err) {
+        console.warn('[cycleDaily] delete cache update failed (non-critical):', err);
       }
     };
 

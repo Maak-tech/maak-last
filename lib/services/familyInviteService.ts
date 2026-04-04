@@ -32,9 +32,13 @@ const normalizeInvitation = (raw: Record<string, unknown>): FamilyInvitationCode
 });
 
 export const familyInviteService = {
-  // Generate a random 6-digit invitation code (client-side only; server generates the real one)
+  // Generate a random 6-digit invitation code (client-side preview; server generates the authoritative one)
   generateInviteCode(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    // Use Web Crypto API for unpredictable codes — Math.random() is predictable
+    // and could allow an attacker to guess the code before the server assigns it.
+    const array = new Uint32Array(1);
+    crypto.getRandomValues(array);
+    return (100000 + (array[0] % 900000)).toString();
   },
 
   // Create a new family invitation code
@@ -71,7 +75,8 @@ export const familyInviteService = {
       );
       if (!raw || (raw as { error?: string }).error) return null;
       return normalizeInvitation(raw);
-    } catch {
+    } catch (err) {
+      console.warn('[familyInvite] getInvitationByCode failed:', err);
       return null;
     }
   },
@@ -111,8 +116,9 @@ export const familyInviteService = {
       const raw = await api.get<Record<string, unknown>[]>(
         `/api/family/${familyId}/invitations`
       );
-      return (raw ?? []).map(normalizeInvitation);
-    } catch {
+      return (Array.isArray(raw) ? raw : []).map(normalizeInvitation);
+    } catch (err) {
+      console.warn('[familyInvite] getInvitations failed:', err);
       return [];
     }
   },
@@ -140,7 +146,8 @@ export const familyInviteService = {
         createdAt: raw.createdAt ? new Date(raw.createdAt as string) : new Date(),
         patientCount: 0,
       };
-    } catch {
+    } catch (err) {
+      console.warn('[familyInvite] getFamily failed:', err);
       return null;
     }
   },

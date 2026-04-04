@@ -138,7 +138,8 @@ async function fetchCorrelationDiscoveries(
     return (result.discoveries ?? [])
       .filter((d) => d.status !== "dismissed")
       .map((d) => ({ ...d, discoveryType: "correlation" as DiscoveryType }));
-  } catch {
+  } catch (err) {
+    console.warn('[discovery] fetchCorrelationDiscoveries failed:', err);
     return [];
   }
 }
@@ -190,7 +191,8 @@ async function fetchSymptomPatternDiscoveries(
           discoveryType: "symptom_pattern",
         })
       );
-  } catch {
+  } catch (err) {
+    console.warn('[discovery] fetchSymptomPatternDiscoveries failed:', err);
     return [];
   }
 }
@@ -210,7 +212,8 @@ async function fetchVitalTrendDiscoveries(
       .map((insight, idx) =>
         patternInsightToDiscovery(insight, "vital_trend", userId, idx)
       );
-  } catch {
+  } catch (err) {
+    console.warn('[discovery] fetchVitalTrendDiscoveries failed:', err);
     return [];
   }
 }
@@ -264,7 +267,8 @@ async function fetchMedicationEffectivenessDiscoveries(
           discoveryType: "medication_effectiveness",
         })
       );
-  } catch {
+  } catch (err) {
+    console.warn('[discovery] fetchMedicationEffectivenessDiscoveries failed:', err);
     return [];
   }
 }
@@ -286,7 +290,8 @@ async function fetchTemporalPatternDiscoveries(
       .map((insight, idx) =>
         patternInsightToDiscovery(insight, "temporal_pattern", userId, idx)
       );
-  } catch {
+  } catch (err) {
+    console.warn('[discovery] fetchTemporalPatternDiscoveries failed:', err);
     return [];
   }
 }
@@ -312,7 +317,8 @@ async function fetchMedicationPatternDiscoveries(
       .map((insight, idx) =>
         patternInsightToDiscovery(insight, "medication_pattern", userId, idx)
       );
-  } catch {
+  } catch (err) {
+    console.warn('[discovery] fetchMedicationPatternDiscoveries failed:', err);
     return [];
   }
 }
@@ -331,7 +337,8 @@ async function fetchIntegrationInsightDiscoveries(
       .map((insight, idx) =>
         patternInsightToDiscovery(insight, "integration_insight", userId, idx)
       );
-  } catch {
+  } catch (err) {
+    console.warn('[discovery] fetchIntegrationInsightDiscoveries failed:', err);
     return [];
   }
 }
@@ -364,8 +371,8 @@ export async function dismissDiscovery(
       discoveryId,
       timestamp: new Date().toISOString(),
     });
-  } catch {
-    // Non-critical — local dismiss already applied in UI
+  } catch (err) {
+    console.warn('[discoveryService] dismissDiscovery timeline post failed (non-critical):', err);
   }
 }
 
@@ -374,11 +381,7 @@ export async function restoreDiscovery(
   userId: string,
   discoveryId: string
 ): Promise<void> {
-  try {
-    _dismissedIds.get(userId)?.delete(discoveryId);
-  } catch {
-    // Non-critical
-  }
+  _dismissedIds.get(userId)?.delete(discoveryId);
 }
 
 /** Fetch the set of IDs the user has dismissed. Returns in-memory set (empty on cold start). */

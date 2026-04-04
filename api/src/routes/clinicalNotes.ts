@@ -130,21 +130,21 @@ export const clinicalNotesRoutes = new Elysia({ prefix: "/api/notes" })
     {
       body: t.Object({
         noteDate: t.String(),
-        source: t.Optional(t.String()),
-        providerName: t.Optional(t.String()),
-        specialty: t.Optional(t.String()),
-        facility: t.Optional(t.String()),
-        noteType: t.Optional(t.String()),
+        source: t.Optional(t.String({ maxLength: 100 })),
+        providerName: t.Optional(t.String({ maxLength: 255 })),
+        specialty: t.Optional(t.String({ maxLength: 100 })),
+        facility: t.Optional(t.String({ maxLength: 255 })),
+        noteType: t.Optional(t.String({ maxLength: 50 })),
         soap: t.Optional(
           t.Object({
-            subjective: t.Optional(t.String()),
-            objective: t.Optional(t.String()),
-            assessment: t.Optional(t.String()),
-            plan: t.Optional(t.String()),
+            subjective: t.Optional(t.String({ maxLength: 20000 })),
+            objective: t.Optional(t.String({ maxLength: 20000 })),
+            assessment: t.Optional(t.String({ maxLength: 20000 })),
+            plan: t.Optional(t.String({ maxLength: 20000 })),
           })
         ),
-        content: t.Optional(t.String()),
-        tags: t.Optional(t.Array(t.String())),
+        content: t.Optional(t.String({ maxLength: 100000 })),
+        tags: t.Optional(t.Array(t.String({ maxLength: 50 }), { maxItems: 50 })),
         hasAttachment: t.Optional(t.Boolean()),
       }),
       detail: { tags: ["health"], summary: "Create a clinical note" },

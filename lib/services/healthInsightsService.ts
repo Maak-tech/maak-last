@@ -854,7 +854,8 @@ class HealthInsightsService {
           timestamp: new Date(v.recordedAt as string),
           source: v.source as string | undefined,
         }));
-    } catch {
+    } catch (err) {
+      console.warn('[healthInsights] fetchVitalsForAnalysis failed:', err);
       return [];
     }
   }

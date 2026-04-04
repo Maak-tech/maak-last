@@ -32,7 +32,7 @@ export async function getVitalAnomalySignals(
     const raw = await api.get<VitalAnomalySignal[]>(
       `/api/health/anomaly-signals?userId=${encodeURIComponent(userId)}`
     );
-    return (raw ?? []).map((item) => ({
+    return (Array.isArray(raw) ? raw : []).map((item) => ({
       ...item,
       timestamp: new Date(item.timestamp),
     }));

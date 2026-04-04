@@ -164,7 +164,7 @@ class HealthTimelineService {
       const raw = await api.get<Record<string, unknown>[]>(
         `/api/health/timeline?${params.toString()}`
       );
-      return (raw ?? []).map(normalizeEvent);
+      return (Array.isArray(raw) ? raw : []).map(normalizeEvent);
     } catch (error) {
       logger.error(
         "Failed to get timeline events",
@@ -196,7 +196,7 @@ class HealthTimelineService {
       const raw = await api.get<Record<string, unknown>[]>(
         `/api/health/timeline/family?${params.toString()}`
       );
-      const events = (raw ?? []).map(normalizeEvent);
+      const events = (Array.isArray(raw) ? raw : []).map(normalizeEvent);
 
       // Sort client-side since the endpoint may return multiple user batches
       return events.sort(

@@ -73,7 +73,12 @@ export default function DigitalTwinView({ data }: Props) {
               <ScoreBar label="Deterioration Risk" value={summary.deterioration_risk as number} />
             )}
             {typeof summary.adherence_score === 'number' && (
-              <ScoreBar label="Medication Adherence" value={100 - (summary.adherence_score as number)} />
+              // adherence_score is 0-100 where higher = better adherence.
+              // Show it directly so that a full bar means excellent adherence.
+              // The colour scale in ScoreBar treats high values as red (risk), so
+              // we invert: a high adherence score → low risk bar height.
+              // Label as "Non-Adherence Risk" so the bar direction is unambiguous.
+              <ScoreBar label="Non-Adherence Risk" value={100 - (summary.adherence_score as number)} />
             )}
           </div>
         )}

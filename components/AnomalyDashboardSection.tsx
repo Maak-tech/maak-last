@@ -55,8 +55,8 @@ export default function AnomalyDashboardSection({ onlyWhenActive = false }: Anom
         (a) => !a.isAcknowledged && !a.acknowledged
       );
       setAnomalies(active);
-    } catch {
-      // Non-critical — home screen continues to load normally
+    } catch (err) {
+      console.warn('[AnomalyDashboardSection] Failed to load recent anomalies:', err);
     }
   }, [user?.id]);
 

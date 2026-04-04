@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, randomBytes } from 'crypto'
+import { createCipheriv, createDecipheriv, createHmac, randomBytes } from 'crypto'
 
 function getKey(): Buffer {
   const hex = process.env.DB_ENCRYPTION_KEY
@@ -13,6 +13,17 @@ export function encrypt(plaintext: string): string {
   const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()])
   const tag = cipher.getAuthTag()
   return iv.toString('hex') + tag.toString('hex') + encrypted.toString('hex')
+}
+
+/**
+ * HMAC-SHA256 of plaintext using the DB encryption key.
+ * Deterministic (no IV) — used as a fast lookup index for encrypted values.
+ * Stored alongside the encrypted ciphertext in biometric_enrollments so
+ * recognize.ts can do a direct O(1) DB lookup instead of a full-table decrypt scan.
+ */
+export function hmac(plaintext: string): string {
+  const key = getKey()
+  return createHmac('sha256', key).update(plaintext).digest('hex')
 }
 
 export function decrypt(stored: string): string {

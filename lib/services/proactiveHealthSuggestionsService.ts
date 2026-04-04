@@ -807,9 +807,7 @@ class ProactiveHealthSuggestionsService {
         healthContext.profile.gender === "female" &&
         healthContext.periodTracking
       ) {
-        const periodSuggestions = await (
-          this as any
-        ).getPeriodTrackingSuggestions(
+        const periodSuggestions = await this.getPeriodTrackingSuggestions(
           healthContext.periodTracking,
           symptoms,
           moods,
@@ -859,7 +857,8 @@ class ProactiveHealthSuggestionsService {
         ...v,
         timestamp: v.recordedAt ? new Date(v.recordedAt as string) : new Date(),
       }));
-    } catch {
+    } catch (err) {
+      console.warn('[proactiveHealthSuggestions] fetchRecentVitals failed:', err);
       return [];
     }
   }

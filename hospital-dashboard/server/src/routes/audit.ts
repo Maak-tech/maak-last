@@ -21,8 +21,18 @@ auditRoutes.get('/audit', jwtAuth, requireRole('admin'), async (c) => {
   const staffId   = c.req.query('staffId')   ?? null
   const patientId = c.req.query('patientId') ?? null
   const action    = c.req.query('action')    ?? null
-  const from      = c.req.query('from')      ?? null
-  const to        = c.req.query('to')        ?? null
+  const fromRaw   = c.req.query('from')      ?? null
+  const toRaw     = c.req.query('to')        ?? null
+
+  // Validate date strings before passing to Postgres — invalid dates produce 500
+  if (fromRaw && isNaN(new Date(fromRaw).getTime())) {
+    return c.json({ error: "Invalid 'from' date — use ISO 8601 format" }, 400)
+  }
+  if (toRaw && isNaN(new Date(toRaw).getTime())) {
+    return c.json({ error: "Invalid 'to' date — use ISO 8601 format" }, 400)
+  }
+  const from = fromRaw
+  const to   = toRaw
 
   // Build dynamic WHERE clause
   const conditions: string[] = []

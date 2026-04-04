@@ -309,7 +309,8 @@ class AIInsightsService {
     try {
       const result = await api.get<{ data?: unknown[] }>("/api/health/vitals?limit=1");
       return Array.isArray(result?.data) ? result.data.length > 0 : false;
-    } catch {
+    } catch (err) {
+      console.warn('[aiInsights] hasVitalsData check failed:', err);
       return false;
     }
   }

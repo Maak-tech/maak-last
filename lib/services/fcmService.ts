@@ -75,7 +75,8 @@ export const fcmService = {
       });
 
       return true;
-    } catch {
+    } catch (err) {
+      console.warn('[fcm] saveFCMToken failed:', err);
       return false;
     }
   },
@@ -98,7 +99,8 @@ export const fcmService = {
         notification,
       });
       return (result.sent ?? 0) > 0;
-    } catch {
+    } catch (err) {
+      console.warn('[fcm] sendPushNotificationHTTP failed:', err);
       return false;
     }
   },
@@ -128,7 +130,8 @@ export const fcmService = {
       }
 
       return this.saveFCMToken(tokenResult.token);
-    } catch {
+    } catch (err) {
+      console.warn('[fcm] initializeFCM failed:', err);
       return false;
     }
   },

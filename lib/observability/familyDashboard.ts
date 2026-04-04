@@ -219,7 +219,7 @@ class FamilyDashboardService {
         "/api/health/vitals?limit=20"
       );
 
-      for (const v of raw ?? []) {
+      for (const v of (Array.isArray(raw) ? raw : [])) {
         const vType = v.type as string;
         const ts = v.recordedAt ? new Date(v.recordedAt as string) : new Date();
         if (!lastVitals[vType]) {

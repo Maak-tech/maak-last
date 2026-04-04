@@ -204,7 +204,7 @@ async function fetchRecentVitalsForScore(
       `/api/health/vitals?from=${since.toISOString()}&limit=200`
     );
 
-    return (raw ?? []).map((d) => ({
+    return (Array.isArray(raw) ? raw : []).map((d) => ({
       id: d.id as string,
       type: d.type as string,
       value: typeof d.value === "number" ? d.value : Number.parseFloat(String(d.value ?? 0)),
@@ -212,7 +212,8 @@ async function fetchRecentVitalsForScore(
       timestamp: d.recordedAt ? new Date(d.recordedAt as string) : new Date(),
       source: d.source as string | undefined,
     }));
-  } catch {
+  } catch (err) {
+    console.warn('[healthScore] fetchRecentVitalsForScore failed:', err);
     return [];
   }
 }

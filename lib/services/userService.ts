@@ -91,7 +91,8 @@ export const userService = {
       const raw = await api.get<Record<string, unknown>>(`/api/users/${userId}`);
       if (!raw || (raw as { error?: string }).error) return null;
       return normalizeUserFromApi(raw);
-    } catch {
+    } catch (err) {
+      console.warn('[user] getUser failed:', err);
       return null;
     }
   },
@@ -244,10 +245,11 @@ export const userService = {
       const raw = await api.get<Record<string, unknown>[]>(
         `/api/family/${familyId}/users`
       );
-      const members = (raw ?? []).map(normalizeUserFromApi);
+      const members = (Array.isArray(raw) ? raw : []).map(normalizeUserFromApi);
       _familyMembersCache.set(familyId, { members, timestamp: Date.now() });
       return members;
-    } catch {
+    } catch (err) {
+      console.warn('[user] getFamilyMembers failed:', err);
       return [];
     }
   },
@@ -271,8 +273,8 @@ export const userService = {
     try {
       await api.post(`/api/family/${familyId}/leave`, { userId });
       _familyMembersCache.delete(familyId);
-    } catch {
-      // Non-critical — joining new family is more important
+    } catch (err) {
+      console.warn('[userService] leavePreviousFamily failed (non-critical):', err);
     }
   },
 
@@ -290,7 +292,8 @@ export const userService = {
     try {
       const user = await this.getUser(userId);
       return user?.role === "admin";
-    } catch {
+    } catch (err) {
+      console.warn('[user] isUserAdmin failed:', err);
       return false;
     }
   },
@@ -300,7 +303,8 @@ export const userService = {
     try {
       const user = await this.getUser(userId);
       return user?.role === "admin" || user?.role === "caregiver";
-    } catch {
+    } catch (err) {
+      console.warn('[user] isUserCaregiverOrAdmin failed:', err);
       return false;
     }
   },
@@ -327,8 +331,9 @@ export const userService = {
       const raw = await api.get<Record<string, unknown>[]>(
         `/api/family/${familyId}/users?role=caregiver`
       );
-      return (raw ?? []).map(normalizeUserFromApi);
-    } catch {
+      return (Array.isArray(raw) ? raw : []).map(normalizeUserFromApi);
+    } catch (err) {
+      console.warn('[user] getFamilyCaregivers failed:', err);
       return [];
     }
   },

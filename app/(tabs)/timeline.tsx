@@ -78,9 +78,9 @@ export default function TimelineScreen() {
     if (!isRefresh) setLoading(true);
     try {
       const data = await api.get<TimelineEvent[]>("/api/health/timeline?limit=100");
-      setEvents(data ?? []);
-    } catch {
-      // silently handle
+      setEvents(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.warn('[timeline] Failed to load timeline events:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);

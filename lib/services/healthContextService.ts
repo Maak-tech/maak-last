@@ -251,7 +251,8 @@ class HealthContextService {
             baseline,
             isArabic
           );
-        } catch {
+        } catch (err) {
+          console.warn('[healthContext] Failed to compute baseline deviations:', err);
           return [];
         }
       })(),
@@ -264,7 +265,8 @@ class HealthContextService {
               try {
                 const { periodService } = await import("./periodService");
                 return await periodService.getCycleInfo(uid);
-              } catch {
+              } catch (err) {
+                console.warn('[healthContext] Failed to load cycle info:', err);
                 return null;
               }
             })(),
@@ -278,7 +280,8 @@ class HealthContextService {
           sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
           const allResults = await labResultService.getUserLabResults(uid, 20);
           return allResults.filter((r) => r.testDate >= sixMonthsAgo);
-        } catch {
+        } catch (err) {
+          console.warn('[healthContext] Failed to load lab results for context:', err);
           return [];
         }
       })(),
@@ -289,7 +292,8 @@ class HealthContextService {
             "./symptomPatternRecognitionService"
           );
           return await symptomPatternRecognitionService.detectPatterns(uid);
-        } catch {
+        } catch (err) {
+          console.warn('[healthContext] Failed to detect symptom patterns:', err);
           return null;
         }
       })(),
@@ -303,7 +307,8 @@ class HealthContextService {
             uid,
             options?.language?.startsWith("ar") ?? false
           );
-        } catch {
+        } catch (err) {
+          console.warn('[healthContext] Failed to generate risk assessment:', err);
           return null;
         }
       })(),
@@ -329,7 +334,7 @@ class HealthContextService {
     // Process medications
     let medications: HealthContext["medications"] = [];
     if (medicationsSnapshot.status === "fulfilled") {
-      const medicationsWithSort = (medicationsSnapshot.value ?? []).map(
+      const medicationsWithSort = (Array.isArray(medicationsSnapshot.value) ? medicationsSnapshot.value : []).map(
         (med) => {
           const startDateObj = med.startDate
             ? new Date(med.startDate as string)
@@ -358,7 +363,7 @@ class HealthContextService {
     // Process symptoms
     let symptoms: HealthContext["symptoms"] = [];
     if (symptomsSnapshot.status === "fulfilled") {
-      symptoms = (symptomsSnapshot.value ?? []).map((sym) => {
+      symptoms = (Array.isArray(symptomsSnapshot.value) ? symptomsSnapshot.value : []).map((sym) => {
         const severityNum = typeof sym.severity === "number" ? sym.severity : 0;
         const severityLabel =
           severityNum >= 4 ? "severe" : severityNum >= 3 ? "moderate" : "mild";
@@ -386,7 +391,7 @@ class HealthContextService {
     const familyMedicalHistory: HealthContext["medicalHistory"]["familyHistory"] =
       [];
     if (historySnapshot.status === "fulfilled") {
-      for (const item of (historySnapshot.value ?? [])) {
+      for (const item of (Array.isArray(historySnapshot.value) ? historySnapshot.value : [])) {
         const entry = {
           condition: (item.condition as string) || "",
           diagnosedDate: item.diagnosedDate
@@ -408,7 +413,7 @@ class HealthContextService {
     // Process alerts
     let recentAlerts: HealthContext["recentAlerts"] = [];
     if (alertsSnapshot.status === "fulfilled") {
-      recentAlerts = (alertsSnapshot.value ?? []).map((alert) => ({
+      recentAlerts = (Array.isArray(alertsSnapshot.value) ? alertsSnapshot.value : []).map((alert) => ({
         id: alert.id as string,
         type: (alert.type as string) || "general",
         timestamp: alert.createdAt
@@ -889,7 +894,7 @@ class HealthContextService {
 
       const recentEntries: NonNullable<
         HealthContext["periodTracking"]
-      >["recentEntries"] = (periodEntriesRaw ?? []).map((entry) => ({
+      >["recentEntries"] = (Array.isArray(periodEntriesRaw) ? periodEntriesRaw : []).map((entry) => ({
         startDate: entry.startDate
           ? new Date(entry.startDate as string)
           : new Date(),

@@ -129,7 +129,7 @@ class RealtimeHealthService {
     const poll = async () => {
       try {
         const raw = await api.get<Record<string, unknown>[]>("/api/alerts?limit=20");
-        for (const rawAlert of raw ?? []) {
+        for (const rawAlert of (Array.isArray(raw) ? raw : [])) {
           const id = rawAlert.id as string;
           if (seenIds.has(id)) continue;
           seenIds.add(id);
@@ -177,7 +177,7 @@ class RealtimeHealthService {
           Array<{ memberId: string; recentAlerts?: Record<string, unknown>[] }>
         >(`/api/family/${familyId}/members`);
 
-        for (const member of memberData ?? []) {
+        for (const member of (Array.isArray(memberData) ? memberData : [])) {
           for (const rawAlert of member.recentAlerts ?? []) {
             const id = rawAlert.id as string;
             const isResolved = (rawAlert.resolved as boolean) || rawAlert.resolvedAt != null;
@@ -254,7 +254,7 @@ class RealtimeHealthService {
       try {
         const raw = await api.get<Record<string, unknown>[]>("/api/alerts?limit=20");
 
-        for (const rawAlert of raw ?? []) {
+        for (const rawAlert of (Array.isArray(raw) ? raw : [])) {
           const id = rawAlert.id as string;
           const isResolved = (rawAlert.resolved as boolean) || rawAlert.resolvedAt != null;
           const meta = (rawAlert.metadata ?? {}) as Record<string, unknown>;
@@ -314,7 +314,7 @@ class RealtimeHealthService {
           "/api/health/vitals?limit=30"
         );
 
-        for (const rawVital of raw ?? []) {
+        for (const rawVital of (Array.isArray(raw) ? raw : [])) {
           const id = rawVital.id as string;
           if (seenIds.has(id)) continue;
           seenIds.add(id);

@@ -319,8 +319,8 @@ async function evaluateAndCreateHealthEventIfNeeded(
             thresholdBreached: evaluation.thresholdBreached,
           },
         });
-      } catch {
-        // Non-blocking: alert was created; health event is for display
+      } catch (err) {
+        console.warn('[vitalSyncService] health event creation failed (non-blocking):', err);
       }
 
       const user = await userService.getUser(userId);
@@ -773,7 +773,8 @@ export async function getLatestGlucoseReading(userId: string): Promise<{
     }
 
     return null;
-  } catch (_error) {
+  } catch (err) {
+    console.warn('[vitalSync] getLatestGlucoseReading failed:', err);
     return null;
   }
 }

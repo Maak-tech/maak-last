@@ -372,8 +372,8 @@ class CorrelationDiscoveryService {
           ? { notifiedAt: discovery.notifiedAt.toISOString() }
           : {}),
       });
-    } catch {
-      // Non-critical — silently skip
+    } catch (err) {
+      console.warn('[correlationDiscovery] saveDiscovery timeline post failed (non-critical):', err);
     }
   }
 

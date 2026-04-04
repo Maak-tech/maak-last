@@ -1,5 +1,5 @@
 'use client'
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { api } from '@/lib/api'
 
 interface Props {
@@ -18,6 +18,13 @@ export default function ManualSearch({ onSession }: Props) {
   const [selecting, setSelecting] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Clear pending debounce timer on unmount to prevent state updates on unmounted component.
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [])
 
   const search = useCallback((value: string) => {
     if (debounceRef.current) clearTimeout(debounceRef.current)

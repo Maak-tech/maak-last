@@ -481,7 +481,8 @@ export class NotificationResponseHandler {
                   : "unspecified",
               confirmationType: "notification_response",
             });
-          } catch {
+          } catch (err) {
+            console.warn('[notificationResponseHandler] recordMedicationTaken failed:', err);
           }
         }
       }

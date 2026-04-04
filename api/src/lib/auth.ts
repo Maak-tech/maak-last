@@ -21,6 +21,7 @@ async function sendOTPViaTwilio(phone: string, code: string): Promise<void> {
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: body.toString(),
+    signal: AbortSignal.timeout(10_000), // Twilio must respond within 10 s
   });
 
   if (!response.ok) {

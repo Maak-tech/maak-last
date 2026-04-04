@@ -56,8 +56,16 @@ const base64UrlEncode = (bytes: Uint8Array): string => {
 
 const randomBytes = (length: number): Uint8Array => {
   const bytes = new Uint8Array(length);
-  for (let i = 0; i < length; i += 1) {
-    bytes[i] = Math.floor(Math.random() * 256);
+  // Use Web Crypto API for cryptographically secure randomness.
+  // PKCE code verifiers MUST be generated with a CSPRNG — Math.random() is
+  // predictable and would allow an attacker to brute-force the PKCE challenge.
+  // crypto.getRandomValues() is available in modern React Native (0.71+) and Expo.
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    crypto.getRandomValues(bytes);
+  } else {
+    // This path should never be reached in a supported Expo environment.
+    // Throw rather than silently fall back to an insecure source.
+    throw new Error("[fitbitService] crypto.getRandomValues is unavailable — cannot generate PKCE verifier");
   }
   return bytes;
 };

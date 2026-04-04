@@ -80,9 +80,9 @@ export default function AllergiesScreen() {
     if (!isRefresh) setLoading(true);
     try {
       const data = await api.get<Allergy[]>("/api/health/allergies");
-      setAllergies(data ?? []);
-    } catch {
-      // silently handle
+      setAllergies(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.warn('[allergies] Failed to load allergies:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -139,7 +139,8 @@ export default function AllergiesScreen() {
             try {
               await api.delete(`/api/health/allergies/${allergy.id}`);
               setAllergies((prev) => prev.filter((a) => a.id !== allergy.id));
-            } catch {
+            } catch (err) {
+              console.warn('[allergies] Failed to delete allergy:', err);
               Alert.alert(isRTL ? "خطأ" : "Error", isRTL ? "فشل الحذف" : "Failed to delete");
             }
           },

@@ -71,8 +71,9 @@ class SubscriptionService {
 
       this._cache = { data, fetchedAt: Date.now() };
       return data;
-    } catch {
+    } catch (err) {
       // If the endpoint fails (user has no subscription row yet), return free plan
+      console.warn('[subscription] getMyPlan failed — defaulting to free plan:', err);
       const freePlan: Subscription = {
         plan: "free",
         status: "active",

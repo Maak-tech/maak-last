@@ -9,7 +9,7 @@ import {
   Users,
   Webhook,
 } from "lucide-react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -47,18 +47,19 @@ export default function AdminSettingsScreen() {
   const card = isDark ? "#1E293B" : "#FFFFFF";
   const border = isDark ? "#334155" : "#E2E8F0";
 
-  useState(() => {
+  useEffect(() => {
     (async () => {
       try {
         const data = await api.get<OrgInfo>("/api/org/me");
         setOrg(data);
-      } catch {
-        // no org
+      } catch (err) {
+        // Expected when user has no org membership
+        console.debug('[admin-settings] No org found or fetch failed:', err);
       } finally {
         setLoading(false);
       }
     })();
-  });
+  }, []);
 
   const handleCreateOrg = () => {
     router.push("/(settings)/create-org" as any);

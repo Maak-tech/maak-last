@@ -356,8 +356,8 @@ export default function AuditTrailScreen() {
           .get<Record<string, unknown>[]>(
             `/api/org/audit-trail?${params.toString()}`
           )
-          .catch(() => []);
-        const items = (raw ?? []).map((d) =>
+          .catch(() => [] as Record<string, unknown>[]);
+        const items = (Array.isArray(raw) ? raw : []).map((d) =>
           mapEntry(d.id as string, d)
         );
 
@@ -402,8 +402,8 @@ export default function AuditTrailScreen() {
         .get<Record<string, unknown>[]>(
           `/api/org/audit-trail?${params.toString()}`
         )
-        .catch(() => []);
-      const more = (raw ?? []).map((d) =>
+        .catch(() => [] as Record<string, unknown>[]);
+      const more = (Array.isArray(raw) ? raw : []).map((d) =>
         mapEntry(d.id as string, d)
       );
 
@@ -415,8 +415,8 @@ export default function AuditTrailScreen() {
           : lastTimestampRef.current;
         setHasMore(more.length === PAGE_SIZE);
       }
-    } catch {
-      // silently ignore pagination errors
+    } catch (err) {
+      console.warn('[audit-trail] Pagination load failed:', err);
     } finally {
       if (isMountedRef.current) setLoadingMore(false);
     }

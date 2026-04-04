@@ -42,7 +42,7 @@ export const medicalHistoryService = {
       : "/api/health/medical-history";
 
     const raw = await api.get<Record<string, unknown>[]>(url);
-    const history = (raw ?? []).map(normalizeMedicalHistory);
+    const history = (Array.isArray(raw) ? raw : []).map(normalizeMedicalHistory);
 
     _medHistoryCache.set(userId, { history, timestamp: Date.now() });
     return history;
@@ -115,7 +115,8 @@ export const medicalHistoryService = {
       const raw = await api.get<Record<string, unknown>>(`/api/health/medical-history/${historyId}`);
       if (!raw || (raw as { error?: string }).error) return null;
       return normalizeMedicalHistory(raw);
-    } catch {
+    } catch (err) {
+      console.warn('[medicalHistory] getMedicalHistoryById failed:', err);
       return null;
     }
   },

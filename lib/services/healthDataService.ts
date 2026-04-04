@@ -544,7 +544,8 @@ export const healthDataService = {
         return await this.getAndroidVitals();
       }
       return null;
-    } catch {
+    } catch (err) {
+      console.warn('[healthData] getNativeVitals failed:', err);
       return null;
     }
   },
@@ -568,9 +569,10 @@ export const healthDataService = {
         bloodSugar: "bloodSugar",
       };
 
-      const raw = await api.get<Record<string, unknown>[]>(
+      const _rawVitals = await api.get<Record<string, unknown>[]>(
         `/api/health/vitals?userId=${userId}&from=${cutoff.toISOString()}&limit=${maxDocs}`
-      ) ?? [];
+      );
+      const raw = Array.isArray(_rawVitals) ? _rawVitals : [];
 
       const results: VitalSign[] = [];
       for (const data of raw) {
@@ -591,7 +593,8 @@ export const healthDataService = {
       }
 
       return results;
-    } catch {
+    } catch (err) {
+      console.warn('[healthData] getUserVitals failed:', err);
       return [];
     }
   },

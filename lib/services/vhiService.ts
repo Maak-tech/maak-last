@@ -50,7 +50,8 @@ class VHIService {
   async getMyVHI(): Promise<VHI | null> {
     try {
       return await api.get<VHI | null>("/api/vhi/me");
-    } catch {
+    } catch (err) {
+      console.warn('[vhi] getMyVHI failed:', err);
       return null;
     }
   }
@@ -63,7 +64,8 @@ class VHIService {
   async getMemberVHI(memberId: string): Promise<VHI | null> {
     try {
       return await api.get<VHI | null>(`/api/vhi/${memberId}`);
-    } catch {
+    } catch (err) {
+      console.warn('[vhi] getMemberVHI failed:', err);
       return null;
     }
   }
@@ -78,7 +80,8 @@ class VHIService {
         {}
       );
       return result.ok;
-    } catch {
+    } catch (err) {
+      console.warn('[vhi] acknowledgeAction failed:', err);
       return false;
     }
   }
@@ -90,8 +93,8 @@ class VHIService {
   async requestRecompute(): Promise<void> {
     try {
       await api.post("/api/vhi/me/recompute", {});
-    } catch {
-      // Non-critical
+    } catch (err) {
+      console.warn('[vhiService] requestRecompute failed (non-critical):', err);
     }
   }
 

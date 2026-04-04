@@ -128,9 +128,10 @@ class PopulationHealthService {
     since: Date
   ): Promise<{ critical: number; warning: number }> {
     try {
-      const docs = await api.get<Array<{ severity?: string }>>(
+      const raw = await api.get<Array<{ severity?: string }>>(
         `/api/health/anomalies?userId=${userId}&from=${since.toISOString()}&limit=50`
-      ) ?? [];
+      );
+      const docs = Array.isArray(raw) ? raw : [];
       let critical = 0;
       let warning = 0;
       for (const doc of docs) {
@@ -138,7 +139,8 @@ class PopulationHealthService {
         else warning++;
       }
       return { critical, warning };
-    } catch {
+    } catch (err) {
+      console.warn('[populationHealth] Failed to fetch recent anomalies:', err);
       return { critical: 0, warning: 0 };
     }
   }
@@ -148,13 +150,15 @@ class PopulationHealthService {
     since: Date
   ): Promise<Date | null> {
     try {
-      const docs = await api.get<Array<{ recordedAt?: string }>>(
+      const raw = await api.get<Array<{ recordedAt?: string }>>(
         `/api/health/vitals?userId=${userId}&from=${since.toISOString()}&limit=1`
-      ) ?? [];
+      );
+      const docs = Array.isArray(raw) ? raw : [];
       if (docs.length === 0) return null;
       const ts = docs[0].recordedAt;
       return ts ? new Date(ts) : null;
-    } catch {
+    } catch (err) {
+      console.warn('[populationHealth] Failed to fetch last vital sync:', err);
       return null;
     }
   }
@@ -164,11 +168,13 @@ class PopulationHealthService {
     since: Date
   ): Promise<number> {
     try {
-      const rows = await api.get<unknown[]>(
+      const raw = await api.get<unknown[]>(
         `/api/alerts?userId=${userId}&resolved=false&from=${since.toISOString()}&limit=20`
-      ) ?? [];
+      );
+      const rows = Array.isArray(raw) ? raw : [];
       return rows.length;
-    } catch {
+    } catch (err) {
+      console.warn('[populationHealth] Failed to fetch active alert count:', err);
       return 0;
     }
   }
@@ -178,12 +184,13 @@ class PopulationHealthService {
     todayMidnight: Date
   ): Promise<number> {
     try {
-      const meds = await api.get<Array<{
+      const raw = await api.get<Array<{
         isActive?: boolean;
         reminders?: Array<{ taken?: boolean; time?: string }>;
       }>>(
         `/api/health/medications/user/${userId}?limit=20`
-      ) ?? [];
+      );
+      const meds = Array.isArray(raw) ? raw : [];
 
       let missedCount = 0;
       const nowMs = Date.now();
@@ -204,7 +211,8 @@ class PopulationHealthService {
       }
 
       return missedCount;
-    } catch {
+    } catch (err) {
+      console.warn('[populationHealth] Failed to fetch missed medications:', err);
       return 0;
     }
   }

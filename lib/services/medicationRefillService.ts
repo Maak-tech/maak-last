@@ -49,7 +49,7 @@ export const medicationRefillService = {
       const raw = await api.get<RawRefill[]>(
         `/api/medications/refills/pending?userId=${encodeURIComponent(userId)}`
       );
-      return (raw ?? []).map(deserializeRefill);
+      return (Array.isArray(raw) ? raw : []).map(deserializeRefill);
     } catch (error) {
       logger.error(
         "Failed to fetch pending medication refills",
@@ -84,7 +84,7 @@ export const medicationRefillService = {
       const raw = await api.get<RawRefill[]>(
         `/api/medications/refills/reminders?userId=${encodeURIComponent(userId)}`
       );
-      return (raw ?? []).map(deserializeRefill);
+      return (Array.isArray(raw) ? raw : []).map(deserializeRefill);
     } catch (error) {
       logger.error(
         "Failed to fetch refill reminders",

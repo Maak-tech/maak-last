@@ -63,8 +63,8 @@ export function useMLInsightsBadge(
       setBadgeCount(Math.min(total, 99)); // cap at 99
       setHasCritical(isCritical);
       lastLoadRef.current = Date.now();
-    } catch {
-      // Silent failure
+    } catch (err) {
+      console.warn('[useMLInsightsBadge] Failed to load badge counts:', err);
     } finally {
       setLoading(false);
     }

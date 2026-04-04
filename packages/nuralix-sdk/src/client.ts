@@ -56,17 +56,26 @@ export class NurulixClient {
         signal: controller.signal,
       });
 
-      const json = (await res.json()) as Record<string, unknown>;
+      // Parse the body as text first so that non-JSON error responses
+      // (e.g. 502 HTML from a proxy) produce an informative NurulixError
+      // instead of a raw JSON parse exception.
+      const text = await res.text();
+      let json: Record<string, unknown> | null = null;
+      try {
+        json = JSON.parse(text) as Record<string, unknown>;
+      } catch {
+        /* body is not JSON */
+      }
 
       if (!res.ok) {
         throw new NurulixError(
-          (json.message as string) ?? res.statusText,
+          (json?.message as string) ?? res.statusText,
           res.status,
-          json.code as string | undefined
+          json?.code as string | undefined
         );
       }
 
-      return json as T;
+      return (json ?? {}) as T;
     } catch (err) {
       if (err instanceof NurulixError) throw err;
       if ((err as Error).name === "AbortError") {

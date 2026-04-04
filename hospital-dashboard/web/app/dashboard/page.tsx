@@ -25,6 +25,7 @@ async function fetchTwinBySession(sessionToken: string): Promise<TwinData> {
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
+    signal: AbortSignal.timeout(15_000), // Server must respond within 15 s
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }))

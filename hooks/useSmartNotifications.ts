@@ -70,8 +70,8 @@ export const useSmartNotifications = (
         try {
           cachedVhiRef.current = await vhiService.getMyVHI();
           vhiLastFetchedRef.current = Date.now();
-        } catch {
-          // Non-fatal — VHI alerts will be skipped this cycle
+        } catch (err) {
+          console.warn('[useSmartNotifications] VHI fetch failed — VHI alerts skipped this cycle:', err);
         }
       }
 

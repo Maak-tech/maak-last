@@ -150,7 +150,7 @@ export async function getPredictiveForecast(
     ]);
     const anomalyByDay = await fetchAnomalyByDay(userId, cutoff);
 
-    const symptoms: Symptom[] = (symptomsRaw ?? []).map(
+    const symptoms: Symptom[] = (Array.isArray(symptomsRaw) ? symptomsRaw : []).map(
       (d) =>
         ({
           id: (d.id as string) ?? "",
@@ -164,7 +164,7 @@ export async function getPredictiveForecast(
         }) as Symptom
     );
 
-    const medications: Medication[] = (medsRaw ?? [])
+    const medications: Medication[] = (Array.isArray(medsRaw) ? medsRaw : [])
       .map((m) => ({
         id: m.id as string,
         userId: (m.userId as string | undefined) ?? userId,
@@ -177,7 +177,7 @@ export async function getPredictiveForecast(
       }))
       .filter((m) => m.isActive);
 
-    const moods: Mood[] = (moodsRaw ?? []).map(
+    const moods: Mood[] = (Array.isArray(moodsRaw) ? moodsRaw : []).map(
       (d) =>
         ({
           id: (d.id as string) ?? "",

@@ -37,7 +37,7 @@ export async function checkTrendsForNewVital(
     );
 
     // Filter by type client-side (the API does not support a type query param)
-    const readings = (raw ?? [])
+    const readings = (Array.isArray(raw) ? raw : [])
       .filter((d) => d.type === vitalType)
       .map((d) => ({
         value: typeof d.value === "number" ? d.value : Number.parseFloat(String(d.value ?? 0)),
@@ -74,7 +74,7 @@ export async function checkTrendsForNewSymptom(
     );
 
     // Filter by type client-side
-    const readings = (raw ?? [])
+    const readings = (Array.isArray(raw) ? raw : [])
       .filter((d) => d.type === symptomType)
       .map((d) => ({
         type: d.type as string,
@@ -116,7 +116,7 @@ export async function checkAllTrendsForUser(userId: string): Promise<void> {
 
     // Group vitals by type
     const vitalsByType: Record<string, Array<{ value: number; timestamp: Date; unit: string }>> = {};
-    for (const d of rawVitals ?? []) {
+    for (const d of (Array.isArray(rawVitals) ? rawVitals : [])) {
       const type = d.type as string;
       const value = typeof d.value === "number" ? d.value : Number.parseFloat(String(d.value ?? 0));
       const unit = (d.unit as string) || "";
@@ -147,7 +147,7 @@ export async function checkAllTrendsForUser(userId: string): Promise<void> {
 
     // Group symptoms by type
     const symptomsByType: Record<string, Array<{ type: string; severity: number; timestamp: Date }>> = {};
-    for (const d of rawSymptoms ?? []) {
+    for (const d of (Array.isArray(rawSymptoms) ? rawSymptoms : [])) {
       const type = d.type as string;
       const severity = typeof d.severity === "number" ? d.severity : Number(d.severity ?? 1);
       const timestamp = d.recordedAt ? new Date(d.recordedAt as string) : new Date();

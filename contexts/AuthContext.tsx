@@ -300,7 +300,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       await authClient.signOut();
       setUser(null);
-    } catch {
+    } catch (err) {
+      console.warn('[AuthContext] signOut failed:', err);
       throw new Error('Failed to sign out. Please try again.');
     }
   };

@@ -66,16 +66,16 @@ export const auditRoutes = new Elysia({ prefix: "/api/audit" })
         // actorId is accepted for backward compatibility but the server always
         // uses the authenticated session userId instead — it cannot be spoofed.
         actorId: t.Optional(t.String()),
-        actorType: t.String(),
+        actorType: t.String({ maxLength: 100 }),
         actorOrgId: t.Optional(t.String()),
-        action: t.String(),
-        resourceType: t.Optional(t.String()),
-        resourceId: t.Optional(t.String()),
+        action: t.String({ maxLength: 200 }),
+        resourceType: t.Optional(t.String({ maxLength: 100 })),
+        resourceId: t.Optional(t.String({ maxLength: 255 })),
         patientUserId: t.Optional(t.String()),
         orgId: t.Optional(t.String()),
-        details: t.Optional(t.Record(t.String(), t.Unknown())),
-        outcome: t.Optional(t.String()),
-        denialReason: t.Optional(t.String()),
+        details: t.Optional(t.Record(t.String({ maxLength: 100 }), t.Unknown())),
+        outcome: t.Optional(t.String({ maxLength: 50 })),
+        denialReason: t.Optional(t.String({ maxLength: 1000 })),
       }),
       detail: {
         tags: ["audit"],

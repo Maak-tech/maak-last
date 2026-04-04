@@ -256,12 +256,12 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
               t.Literal("assistant"),
               t.Literal("system"),
             ]),
-            content: t.String(),
+            content: t.String({ maxLength: 10000 }),
           })
         ),
-        model: t.Optional(t.String()),
-        temperature: t.Optional(t.Number()),
-        maxTokens: t.Optional(t.Number()),
+        model: t.Optional(t.String({ maxLength: 100 })),
+        temperature: t.Optional(t.Number({ minimum: 0, maximum: 2 })),
+        maxTokens: t.Optional(t.Number({ minimum: 1, maximum: 16000 })),
         usePremiumKey: t.Optional(t.Boolean()), // accepted for API compatibility, single key on server
       }),
       detail: {

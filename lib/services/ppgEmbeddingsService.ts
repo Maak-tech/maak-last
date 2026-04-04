@@ -92,8 +92,8 @@ export const ppgEmbeddingsService = {
         confidence: meta.confidence ?? null,
         capturedAt: new Date().toISOString(),
       })
-      .catch(() => {
-        // Silently fail — embedding persistence is best-effort
+      .catch((err: unknown) => {
+        console.warn('[ppgEmbeddings] Failed to persist embedding:', err);
       });
   },
 
@@ -110,7 +110,7 @@ export const ppgEmbeddingsService = {
       )
       .catch(() => [] as Record<string, unknown>[]);
 
-    return (raw ?? []).map((d) => ({
+    return (Array.isArray(raw) ? raw : []).map((d) => ({
       id: d.id as string,
       embeddings: (d.embeddings as number[]) ?? [],
       heartRate: d.heartRate as number | undefined,
@@ -150,7 +150,8 @@ export const ppgEmbeddingsService = {
         isAnomaly: similarity < ANOMALY_THRESHOLD,
         baselineCount: baselineVectors.length,
       };
-    } catch {
+    } catch (err) {
+      console.warn('[ppgEmbeddings] compareWithBaseline failed:', err);
       return null;
     }
   },

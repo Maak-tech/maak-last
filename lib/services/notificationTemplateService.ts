@@ -174,7 +174,8 @@ class NotificationTemplateService {
         `/api/notifications/templates/${encodeURIComponent(orgId)}/${type}/${channel}`
       ) as RawTemplateRow;
       return mapRow(row);
-    } catch {
+    } catch (err) {
+      console.warn('[notificationTemplate] getTemplate failed, using default:', err);
       return defaultTemplate(orgId, type, channel);
     }
   }

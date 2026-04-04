@@ -163,7 +163,8 @@ export default function GeneticsScreen() {
             try {
               await geneticsService.updateConsent(next);
               setProfile((p) => p ? { ...p, familySharingConsent: next } : p);
-            } catch {
+            } catch (err) {
+              console.warn('[genetics] Failed to update consent:', err);
               Alert.alert(isRTL ? "خطأ" : "Error", isRTL ? "تعذّر تحديث الإعداد" : "Failed to update preference");
             }
           },

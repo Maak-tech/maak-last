@@ -92,7 +92,8 @@ class OpenAIService {
       // hasAccess is true whenever configured — subscription gating is done at the route level
       this.cachedHealth = { configured, hasAccess: configured, checkedAtMs: now };
       return { configured, hasAccess: configured };
-    } catch {
+    } catch (err) {
+      console.warn('[openai] Health check failed:', err);
       this.cachedHealth = { configured: false, hasAccess: false, checkedAtMs: now };
       return { configured: false, hasAccess: false };
     }

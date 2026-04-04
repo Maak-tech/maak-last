@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { v4 as uuidv4 } from 'uuid'
 import { query, queryOne } from '../lib/db.js'
 import { writeAudit } from '../lib/audit.js'
-import { encrypt, decrypt } from '../lib/encryption.js'
+import { encrypt, decrypt, hmac } from '../lib/encryption.js'
 import { CompreFaceProvider } from '../lib/biometric/CompreFaceProvider.js'
 import { jwtAuth, requireRole } from '../middleware/jwtAuth.js'
 
@@ -23,6 +23,17 @@ enrollRoutes.post('/enroll', jwtAuth, requireRole('doctor', 'nurse', 'admin'), a
   }
   if (!imageFile || !patientId) {
     return c.json({ error: 'Missing patientId or image' }, 400)
+  }
+
+  // Validate image size (max 5 MB) — same guard as recognize.ts
+  if (imageFile.size > 5 * 1024 * 1024) {
+    return c.json({ error: 'Image too large. Maximum size is 5 MB.' }, 400)
+  }
+
+  // Validate MIME type to reject non-image uploads
+  const mime = imageFile.type
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(mime)) {
+    return c.json({ error: 'Invalid image format. Use JPEG, PNG, or WebP.' }, 400)
   }
 
   // Verify patient exists
@@ -54,9 +65,9 @@ enrollRoutes.post('/enroll', jwtAuth, requireRole('doctor', 'nurse', 'admin'), a
 
   const enrollmentId = uuidv4()
   await query(
-    `INSERT INTO biometric_enrollments (id, patient_id, compreface_subject_id, enrolled_by, is_active, enrolled_at)
-     VALUES ($1, $2, $3, $4, true, now())`,
-    [enrollmentId, patientId, encrypt(subjectId), staff.staffId]
+    `INSERT INTO biometric_enrollments (id, patient_id, compreface_subject_id, subject_id_hmac, enrolled_by, is_active, enrolled_at)
+     VALUES ($1, $2, $3, $4, $5, true, now())`,
+    [enrollmentId, patientId, encrypt(subjectId), hmac(subjectId), staff.staffId]
   )
 
   // Store consent record
@@ -85,7 +96,17 @@ enrollRoutes.delete('/enroll/:patientId', jwtAuth, requireRole('doctor', 'admin'
 
   const subjectId = decrypt(enrollment.compreface_subject_id)
 
-  await compreface.deleteSubject(subjectId)
+  // Attempt to delete the face embedding from CompreFace.
+  // Even if this fails (CompreFace unreachable, subject already removed, etc.)
+  // we MUST still deactivate the DB row — otherwise the patient remains
+  // "enrolled" in our system but with a stale/deleted embedding.
+  try {
+    await compreface.deleteSubject(subjectId)
+  } catch (err) {
+    // Log but do not re-throw — revocation of the DB record must proceed.
+    // An admin can manually clean up the CompreFace subject later if needed.
+    console.error('[enroll] CompreFace deleteSubject failed (DB enrollment will still be deactivated):', err)
+  }
 
   await query(
     'UPDATE biometric_enrollments SET is_active = false, deactivated_at = now() WHERE id = $1',

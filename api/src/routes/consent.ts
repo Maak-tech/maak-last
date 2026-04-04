@@ -79,9 +79,9 @@ export const consentRoutes = new Elysia({ prefix: "/api/consent" })
         userId: t.String(),
         orgId: t.String(),
         grantedBy: t.Optional(t.String()),
-        grantMethod: t.String(),
-        scope: t.Optional(t.Array(t.String())),
-        version: t.Optional(t.String()),
+        grantMethod: t.String({ maxLength: 100 }),
+        scope: t.Optional(t.Array(t.String({ maxLength: 100 }), { maxItems: 50 })),
+        version: t.Optional(t.String({ maxLength: 20 })),
       }),
       detail: { tags: ["consent"], summary: "Grant consent for an org to access patient data" },
     }
@@ -189,7 +189,7 @@ export const consentRoutes = new Elysia({ prefix: "/api/consent" })
       body: t.Object({
         isActive: t.Optional(t.Boolean()),
         revokedBy: t.Optional(t.String()),
-        scope: t.Optional(t.Array(t.String())),
+        scope: t.Optional(t.Array(t.String({ maxLength: 100 }), { maxItems: 50 })),
       }),
       detail: { tags: ["consent"], summary: "Revoke or update scope of active consent" },
     }

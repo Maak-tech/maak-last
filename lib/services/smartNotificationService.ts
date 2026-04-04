@@ -283,7 +283,8 @@ class SmartNotificationService {
       const { userService } = await import("./userService");
       const user = await userService.getUser(userId);
       return user?.preferences?.notifications ?? null;
-    } catch {
+    } catch (err) {
+      console.warn('[smartNotification] getUserNotificationSettings failed:', err);
       return null;
     }
   }
@@ -3179,7 +3180,8 @@ class SmartNotificationService {
 
       // Limit to prevent notification overload (max 5 per day)
       return notifications.slice(0, 5);
-    } catch (_error) {
+    } catch (err) {
+      console.warn('[smartNotification] generateDailyInteractiveNotifications failed:', err);
       return [];
     }
   }
@@ -3226,7 +3228,8 @@ class SmartNotificationService {
         lastVitalChecks,
         achievements,
       };
-    } catch (_error) {
+    } catch (err) {
+      console.warn('[smartNotification] getUserStats failed:', err);
       // Return default stats for new users (0 days inactive, no activity yet)
       return {
         currentStreak: 0,
@@ -3651,7 +3654,8 @@ class SmartNotificationService {
       const { userService } = await import("./userService");
       const user = await userService.getUser(userId);
       return user?.role || "member";
-    } catch {
+    } catch (err) {
+      console.warn('[smartNotification] getUserRole failed:', err);
       return "member";
     }
   }
@@ -3765,7 +3769,8 @@ class SmartNotificationService {
         eventTypes: ["medication_taken", "medication_missed"],
         limitCount: 300,
       });
-    } catch {
+    } catch (err) {
+      console.warn('[smartNotification] getRecentMedicationEvents failed:', err);
       return [];
     }
   }
@@ -3777,7 +3782,8 @@ class SmartNotificationService {
       // Use your existing symptom service
       const { symptomService } = await import("./symptomService");
       return await symptomService.getUserSymptoms(userId, 30) as unknown as Record<string, unknown>[]; // Last 30 days
-    } catch {
+    } catch (err) {
+      console.warn('[smartNotification] getUserSymptoms failed:', err);
       return [];
     }
   }
@@ -3787,7 +3793,8 @@ class SmartNotificationService {
       // Use your existing medication service
       const { medicationService } = await import("./medicationService");
       return await medicationService.getUserMedications(userId);
-    } catch {
+    } catch (err) {
+      console.warn('[smartNotification] getUserMedications failed:', err);
       return [];
     }
   }
@@ -3799,7 +3806,8 @@ class SmartNotificationService {
       // Use your existing mood service
       const { moodService } = await import("./moodService");
       return await moodService.getUserMoods(userId, 30) as unknown as Record<string, unknown>[]; // Last 30 days
-    } catch {
+    } catch (err) {
+      console.warn('[smartNotification] getUserMoods failed:', err);
       return [];
     }
   }

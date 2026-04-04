@@ -361,8 +361,9 @@ async function tryMlServiceForecast(
 
     if (!res.ok) return null;
     return (await res.json()) as ForecastResult;
-  } catch {
-    // ML service unavailable or timed out — use rule-based fallback silently
+  } catch (err) {
+    // ML service unavailable or timed out — rule-based fallback will be used
+    console.warn('[forecastCycle] callForecastEndpoint failed (ML unavailable or timeout):', err instanceof Error ? err.message : err);
     return null;
   }
 }

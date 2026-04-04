@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { api, type StaffInfo } from '@/lib/api'
+import { useAutoLogout } from '@/lib/useAutoLogout'
 
 type Step = 'search' | 'capture' | 'consent' | 'submitting' | 'done' | 'error'
 
@@ -10,6 +11,7 @@ interface Patient { id: string; name: string }
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 export default function EnrollPage() {
+  useAutoLogout()  // HIPAA §164.312(a)(1): auto-logout after 15 minutes of inactivity
   const router = useRouter()
   const [step, setStep] = useState<Step>('search')
   const [searchQuery, setSearchQuery] = useState('')
@@ -103,6 +105,7 @@ export default function EnrollPage() {
         method: 'POST',
         headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: formData,
+        signal: AbortSignal.timeout(30_000), // 30 s — image upload + CompreFace round-trip
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: 'Enrollment failed' }))

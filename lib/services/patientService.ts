@@ -32,7 +32,8 @@ export const patientService = {
         dateOfBirth: profile.dateOfBirth ? new Date(profile.dateOfBirth) : undefined,
         bloodType: profile.bloodType,
       };
-    } catch {
+    } catch (err) {
+      console.warn('[patient] getPatientByUserId failed:', err);
       return null;
     }
   },

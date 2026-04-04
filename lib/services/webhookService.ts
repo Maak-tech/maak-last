@@ -103,7 +103,7 @@ class WebhookService {
    */
   async listEndpoints(orgId: string): Promise<WebhookEndpoint[]> {
     const rows = await api.get<Record<string, unknown>[]>(`/api/org/${orgId}/webhooks`);
-    return (rows ?? []).map(mapEndpoint);
+    return (Array.isArray(rows) ? rows : []).map(mapEndpoint);
   }
 
   /**
@@ -172,7 +172,7 @@ class WebhookService {
     const rows = await api.get<Record<string, unknown>[]>(
       `/api/org/${orgId}/webhooks/${webhookId}/deliveries?limit=${maxResults}`
     );
-    return (rows ?? []).map(mapDelivery);
+    return (Array.isArray(rows) ? rows : []).map(mapDelivery);
   }
 
   /**

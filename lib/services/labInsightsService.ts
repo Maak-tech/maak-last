@@ -346,8 +346,8 @@ export async function analyzeLabResults(
         if (response?.narrativeAr && typeof response.narrativeAr === "string") {
           aiNarrativeAr = response.narrativeAr;
         }
-      } catch {
-        // Use default narrative
+      } catch (err) {
+        console.warn('[labInsights] AI narrative generation failed, using default:', err);
       }
     }
 
