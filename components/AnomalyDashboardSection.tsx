@@ -50,12 +50,12 @@ export default function AnomalyDashboardSection({ onlyWhenActive = false }: Anom
       since.setHours(since.getHours() - 24);
       const raw = await api.get<VitalAnomaly[]>(
         `/api/health/anomalies?from=${since.toISOString()}&limit=10`
-      ).catch(() => []);
+      ).catch((err) => { console.warn('[AnomalyDashboardSection] Failed to fetch anomaly history:', err); return [] as VitalAnomaly[]; });
       const active = (Array.isArray(raw) ? raw : []).filter(
         (a) => !a.isAcknowledged && !a.acknowledged
       );
       setAnomalies(active);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[AnomalyDashboardSection] Failed to load recent anomalies:', err);
     }
   }, [user?.id]);
@@ -76,7 +76,9 @@ export default function AnomalyDashboardSection({ onlyWhenActive = false }: Anom
   const handleDismiss = useCallback(async (anomalyId: string) => {
     setAnomalies((prev) => prev.filter((a) => a.id !== anomalyId));
     if (user?.id) {
-      await anomalyDetectionService.acknowledgeAnomaly(user.id, anomalyId).catch(() => {});
+      await anomalyDetectionService.acknowledgeAnomaly(user.id, anomalyId).catch((err) => {
+        console.warn('[AnomalyDashboardSection] Failed to acknowledge anomaly:', err);
+      });
     }
   }, [user?.id]);
 

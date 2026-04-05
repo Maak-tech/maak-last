@@ -32,7 +32,7 @@ export const revenueCatService = {
   async getCustomerInfo(): Promise<CustomerInfo | null> {
     try {
       return await Purchases.getCustomerInfo();
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[revenueCat] getCustomerInfo failed:', err);
       return null;
     }
@@ -41,7 +41,7 @@ export const revenueCatService = {
   async getOfferings(): Promise<PurchasesOfferings | null> {
     try {
       return await Purchases.getOfferings();
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[revenueCat] getOfferings failed:', err);
       return null;
     }
@@ -84,7 +84,7 @@ export const revenueCatService = {
         expirationDate,
         subscriptionPeriod,
       };
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[revenueCat] getSubscriptionStatus failed:', err);
       return null;
     }

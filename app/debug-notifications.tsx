@@ -35,7 +35,7 @@ export default function DebugNotificationsScreen() {
 
       setLastTest('Direct local notification sent');
       console.log('✅ Direct local notification sent');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ Local notification failed:', error);
       setLastTest(`Error: ${error}`);
     }
@@ -52,7 +52,7 @@ export default function DebugNotificationsScreen() {
       await pushNotificationService.sendTestNotification(user.id, user.name);
       setLastTest('Service notification sent');
       console.log('✅ Service notification sent');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ Service notification failed:', error);
       setLastTest(`Error: ${error}`);
     }
@@ -69,7 +69,7 @@ export default function DebugNotificationsScreen() {
       const alertId = await alertService.createFallAlert(user.id);
       setLastTest(`Fall alert created: ${alertId}`);
       console.log('✅ Fall alert created:', alertId);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ Fall alert failed:', error);
       setLastTest(`Error: ${error}`);
     }
@@ -81,7 +81,7 @@ export default function DebugNotificationsScreen() {
       const isAvailable = await fcmService.isFCMAvailable();
       setLastTest(`FCM Available: ${isAvailable}`);
       console.log('📱 FCM Available:', isAvailable);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ FCM availability check failed:', error);
       setLastTest(`Error: ${error}`);
     }
@@ -98,7 +98,7 @@ export default function DebugNotificationsScreen() {
       const tokenResult = await fcmService.getFCMToken();
       setLastTest(`FCM Token: ${JSON.stringify(tokenResult, null, 2)}`);
       console.log('📱 FCM Token result:', tokenResult);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ FCM token failed:', error);
       setLastTest(`Error: ${error}`);
     }
@@ -115,7 +115,7 @@ export default function DebugNotificationsScreen() {
       const success = await fcmService.initializeFCM(user.id);
       setLastTest(`FCM Initialized: ${success}`);
       console.log('📱 FCM Initialized:', success);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ FCM initialization failed:', error);
       setLastTest(`Error: ${error}`);
     }
@@ -136,7 +136,7 @@ export default function DebugNotificationsScreen() {
           `Permission requested: ${JSON.stringify(request, null, 2)}`
         );
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ Permission check failed:', error);
       setLastTest(`Error: ${error}`);
     }

@@ -185,7 +185,7 @@ export default function OrgDashboardScreen() {
       Alert.alert("Enrolled", "Patient has been added to your roster.", [
         { text: "OK", onPress: () => refresh() },
       ]);
-    } catch (err) {
+    } catch (err: unknown) {
       Alert.alert(
         "Error",
         err instanceof Error ? err.message : "Failed to enroll patient."

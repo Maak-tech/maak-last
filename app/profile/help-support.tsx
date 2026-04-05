@@ -37,13 +37,13 @@ export default function HelpSupportScreen() {
   const handleContactMethod = (method: string, value: string) => {
     switch (method) {
       case 'phone':
-        Linking.openURL(`tel:${value}`);
+        Linking.openURL(`tel:${value}`).catch((err) => console.warn('[help-support] Failed to open phone URL:', err));
         break;
       case 'email':
-        Linking.openURL(`mailto:${value}`);
+        Linking.openURL(`mailto:${value}`).catch((err) => console.warn('[help-support] Failed to open email URL:', err));
         break;
       case 'website':
-        Linking.openURL(value);
+        Linking.openURL(value).catch((err) => console.warn('[help-support] Failed to open website URL:', err));
         break;
       default:
         Alert.alert(

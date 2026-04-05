@@ -13,6 +13,7 @@ import {
   Stethoscope,
   User,
 } from "lucide-react-native";
+import type { LucideIcon } from "lucide-react-native";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -52,7 +53,7 @@ interface VHISummary {
 }
 
 interface StatCard {
-  icon: any;
+  icon: LucideIcon;
   iconColor: string;
   label: string;
   value: string | number;
@@ -95,9 +96,9 @@ export default function HealthSummaryScreen() {
     if (!user) return;
     if (!isRefresh) setLoading(true);
     try {
-      const data = await api.get<VHISummary>("/api/vhi");
+      const data = await api.get<VHISummary>("/api/vhi/me");
       setVhi(data);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[health-summary] Failed to load VHI:', err);
     } finally {
       setLoading(false);
@@ -205,7 +206,7 @@ export default function HealthSummaryScreen() {
                 iconColor="#06B6D4"
                 label={isRTL ? "البيانات الجينية" : "Genetic Data"}
                 value={genetic?.hasGeneticData ? (isRTL ? "متاح" : "Available") : (isRTL ? "غير متاح" : "None")}
-                onPress={() => router.push("/profile/genetics" as any)}
+                onPress={() => router.push({ pathname: '/profile/genetics' })}
               />
             </View>
           )}
@@ -220,7 +221,7 @@ export default function HealthSummaryScreen() {
                 </Text>
               </View>
               {care!.activeConditions!.map((c, i) => (
-                <View key={i} style={styles.listRow}>
+                <View key={`condition-${c}-${i}`} style={styles.listRow}>
                   <View style={[styles.bullet, { backgroundColor: theme.colors.primary.main }]} />
                   <Text style={[styles.listText, { color: theme.colors.text.primary }]}>{c}</Text>
                 </View>
@@ -238,7 +239,7 @@ export default function HealthSummaryScreen() {
                 </Text>
               </View>
               {care!.activeMedications!.map((med, i) => (
-                <View key={i} style={styles.medRow}>
+                <View key={`med-${med.name}-${i}`} style={styles.medRow}>
                   <Text style={[styles.listText, { color: theme.colors.text.primary }]}>{med.name}</Text>
                   <View style={[styles.adherenceBadge, { backgroundColor: med.adherence >= 0.8 ? "#10B98115" : "#F59E0B15" }]}>
                     <Text style={[styles.adherenceText, { color: med.adherence >= 0.8 ? "#10B981" : "#F59E0B" }]}>
@@ -260,7 +261,7 @@ export default function HealthSummaryScreen() {
                 </Text>
               </View>
               {care!.pendingFollowUps!.map((f, i) => (
-                <View key={i} style={styles.listRow}>
+                <View key={`followup-${i}-${f.slice(0, 20)}`} style={styles.listRow}>
                   <CheckCircle color="#F59E0B" size={14} />
                   <Text style={[styles.listText, { color: theme.colors.text.primary }]}>{f}</Text>
                 </View>

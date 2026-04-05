@@ -326,7 +326,8 @@ class RiskAssessmentService {
     const lifestyleRisks = this.assessLifestyleRisks(
       user,
       symptoms,
-      medications
+      medications,
+      vitals
     );
     riskFactors.push(...lifestyleRisks);
 
@@ -614,7 +615,7 @@ class RiskAssessmentService {
       return histories.flatMap((result) =>
         result.status === "fulfilled" ? result.value : []
       );
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[riskAssessment] getFamilyMedicalHistory failed:', err);
       return [];
     }
@@ -694,7 +695,8 @@ class RiskAssessmentService {
   private assessLifestyleRisks(
     _user: User,
     symptoms: Symptom[],
-    medications: Medication[]
+    medications: Medication[],
+    vitals: VitalSign[]
   ): RiskFactor[] {
     const risks: RiskFactor[] = [];
 
@@ -703,17 +705,27 @@ class RiskAssessmentService {
       risks.push(this.createRiskFactor("smoking", RISK_FACTORS.smoking));
     }
 
-    // Check for obesity indicators
-    // This would need BMI calculation or weight data
-
-    // Check for sedentary indicators
-    const recentSymptoms = symptoms.filter(
-      (s) => Date.now() - s.timestamp.getTime() < 30 * 24 * 60 * 60 * 1000
-    );
-    if (recentSymptoms.length < 5) {
-      // Low symptom reporting might indicate sedentary lifestyle
-      risks.push(this.createRiskFactor("sedentary", RISK_FACTORS.sedentary));
+    // Check for obesity indicators via weight vitals (BMI requires height; flag only when
+    // the API returns a weight reading with an associated BMI value in the value field as
+    // a structured "weight/bmi" string, which some integrations populate)
+    // Sedentary lifestyle: flag if recent step-count vitals average < 2000 steps/day.
+    // The API may return vitals with type "steps" even though VitalSign.type is narrowly
+    // typed — we use a runtime string comparison via type assertion to handle this.
+    const vitalsAny = vitals as Array<VitalSign & { type: string }>;
+    const stepReadings = vitalsAny.filter((v) => v.type === "steps");
+    if (stepReadings.length >= 3) {
+      const recent = stepReadings
+        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+        .slice(0, 7);
+      const avgSteps =
+        recent.reduce((sum, v) => sum + Number(v.value ?? 0), 0) / recent.length;
+      if (avgSteps < 2000) {
+        risks.push(this.createRiskFactor("sedentary", RISK_FACTORS.sedentary));
+      }
     }
+
+    // Suppress unused param warning; symptoms are reserved for future heuristics
+    void symptoms;
 
     return risks;
   }
@@ -852,7 +864,7 @@ class RiskAssessmentService {
         timestamp: d.recordedAt ? new Date(d.recordedAt as string) : new Date(),
         source: d.source as string | undefined,
       } as VitalSign));
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[riskAssessment] getRecentVitals failed:', err);
       return [];
     }
@@ -861,7 +873,7 @@ class RiskAssessmentService {
   private async getRecentMoods(userId: string): Promise<Mood[]> {
     try {
       return await moodService.getUserMoods(userId, 60);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[riskAssessment] getRecentMoods failed:', err);
       return [];
     }

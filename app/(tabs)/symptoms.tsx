@@ -135,7 +135,7 @@ export default function TrackScreen() {
         setSymptoms(userSymptoms);
         setStats(symptomStats);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading symptoms:', error);
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
@@ -255,7 +255,7 @@ export default function TrackScreen() {
           ? 'Symptom updated successfully'
           : 'Symptom logged successfully'
       );
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving symptom:', error);
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
@@ -340,7 +340,7 @@ export default function TrackScreen() {
                 isRTL ? 'تم الحذف' : 'Deleted',
                 isRTL ? 'تم حذف العرض بنجاح' : 'Symptom deleted successfully'
               );
-            } catch (error) {
+            } catch (error: unknown) {
               console.error('Error deleting symptom:', error);
               Alert.alert(
                 isRTL ? 'خطأ' : 'Error',

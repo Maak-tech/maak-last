@@ -86,12 +86,15 @@ export const ppgMLService = {
       if (data.success) {
         // Persist embeddings for longitudinal cardiac fingerprinting (fire-and-forget)
         if (data.embeddings && data.embeddings.length > 0 && userId) {
+          // Fire-and-forget: embedding persistence must not block the PPG result
           ppgEmbeddingsService.persist(userId, data.embeddings, {
             heartRate: data.heartRate,
             hrv: data.heartRateVariability,
             respiratoryRate: data.respiratoryRate,
             signalQuality: data.signalQuality,
             confidence: data.confidence,
+          }).catch((err) => {
+            console.warn('[ppg] Failed to persist embeddings (non-fatal):', err);
           });
         }
         return {

@@ -79,7 +79,7 @@ async function runOutcomeResolverCycle() {
       });
 
       resolved++;
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(
         `[outcomeResolver] Error resolving outcome for user ${event.userId}:`,
         err

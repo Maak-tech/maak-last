@@ -232,8 +232,8 @@ export const periodService = {
         },
       });
       return `offline_${operationId}`;
-    } catch (error) {
-      throw new Error(`Failed to add period entry: ${error}`);
+    } catch (error: unknown) {
+      throw new Error(`Failed to add period entry: ${error instanceof Error ? error.message : String(error)}`);
     }
   },
 
@@ -247,8 +247,8 @@ export const periodService = {
         `/api/health/period-entries?limit=${limitCount}`
       );
       return (Array.isArray(raw) ? raw : []).map(normalizeEntry);
-    } catch (error) {
-      throw new Error(`Failed to get period entries: ${error}`);
+    } catch (error: unknown) {
+      throw new Error(`Failed to get period entries: ${error instanceof Error ? error.message : String(error)}`);
     }
   },
 
@@ -267,8 +267,8 @@ export const periodService = {
       if (updates.notes !== undefined) body.notes = updates.notes;
 
       await api.patch(`/api/health/period-entries/${entryId}`, body);
-    } catch (error) {
-      throw new Error(`Failed to update period entry: ${error}`);
+    } catch (error: unknown) {
+      throw new Error(`Failed to update period entry: ${error instanceof Error ? error.message : String(error)}`);
     }
   },
 
@@ -276,8 +276,8 @@ export const periodService = {
   async deletePeriodEntry(entryId: string): Promise<void> {
     try {
       await api.delete(`/api/health/period-entries/${entryId}`);
-    } catch (error) {
-      throw new Error(`Failed to delete period entry: ${error}`);
+    } catch (error: unknown) {
+      throw new Error(`Failed to delete period entry: ${error instanceof Error ? error.message : String(error)}`);
     }
   },
 
@@ -335,8 +335,8 @@ export const periodService = {
         cycleLengthStdDev: roundTo1Decimal(cycleLengthStdDev),
         updatedAt: new Date(),
       };
-    } catch (error) {
-      throw new Error(`Failed to get cycle info: ${error}`);
+    } catch (error: unknown) {
+      throw new Error(`Failed to get cycle info: ${error instanceof Error ? error.message : String(error)}`);
     }
   },
 

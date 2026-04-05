@@ -83,7 +83,7 @@ export default function NotificationSettingsScreen() {
           ...(userData.preferences.notifications as unknown as Partial<NotificationSettings>),
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading notification settings:', error);
     } finally {
       setLoading(false);
@@ -94,13 +94,15 @@ export default function NotificationSettingsScreen() {
     if (!user) return;
 
     try {
-      await api.patch("/api/user/notification-preferences", { preferences: settings }).catch(() => {});
+      await api.patch("/api/user/notification-preferences", { preferences: settings }).catch((err) => {
+        console.warn('[notification-settings] Failed to persist preferences to API:', err instanceof Error ? err.message : String(err));
+      });
 
       // Also update locally
       await userService.updateUser(user.id, {
         preferences: {
           ...user.preferences,
-          notifications: settings as unknown as boolean,
+          notifications: settings,
         },
       });
 
@@ -111,7 +113,7 @@ export default function NotificationSettingsScreen() {
           : 'Notification settings saved successfully',
         [{ text: isRTL ? 'موافق' : 'OK' }]
       );
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving settings:', error);
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',

@@ -2,12 +2,17 @@ import { Elysia, t } from "elysia";
 import { and, desc, eq, gte, inArray, isNull, lte } from "drizzle-orm";
 import crypto from "node:crypto";
 import { requireAuth } from "../middleware/requireAuth";
-import { vitals, symptoms, medications, medicationReminders, moods, labResults, allergies, medicalHistory, familyMembers, users, periodCycles, cycleDailyEntries, healthTimeline, ppgEmbeddings, escalations, anomalies, medicationAdherence } from "../db/schema";
+import { vitals, symptoms, medications, medicationReminders, moods, labResults, allergies, medicalHistory, familyMembers, periodCycles, cycleDailyEntries, healthTimeline, ppgEmbeddings, escalations, anomalies, medicationAdherence } from "../db/schema";
 import type { Database } from "../db";
 
+// Reusable ISO 8601 date-string type.
+// Elysia/TypeBox validates this at the schema layer (before the handler runs),
+// so handlers never receive an invalid date string — no per-handler isNaN() guards needed.
+const IsoDateString = t.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}" });
+
 const DateRangeQuery = t.Object({
-  from: t.Optional(t.String()),
-  to: t.Optional(t.String()),
+  from: t.Optional(IsoDateString),
+  to: t.Optional(IsoDateString),
   limit: t.Optional(t.Numeric()),
 });
 
@@ -94,7 +99,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
         valueSecondary: t.Optional(t.Number({ minimum: -1000, maximum: 1_000_000 })),
         unit: t.Optional(t.String({ maxLength: 20 })),
         source: t.Optional(t.String({ maxLength: 50 })),
-        recordedAt: t.String(),
+        recordedAt: IsoDateString,
         metadata: t.Optional(t.Any()),
       }),
       detail: { tags: ["health"], summary: "Log a vital reading" },
@@ -131,7 +136,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
             valueSecondary: t.Optional(t.Number({ minimum: -1000, maximum: 1_000_000 })),
             unit: t.Optional(t.String({ maxLength: 20 })),
             source: t.Optional(t.String({ maxLength: 50 })),
-            recordedAt: t.String(),
+            recordedAt: IsoDateString,
             metadata: t.Optional(t.Any()),
           }),
           { maxItems: 1000 }
@@ -194,7 +199,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
         notes: t.Optional(t.String({ maxLength: 2000 })),
         triggers: t.Optional(t.Array(t.String({ maxLength: 100 }), { maxItems: 50 })),
         tags: t.Optional(t.Array(t.String({ maxLength: 50 }), { maxItems: 50 })),
-        recordedAt: t.String(),
+        recordedAt: IsoDateString,
       }),
       detail: { tags: ["health"], summary: "Log a symptom" },
     }
@@ -246,8 +251,8 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
         dosage: t.Optional(t.String({ maxLength: 100 })),
         frequency: t.Optional(t.String({ maxLength: 100 })),
         instructions: t.Optional(t.String({ maxLength: 2000 })),
-        startDate: t.Optional(t.String()),
-        endDate: t.Optional(t.String()),
+        startDate: t.Optional(IsoDateString),
+        endDate: t.Optional(IsoDateString),
         reminders: t.Optional(t.Any()),
         tags: t.Optional(t.Array(t.String({ maxLength: 50 }), { maxItems: 50 })),
         quantity: t.Optional(t.Number({ minimum: 0, maximum: 10000 })),
@@ -345,12 +350,12 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     },
     {
       body: t.Object({
-        type: t.String(),
+        type: t.String({ maxLength: 100 }),
         userId: t.Optional(t.String()),
-        intensity: t.Optional(t.Number()),
-        notes: t.Optional(t.String()),
-        activities: t.Optional(t.Array(t.String())),
-        recordedAt: t.String(),
+        intensity: t.Optional(t.Number({ minimum: 1, maximum: 10 })),
+        notes: t.Optional(t.String({ maxLength: 2000 })),
+        activities: t.Optional(t.Array(t.String({ maxLength: 100 }), { maxItems: 50 })),
+        recordedAt: IsoDateString,
       }),
       detail: { tags: ["health"], summary: "Log a mood" },
     }
@@ -379,8 +384,8 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     {
       query: t.Object({
         userId: t.Optional(t.String()),
-        from: t.Optional(t.String()),
-        to: t.Optional(t.String()),
+        from: t.Optional(IsoDateString),
+        to: t.Optional(IsoDateString),
         limit: t.Optional(t.Numeric()),
       }),
       detail: { tags: ["health"], summary: "Get lab results (own or family member's with admin access)" },
@@ -429,12 +434,12 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     {
       params: t.Object({ id: t.String() }),
       body: t.Object({
-        type: t.Optional(t.String()),
-        severity: t.Optional(t.Number()),
-        location: t.Optional(t.String()),
-        notes: t.Optional(t.String()),
-        triggers: t.Optional(t.Array(t.String())),
-        tags: t.Optional(t.Array(t.String())),
+        type: t.Optional(t.String({ maxLength: 100 })),
+        severity: t.Optional(t.Number({ minimum: 1, maximum: 10 })),
+        location: t.Optional(t.String({ maxLength: 255 })),
+        notes: t.Optional(t.String({ maxLength: 2000 })),
+        triggers: t.Optional(t.Array(t.String({ maxLength: 100 }), { maxItems: 50 })),
+        tags: t.Optional(t.Array(t.String({ maxLength: 50 }), { maxItems: 50 })),
       }),
       detail: { tags: ["health"], summary: "Update a symptom" },
     }
@@ -548,17 +553,17 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     {
       params: t.Object({ id: t.String() }),
       body: t.Object({
-        name: t.Optional(t.String()),
-        dosage: t.Optional(t.String()),
-        frequency: t.Optional(t.String()),
-        instructions: t.Optional(t.String()),
+        name: t.Optional(t.String({ maxLength: 255 })),
+        dosage: t.Optional(t.String({ maxLength: 100 })),
+        frequency: t.Optional(t.String({ maxLength: 100 })),
+        instructions: t.Optional(t.String({ maxLength: 2000 })),
         isActive: t.Optional(t.Boolean()),
-        startDate: t.Optional(t.String()),
-        endDate: t.Optional(t.Nullable(t.String())),
+        startDate: t.Optional(IsoDateString),
+        endDate: t.Optional(t.Nullable(IsoDateString)),
         reminders: t.Optional(t.Any()),
-        tags: t.Optional(t.Array(t.String())),
-        quantity: t.Optional(t.Number()),
-        notes: t.Optional(t.String()),
+        tags: t.Optional(t.Array(t.String({ maxLength: 50 }), { maxItems: 50 })),
+        quantity: t.Optional(t.Number({ minimum: 0 })),
+        notes: t.Optional(t.String({ maxLength: 2000 })),
       }),
       detail: { tags: ["health"], summary: "Update a medication" },
     }
@@ -700,10 +705,10 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     {
       params: t.Object({ id: t.String() }),
       body: t.Object({
-        type: t.Optional(t.String()),
-        intensity: t.Optional(t.Number()),
-        notes: t.Optional(t.String()),
-        activities: t.Optional(t.Array(t.String())),
+        type: t.Optional(t.String({ maxLength: 100 })),
+        intensity: t.Optional(t.Number({ minimum: 1, maximum: 10 })),
+        notes: t.Optional(t.String({ maxLength: 2000 })),
+        activities: t.Optional(t.Array(t.String({ maxLength: 100 }), { maxItems: 50 })),
       }),
       detail: { tags: ["health"], summary: "Update a mood entry" },
     }
@@ -790,12 +795,12 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     },
     {
       body: t.Object({
-        name: t.String(),
+        name: t.String({ maxLength: 255 }),
         userId: t.Optional(t.String()),
-        severity: t.Optional(t.String()),
-        reaction: t.Optional(t.String()),
-        discoveredDate: t.Optional(t.String()),
-        notes: t.Optional(t.String()),
+        severity: t.Optional(t.String({ maxLength: 50 })),
+        reaction: t.Optional(t.String({ maxLength: 1000 })),
+        discoveredDate: t.Optional(IsoDateString),
+        notes: t.Optional(t.String({ maxLength: 2000 })),
       }),
       detail: { tags: ["health"], summary: "Add an allergy" },
     }
@@ -821,11 +826,11 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     {
       params: t.Object({ id: t.String() }),
       body: t.Object({
-        name: t.Optional(t.String()),
-        reaction: t.Optional(t.String()),
-        severity: t.Optional(t.String()),
-        discoveredDate: t.Optional(t.Nullable(t.String())),
-        notes: t.Optional(t.String()),
+        name: t.Optional(t.String({ maxLength: 255 })),
+        reaction: t.Optional(t.String({ maxLength: 1000 })),
+        severity: t.Optional(t.String({ maxLength: 50 })),
+        discoveredDate: t.Optional(t.Nullable(IsoDateString)),
+        notes: t.Optional(t.String({ maxLength: 2000 })),
       }),
       detail: { tags: ["health"], summary: "Update an allergy" },
     }
@@ -868,13 +873,13 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     },
     {
       body: t.Object({
-        testName: t.String(),
-        testType: t.Optional(t.String()),
-        testDate: t.String(),
-        orderedBy: t.Optional(t.String()),
-        facility: t.Optional(t.String()),
+        testName: t.String({ maxLength: 255 }),
+        testType: t.Optional(t.String({ maxLength: 100 })),
+        testDate: IsoDateString,
+        orderedBy: t.Optional(t.String({ maxLength: 255 })),
+        facility: t.Optional(t.String({ maxLength: 255 })),
         results: t.Optional(t.Any()),
-        notes: t.Optional(t.String()),
+        notes: t.Optional(t.String({ maxLength: 5000 })),
         tags: t.Optional(t.Array(t.String())),
       }),
       detail: { tags: ["health"], summary: "Add a lab result" },
@@ -918,14 +923,14 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     {
       params: t.Object({ id: t.String() }),
       body: t.Object({
-        testName: t.Optional(t.String()),
-        testType: t.Optional(t.String()),
-        testDate: t.Optional(t.String()),
-        orderedBy: t.Optional(t.String()),
-        facility: t.Optional(t.String()),
+        testName: t.Optional(t.String({ maxLength: 255 })),
+        testType: t.Optional(t.String({ maxLength: 100 })),
+        testDate: t.Optional(IsoDateString),
+        orderedBy: t.Optional(t.String({ maxLength: 255 })),
+        facility: t.Optional(t.String({ maxLength: 255 })),
         results: t.Optional(t.Any()),
-        notes: t.Optional(t.String()),
-        tags: t.Optional(t.Array(t.String())),
+        notes: t.Optional(t.String({ maxLength: 5000 })),
+        tags: t.Optional(t.Array(t.String({ maxLength: 50 }), { maxItems: 50 })),
       }),
       detail: { tags: ["health"], summary: "Update a lab result" },
     }
@@ -969,15 +974,15 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     },
     {
       body: t.Object({
-        condition: t.String(),
-        severity: t.Optional(t.String()),
-        diagnosedDate: t.Optional(t.String()),
-        notes: t.Optional(t.String()),
+        condition: t.String({ maxLength: 255 }),
+        severity: t.Optional(t.String({ maxLength: 50 })),
+        diagnosedDate: t.Optional(IsoDateString),
+        notes: t.Optional(t.String({ maxLength: 2000 })),
         isFamily: t.Optional(t.Boolean()),
-        relation: t.Optional(t.String()),
-        familyMemberId: t.Optional(t.String()),
-        familyMemberName: t.Optional(t.String()),
-        tags: t.Optional(t.Array(t.String())),
+        relation: t.Optional(t.String({ maxLength: 100 })),
+        familyMemberId: t.Optional(t.String({ maxLength: 36 })),
+        familyMemberName: t.Optional(t.String({ maxLength: 255 })),
+        tags: t.Optional(t.Array(t.String({ maxLength: 50 }), { maxItems: 50 })),
       }),
       detail: { tags: ["health"], summary: "Add a medical history entry" },
     }
@@ -1021,15 +1026,15 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     {
       params: t.Object({ id: t.String() }),
       body: t.Object({
-        condition: t.Optional(t.String()),
-        severity: t.Optional(t.String()),
-        diagnosedDate: t.Optional(t.Nullable(t.String())),
-        notes: t.Optional(t.String()),
+        condition: t.Optional(t.String({ maxLength: 255 })),
+        severity: t.Optional(t.String({ maxLength: 50 })),
+        diagnosedDate: t.Optional(t.Nullable(IsoDateString)),
+        notes: t.Optional(t.String({ maxLength: 2000 })),
         isFamily: t.Optional(t.Boolean()),
-        relation: t.Optional(t.String()),
-        familyMemberId: t.Optional(t.String()),
-        familyMemberName: t.Optional(t.String()),
-        tags: t.Optional(t.Array(t.String())),
+        relation: t.Optional(t.String({ maxLength: 100 })),
+        familyMemberId: t.Optional(t.String({ maxLength: 36 })),
+        familyMemberName: t.Optional(t.String({ maxLength: 255 })),
+        tags: t.Optional(t.Array(t.String({ maxLength: 50 }), { maxItems: 50 })),
       }),
       detail: { tags: ["health"], summary: "Update a medical history entry" },
     }
@@ -1090,8 +1095,8 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     {
       body: t.Object({
         userId: t.Optional(t.String()),
-        startDate: t.String(),
-        endDate: t.Optional(t.String()),
+        startDate: IsoDateString,
+        endDate: t.Optional(IsoDateString),
         flowIntensity: t.Optional(t.String()),
         symptoms: t.Optional(t.Array(t.String())),
         notes: t.Optional(t.String()),
@@ -1120,11 +1125,11 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     {
       params: t.Object({ id: t.String() }),
       body: t.Object({
-        startDate: t.Optional(t.String()),
-        endDate: t.Optional(t.Nullable(t.String())),
-        flowIntensity: t.Optional(t.String()),
-        symptoms: t.Optional(t.Array(t.String())),
-        notes: t.Optional(t.String()),
+        startDate: t.Optional(IsoDateString),
+        endDate: t.Optional(t.Nullable(IsoDateString)),
+        flowIntensity: t.Optional(t.String({ maxLength: 50 })),
+        symptoms: t.Optional(t.Array(t.String({ maxLength: 100 }), { maxItems: 50 })),
+        notes: t.Optional(t.String({ maxLength: 2000 })),
       }),
       detail: { tags: ["health"], summary: "Update a period entry" },
     }
@@ -1206,23 +1211,23 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     },
     {
       body: t.Object({
-        userId: t.Optional(t.String()),
-        date: t.String(),
-        flowIntensity: t.Optional(t.String()),
-        flow: t.Optional(t.String()),
-        crampsSeverity: t.Optional(t.Number()),
-        cramps: t.Optional(t.Number()),
-        mood: t.Optional(t.Number()),
-        energyLevel: t.Optional(t.Number()),
-        energy: t.Optional(t.Number()),
-        sleepQuality: t.Optional(t.Number()),
-        dischargeType: t.Optional(t.String()),
+        userId: t.Optional(t.String({ maxLength: 36 })),
+        date: IsoDateString,
+        flowIntensity: t.Optional(t.String({ maxLength: 50 })),
+        flow: t.Optional(t.String({ maxLength: 50 })),
+        crampsSeverity: t.Optional(t.Number({ minimum: 0, maximum: 10 })),
+        cramps: t.Optional(t.Number({ minimum: 0, maximum: 10 })),
+        mood: t.Optional(t.Number({ minimum: 0, maximum: 10 })),
+        energyLevel: t.Optional(t.Number({ minimum: 0, maximum: 10 })),
+        energy: t.Optional(t.Number({ minimum: 0, maximum: 10 })),
+        sleepQuality: t.Optional(t.Number({ minimum: 0, maximum: 10 })),
+        dischargeType: t.Optional(t.String({ maxLength: 100 })),
         spotting: t.Optional(t.Boolean()),
-        birthControlMethod: t.Optional(t.String()),
+        birthControlMethod: t.Optional(t.String({ maxLength: 100 })),
         birthControlTaken: t.Optional(t.Boolean()),
-        birthControlSideEffects: t.Optional(t.Array(t.String())),
-        symptoms: t.Optional(t.Array(t.String())),
-        notes: t.Optional(t.String()),
+        birthControlSideEffects: t.Optional(t.Array(t.String({ maxLength: 100 }), { maxItems: 20 })),
+        symptoms: t.Optional(t.Array(t.String({ maxLength: 100 }), { maxItems: 50 })),
+        notes: t.Optional(t.String({ maxLength: 2000 })),
       }),
       detail: { tags: ["health"], summary: "Upsert a cycle daily entry (idempotent by user+date)" },
     }
@@ -1302,12 +1307,12 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       body: t.Object({
         userId: t.Optional(t.String()),
         familyId: t.Optional(t.String()),
-        eventType: t.String(),
-        title: t.String(),
-        description: t.Optional(t.String()),
-        timestamp: t.String(),
-        severity: t.String(),
-        icon: t.Optional(t.String()),
+        eventType: t.String({ maxLength: 100 }),
+        title: t.String({ maxLength: 500 }),
+        description: t.Optional(t.String({ maxLength: 2000 })),
+        timestamp: IsoDateString,
+        severity: t.String({ maxLength: 50 }),
+        icon: t.Optional(t.String({ maxLength: 100 })),
         metadata: t.Optional(t.Any()),
         relatedEntityId: t.Optional(t.String()),
         relatedEntityType: t.Optional(t.String()),
@@ -1363,8 +1368,8 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     },
     {
       query: t.Object({
-        from: t.Optional(t.String()),
-        to: t.Optional(t.String()),
+        from: t.Optional(IsoDateString),
+        to: t.Optional(IsoDateString),
         limit: t.Optional(t.Numeric()),
         types: t.Optional(t.String()),
       }),
@@ -1421,13 +1426,13 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     {
       params: t.Object({ id: t.String() }),
       body: t.Object({
-        status:          t.Optional(t.String()),
-        acknowledgedAt:  t.Optional(t.String()),
-        acknowledgedBy:  t.Optional(t.String()),
-        resolvedAt:      t.Optional(t.String()),
-        resolvedBy:      t.Optional(t.String()),
-        escalatedAt:     t.Optional(t.String()),
-        escalatedBy:     t.Optional(t.String()),
+        status:          t.Optional(t.String({ maxLength: 50 })),
+        acknowledgedAt:  t.Optional(IsoDateString),
+        acknowledgedBy:  t.Optional(t.String({ maxLength: 36 })),
+        resolvedAt:      t.Optional(IsoDateString),
+        resolvedBy:      t.Optional(t.String({ maxLength: 36 })),
+        escalatedAt:     t.Optional(IsoDateString),
+        escalatedBy:     t.Optional(t.String({ maxLength: 36 })),
         metadata:        t.Optional(t.Any()),
       }),
       detail: { tags: ["health"], summary: "Update a health timeline event status" },
@@ -1506,8 +1511,8 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     {
       query: t.Object({
         userIds: t.Optional(t.String()),
-        from: t.Optional(t.String()),
-        to: t.Optional(t.String()),
+        from: t.Optional(IsoDateString),
+        to: t.Optional(IsoDateString),
         limit: t.Optional(t.Numeric()),
       }),
       detail: { tags: ["health"], summary: "Get health timeline events for a set of family member user IDs" },
@@ -1570,18 +1575,26 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
         return { error: "Garmin integration is not configured." };
       }
 
-      const tokenRes = await fetch("https://connect.garmin.com/oauth2/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          grant_type: "authorization_code",
-          code: body.code,
-          redirect_uri: redirectUri,
-          client_id: clientId,
-          client_secret: clientSecret,
-        }).toString(),
-        signal: AbortSignal.timeout(15_000), // Garmin OAuth must respond within 15 s
-      });
+      let tokenRes: Response;
+      try {
+        tokenRes = await fetch("https://connect.garmin.com/oauth2/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            grant_type: "authorization_code",
+            code: body.code,
+            redirect_uri: redirectUri,
+            client_id: clientId,
+            client_secret: clientSecret,
+          }).toString(),
+          signal: AbortSignal.timeout(15_000), // Garmin OAuth must respond within 15 s
+        });
+      } catch (fetchErr: unknown) {
+        const isTimeout = fetchErr instanceof Error && fetchErr.name === "TimeoutError";
+        console.error("[garmin/exchange] Token fetch failed:", fetchErr instanceof Error ? fetchErr.message : String(fetchErr));
+        set.status = 504;
+        return { error: isTimeout ? "Garmin OAuth timed out. Please try again." : "Garmin OAuth unreachable." };
+      }
 
       if (!tokenRes.ok) {
         const errText = await tokenRes.text();
@@ -1623,8 +1636,8 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     },
     {
       body: t.Object({
-        code: t.String(),
-        state: t.Optional(t.String()),
+        code: t.String({ maxLength: 512 }),
+        state: t.Optional(t.String({ maxLength: 128 })),
       }),
       detail: { tags: ["health"], summary: "Exchange Garmin OAuth code for tokens (server-side)" },
     }
@@ -1660,6 +1673,79 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     }
   )
 
+  // ── PPG ML Analysis ────────────────────────────────────────────────────────
+
+  /**
+   * POST /api/health/ppg/analyze
+   * Proxy PPG signal to the Python ML service for inference (PaPaGei model).
+   * Returns heart rate, HRV, respiratory rate, signal quality, confidence, and embeddings.
+   */
+  .post(
+    "/ppg/analyze",
+    async ({ userId, body, set }) => {
+      const ML_SERVICE_URL = process.env.ML_SERVICE_URL ?? "http://localhost:8000";
+      let mlRes: Response;
+      try {
+        mlRes = await fetch(`${ML_SERVICE_URL}/api/ppg/analyze`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...body, userId }),
+          signal: AbortSignal.timeout(30_000),
+        });
+      } catch (fetchErr: unknown) {
+        const isTimeout = fetchErr instanceof Error && fetchErr.name === "TimeoutError";
+        console.error("[ppg/analyze] ML service fetch failed:", fetchErr);
+        set.status = 504;
+        return {
+          success: false,
+          error: isTimeout ? "PPG analysis timed out. Please try again." : "PPG ML service unreachable.",
+          signalQuality: 0,
+          warnings: [],
+        };
+      }
+      if (!mlRes.ok) {
+        set.status = mlRes.status >= 500 ? 502 : mlRes.status;
+        return {
+          success: false,
+          error: `ML service error: HTTP ${mlRes.status}`,
+          signalQuality: 0,
+          warnings: [],
+        };
+      }
+      return mlRes.json();
+    },
+    {
+      body: t.Object({
+        signal: t.Array(t.Number(), { maxItems: 10_000 }),
+        frameRate: t.Number({ minimum: 1, maximum: 240 }),
+        duration: t.Optional(t.Number({ minimum: 0 })),
+        metadata: t.Optional(t.Record(t.String(), t.Unknown())),
+      }),
+      detail: { tags: ["health"], summary: "Run ML PPG analysis (proxy to Python ML service)" },
+    }
+  )
+
+  /**
+   * GET /api/health/ppg/analyze
+   * Health-check: confirm ML service is reachable for PPG inference.
+   */
+  .get(
+    "/ppg/analyze",
+    async ({ set }) => {
+      const ML_SERVICE_URL = process.env.ML_SERVICE_URL ?? "http://localhost:8000";
+      try {
+        const res = await fetch(`${ML_SERVICE_URL}/health`, { signal: AbortSignal.timeout(5_000) });
+        if (res.ok) return { available: true };
+        set.status = 502;
+        return { available: false };
+      } catch {
+        set.status = 503;
+        return { available: false };
+      }
+    },
+    { detail: { tags: ["health"], summary: "Check if PPG ML service is available" } }
+  )
+
   // ── PPG Embeddings ─────────────────────────────────────────────────────────
 
   /**
@@ -1685,13 +1771,13 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     },
     {
       body: t.Object({
-        embeddings: t.Array(t.Number()),
-        heartRate: t.Optional(t.Nullable(t.Number())),
-        hrv: t.Optional(t.Nullable(t.Number())),
-        respiratoryRate: t.Optional(t.Nullable(t.Number())),
-        signalQuality: t.Number(),
-        confidence: t.Optional(t.Nullable(t.Number())),
-        capturedAt: t.Optional(t.String()),
+        embeddings: t.Array(t.Number(), { maxItems: 512 }), // typical PPG embeddings: 128–256 dims
+        heartRate: t.Optional(t.Nullable(t.Number({ minimum: 20, maximum: 300 }))),
+        hrv: t.Optional(t.Nullable(t.Number({ minimum: 0, maximum: 300 }))),
+        respiratoryRate: t.Optional(t.Nullable(t.Number({ minimum: 4, maximum: 60 }))),
+        signalQuality: t.Number({ minimum: 0, maximum: 1 }),
+        confidence: t.Optional(t.Nullable(t.Number({ minimum: 0, maximum: 1 }))),
+        capturedAt: t.Optional(IsoDateString),
       }),
       detail: { tags: ["health"], summary: "Persist a PPG ML embedding record" },
     }
@@ -1743,10 +1829,10 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     },
     {
       body: t.Object({
-        alertId: t.Optional(t.String()),
-        familyId: t.Optional(t.String()),
-        type: t.String(),
-        severity: t.String(),
+        alertId: t.Optional(t.String({ maxLength: 36 })),
+        familyId: t.Optional(t.String({ maxLength: 36 })),
+        type: t.String({ maxLength: 100 }),
+        severity: t.String({ maxLength: 50 }),
         metadata: t.Optional(t.Any()),
       }),
       detail: { tags: ["health"], summary: "Start a new escalation" },
@@ -1814,12 +1900,12 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     },
     {
       body: t.Object({
-        status: t.Optional(t.String()),
-        acknowledgedBy: t.Optional(t.String()),
-        resolvedBy: t.Optional(t.String()),
-        resolutionNotes: t.Optional(t.String()),
-        currentLevel: t.Optional(t.Number()),
-        notificationsSentAppend: t.Optional(t.Array(t.String())),
+        status: t.Optional(t.String({ maxLength: 50 })),
+        acknowledgedBy: t.Optional(t.String({ maxLength: 36 })),
+        resolvedBy: t.Optional(t.String({ maxLength: 36 })),
+        resolutionNotes: t.Optional(t.String({ maxLength: 2000 })),
+        currentLevel: t.Optional(t.Number({ minimum: 1, maximum: 10 })),
+        notificationsSentAppend: t.Optional(t.Array(t.String({ maxLength: 36 }), { maxItems: 100 })),
       }),
       detail: { tags: ["health"], summary: "Update an escalation record" },
     }
@@ -1844,9 +1930,9 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     },
     {
       body: t.Object({
-        alertId: t.String(),
-        resolvedBy: t.String(),
-        notes: t.Optional(t.String()),
+        alertId: t.String({ maxLength: 36 }),
+        resolvedBy: t.String({ maxLength: 36 }),
+        notes: t.Optional(t.String({ maxLength: 2000 })),
       }),
       detail: { tags: ["health"], summary: "Bulk-resolve escalations by alertId" },
     }
@@ -1888,10 +1974,46 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     {
       query: t.Object({
         userId: t.Optional(t.String()),
-        from: t.Optional(t.String()),
+        from: t.Optional(IsoDateString),
         limit: t.Optional(t.Numeric()),
       }),
       detail: { tags: ["health"], summary: "Get anomalies for the current user (or a patient if org admin)" },
+    }
+  )
+
+  /**
+   * PATCH /api/health/anomalies/:anomalyId/acknowledge
+   * Mark an anomaly as acknowledged by the current user.
+   */
+  .patch(
+    "/anomalies/:anomalyId/acknowledge",
+    async ({ db, userId, params, set }) => {
+      const row = await db
+        .select({ id: anomalies.id, userId: anomalies.userId })
+        .from(anomalies)
+        .where(eq(anomalies.id, params.anomalyId))
+        .limit(1);
+
+      if (!row.length) { set.status = 404; return { error: "Anomaly not found" }; }
+
+      const anomaly = row[0];
+      // Allow the owner or a family admin to acknowledge
+      if (anomaly.userId !== userId) {
+        const authErr = await assertFamilyAccess(db, userId, anomaly.userId);
+        if (authErr) { set.status = 403; return authErr; }
+      }
+
+      await db
+        .update(anomalies)
+        .set({ isAcknowledged: true })
+        .where(eq(anomalies.id, params.anomalyId));
+
+      return { success: true };
+    },
+    {
+      params: t.Object({ anomalyId: t.String() }),
+      body: t.Object({ userId: t.Optional(t.String()) }),
+      detail: { tags: ["health"], summary: "Acknowledge an anomaly" },
     }
   )
 
@@ -1983,13 +2105,13 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     },
     {
       body: t.Object({
-        medicationId: t.Optional(t.String()),
-        reminderId: t.Optional(t.String()),
+        medicationId: t.Optional(t.String({ maxLength: 36 })),
+        reminderId: t.Optional(t.String({ maxLength: 36 })),
         status: t.Union([t.Literal("taken"), t.Literal("missed"), t.Literal("skipped")]),
-        scheduledAt: t.Optional(t.String()),
-        takenAt: t.Optional(t.String()),
-        dose: t.Optional(t.String()),
-        notes: t.Optional(t.String()),
+        scheduledAt: t.Optional(IsoDateString),
+        takenAt: t.Optional(IsoDateString),
+        dose: t.Optional(t.String({ maxLength: 100 })),
+        notes: t.Optional(t.String({ maxLength: 2000 })),
       }),
       detail: { tags: ["health"], summary: "Record medication adherence event" },
     }
@@ -2015,7 +2137,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     {
       query: t.Object({
         medicationId: t.Optional(t.String()),
-        from: t.Optional(t.String()),
+        from: t.Optional(IsoDateString),
         limit: t.Optional(t.Numeric()),
       }),
       detail: { tags: ["health"], summary: "Get medication adherence history" },

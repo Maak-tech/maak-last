@@ -31,19 +31,11 @@ type AlertResolvedPayload = {
   resolverId: string;
 };
 
-type VitalAddedPayload = {
-  userId: string;
-  type: string;
-  value: number;
-  timestamp: Date;
-};
-
 type RealtimeHealthContextType = {
   trendAlertEvent: RealtimeEvent<TrendAlert> | null;
   familyUpdateEvent: RealtimeEvent<FamilyMemberUpdate> | null;
   alertCreatedEvent: RealtimeEvent<EmergencyAlert> | null;
   alertResolvedEvent: RealtimeEvent<AlertResolvedPayload> | null;
-  vitalAddedEvent: RealtimeEvent<VitalAddedPayload> | null;
   anomalyDetectedEvent: RealtimeEvent<VitalAnomaly> | null;
   errorEvent: RealtimeEvent<Error> | null;
   familyMemberIds: string[];
@@ -101,8 +93,6 @@ export const RealtimeHealthProvider: React.FC<{
     useState<RealtimeEvent<EmergencyAlert> | null>(null);
   const [alertResolvedEvent, setAlertResolvedEvent] =
     useState<RealtimeEvent<AlertResolvedPayload> | null>(null);
-  const [vitalAddedEvent, setVitalAddedEvent] =
-    useState<RealtimeEvent<VitalAddedPayload> | null>(null);
   const [anomalyDetectedEvent, setAnomalyDetectedEvent] =
     useState<RealtimeEvent<VitalAnomaly> | null>(null);
   const [errorEvent, setErrorEvent] = useState<RealtimeEvent<Error> | null>(
@@ -160,17 +150,6 @@ export const RealtimeHealthProvider: React.FC<{
     [nextEventId]
   );
 
-  const handleVitalAdded = useCallback(
-    (vital: VitalAddedPayload) => {
-      setVitalAddedEvent({
-        id: nextEventId(),
-        payload: vital,
-        receivedAt: new Date(),
-      });
-    },
-    [nextEventId]
-  );
-
   const handleError = useCallback(
     (error: Error) => {
       setErrorEvent({
@@ -196,7 +175,10 @@ export const RealtimeHealthProvider: React.FC<{
         twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
         const raw = await api.get<Record<string, unknown>[]>(
           `/api/health/anomalies?from=${twentyFourHoursAgo.toISOString()}&limit=50`
-        ).catch(() => []);
+        ).catch((err: unknown) => {
+          console.debug('[RealtimeHealthContext] Anomaly fetch failed:', err instanceof Error ? err.message : String(err));
+          return [] as Record<string, unknown>[];
+        });
 
         // Filter to unacknowledged anomalies only, matching the original query
         const unacknowledged = (Array.isArray(raw) ? raw : []).filter((item) => !item.isAcknowledged);
@@ -243,13 +225,10 @@ export const RealtimeHealthProvider: React.FC<{
   useRealtimeHealth({
     userId: user?.id,
     familyId: user?.familyId,
-    familyMemberIds,
     onTrendAlert: handleTrendAlert,
     onFamilyMemberUpdate: handleFamilyUpdate,
     onAlertCreated: handleAlertCreated,
     onAlertResolved: handleAlertResolved,
-    // onVitalAdded disabled — vitals listener consumes high Firestore quota
-    // and vitalAddedEvent is not consumed by any screen. Re-enable if needed.
     onError: handleError,
     enabled: !!user?.id,
   });
@@ -275,7 +254,6 @@ export const RealtimeHealthProvider: React.FC<{
       familyUpdateEvent,
       alertCreatedEvent,
       alertResolvedEvent,
-      vitalAddedEvent,
       anomalyDetectedEvent,
       errorEvent,
       familyMemberIds,
@@ -286,7 +264,6 @@ export const RealtimeHealthProvider: React.FC<{
       familyUpdateEvent,
       alertCreatedEvent,
       alertResolvedEvent,
-      vitalAddedEvent,
       anomalyDetectedEvent,
       errorEvent,
       familyMemberIds,

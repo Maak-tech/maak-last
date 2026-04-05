@@ -548,7 +548,7 @@ export default function ApiKeysScreen() {
           return b.createdAt.getTime() - a.createdAt.getTime();
         });
         if (isMountedRef.current) setApiKeys(data);
-      } catch (err) {
+      } catch (err: unknown) {
         if (isMountedRef.current) {
           setError(
             err instanceof Error ? err.message : "Failed to load API keys"
@@ -647,7 +647,7 @@ export default function ApiKeysScreen() {
                   `${plaintext}\n\nCopy it now — this is the only time it will be shown.`,
                   [{ text: "I've copied it", style: "default" }]
                 );
-              } catch (err) {
+              } catch (err: unknown) {
                 console.warn('[api-keys] Failed to rotate API key:', err);
                 Alert.alert("Error", "Failed to rotate API key.");
               }

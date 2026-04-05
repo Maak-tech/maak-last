@@ -42,7 +42,10 @@ async function fetchRecentVitals(
   since.setDate(since.getDate() - days);
   const raw = await api.get<Record<string, unknown>[]>(
     `/api/health/vitals?from=${since.toISOString()}&limit=200`
-  ).catch(() => []);
+  ).catch((err: unknown) => {
+    console.debug('[usePatternInsights] fetchRecentVitals failed:', err instanceof Error ? err.message : String(err));
+    return [] as Record<string, unknown>[];
+  });
   return (Array.isArray(raw) ? raw : []).map((d) => ({
     id: d.id as string,
     type: d.type as string,
@@ -77,10 +80,10 @@ export function usePatternInsights(
       setError(null);
       try {
         const [symptoms, moods, medications, vitals] = await Promise.all([
-          symptomService.getUserSymptoms(userId, 200).catch(() => []),
-          moodService.getUserMoods(userId, 100).catch(() => []),
-          medicationService.getUserMedications(userId).catch(() => []),
-          fetchRecentVitals(userId, 30).catch(() => [] as VitalSample[]),
+          symptomService.getUserSymptoms(userId, 200).catch((err: unknown) => { console.debug('[usePatternInsights] Symptoms fetch failed:', err instanceof Error ? err.message : String(err)); return []; }),
+          moodService.getUserMoods(userId, 100).catch((err: unknown) => { console.debug('[usePatternInsights] Moods fetch failed:', err instanceof Error ? err.message : String(err)); return []; }),
+          medicationService.getUserMedications(userId).catch((err: unknown) => { console.debug('[usePatternInsights] Medications fetch failed:', err instanceof Error ? err.message : String(err)); return []; }),
+          fetchRecentVitals(userId, 30).catch((err: unknown) => { console.debug('[usePatternInsights] Vitals fetch failed:', err instanceof Error ? err.message : String(err)); return [] as VitalSample[]; }),
         ]);
 
         const temporal = detectTemporalPatterns(symptoms, moods, isArabic);

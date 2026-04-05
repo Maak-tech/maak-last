@@ -265,8 +265,9 @@ export default function HealthIntegrationsScreen() {
         } else {
           setClinicalRequests(new Map());
         }
-      } catch (_error) {
-        // Set to false on error so they show as "Coming Soon" instead of platform error
+      } catch (error: unknown) {
+        console.warn('[health-integrations] Failed to load provider availability:', error);
+        // Set to false so providers show as "Coming Soon" instead of a platform error
         setFitbitAvailable(false);
         setWithingsAvailable(false);
       } finally {
@@ -681,7 +682,7 @@ export default function HealthIntegrationsScreen() {
             </Text>
 
             <TouchableOpacity
-              onPress={() => router.push("/profile/genetics" as any)}
+              onPress={() => router.push({ pathname: '/profile/genetics' })}
               style={[
                 styles.providerCard,
                 {

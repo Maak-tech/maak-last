@@ -28,11 +28,19 @@ export function hmac(plaintext: string): string {
 
 export function decrypt(stored: string): string {
   if (!stored) return stored
-  const key = getKey()
-  const iv = Buffer.from(stored.slice(0, 32), 'hex')
-  const tag = Buffer.from(stored.slice(32, 64), 'hex')
-  const encrypted = Buffer.from(stored.slice(64), 'hex')
-  const decipher = createDecipheriv('aes-256-gcm', key, iv)
-  decipher.setAuthTag(tag)
-  return decipher.update(encrypted).toString('utf8') + decipher.final('utf8')
+  // iv (16 bytes = 32 hex) + tag (16 bytes = 32 hex) = 64 hex chars minimum
+  if (stored.length < 65 || stored.length % 2 !== 0) {
+    throw new Error('Invalid encrypted data format: too short or odd-length hex string')
+  }
+  try {
+    const key = getKey()
+    const iv = Buffer.from(stored.slice(0, 32), 'hex')
+    const tag = Buffer.from(stored.slice(32, 64), 'hex')
+    const encrypted = Buffer.from(stored.slice(64), 'hex')
+    const decipher = createDecipheriv('aes-256-gcm', key, iv)
+    decipher.setAuthTag(tag)
+    return decipher.update(encrypted).toString('utf8') + decipher.final('utf8')
+  } catch (err: unknown) {
+    throw new Error(`Decryption failed: ${err instanceof Error ? err.message : String(err)}`)
+  }
 }

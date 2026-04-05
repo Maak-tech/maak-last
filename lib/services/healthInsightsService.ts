@@ -524,7 +524,7 @@ class HealthInsightsService {
       end
     );
 
-    const moodCounts: Record<Mood["mood"], number> = {} as any;
+    const moodCounts: Record<Mood["mood"], number> = {} as Record<Mood["mood"], number>;
     weekMoods.forEach((m) => {
       moodCounts[m.mood] = (moodCounts[m.mood] || 0) + 1;
     });
@@ -659,7 +659,8 @@ class HealthInsightsService {
         activities: m.activities as string[] | undefined,
         timestamp: new Date(m.recordedAt as string),
       }));
-    } catch (_error) {
+    } catch (error: unknown) {
+      console.warn('[healthInsights] getMoodsForPeriod failed:', error);
       return [];
     }
   }
@@ -716,7 +717,7 @@ class HealthInsightsService {
       end
     );
 
-    const moodCounts: Record<Mood["mood"], number> = {} as any;
+    const moodCounts: Record<Mood["mood"], number> = {} as Record<Mood["mood"], number>;
     monthMoods.forEach((m) => {
       moodCounts[m.mood] = (moodCounts[m.mood] || 0) + 1;
     });
@@ -844,17 +845,20 @@ class HealthInsightsService {
         `/api/health/vitals?from=${encodeURIComponent(start.toISOString())}&limit=${estimatedLimit}`
       );
 
+      if (!Array.isArray(rows)) return [];
+
       return rows
-        .filter((v) => typeof v.value === "number" && v.type)
+        .filter((v) => (typeof v.value === "number" || (typeof v.value === "string" && v.value !== "")) && v.type)
         .map((v) => ({
           id: v.id as string,
           type: String(v.type),
-          value: v.value as number,
+          value: typeof v.value === "number" ? v.value : Number.parseFloat(v.value as string),
           unit: v.unit as string | undefined,
           timestamp: new Date(v.recordedAt as string),
           source: v.source as string | undefined,
-        }));
-    } catch (err) {
+        }))
+        .filter((v) => !isNaN(v.value));
+    } catch (err: unknown) {
       console.warn('[healthInsights] fetchVitalsForAnalysis failed:', err);
       return [];
     }

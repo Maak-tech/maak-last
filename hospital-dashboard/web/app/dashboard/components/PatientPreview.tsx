@@ -28,7 +28,7 @@ export default function PatientPreview({ sessionToken, preview, onConfirmed }: P
     try {
       await api.confirmIdentity(sessionToken)
       onConfirmed()
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Confirmation failed')
     } finally {
       setLoading(false)

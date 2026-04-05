@@ -163,7 +163,7 @@ export const webhookRoutes = new Elysia({ prefix: "/webhooks" })
         ? new Date(event.expiration_at_ms as number)
         : undefined;
 
-      console.log(`[webhooks/revenuecat] ${eventType} userId=${appUserId} product=${productId}`);
+      console.info(`[webhooks/revenuecat] ${eventType} userId=${appUserId} product=${productId}`);
 
       // 2. Look up user by RevenueCat app_user_id (which we set to the Nuralix userId)
       const [user] = await db
@@ -185,11 +185,11 @@ export const webhookRoutes = new Elysia({ prefix: "/webhooks" })
       // 3. Sync to Autumn
       if (featureId) {
         if (RC_GRANT_EVENTS.has(eventType)) {
-          await autumnAttach(appUserId, productId).catch((err) =>
+          await autumnAttach(appUserId, productId).catch((err: unknown) =>
             console.error("[webhooks/revenuecat] Autumn attach failed:", err)
           );
         } else if (RC_REVOKE_EVENTS.has(eventType)) {
-          await autumnDetach(appUserId, productId).catch((err) =>
+          await autumnDetach(appUserId, productId).catch((err: unknown) =>
             console.error("[webhooks/revenuecat] Autumn detach failed:", err)
           );
         }
@@ -271,7 +271,7 @@ export const webhookRoutes = new Elysia({ prefix: "/webhooks" })
       const eventType = event.type as string;
       const customerId = event.customer_id as string;
 
-      console.log(`[webhooks/autumn] ${eventType} customerId=${customerId}`);
+      console.info(`[webhooks/autumn] ${eventType} customerId=${customerId}`);
 
       // Handle Stripe-originated billing failure: downgrade to free
       if (eventType === "payment.failed" || eventType === "subscription.cancelled") {
@@ -340,7 +340,7 @@ export const webhookRoutes = new Elysia({ prefix: "/webhooks" })
         return { ok: true };
       }
 
-      console.log(
+      console.info(
         `[webhooks/withings] Data ready for userId=${integration.userId} appli=${appli} range=${startdate}-${enddate}`
       );
 

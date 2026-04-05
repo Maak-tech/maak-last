@@ -33,7 +33,7 @@ const aiConsentService = {
         version: 1,
       };
       await AsyncStorage.setItem(CONSENT_KEY, JSON.stringify(consent));
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[aiConsentService] Failed to persist AI consent:', err);
     }
   },

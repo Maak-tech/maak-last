@@ -7,8 +7,16 @@ export const requireAuth = new Elysia({ name: "require-auth" })
   .decorate("db", db)
   .derive(
     { as: "global" },
-    async ({ request, set }) => {
-      const session = await auth.api.getSession({ headers: request.headers });
+    async ({ request }) => {
+      let session: Awaited<ReturnType<typeof auth.api.getSession>>;
+      try {
+        session = await auth.api.getSession({ headers: request.headers });
+      } catch (err: unknown) {
+        // Auth service threw (e.g., DB connection error during session lookup).
+        // Return 401 instead of 500 — the client should re-authenticate.
+        console.error("[requireAuth] getSession threw:", err);
+        return error(401, { error: "Unauthorized" });
+      }
 
       if (!session) {
         return error(401, { error: "Unauthorized" });

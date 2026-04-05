@@ -38,7 +38,7 @@ export default function ManualSearch({ onSession }: Props) {
       try {
         const data = await api.manualSearch(value)
         setResults(data.results)
-      } catch (err) {
+      } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Search failed')
       } finally {
         setLoading(false)
@@ -52,7 +52,7 @@ export default function ManualSearch({ onSession }: Props) {
     try {
       const data = await api.selectPatient(patientId)
       onSession(data.sessionToken)
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to select patient')
     } finally {
       setSelecting(null)

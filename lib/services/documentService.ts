@@ -44,7 +44,7 @@ class DocumentService {
       this.documentCache.set(fileName, parsed);
       
       return parsed;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(`Error loading document ${fileName}:`, error);
       throw new Error(`Failed to load document: ${fileName}`);
     }

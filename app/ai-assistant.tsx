@@ -115,7 +115,7 @@ export default function AIAssistant() {
       await createNewSession([systemMessage, welcomeMessage]);
       
       setIsLoading(false);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error initializing chat:', error);
       setIsLoading(false);
     }
@@ -158,8 +158,8 @@ export default function AIAssistant() {
       const result = await api.post<{ id: string }>("/api/nora/chat-sessions", sessionData);
       setCurrentSessionId(result.id);
       return result.id;
-    } catch (_error) {
-      // Silently handle error
+    } catch (error: unknown) {
+      console.warn('[ai-assistant] Failed to create chat session:', error);
       return null;
     }
   };
@@ -197,9 +197,11 @@ export default function AIAssistant() {
         updates.title = words.join(' ') + (words.length >= 5 ? '...' : '');
       }
 
-      await api.patch(`/api/nora/chat-sessions/${currentSessionId}`, updates).catch(() => {});
-    } catch (_error) {
-      // Silently handle error
+      await api.patch(`/api/nora/chat-sessions/${currentSessionId}`, updates).catch((err) => {
+        console.debug('[ai-assistant] saveMessageToSession patch failed (non-critical):', err);
+      });
+    } catch (error: unknown) {
+      console.warn('[ai-assistant] saveMessageToSession failed:', error);
     }
   };
 
@@ -315,9 +317,12 @@ export default function AIAssistant() {
 
   const loadChatHistory = async () => {
     try {
-      const sessions = await api.get<SavedSession[]>('/api/nora/chat-sessions?limit=20').catch(() => []);
+      const sessions = await api.get<SavedSession[]>('/api/nora/conversations').catch((err: unknown) => {
+        console.debug('[ai-assistant] loadChatHistory failed (non-critical):', err instanceof Error ? err.message : String(err));
+        return [] as SavedSession[];
+      });
       setChatHistory(sessions ?? []);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading chat history:', error);
     }
   };
@@ -325,11 +330,11 @@ export default function AIAssistant() {
   const loadSession = async (sessionId: string) => {
     try {
       setIsLoading(true);
-      const data = await api.get<{ messages: AIMessage[] }>(`/api/nora/chat-sessions/${sessionId}`);
+      const data = await api.get<{ messages: AIMessage[] }>(`/api/nora/conversations/${sessionId}`);
       if (data?.messages) {
         const sessionMessages = data.messages.map((msg) => ({
           ...msg,
-          timestamp: msg.timestamp ? new Date(msg.timestamp as unknown as string) : new Date(),
+          timestamp: msg.timestamp ? new Date(msg.timestamp instanceof Date ? msg.timestamp.toISOString() : String(msg.timestamp)) : new Date(),
         }));
         const systemMessage: AIMessage = {
           id: 'system',
@@ -342,7 +347,7 @@ export default function AIAssistant() {
         setShowHistory(false);
         scrollToBottom();
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading session:', error);
       Alert.alert('Error', 'Failed to load chat session');
     } finally {
@@ -361,12 +366,14 @@ export default function AIAssistant() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await api.delete(`/api/nora/chat-sessions/${sessionId}`).catch(() => {});
+              await api.delete(`/api/nora/conversations/${sessionId}`).catch((err) => {
+                console.debug('[ai-assistant] Failed to delete conversation from API:', err instanceof Error ? err.message : String(err));
+              });
               await loadChatHistory();
               if (sessionId === currentSessionId) {
                 await handleNewChat();
               }
-            } catch (error) {
+            } catch (error: unknown) {
               console.error('Error deleting session:', error);
               Alert.alert('Error', 'Failed to delete chat session');
             }

@@ -19,7 +19,7 @@ export default function LoginPage() {
       setToken(data.token)
       sessionStorage.setItem('hospital_staff', JSON.stringify(data.staff))
       router.push('/dashboard')
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed')
     } finally {
       setLoading(false)

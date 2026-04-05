@@ -19,7 +19,7 @@ export const emergencySmsService = {
   async sendEmergencySms(payload: EmergencySmsPayload): Promise<void> {
     try {
       await api.post("/api/emergency/sms", payload);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Failed to send emergency SMS", error, "SMS");
     }
   },

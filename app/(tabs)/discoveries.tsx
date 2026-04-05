@@ -50,7 +50,7 @@ export default function DiscoveriesScreen() {
     try {
       const all = await discoveryService.getAllDiscoveries(user.id, isRTL);
       setDiscoveries(all);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[discoveries] Failed to load discoveries:', err);
       setLoadError(
         isRTL ? "تعذّر تحميل الاكتشافات. اسحب للأسفل للمحاولة مجدداً." : "Failed to load discoveries. Pull down to retry."
@@ -65,7 +65,9 @@ export default function DiscoveriesScreen() {
 
   const handleDismiss = useCallback((id: string) => {
     setDiscoveries((prev) => prev.filter((d) => d.id !== id));
-    if (user?.id) discoveryService.dismissDiscovery(user.id, id).catch(() => {});
+    if (user?.id) discoveryService.dismissDiscovery(user.id, id).catch((err) => {
+      console.debug('[discoveries] dismissDiscovery failed (non-critical):', err instanceof Error ? err.message : String(err));
+    });
   }, [user?.id]);
 
   const filtered = activeFilter === "all"

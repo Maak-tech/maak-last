@@ -53,7 +53,7 @@ export default function LoginScreen() {
             'pendingFamilyCode',
             familyCode.trim()
           );
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('[Login] Error storing family code:', error);
           Alert.alert(
             'Notice',
@@ -74,15 +74,11 @@ export default function LoginScreen() {
 
       // Navigate back to index so it can handle the authenticated user
       router.replace('/');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Login error:', error);
-      setErrors({
-        general: error.message || 'Login failed. Please try again.',
-      });
-      Alert.alert(
-        'Login Failed',
-        error.message || 'Please check your credentials and try again.'
-      );
+      const message = error instanceof Error ? error.message : 'Login failed. Please try again.';
+      setErrors({ general: message });
+      Alert.alert('Login Failed', message || 'Please check your credentials and try again.');
     }
   };
 

@@ -132,7 +132,7 @@ class HealthTimelineService {
         actorType: event.actorType,
       });
       return result.id;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to add timeline event",
         { event, error },
@@ -165,7 +165,7 @@ class HealthTimelineService {
         `/api/health/timeline?${params.toString()}`
       );
       return (Array.isArray(raw) ? raw : []).map(normalizeEvent);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to get timeline events",
         { userId, error },
@@ -202,7 +202,7 @@ class HealthTimelineService {
       return events.sort(
         (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
       );
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to get family timeline events",
         { userIds, error },

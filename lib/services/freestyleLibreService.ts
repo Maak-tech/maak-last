@@ -42,7 +42,7 @@ export const freestyleLibreService = {
         unit: raw.unit,
         timestamp: new Date(raw.timestamp),
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to fetch current FreeStyle Libre glucose",
         { userId, error },
@@ -61,7 +61,7 @@ export const freestyleLibreService = {
         `/api/integrations/freestyle-libre/status?userId=${encodeURIComponent(userId)}`
       );
       return raw?.connected ?? false;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to check FreeStyle Libre connection status",
         { userId, error },
@@ -91,7 +91,7 @@ export const freestyleLibreService = {
         unit: item.unit,
         timestamp: new Date(item.timestamp),
       }));
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to fetch FreeStyle Libre readings",
         { userId, error },

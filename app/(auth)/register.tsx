@@ -67,7 +67,7 @@ export default function RegisterScreen() {
             'pendingFamilyCode',
             familyCode.trim()
           );
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('[Register] Error storing family code:', error);
           Alert.alert(
             'Notice',
@@ -90,9 +90,9 @@ export default function RegisterScreen() {
       setTimeout(() => {
         router.replace('/');
       }, 100);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setErrors({
-        general: error.message || 'Registration failed. Please try again.',
+        general: (error instanceof Error ? error.message : null) || 'Registration failed. Please try again.',
       });
     }
   };

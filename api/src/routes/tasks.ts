@@ -30,6 +30,11 @@ export const taskRoutes = new Elysia({ prefix: "/api/tasks" })
         return { error: "You are not a member of this organisation" };
       }
 
+      if (body.dueAt && isNaN(new Date(body.dueAt).getTime())) {
+        set.status = 400;
+        return { error: "Invalid dueAt — use ISO 8601 format" };
+      }
+
       const [task] = await db
         .insert(tasks)
         .values({
@@ -51,8 +56,8 @@ export const taskRoutes = new Elysia({ prefix: "/api/tasks" })
     },
     {
       body: t.Object({
-        orgId: t.String(),
-        patientId: t.String(),
+        orgId: t.String({ maxLength: 36 }),
+        patientId: t.String({ maxLength: 36 }),
         type: t.String({ maxLength: 100 }),
         priority: t.Optional(t.Union([
           t.Literal("low"),
@@ -93,7 +98,7 @@ export const taskRoutes = new Elysia({ prefix: "/api/tasks" })
         .from(tasks)
         .where(and(...conditions))
         .orderBy(tasks.createdAt)
-        .limit(Math.min(query.limit ? Number(query.limit) : 50, 500));
+        .limit(query.limit ?? 50);
     },
     {
       query: t.Object({
@@ -102,7 +107,7 @@ export const taskRoutes = new Elysia({ prefix: "/api/tasks" })
         assignedTo: t.Optional(t.String()),
         priority: t.Optional(t.String()),
         patientId: t.Optional(t.String()),
-        limit: t.Optional(t.String()),
+        limit: t.Optional(t.Numeric({ minimum: 1, maximum: 500 })),
       }),
       detail: { tags: ["tasks"], summary: "List org tasks (org member)" },
     }
@@ -186,7 +191,7 @@ export const taskRoutes = new Elysia({ prefix: "/api/tasks" })
     },
     {
       params: t.Object({ id: t.String() }),
-      body: t.Object({ assignedTo: t.String() }),
+      body: t.Object({ assignedTo: t.String({ maxLength: 36 }) }),
       detail: { tags: ["tasks"], summary: "Assign a task (org admin or coordinator)" },
     }
   )

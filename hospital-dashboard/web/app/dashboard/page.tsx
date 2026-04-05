@@ -47,7 +47,7 @@ export default function DashboardPage() {
     if (stored) {
       try {
         setStaff(JSON.parse(stored) as StaffInfo)
-      } catch (err) {
+      } catch (err: unknown) {
         console.warn('[Dashboard] Failed to parse stored staff info — clearing session:', err)
         sessionStorage.removeItem('hospital_staff')
         router.push('/login')
@@ -61,7 +61,7 @@ export default function DashboardPage() {
     try {
       const preview = await api.getPreview(sessionToken)
       setState({ phase: 'preview', sessionToken, preview })
-    } catch (err) {
+    } catch (err: unknown) {
       setIdentifyError(err instanceof Error ? err.message : 'Failed to load patient preview')
     } finally {
       setIdentifyLoading(false)
@@ -79,7 +79,7 @@ export default function DashboardPage() {
         return
       }
       await loadPreview(result.sessionToken)
-    } catch (err) {
+    } catch (err: unknown) {
       setIdentifyError(err instanceof Error ? err.message : 'Recognition failed')
       setIdentifyLoading(false)
     }
@@ -97,7 +97,7 @@ export default function DashboardPage() {
     try {
       const twinData = await fetchTwinBySession(sessionToken)
       setState({ phase: 'twin', sessionToken, data: twinData })
-    } catch (err) {
+    } catch (err: unknown) {
       setIdentifyError(err instanceof Error ? err.message : 'Failed to load health data')
       setState({ phase: 'preview', sessionToken, preview: { ...preview, confirmed: true } })
     }
@@ -111,7 +111,7 @@ export default function DashboardPage() {
   async function handleLogout() {
     try {
       await api.logout()
-    } catch (err) {
+    } catch (err: unknown) {
       // Logout API failure should not block the local session from being cleared
       console.warn('[Dashboard] Logout API call failed (clearing local session anyway):', err)
     }

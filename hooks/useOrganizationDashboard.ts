@@ -97,6 +97,7 @@ export function useOrganizationDashboard(
       if (data?.org) setOrg(data.org);
       setPatients(data?.patients ?? []);
     } catch (err) {
+      console.warn('[useOrganizationDashboard] Failed to load patients:', err);
       setError(err instanceof Error ? err.message : "Failed to load patients.");
       setPatients([]);
     } finally {

@@ -287,7 +287,7 @@ export default function PPGVitalMonitor({
         educationPanel: {},
         educationTitle: {},
         educationText: {},
-      } as any;
+      } as Record<string, object>;
     }
 
     try {
@@ -581,8 +581,9 @@ export default function PPGVitalMonitor({
           flexWrap: "wrap",
         },
       };
-    } catch (_error) {
-      return {} as any;
+    } catch (error: unknown) {
+      console.warn('[PPGVitalMonitor] Style computation failed:', error);
+      return {} as Record<string, object>;
     }
   }, [theme]);
 
@@ -602,8 +603,8 @@ export default function PPGVitalMonitor({
     if (visible && status === "instructions" && permission) {
       // If permission is not granted, request it proactively
       if (!permission?.granted && permission?.canAskAgain) {
-        requestPermission().catch((_err) => {
-          // Silently handle permission request error
+        requestPermission().catch((err: unknown) => {
+          console.debug('[PPGMonitor] proactive requestPermission failed:', err instanceof Error ? err.message : String(err));
         });
       }
     }
@@ -693,8 +694,8 @@ export default function PPGVitalMonitor({
       // Change to measuring status - camera will show, but capture won't start yet
       // User needs to place finger first
       setStatus("measuring");
-    } catch (err: any) {
-      setError(err.message || "Measurement failed");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Measurement failed");
       setStatus("error");
     }
   };
@@ -877,8 +878,9 @@ export default function PPGVitalMonitor({
           consecutiveNoFingerFrames.current = 0;
           frameCountRef.current++;
         }
-      } catch (_err) {
-        // Error processing frame - don't add fake data
+      } catch (err: unknown) {
+        // Error processing frame - don't add fake data, just advance counters
+        console.debug('[PPGMonitor] Frame processing error (skipping frame):', err instanceof Error ? err.message : String(err));
         consecutiveNoFingerFrames.current++;
         frameCountRef.current++;
       }
@@ -1135,7 +1137,7 @@ export default function PPGVitalMonitor({
           metadata: { signalQuality },
         });
       }
-    } catch (_err: any) {
+    } catch (_err: unknown) {
       // Could show user notification here if needed
     }
   };
@@ -1859,7 +1861,8 @@ export default function PPGVitalMonitor({
         </SafeAreaView>
       </Modal>
     );
-  } catch (_error) {
+  } catch (error: unknown) {
+    console.error('[PPGVitalMonitor] Render error:', error);
     return null;
   }
 }

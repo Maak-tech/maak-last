@@ -76,7 +76,7 @@ export const moodService = {
       const currentMoods = await offlineService.getOfflineCollection<Mood>("moods");
       await offlineService.storeOfflineData("moods", [...currentMoods, newMood]);
       return tempId;
-    } catch (error) {
+    } catch (error: unknown) {
       if (isOnline) {
         const operationId = await offlineService.queueOperation({
           type: "create",
@@ -134,7 +134,7 @@ export const moodService = {
         .filter((m) => m.userId === userId)
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
         .slice(0, limitCount);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[mood] getUserMoods failed:', err);
       if (isOnline) {
         const cachedMoods = await offlineService.getOfflineCollection<Mood>("moods");
@@ -152,7 +152,7 @@ export const moodService = {
     try {
       const user = await userService.getUser(userId);
       return user?.familyId === familyId && (user?.role === "admin" || user?.role === "caregiver");
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[mood] checkFamilyAccessPermission failed:', err);
       return false;
     }
@@ -225,7 +225,7 @@ export const moodService = {
         .sort((a, b) => b.count - a.count);
 
       return { totalMoods, avgIntensity: Math.round(avgIntensity * 10) / 10, moodDistribution };
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[mood] getFamilyMoodStats failed:', err);
       return { totalMoods: 0, avgIntensity: 0, moodDistribution: [] };
     }
@@ -280,7 +280,7 @@ export const moodService = {
         .sort((a, b) => b.count - a.count);
 
       return { totalMoods, avgIntensity: Math.round(avgIntensity * 10) / 10, moodDistribution };
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[mood] getMoodStats failed:', err);
       return { totalMoods: 0, avgIntensity: 0, moodDistribution: [] };
     }
@@ -322,7 +322,7 @@ export const moodService = {
         .sort((a, b) => b.count - a.count);
 
       return { totalMoods, avgIntensity: Math.round(avgIntensity * 10) / 10, moodDistribution };
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[mood] getMemberMoodStats failed:', err);
       return { totalMoods: 0, avgIntensity: 0, moodDistribution: [] };
     }

@@ -44,7 +44,8 @@ export default function MotionPermissionsScreen() {
     try {
       const status = await motionPermissionService.checkMotionAvailability();
       setPermissionStatus(status);
-    } catch (_error) {
+    } catch (error: unknown) {
+      console.warn('[motion-permissions] checkMotionAvailability failed:', error);
       setPermissionStatus({
         available: false,
         granted: false,

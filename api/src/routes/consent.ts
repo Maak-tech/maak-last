@@ -76,9 +76,9 @@ export const consentRoutes = new Elysia({ prefix: "/api/consent" })
     },
     {
       body: t.Object({
-        userId: t.String(),
-        orgId: t.String(),
-        grantedBy: t.Optional(t.String()),
+        userId: t.String({ maxLength: 36 }),
+        orgId: t.String({ maxLength: 36 }),
+        grantedBy: t.Optional(t.String({ maxLength: 36 })),
         grantMethod: t.String({ maxLength: 100 }),
         scope: t.Optional(t.Array(t.String({ maxLength: 100 }), { maxItems: 50 })),
         version: t.Optional(t.String({ maxLength: 20 })),

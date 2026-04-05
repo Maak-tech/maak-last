@@ -673,7 +673,7 @@ class RecoveryScoreService {
 
       _cache.set(userId, { result, timestamp: Date.now() });
       return result;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[recoveryScore] calculateRecoveryScore failed, returning fallback:', err);
       // Safe default on any unhandled error
       const fallback: RecoveryScoreResult = {

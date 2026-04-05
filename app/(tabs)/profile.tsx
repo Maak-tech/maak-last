@@ -49,6 +49,7 @@ import {
   Users,
   X,
 } from "lucide-react-native";
+import type { LucideIcon } from "lucide-react-native";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -88,7 +89,6 @@ import GradientScreen from "@/components/figma/GradientScreen";
 import Sparkline from "@/components/figma/Sparkline";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
-import { useRealtimeHealthContext } from "@/contexts/RealtimeHealthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useMyOrganization } from "@/hooks/useMyOrganization";
 import { calendarService } from "@/lib/services/calendarService";
@@ -122,7 +122,7 @@ import {
 } from "@/utils/dateFormat";
 
 interface ProfileSectionItem {
-  icon: any;
+  icon: LucideIcon;
   label: string;
   onPress?: () => void;
   hasSwitch?: boolean;
@@ -176,7 +176,7 @@ export default function ProfileScreen() {
         isOnline: status.isOnline,
         queueLength: status.queueLength,
       });
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[profile] checkSyncStatus failed:', err);
     }
   }, []);
@@ -213,7 +213,7 @@ export default function ProfileScreen() {
     setSyncing(true);
     try {
       await checkSyncStatus();
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[profile] handleSync failed:', err);
     } finally {
       setSyncing(false);
@@ -355,7 +355,7 @@ export default function ProfileScreen() {
     };
 
     if (process.env.NODE_ENV !== "production") {
-      console.log("Sparkline data:", {
+      console.debug("[profile] Sparkline data:", {
         heartRate: result.heartRate.length,
         steps: result.steps.length,
         sleepHours: result.sleepHours.length,
@@ -396,7 +396,7 @@ export default function ProfileScreen() {
       if (notifications !== null) {
         setNotificationsEnabled(JSON.parse(notifications));
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[Profile] Error loading notification settings:', error);
     }
   };
@@ -432,7 +432,7 @@ export default function ProfileScreen() {
         medications: activeMedications,
         healthScore: score,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading health data:', error);
     } finally {
       setLoading(false);
@@ -532,7 +532,7 @@ export default function ProfileScreen() {
             try {
               await logout();
               router.replace('/(auth)/login');
-            } catch (error) {
+            } catch (error: unknown) {
               console.error('Logout failed:', error);
               Alert.alert(
                 isRTL ? 'خطأ' : 'Error',
@@ -691,7 +691,7 @@ export default function ProfileScreen() {
                 icon: Activity,
                 label: t("healthIntegrations"),
                 onPress: () =>
-                  router.push("/profile/health-integrations" as any),
+                  router.push({ pathname: '/profile/health-integrations' }),
               },
             ],
           },
@@ -720,13 +720,13 @@ export default function ProfileScreen() {
               {
                 icon: Shield,
                 label: t("fallDetection"),
-                onPress: () => router.push("/profile/fall-detection" as any),
+                onPress: () => router.push({ pathname: '/profile/fall-detection' }),
               },
               {
                 icon: Activity,
                 label: t("healthIntegrations"),
                 onPress: () =>
-                  router.push("/profile/health-integrations" as any),
+                  router.push({ pathname: '/profile/health-integrations' }),
               },
             ]),
         // Language for all users
@@ -828,7 +828,7 @@ export default function ProfileScreen() {
         isRTL ? "تم التحديث" : "Updated",
         isRTL ? "تم تحديث الصورة الشخصية بنجاح." : "Profile picture updated successfully."
       );
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("[Profile] Avatar update failed:", err);
       Alert.alert(
         isRTL ? "خطأ" : "Error",
@@ -928,7 +928,7 @@ export default function ProfileScreen() {
   const stepsTrend = getTrend(vitalsSparklines.steps);
 
   type HealthOverviewCard = {
-    icon: any;
+    icon: LucideIcon;
     label: string;
     value: string;
     trend: string;
@@ -1013,7 +1013,7 @@ export default function ProfileScreen() {
   ];
   type AccountSectionItem = {
     label: string;
-    icon: any;
+    icon: LucideIcon;
     onPress?: () => void;
     hasSwitch?: boolean;
     switchValue?: boolean;
@@ -1072,12 +1072,12 @@ export default function ProfileScreen() {
         {
           icon: Settings,
           label: isRTL ? 'تجربة الإشعارات' : 'Debug Notifications',
-          onPress: () => router.push('/debug-notifications' as any),
+          onPress: () => router.push({ pathname: '/debug-notifications' }),
         },
         {
           icon: Heart,
           label: isRTL ? 'مساعد الصحة الذكي' : 'AI Health Assistant',
-          onPress: () => router.push('/ai-assistant' as any),
+          onPress: () => router.push({ pathname: '/ai-assistant' }),
         },
         {
           icon: isDark ? Sun : Moon,
@@ -1224,8 +1224,8 @@ export default function ProfileScreen() {
         </View>
 
         {/* Settings Sections */}
-        {profileSections.map((section, sectionIndex) => (
-          <View key={sectionIndex} style={styles.section}>
+        {profileSections.map((section) => (
+          <View key={section.title} style={styles.section}>
             <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
               {section.title}
             </Text>
@@ -1236,7 +1236,7 @@ export default function ProfileScreen() {
 
                 return (
                   <TouchableOpacity
-                    key={itemIndex}
+                    key={`${section.title}-${item.label}`}
                     style={[
                       styles.sectionItem,
                       itemIndex === section.items.length - 1 &&
@@ -1263,8 +1263,8 @@ export default function ProfileScreen() {
                     <View style={styles.sectionItemRight}>
                       {item.hasSwitch ? (
                         <Switch
-                          value={item.switchValue}
-                          onValueChange={item.onSwitchChange}
+                          value={item.switchValue ?? false}
+                          onValueChange={item.onSwitchChange ?? (() => {})}
                           trackColor={{ false: '#E2E8F0', true: '#2563EB' }}
                           thumbColor="#FFFFFF"
                         />

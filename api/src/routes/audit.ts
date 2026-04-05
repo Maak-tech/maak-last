@@ -55,7 +55,7 @@ export const auditRoutes = new Elysia({ prefix: "/api/audit" })
         });
 
         return { ok: true };
-      } catch (err) {
+      } catch (err: unknown) {
         // Audit logging must never break the caller — swallow and log server-side
         console.error("[audit] Failed to write audit entry:", err);
         return { ok: false };

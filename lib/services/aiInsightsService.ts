@@ -309,7 +309,7 @@ class AIInsightsService {
     try {
       const result = await api.get<{ data?: unknown[] }>("/api/health/vitals?limit=1");
       return Array.isArray(result?.data) ? result.data.length > 0 : false;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[aiInsights] hasVitalsData check failed:', err);
       return false;
     }
@@ -652,8 +652,8 @@ class AIInsightsService {
         return this.generateFallbackNarrative(context, isArabic);
       }
       return narrative;
-    } catch (_error) {
-      // Missing API key or network errors should not spam logs; fallback is fine.
+    } catch (err: unknown) {
+      console.debug('[aiInsights] generatePersonalizedNarrative failed (using fallback):', err instanceof Error ? err.message : String(err));
       return this.generateFallbackNarrative(
         {
           correlations: [],
@@ -970,7 +970,8 @@ class AIInsightsService {
   private async getRecentSymptoms(userId: string): Promise<Symptom[]> {
     try {
       return await symptomService.getUserSymptoms(userId, SYMPTOM_FETCH_LIMIT);
-    } catch (_error) {
+    } catch (error: unknown) {
+      console.warn('[aiInsights] getRecentSymptoms failed:', error);
       return [];
     }
   }
@@ -978,7 +979,8 @@ class AIInsightsService {
   private async getMedicalHistory(userId: string): Promise<MedicalHistory[]> {
     try {
       return await medicalHistoryService.getUserMedicalHistory(userId);
-    } catch (_error) {
+    } catch (error: unknown) {
+      console.warn('[aiInsights] getMedicalHistory failed:', error);
       return [];
     }
   }
@@ -986,7 +988,8 @@ class AIInsightsService {
   private async getMedications(userId: string): Promise<Medication[]> {
     try {
       return await medicationService.getUserMedications(userId);
-    } catch (_error) {
+    } catch (error: unknown) {
+      console.warn('[aiInsights] getMedications failed:', error);
       return [];
     }
   }

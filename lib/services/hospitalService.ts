@@ -12,6 +12,7 @@ async function hospitalFetch<T>(path: string, options?: RequestInit): Promise<T>
   const token = await getPatientToken()
   const res = await fetch(HOSPITAL_API_URL + path, {
     ...options,
+    signal: options?.signal ?? AbortSignal.timeout(15_000),
     headers: {
       ...(options?.headers ?? {}),
       'Content-Type': 'application/json',
@@ -51,8 +52,16 @@ export const hospitalService = {
       method: 'POST',
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: formData,
+      signal: AbortSignal.timeout(30_000), // 30 s — image upload + CompreFace round-trip
     })
-    if (!res.ok) throw new Error('Enrollment failed')
+    if (!res.ok) {
+      let detail = ''
+      try {
+        const body = await res.json() as { error?: string; message?: string }
+        detail = body.error ?? body.message ?? ''
+      } catch { /* ignore parse failure */ }
+      throw new Error(`Enrollment failed${detail ? `: ${detail}` : ''}`)
+    }
     return res.json() as Promise<{ enrolled: boolean }>
   },
 
@@ -70,8 +79,16 @@ export const hospitalService = {
     const token = await getPatientToken()
     const res = await fetch(HOSPITAL_API_URL + `/patient/qr/${patientId}`, {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      signal: AbortSignal.timeout(15_000),
     })
-    if (!res.ok) throw new Error('QR generation failed')
+    if (!res.ok) {
+      let detail = ''
+      try {
+        const body = await res.json() as { error?: string; message?: string }
+        detail = body.error ?? body.message ?? ''
+      } catch { /* ignore parse failure */ }
+      throw new Error(`QR generation failed${detail ? `: ${detail}` : ''}`)
+    }
     return res.json() as Promise<{ token: string; expiresAt: string }>
   },
 }

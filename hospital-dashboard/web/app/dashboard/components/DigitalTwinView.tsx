@@ -47,8 +47,8 @@ export default function DigitalTwinView({ data }: Props) {
   const { patient, vhi, recentAlerts, vitalsTrends, activeMedications } = data
   const summary = vhi?.summary_json as Record<string, unknown> | undefined
 
-  // Group vitals by type for display
-  const vitalsByType = vitalsTrends.reduce<Record<string, typeof vitalsTrends>>((acc, v) => {
+  // Group vitals by type for display — guard against null/undefined from API
+  const vitalsByType = (Array.isArray(vitalsTrends) ? vitalsTrends : []).reduce<Record<string, typeof vitalsTrends>>((acc, v) => {
     if (!acc[v.vital_type]) acc[v.vital_type] = []
     acc[v.vital_type].push(v)
     return acc

@@ -63,7 +63,7 @@ export default function DiscoveryCardsSection() {
           lastLoadRef.current = Date.now();
           lastUserIdRef.current = user.id;
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.warn('[DiscoveryCardsSection] Failed to load top discoveries:', err);
       } finally {
         if (!cancelled) setLoading(false);
@@ -82,8 +82,8 @@ export default function DiscoveryCardsSection() {
       setTopDiscoveries((prev) => prev.filter((d) => d.id !== discoveryId));
       // Persist so it stays dismissed across sessions
       if (user?.id) {
-        discoveryService.dismissDiscovery(user.id, discoveryId).catch(() => {
-          // Non-critical — UI already updated
+        discoveryService.dismissDiscovery(user.id, discoveryId).catch((err: unknown) => {
+          console.debug('[DiscoveryCards] dismissDiscovery API call failed (non-critical, UI already updated):', err instanceof Error ? err.message : String(err));
         });
       }
     },

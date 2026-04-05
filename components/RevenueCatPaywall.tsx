@@ -50,7 +50,7 @@ export function RevenueCatPaywall({
   const handleRetry = async () => {
     try {
       await refreshOfferings();
-    } catch (_err) {
+    } catch (_err: unknown) {
       // Error is already handled by the hook
     }
   };
@@ -113,11 +113,11 @@ export function RevenueCatPaywall({
   }
 
   const handleTermsPress = () => {
-    Linking.openURL(TERMS_URL);
+    Linking.openURL(TERMS_URL).catch((err) => console.warn('[Paywall] Failed to open Terms URL:', err instanceof Error ? err.message : String(err)));
   };
 
   const handlePrivacyPress = () => {
-    Linking.openURL(PRIVACY_URL);
+    Linking.openURL(PRIVACY_URL).catch((err) => console.warn('[Paywall] Failed to open Privacy URL:', err instanceof Error ? err.message : String(err)));
   };
 
   return (
@@ -134,7 +134,7 @@ export function RevenueCatPaywall({
           // Refresh customer info to update subscription status immediately
           try {
             await refreshCustomerInfo();
-          } catch (_err) {
+          } catch (_err: unknown) {
             // Error is already handled by the hook, continue anyway
           }
 
@@ -172,7 +172,7 @@ export function RevenueCatPaywall({
           // Refresh customer info to update subscription status immediately
           try {
             await refreshCustomerInfo();
-          } catch (_err) {
+          } catch (_err: unknown) {
             // Error is already handled by the hook, continue anyway
           }
 

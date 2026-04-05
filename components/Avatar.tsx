@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import { User } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getTextStyle } from '@/utils/styles';
@@ -11,7 +11,7 @@ interface AvatarProps {
   onPress?: () => void;
   showBadge?: boolean;
   badgeColor?: string;
-  style?: any;
+  style?: StyleProp<ViewStyle>;
 }
 
 export const Avatar: React.FC<AvatarProps> = ({

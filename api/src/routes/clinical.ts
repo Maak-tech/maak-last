@@ -44,7 +44,7 @@ export const clinicalRoutes = new Elysia({ prefix: "/api/clinical" })
     },
     {
       query: t.Object({
-        orgId: t.String(), // required — mandatory for RBAC
+        orgId: t.String({ maxLength: 36 }), // required — mandatory for RBAC
         patientId: t.Optional(t.String()),
         status: t.Optional(t.String()),
         limit: t.Optional(t.Numeric()),
@@ -82,8 +82,8 @@ export const clinicalRoutes = new Elysia({ prefix: "/api/clinical" })
     },
     {
       body: t.Object({
-        orgId: t.String(),
-        patientId: t.Optional(t.String()),
+        orgId: t.String({ maxLength: 36 }),
+        patientId: t.Optional(t.String({ maxLength: 36 })),
         integrationType: t.String({ maxLength: 100 }),
         requestData: t.Optional(t.Any()),
       }),

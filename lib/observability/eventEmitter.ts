@@ -173,7 +173,7 @@ class ObservabilityEventEmitter {
         "change",
         this.handleAppStateChange.bind(this)
       );
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn(
         "Failed to setup app state listener",
         error,
@@ -214,7 +214,7 @@ class ObservabilityEventEmitter {
           sanitizeForTransport(e as unknown as Record<string, unknown>)
         ),
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to flush observability events",
         error,
@@ -235,7 +235,7 @@ class ObservabilityEventEmitter {
           sanitizeForTransport(m as unknown as Record<string, unknown>)
         ),
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to flush observability metrics",
         error,
@@ -314,7 +314,7 @@ class ObservabilityEventEmitter {
         "/api/audit/events",
         sanitizeForTransport(fullEvent as unknown as Record<string, unknown>)
       );
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to emit observability event immediately",
         error,
@@ -528,7 +528,7 @@ class ObservabilityEventEmitter {
         "/api/audit/alert-audit",
         sanitizeForTransport(auditEntry as unknown as Record<string, unknown>)
       );
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to record alert audit",
         { alertId, action, error },

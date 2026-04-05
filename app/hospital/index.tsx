@@ -21,7 +21,10 @@ export default function HospitalIndex() {
         setEnrolled(status.enrolled)
         setEnrolledAt(status.enrolledAt)
       })
-      .catch(() => setEnrolled(false))
+      .catch((err) => {
+        console.warn('[hospital/index] Failed to fetch enrollment status:', err instanceof Error ? err.message : String(err));
+        setEnrolled(false);
+      })
       .finally(() => setLoading(false))
   }, [user?.id])
 
@@ -53,7 +56,7 @@ export default function HospitalIndex() {
       {/* Action buttons */}
       <TouchableOpacity
         style={styles.primaryButton}
-        onPress={() => router.push('/hospital/enroll' as any)}
+        onPress={() => router.push({ pathname: '/hospital/enroll' })}
       >
         <Text style={styles.primaryButtonText}>
           {enrolled ? 'Re-enroll Face' : 'Enroll My Face'}
@@ -63,7 +66,7 @@ export default function HospitalIndex() {
 
       <TouchableOpacity
         style={styles.secondaryButton}
-        onPress={() => router.push('/hospital/qr' as any)}
+        onPress={() => router.push({ pathname: '/hospital/qr' })}
       >
         <Text style={styles.secondaryButtonText}>Show QR Code</Text>
         <Text style={styles.buttonSubtextDark}>Share with hospital staff to pull up your records</Text>

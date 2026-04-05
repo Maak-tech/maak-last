@@ -11,7 +11,7 @@ export const paywallGuard = Object.assign(
   // Callable as paywallGuard(isSubscribed) – redirects to premium if not subscribed
   function paywallGuard(isSubscribed: boolean): boolean {
     if (!isSubscribed) {
-      router.push("/(settings)/premium" as any);
+      router.push({ pathname: '/(settings)/premium' });
       return false;
     }
     return true;

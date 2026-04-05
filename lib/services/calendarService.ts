@@ -72,8 +72,8 @@ class CalendarService {
       }
 
       return result.id;
-    } catch (error) {
-      throw new Error(`Failed to add calendar event: ${error}`);
+    } catch (error: unknown) {
+      throw new Error(`Failed to add calendar event: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -101,15 +101,16 @@ class CalendarService {
       if (updates.tags !== undefined) body.tags = updates.tags ?? null;
       if (updates.attendees !== undefined) body.attendees = updates.attendees ?? null;
       await api.patch(`/api/calendar/${eventId}`, body);
-    } catch (error) {
-      throw new Error(`Failed to update calendar event: ${error}`);
+    } catch (error: unknown) {
+      throw new Error(`Failed to update calendar event: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
   async deleteEvent(eventId: string): Promise<void> {
     try {
       await api.delete(`/api/calendar/${eventId}`);
-    } catch (_error) {
+    } catch (error: unknown) {
+      console.warn('[calendar] deleteEvent failed:', error);
       throw new Error("Failed to delete calendar event");
     }
   }
@@ -118,7 +119,8 @@ class CalendarService {
     try {
       const raw = await api.get<Record<string, unknown> | null>(`/api/calendar/${eventId}`);
       return raw ? normalizeEvent(raw) : null;
-    } catch (_error) {
+    } catch (error: unknown) {
+      console.warn('[calendar] getEvent failed:', error);
       return null;
     }
   }
@@ -136,7 +138,8 @@ class CalendarService {
         `/api/calendar?${params.toString()}`
       );
       return (Array.isArray(raw) ? raw : []).map(normalizeEvent);
-    } catch (_error) {
+    } catch (error: unknown) {
+      console.warn('[calendar] getUserEvents failed:', error);
       return [];
     }
   }
@@ -154,7 +157,8 @@ class CalendarService {
         `/api/calendar/family/${familyId}?${params.toString()}`
       );
       return (Array.isArray(raw) ? raw : []).map(normalizeEvent);
-    } catch (_error) {
+    } catch (error: unknown) {
+      console.warn('[calendar] getFamilyEvents failed:', error);
       return [];
     }
   }
@@ -241,8 +245,8 @@ class CalendarService {
     for (const recurringEvent of events) {
       try {
         await this.addEvent(userId, recurringEvent);
-      } catch (_error) {
-        // Continue with other events even if one fails
+      } catch (err: unknown) {
+        console.debug('[calendarService] Failed to add recurring event (continuing):', err instanceof Error ? err.message : String(err));
       }
     }
   }

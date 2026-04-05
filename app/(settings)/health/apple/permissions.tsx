@@ -11,6 +11,7 @@ import {
   ThermometerSun,
   Zap,
 } from "lucide-react-native";
+import type { LucideIcon } from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -32,7 +33,7 @@ interface HealthMetric {
   labelAr: string;
   descEn: string;
   descAr: string;
-  icon: any;
+  icon: LucideIcon;
   color: string;
   category: string;
 }
@@ -99,8 +100,14 @@ export default function AppleHealthPermissionsScreen() {
     }
     setSaving(true);
     try {
-      await api.post("/api/integrations/apple-health/permissions", {
-        metrics: Array.from(selected),
+      // Save selected Apple Health metrics to user preferences
+      await api.patch("/api/user/preferences", {
+        preferences: {
+          appleHealthPermissions: {
+            metrics: Array.from(selected),
+            updatedAt: new Date().toISOString(),
+          },
+        },
       });
       Alert.alert(
         isRTL ? "تم الحفظ" : "Permissions Saved",
@@ -109,10 +116,10 @@ export default function AppleHealthPermissionsScreen() {
           : "Selected metrics will be synced from Apple Health",
         [{ text: isRTL ? "حسناً" : "OK", onPress: () => router.back() }]
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
-        err?.message ?? (isRTL ? "تعذر حفظ الإعدادات" : "Failed to save permissions")
+        (err instanceof Error ? err.message : null) ?? (isRTL ? "تعذر حفظ الإعدادات" : "Failed to save permissions")
       );
     } finally {
       setSaving(false);

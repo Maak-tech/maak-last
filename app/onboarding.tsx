@@ -194,7 +194,7 @@ export default function OnboardingScreen() {
       setTimeout(() => {
         router.replace('/(tabs)');
       }, 300);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error completing onboarding:', error);
       setIsCompleting(false);
     }

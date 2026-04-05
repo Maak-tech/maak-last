@@ -50,24 +50,32 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
       ].join("\n");
 
       // Call OpenAI
-      const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "gpt-4o",
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...(body.history ?? []),
-            { role: "user", content: body.message },
-          ],
-          max_tokens: 600,
-          temperature: 0.7,
-        }),
-        signal: AbortSignal.timeout(30_000), // 30-second ceiling
-      });
+      let openaiRes: Response;
+      try {
+        openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "gpt-4o",
+            messages: [
+              { role: "system", content: systemPrompt },
+              ...(body.history ?? []),
+              { role: "user", content: body.message },
+            ],
+            max_tokens: 600,
+            temperature: 0.7,
+          }),
+          signal: AbortSignal.timeout(30_000), // 30-second ceiling
+        });
+      } catch (fetchErr: unknown) {
+        const isTimeout = fetchErr instanceof Error && fetchErr.name === "TimeoutError";
+        console.error("[nora/chat] OpenAI fetch failed:", fetchErr instanceof Error ? fetchErr.message : String(fetchErr));
+        set.status = 504;
+        return { error: isTimeout ? "AI service timed out. Please try again." : "AI service unreachable. Please try again." };
+      }
 
       // Propagate OpenAI errors to the caller with the correct HTTP status
       if (!openaiRes.ok) {
@@ -147,15 +155,30 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
     }
   )
 
-  // Get conversation history
+  // Get conversation history (returns id, title, createdAt, updatedAt, messageCount, preview)
   .get(
     "/conversations",
     async ({ db, userId }) => {
-      return db
-        .select({ id: noraConversations.id, createdAt: noraConversations.createdAt, updatedAt: noraConversations.updatedAt })
+      const rows = await db
+        .select()
         .from(noraConversations)
         .where(eq(noraConversations.userId, userId))
+        .orderBy(noraConversations.updatedAt)
         .limit(20);
+
+      return rows.map((row) => {
+        const msgs = Array.isArray(row.messages) ? row.messages : [];
+        const userMessages = msgs.filter((m) => m.role === "user");
+        const firstUserContent = userMessages[0]?.content ?? "";
+        return {
+          id: row.id,
+          title: row.title ?? firstUserContent.slice(0, 40) || "New Chat",
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt,
+          messageCount: msgs.length,
+          preview: firstUserContent.slice(0, 100),
+        };
+      });
     },
     { detail: { tags: ["nora"], summary: "Get Nora conversation history" } }
   )
@@ -179,6 +202,32 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
     {
       params: t.Object({ id: t.String() }),
       detail: { tags: ["nora"], summary: "Get a specific Nora conversation" },
+    }
+  )
+
+  // Delete a conversation
+  .delete(
+    "/conversations/:id",
+    async ({ db, userId, params, set }) => {
+      const [existing] = await db
+        .select({ id: noraConversations.id })
+        .from(noraConversations)
+        .where(and(eq(noraConversations.id, params.id), eq(noraConversations.userId, userId)))
+        .limit(1);
+
+      if (!existing) {
+        set.status = 404;
+        return { error: "Conversation not found" };
+      }
+
+      await db
+        .delete(noraConversations)
+        .where(and(eq(noraConversations.id, params.id), eq(noraConversations.userId, userId)));
+      return { ok: true };
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      detail: { tags: ["nora"], summary: "Delete a Nora conversation" },
     }
   )
 
@@ -206,20 +255,28 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
         return { error: "AI service is not configured. Set OPENAI_API_KEY and redeploy." };
       }
 
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: body.model ?? "gpt-3.5-turbo",
-          messages: body.messages,
-          max_tokens: body.maxTokens ?? 1000,
-          temperature: body.temperature ?? 0.7,
-        }),
-        signal: AbortSignal.timeout(30_000), // 30-second ceiling — same as /chat
-      });
+      let response: Response;
+      try {
+        response = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: body.model ?? "gpt-3.5-turbo",
+            messages: body.messages,
+            max_tokens: body.maxTokens ?? 1000,
+            temperature: body.temperature ?? 0.7,
+          }),
+          signal: AbortSignal.timeout(30_000), // 30-second ceiling — same as /chat
+        });
+      } catch (fetchErr: unknown) {
+        const isTimeout = fetchErr instanceof Error && fetchErr.name === "TimeoutError";
+        console.error("[nora/complete] OpenAI fetch failed:", fetchErr instanceof Error ? fetchErr.message : String(fetchErr));
+        set.status = 504;
+        return { error: isTimeout ? "AI service timed out." : "AI service unreachable." };
+      }
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -307,15 +364,23 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
         formData.append("language", body.language);
       }
 
-      const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        },
-        body: formData,
-        // 60-second ceiling — Whisper processing time scales with audio length
-        signal: AbortSignal.timeout(60_000),
-      });
+      let response: Response;
+      try {
+        response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          },
+          body: formData,
+          // 60-second ceiling — Whisper processing time scales with audio length
+          signal: AbortSignal.timeout(60_000),
+        });
+      } catch (fetchErr: unknown) {
+        const isTimeout = fetchErr instanceof Error && fetchErr.name === "TimeoutError";
+        console.error("[nora/transcribe] Whisper fetch failed:", fetchErr instanceof Error ? fetchErr.message : String(fetchErr));
+        set.status = 504;
+        return { error: isTimeout ? "Transcription timed out. Try a shorter clip." : "Transcription service unreachable." };
+      }
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -329,10 +394,10 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
     },
     {
       body: t.Object({
-        audioBase64: t.String(),
-        filename: t.String(),
-        mimeType: t.String(),
-        language: t.Optional(t.String()),
+        audioBase64: t.String({ maxLength: 20_000_000 }), // ~15MB base64-encoded audio
+        filename: t.String({ maxLength: 255 }),
+        mimeType: t.String({ maxLength: 100 }),
+        language: t.Optional(t.String({ maxLength: 10 })),
         usePremiumKey: t.Optional(t.Boolean()), // accepted for API compatibility
       }),
       detail: {
@@ -386,11 +451,11 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
     {
       body: t.Object({
         messages: t.Optional(t.Array(t.Object({
-          role: t.String(),
-          content: t.String(),
-          timestamp: t.Optional(t.String()),
-        }))),
-        title: t.Optional(t.String()),
+          role: t.String({ maxLength: 20 }),
+          content: t.String({ maxLength: 100_000 }),
+          timestamp: t.Optional(t.String({ maxLength: 50 })),
+        }), { maxItems: 500 })),
+        title: t.Optional(t.String({ maxLength: 500 })),
       }),
       detail: { tags: ["nora"], summary: "Create or upsert a Nora chat session" },
     }
@@ -403,28 +468,46 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
   .patch(
     "/chat-sessions/:id",
     async ({ db, userId, params, body }) => {
+      // Fetch existing session first so we can append (not replace) messages
+      const [existing] = await db
+        .select({ messages: noraConversations.messages })
+        .from(noraConversations)
+        .where(and(eq(noraConversations.id, params.id), eq(noraConversations.userId, userId)))
+        .limit(1);
+
+      if (!existing) return { ok: false, error: "Session not found" };
+
       const now = new Date().toISOString();
-      const newMessages = (body.messages ?? []).map((m: { role: string; content: string; timestamp?: string }) => ({
+      const appendedMessages = (body.messages ?? []).map((m: { role: string; content: string; timestamp?: string }) => ({
         role: m.role as "user" | "assistant" | "system",
         content: m.content,
         timestamp: m.timestamp ?? now,
       }));
+
+      const existingMessages = Array.isArray(existing.messages) ? existing.messages : [];
+      const merged = [...existingMessages, ...appendedMessages];
+
+      const setValues: { messages: typeof merged; updatedAt: Date; title?: string } = {
+        messages: merged,
+        updatedAt: new Date(),
+      };
+      if (body.title !== undefined) setValues.title = body.title;
+
       await db.update(noraConversations)
-        .set({ messages: newMessages, updatedAt: new Date() })
+        .set(setValues)
         .where(and(eq(noraConversations.id, params.id), eq(noraConversations.userId, userId)));
       return { ok: true };
     },
     {
       body: t.Object({
         messages: t.Optional(t.Array(t.Object({
-          role: t.String(),
-          content: t.String(),
-          timestamp: t.Optional(t.String()),
-        }))),
-        title: t.Optional(t.String()),
-        updatedAt: t.Optional(t.String()),
+          role: t.String({ maxLength: 20 }),
+          content: t.String({ maxLength: 100_000 }),
+          timestamp: t.Optional(t.String({ maxLength: 50 })),
+        }), { maxItems: 500 })),
+        title: t.Optional(t.String({ maxLength: 500 })),
       }),
-      detail: { tags: ["nora"], summary: "Update a Nora chat session" },
+      detail: { tags: ["nora"], summary: "Append messages to a Nora chat session" },
     }
   )
 
@@ -456,15 +539,23 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
         ? (process.env.OPENAI_PREMIUM_API_KEY ?? process.env.OPENAI_API_KEY)
         : process.env.OPENAI_API_KEY;
 
-      const response = await fetch("https://api.openai.com/v1/realtime/sessions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ model, voice: "alloy" }),
-        signal: AbortSignal.timeout(15_000), // Realtime session creation should be fast
-      });
+      let response: Response;
+      try {
+        response = await fetch("https://api.openai.com/v1/realtime/sessions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ model, voice: "alloy" }),
+          signal: AbortSignal.timeout(15_000), // Realtime session creation should be fast
+        });
+      } catch (fetchErr: unknown) {
+        const isTimeout = fetchErr instanceof Error && fetchErr.name === "TimeoutError";
+        console.error("[nora/realtime-session] fetch failed:", fetchErr instanceof Error ? fetchErr.message : String(fetchErr));
+        set.status = 504;
+        return { error: isTimeout ? "Realtime service timed out." : "Realtime service unreachable." };
+      }
 
       if (!response.ok) {
         const err = await response.text();
@@ -485,7 +576,7 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
     },
     {
       body: t.Object({
-        model: t.Optional(t.String()),
+        model: t.Optional(t.String({ maxLength: 100 })),
         usePremiumKey: t.Optional(t.Boolean()),
       }),
       detail: { tags: ["nora"], summary: "Generate OpenAI Realtime ephemeral client secret" },

@@ -103,7 +103,7 @@ export default function GeneticsScreen() {
         return true; // signal caller to keep polling
       }
       return false;
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error("[genetics] Failed to load profile:", err);
       return false;
     }
@@ -117,12 +117,19 @@ export default function GeneticsScreen() {
       if (mounted) {
         setLoading(false);
         if (keepPolling) {
-          const id = setInterval(async () => {
-            const stillPolling = await loadProfile();
-            if (!stillPolling) {
-              clearInterval(id);
-              setPollingInterval(null);
-            }
+          const id = setInterval(() => {
+            loadProfile()
+              .then((stillPolling) => {
+                if (!stillPolling) {
+                  clearInterval(id);
+                  setPollingInterval(null);
+                }
+              })
+              .catch((err) => {
+                console.warn('[genetics] Polling loadProfile failed:', err);
+                clearInterval(id);
+                setPollingInterval(null);
+              });
           }, 5000);
           setPollingInterval(id);
         }
@@ -163,7 +170,7 @@ export default function GeneticsScreen() {
             try {
               await geneticsService.updateConsent(next);
               setProfile((p) => p ? { ...p, familySharingConsent: next } : p);
-            } catch (err) {
+            } catch (err: unknown) {
               console.warn('[genetics] Failed to update consent:', err);
               Alert.alert(isRTL ? "خطأ" : "Error", isRTL ? "تعذّر تحديث الإعداد" : "Failed to update preference");
             }

@@ -61,7 +61,7 @@ export const familyInviteService = {
         invitedUserRelation,
       });
       return result.code;
-    } catch (error) {
+    } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Unknown error";
       throw new Error(`Failed to create invitation: ${msg}`);
     }
@@ -75,7 +75,7 @@ export const familyInviteService = {
       );
       if (!raw || (raw as { error?: string }).error) return null;
       return normalizeInvitation(raw);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[familyInvite] getInvitationByCode failed:', err);
       return null;
     }
@@ -104,7 +104,7 @@ export const familyInviteService = {
         success: false,
         message: result.message ?? "Failed to use invitation code",
       };
-    } catch (error) {
+    } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Failed to use invitation code";
       return { success: false, message: msg };
     }
@@ -117,7 +117,7 @@ export const familyInviteService = {
         `/api/family/${familyId}/invitations`
       );
       return (Array.isArray(raw) ? raw : []).map(normalizeInvitation);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[familyInvite] getInvitations failed:', err);
       return [];
     }
@@ -146,7 +146,7 @@ export const familyInviteService = {
         createdAt: raw.createdAt ? new Date(raw.createdAt as string) : new Date(),
         patientCount: 0,
       };
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[familyInvite] getFamily failed:', err);
       return null;
     }

@@ -115,7 +115,7 @@ export const medicalHistoryService = {
       const raw = await api.get<Record<string, unknown>>(`/api/health/medical-history/${historyId}`);
       if (!raw || (raw as { error?: string }).error) return null;
       return normalizeMedicalHistory(raw);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[medicalHistory] getMedicalHistoryById failed:', err);
       return null;
     }

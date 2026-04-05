@@ -9,6 +9,7 @@ import {
   Stethoscope,
   TrendingUp,
 } from "lucide-react-native";
+import type { LucideIcon } from "lucide-react-native";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -37,7 +38,7 @@ interface TimelineEvent {
   metadata?: Record<string, unknown>;
 }
 
-const DOMAIN_CONFIG: Record<string, { color: string; icon: any; label: string; labelAr: string }> = {
+const DOMAIN_CONFIG: Record<string, { color: string; icon: LucideIcon; label: string; labelAr: string }> = {
   vitals:   { color: "#EF4444", icon: Heart,       label: "Vitals",   labelAr: "العلامات الحيوية" },
   symptoms: { color: "#F59E0B", icon: Activity,    label: "Symptoms", labelAr: "الأعراض" },
   clinical: { color: "#3B82F6", icon: Stethoscope, label: "Clinical", labelAr: "سريري" },
@@ -79,7 +80,7 @@ export default function TimelineScreen() {
     try {
       const data = await api.get<TimelineEvent[]>("/api/health/timeline?limit=100");
       setEvents(Array.isArray(data) ? data : []);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[timeline] Failed to load timeline events:', err);
     } finally {
       setLoading(false);

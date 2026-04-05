@@ -30,8 +30,8 @@ let Speech: SpeechNamespace | null = null;
 try {
   // Try to import expo-speech if available
   Speech = require("expo-speech");
-} catch (_error) {
-  // expo-speech not available, will use fallback
+} catch (err: unknown) {
+  console.debug('[voiceService] expo-speech not available:', err instanceof Error ? err.message : String(err));
 }
 
 import * as Device from "expo-device";
@@ -79,8 +79,8 @@ try {
   } else {
     // expo-av not available on web platform
   }
-} catch (_error) {
-  // expo-av not available: ${error}
+} catch (err: unknown) {
+  console.debug('[voiceService] expo-av not available:', err instanceof Error ? err.message : String(err));
 }
 
 export type VoiceConfig = {
@@ -234,7 +234,8 @@ class VoiceService {
           },
         });
       });
-    } catch (_error) {
+    } catch (err: unknown) {
+      console.debug('[voiceService] speak failed:', err instanceof Error ? err.message : String(err));
       throw new Error("Failed to speak text");
     }
   }
@@ -248,8 +249,8 @@ class VoiceService {
         Speech.stop();
         this.isSpeaking = false;
       }
-    } catch (_error) {
-      // Silently handle error
+    } catch (err: unknown) {
+      console.debug('[voice] Speech.stop() failed (non-critical):', err instanceof Error ? err.message : String(err));
     }
     return Promise.resolve();
   }
@@ -294,7 +295,8 @@ class VoiceService {
           Platform.OS === "android" ||
           Platform.OS === "web");
       return Promise.resolve(available);
-    } catch (_error) {
+    } catch (err: unknown) {
+      console.debug('[voiceService] isTTSAvailable check failed:', err instanceof Error ? err.message : String(err));
       return Promise.resolve(false);
     }
   }
@@ -378,7 +380,7 @@ class VoiceService {
       for (const callback of this.recognitionCallbacks) {
         callback(result);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       const errorObj = new Error(errorMessage);
@@ -403,8 +405,8 @@ class VoiceService {
         await this.recording.stopAndUnloadAsync();
         this.recording = null;
       }
-    } catch (_error) {
-      // Silently handle cleanup errors
+    } catch (err: unknown) {
+      console.debug('[voice] Recording cleanup failed (non-critical):', err instanceof Error ? err.message : String(err));
     } finally {
       this.isListening = false;
       this.recognitionCallbacks = [];
@@ -453,7 +455,7 @@ class VoiceService {
         text: (result?.text || "").trim(),
         confidence: 1.0, // Whisper doesn't return confidence scores
       };
-    } catch (error) {
+    } catch (error: unknown) {
       throw new Error(
         `Failed to transcribe audio: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -470,7 +472,8 @@ class VoiceService {
       }
       const permission = await Audio.requestPermissionsAsync();
       return permission.status === "granted";
-    } catch (_error) {
+    } catch (err: unknown) {
+      console.debug('[voiceService] requestMicrophonePermission failed:', err instanceof Error ? err.message : String(err));
       return false;
     }
   }
@@ -485,7 +488,8 @@ class VoiceService {
       }
       const permission = await Audio.getPermissionsAsync();
       return permission.status === "granted";
-    } catch (_error) {
+    } catch (err: unknown) {
+      console.debug('[voiceService] hasMicrophonePermissions check failed:', err instanceof Error ? err.message : String(err));
       return false;
     }
   }
@@ -508,7 +512,7 @@ class VoiceService {
       const hasPermissions = await this.hasMicrophonePermissions();
       const hasApiKey = openaiService.isConfigured;
       return hasPermissions && hasApiKey === true && Audio !== null;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[voice] isAvailable check failed:', err);
       return false;
     }

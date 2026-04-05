@@ -108,7 +108,7 @@ class OrganizationService {
     try {
       const raw = await api.get<Record<string, unknown>>(`/api/org/${orgId}`);
       return raw ? mapOrg(raw) : null;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[organization] failed to fetch organization:', err);
       return null;
     }
@@ -164,7 +164,7 @@ class OrganizationService {
     try {
       const row = await api.get<{ role: OrgRole } | null>(`/api/org/${orgId}/members/${userId}`);
       return row?.role ?? null;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[organization] failed to fetch user role in org:', err);
       return null;
     }
@@ -255,7 +255,7 @@ class OrganizationService {
     try {
       const raw = await api.get<Record<string, unknown>>(`/api/org/${orgId}/roster/${userId}`);
       return raw ? mapRoster(raw) : null;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[organization] failed to fetch patient roster entry:', err);
       return null;
     }
@@ -292,30 +292,43 @@ class OrganizationService {
   async updateRiskScore(
     orgId: string,
     userId: string,
-    _riskScore: number
+    riskScore: number
   ): Promise<void> {
-    // riskScore column not yet in patient_rosters schema — no-op until added.
-    console.warn(
-      "[organizationService] updateRiskScore: riskScore column not yet in patient_rosters schema."
-    );
+    try {
+      await api.patch(`/api/org/${orgId}/roster/${userId}`, { riskScore });
+    } catch (err: unknown) {
+      console.warn('[organizationService] updateRiskScore failed:', err instanceof Error ? err.message : String(err));
+    }
   }
 
   async updateLastContact(orgId: string, userId: string): Promise<void> {
-    // lastContact column not yet in patient_rosters schema — no-op until added.
-    console.warn(
-      "[organizationService] updateLastContact: lastContact column not yet in patient_rosters schema."
-    );
+    try {
+      await api.patch(`/api/org/${orgId}/roster/${userId}`, {
+        lastContactAt: new Date().toISOString(),
+      });
+    } catch (err: unknown) {
+      console.warn('[organizationService] updateLastContact failed:', err instanceof Error ? err.message : String(err));
+    }
   }
 
   async assignProvider(
     orgId: string,
     userId: string,
-    _providerUserId: string
+    providerUserId: string
   ): Promise<void> {
-    // assignedProviders column not yet in patient_rosters schema — no-op until added.
-    console.warn(
-      "[organizationService] assignProvider: assignedProviders column not yet in patient_rosters schema."
-    );
+    try {
+      // Fetch current assigned providers, then add the new one (deduplicated)
+      const current = await api.get<{ assignedProviders?: string[] }>(
+        `/api/org/${orgId}/roster/${userId}`
+      );
+      const existing = current?.assignedProviders ?? [];
+      const updated = Array.from(new Set([...existing, providerUserId]));
+      await api.patch(`/api/org/${orgId}/roster/${userId}`, {
+        assignedProviders: updated,
+      });
+    } catch (err: unknown) {
+      console.warn('[organizationService] assignProvider failed:', err instanceof Error ? err.message : String(err));
+    }
   }
 
   // ─── Notification Settings ──────────────────────────────────────────────────
@@ -329,7 +342,7 @@ class OrganizationService {
     try {
       const rows = await api.get<unknown[]>(`/api/org/${orgId}/notification-settings`);
       return rows ? { templates: rows } : null;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[organization] failed to fetch notification settings:', err);
       return null;
     }

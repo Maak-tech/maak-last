@@ -8,6 +8,7 @@ import {
   TrendingUp,
   Zap,
 } from "lucide-react-native";
+import type { LucideIcon } from "lucide-react-native";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -36,7 +37,7 @@ interface MetricSummary {
   labelEn: string;
   labelAr: string;
   unit: string;
-  icon: any;
+  icon: LucideIcon;
   color: string;
   current: number | null;
   avg: number | null;
@@ -59,7 +60,7 @@ function Sparkline({ points, color, height = 40 }: { points: number[]; color: st
         const h = ((v - min) / range) * (height - 4) + 4;
         return (
           <View
-            key={i}
+            key={`bar-${i}-${v}`}
             style={{
               width: Math.max(w - 2, 3),
               height: h,
@@ -125,7 +126,7 @@ export default function AnalyticsScreen() {
         `/api/health/vitals?from=${from.toISOString()}&limit=500`
       );
       setVitals(Array.isArray(data) ? data : []);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[analytics] Failed to load vitals:', err);
       setLoadError(isRTL ? "تعذّر تحميل البيانات. اسحب للأسفل للمحاولة." : "Failed to load data. Pull down to retry.");
     } finally {

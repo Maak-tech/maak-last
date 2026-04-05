@@ -45,8 +45,8 @@ try {
       }
     }
   }
-} catch (_error) {
-  // Silently handle .env loading errors
+} catch (err) {
+  console.debug('[verify-secrets] .env file not found or could not be parsed (may be normal in CI):', err instanceof Error ? err.message : String(err));
 }
 
 // Required secrets for the project

@@ -18,7 +18,7 @@ export default function Sparkline({ data, color = "#3B82F6", width = 80, height 
     <View style={{ width, height, flexDirection: "row", alignItems: "flex-end", gap: 1 }}>
       {data.map((v, i) => (
         <View
-          key={i}
+          key={`bar-${i}-${v}`}
           style={{
             width: barW,
             height: Math.max(((v - min) / range) * (height - 2) + 2, 2),

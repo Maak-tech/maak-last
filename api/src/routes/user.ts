@@ -66,8 +66,13 @@ export const userRoutes = new Elysia({ prefix: "/api/user" })
 
       if (body.name !== undefined) updateData.name = body.name;
       if (body.phone !== undefined) updateData.phone = body.phone;
-      if (body.dateOfBirth !== undefined)
-        updateData.dateOfBirth = new Date(body.dateOfBirth);
+      if (body.dateOfBirth !== undefined) {
+        const parsed = new Date(body.dateOfBirth);
+        if (isNaN(parsed.getTime())) {
+          return { error: "Invalid dateOfBirth value" };
+        }
+        updateData.dateOfBirth = parsed;
+      }
       if (body.gender !== undefined) updateData.gender = body.gender;
       if (body.bloodType !== undefined) updateData.bloodType = body.bloodType;
       if (body.heightCm !== undefined)
@@ -101,7 +106,7 @@ export const userRoutes = new Elysia({ prefix: "/api/user" })
       body: t.Object({
         name: t.Optional(t.String({ maxLength: 255 })),
         phone: t.Optional(t.String({ maxLength: 20 })),
-        dateOfBirth: t.Optional(t.String()),
+        dateOfBirth: t.Optional(t.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}" })),
         gender: t.Optional(t.String({ maxLength: 30 })),
         bloodType: t.Optional(t.String({ maxLength: 10 })),
         heightCm: t.Optional(t.Number({ minimum: 0, maximum: 300 })),
@@ -489,7 +494,10 @@ export const usersRoutes = new Elysia({ prefix: "/api/users" })
       if (body.email !== undefined) dbUpdates.email = body.email;
       if (body.phone !== undefined) dbUpdates.phone = body.phone;
       if (body.gender !== undefined) dbUpdates.gender = body.gender;
-      if (body.dateOfBirth !== undefined) dbUpdates.dateOfBirth = new Date(body.dateOfBirth);
+      if (body.dateOfBirth !== undefined) {
+        const parsed = new Date(body.dateOfBirth);
+        if (!isNaN(parsed.getTime())) dbUpdates.dateOfBirth = parsed;
+      }
       if (body.language !== undefined) dbUpdates.language = body.language;
       if (body.familyId !== undefined) dbUpdates.familyId = body.familyId;
       if (body.avatarUrl !== undefined) dbUpdates.avatarUrl = body.avatarUrl;
@@ -525,18 +533,18 @@ export const usersRoutes = new Elysia({ prefix: "/api/users" })
     {
       params: t.Object({ userId: t.String() }),
       body: t.Object({
-        name: t.Optional(t.String()),
-        email: t.Optional(t.String()),
-        phone: t.Optional(t.String()),
-        firstName: t.Optional(t.String()),
-        lastName: t.Optional(t.String()),
-        gender: t.Optional(t.String()),
-        dateOfBirth: t.Optional(t.String()),
-        language: t.Optional(t.String()),
+        name: t.Optional(t.String({ maxLength: 255 })),
+        email: t.Optional(t.String({ maxLength: 255 })),
+        phone: t.Optional(t.String({ maxLength: 20 })),
+        firstName: t.Optional(t.String({ maxLength: 100 })),
+        lastName: t.Optional(t.String({ maxLength: 100 })),
+        gender: t.Optional(t.String({ maxLength: 30 })),
+        dateOfBirth: t.Optional(t.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}" })),
+        language: t.Optional(t.String({ maxLength: 10 })),
         familyId: t.Optional(t.Nullable(t.String())),
-        avatarUrl: t.Optional(t.String()),
-        avatarType: t.Optional(t.String()),
-        role: t.Optional(t.String()),
+        avatarUrl: t.Optional(t.String({ maxLength: 2000 })),
+        avatarType: t.Optional(t.String({ maxLength: 50 })),
+        role: t.Optional(t.String({ maxLength: 50 })),
         onboardingCompleted: t.Optional(t.Boolean()),
         dashboardTourCompleted: t.Optional(t.Boolean()),
         isPremium: t.Optional(t.Boolean()),

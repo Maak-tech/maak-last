@@ -24,6 +24,8 @@ import { orgRoutes } from "./routes/org";
 import { clinicalRoutes } from "./routes/clinical";
 import { consentRoutes } from "./routes/consent";
 import { integrationRoutes } from "./routes/integrations";
+import { searchRoutes } from "./routes/search";
+import { medicationRoutes } from "./routes/medications";
 
 // parseInt with radix 10; fall back to 3000 if PORT is unset or non-numeric.
 // Number(process.env.PORT) would silently produce NaN for strings like "auto".
@@ -68,6 +70,8 @@ const app = new Elysia()
           { name: "clinical", description: "Clinical integration requests" },
           { name: "consent", description: "Patient consent management" },
           { name: "integrations", description: "Third-party health provider integrations (Withings, Fitbit, Oura, etc.)" },
+          { name: "search", description: "Full-text search across user health records" },
+          { name: "medications", description: "Medication refill workflows" },
         ],
       },
     })
@@ -100,6 +104,8 @@ const app = new Elysia()
   .use(clinicalRoutes)
   .use(consentRoutes)
   .use(integrationRoutes)
+  .use(searchRoutes)
+  .use(medicationRoutes)
   // Global error handler
   .onError(({ code, error, set }) => {
     if (code === "NOT_FOUND") {
@@ -116,7 +122,7 @@ const app = new Elysia()
   })
   .listen(PORT);
 
-console.log(`Nuralix API running on http://localhost:${PORT}`);
-console.log(`Docs: http://localhost:${PORT}/swagger`);
+console.info(`Nuralix API running on http://localhost:${PORT}`);
+console.info(`Docs: http://localhost:${PORT}/swagger`);
 
 export type App = typeof app;

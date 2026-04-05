@@ -346,7 +346,7 @@ export async function analyzeLabResults(
         if (response?.narrativeAr && typeof response.narrativeAr === "string") {
           aiNarrativeAr = response.narrativeAr;
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.warn('[labInsights] AI narrative generation failed, using default:', err);
       }
     }
@@ -376,7 +376,8 @@ export async function analyzeLabResults(
     });
 
     return summary;
-  } catch (_error) {
+  } catch (error: unknown) {
+    console.error('[labInsights] analyzeLabResults failed:', error);
     return {
       flaggedCount: 0,
       criticalCount: 0,

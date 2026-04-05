@@ -228,7 +228,8 @@ export const hasMotionPermission = async (): Promise<boolean> => {
     );
     const hasPermission = storedPermission === "true";
     return hasPermission;
-  } catch (_error) {
+  } catch (err: unknown) {
+    console.debug('[motionPermissionService] Failed to read permission from storage:', err instanceof Error ? err.message : String(err));
     return false;
   }
 };
@@ -244,8 +245,8 @@ export const saveMotionPermissionStatus = async (
       MOTION_PERMISSION_STORAGE_KEY,
       granted.toString()
     );
-  } catch {
-    // Silently handle error
+  } catch (err: unknown) {
+    console.debug('[motionPermission] Failed to persist permission status:', err instanceof Error ? err.message : String(err));
   }
 };
 

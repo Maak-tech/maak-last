@@ -14,7 +14,7 @@ const app = new Hono()
 
 app.use('*', logger())
 app.use('*', cors({
-  origin: [process.env.WEB_URL ?? 'http://localhost:3000', 'http://localhost:19006'],
+  origin: [process.env.WEB_URL ?? 'http://localhost:3000', process.env.EXPO_URL ?? 'http://localhost:19006'],
   allowHeaders: ['Authorization', 'Content-Type', 'X-Session-Token'],
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true,

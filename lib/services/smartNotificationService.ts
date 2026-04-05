@@ -283,7 +283,7 @@ class SmartNotificationService {
       const { userService } = await import("./userService");
       const user = await userService.getUser(userId);
       return user?.preferences?.notifications ?? null;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[smartNotification] getUserNotificationSettings failed:', err);
       return null;
     }
@@ -750,11 +750,13 @@ class SmartNotificationService {
         try {
           await this.scheduleOptimizedNotification(notification, Notifications);
           scheduled++;
-        } catch (_error) {
+        } catch (err: unknown) {
+          console.debug('[smartNotification] scheduleOptimizedNotification failed for one notification:', err instanceof Error ? err.message : String(err));
           failed++;
         }
       }
-    } catch (_error) {
+    } catch (err: unknown) {
+      console.warn('[smartNotification] scheduleHealthNotifications failed entirely:', err instanceof Error ? err.message : String(err));
       failed = notifications.length;
     }
 
@@ -934,11 +936,11 @@ class SmartNotificationService {
       for (const id of identifiersToCancel) {
         try {
           await Notifications.cancelScheduledNotificationAsync(id);
-        } catch (err) {
+        } catch (err: unknown) {
           console.warn('[smartNotification] cancelScheduledNotificationAsync failed for id', id, err);
         }
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[smartNotification] clearScheduledNotifications failed:', err);
     }
   }
@@ -1102,9 +1104,9 @@ class SmartNotificationService {
 
     // Sort by priority (critical first) and then by time
     const sorted = notifications.sort((a, b) => {
-      const priorityOrder = { critical: 4, high: 3, normal: 2, low: 1 };
+      const priorityOrder: Record<string, number> = { critical: 4, high: 3, normal: 2, low: 1 };
       const priorityDiff =
-        priorityOrder[b.priority] - priorityOrder[a.priority];
+        (priorityOrder[b.priority] ?? 0) - (priorityOrder[a.priority] ?? 0);
       if (priorityDiff !== 0) {
         return priorityDiff;
       }
@@ -1301,8 +1303,8 @@ class SmartNotificationService {
         // Skip scheduling duplicate notification
         return;
       }
-    } catch (_error) {
-      // If duplicate check fails, continue with scheduling (fail open)
+    } catch (err: unknown) {
+      console.debug('[smartNotification] Duplicate notification check failed (scheduling anyway):', err instanceof Error ? err.message : String(err));
     }
 
     const content = {
@@ -3180,7 +3182,7 @@ class SmartNotificationService {
 
       // Limit to prevent notification overload (max 5 per day)
       return notifications.slice(0, 5);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[smartNotification] generateDailyInteractiveNotifications failed:', err);
       return [];
     }
@@ -3228,7 +3230,7 @@ class SmartNotificationService {
         lastVitalChecks,
         achievements,
       };
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[smartNotification] getUserStats failed:', err);
       // Return default stats for new users (0 days inactive, no activity yet)
       return {
@@ -3611,8 +3613,8 @@ class SmartNotificationService {
           mentalHealth: [], // We'll need to add this
         };
       }
-    } catch (_error) {
-      /* no-op */
+    } catch (err: unknown) {
+      console.debug('[smartNotification] getUserHealthContext fetch failed, returning empty context:', err instanceof Error ? err.message : String(err));
     }
 
     return {
@@ -3654,7 +3656,7 @@ class SmartNotificationService {
       const { userService } = await import("./userService");
       const user = await userService.getUser(userId);
       return user?.role || "member";
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[smartNotification] getUserRole failed:', err);
       return "member";
     }
@@ -3769,7 +3771,7 @@ class SmartNotificationService {
         eventTypes: ["medication_taken", "medication_missed"],
         limitCount: 300,
       });
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[smartNotification] getRecentMedicationEvents failed:', err);
       return [];
     }
@@ -3782,7 +3784,7 @@ class SmartNotificationService {
       // Use your existing symptom service
       const { symptomService } = await import("./symptomService");
       return await symptomService.getUserSymptoms(userId, 30) as unknown as Record<string, unknown>[]; // Last 30 days
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[smartNotification] getUserSymptoms failed:', err);
       return [];
     }
@@ -3793,7 +3795,7 @@ class SmartNotificationService {
       // Use your existing medication service
       const { medicationService } = await import("./medicationService");
       return await medicationService.getUserMedications(userId);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[smartNotification] getUserMedications failed:', err);
       return [];
     }
@@ -3806,7 +3808,7 @@ class SmartNotificationService {
       // Use your existing mood service
       const { moodService } = await import("./moodService");
       return await moodService.getUserMoods(userId, 30) as unknown as Record<string, unknown>[]; // Last 30 days
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[smartNotification] getUserMoods failed:', err);
       return [];
     }
@@ -4319,7 +4321,7 @@ class SmartNotificationService {
           },
         });
       });
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[smartNotification] generateFamilyHealthUpdates failed:', err);
     }
 
@@ -4442,7 +4444,7 @@ class SmartNotificationService {
           ],
         });
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[smartNotification] generateCaregiverCoordinationAlerts failed:', err);
     }
 

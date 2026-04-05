@@ -29,7 +29,7 @@ export default function QRScanner({ onSession }: Props) {
     try {
       const data = await api.resolveQR(token.trim())
       onSession(data.sessionToken)
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Invalid or expired QR code')
     } finally {
       setLoading(false)

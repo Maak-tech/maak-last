@@ -9,7 +9,6 @@ export interface AuditEntry {
   success?: boolean
   confidence?: number
   ipAddress?: string
-  cameraId?: string
 }
 
 export async function writeAudit(entry: AuditEntry): Promise<void> {
@@ -29,7 +28,7 @@ export async function writeAudit(entry: AuditEntry): Promise<void> {
         entry.ipAddress ?? null,
       ]
     )
-  } catch (err) {
+  } catch (err: unknown) {
     // Never throw — audit failures must not block the caller
     console.error('[audit] writeAudit failed — audit trail may have a gap:', err)
   }

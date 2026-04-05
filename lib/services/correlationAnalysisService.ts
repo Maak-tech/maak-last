@@ -954,7 +954,8 @@ class CorrelationAnalysisService {
         activities: m.activities as string[] | undefined,
         timestamp: new Date(m.recordedAt as string),
       }));
-    } catch (_error) {
+    } catch (error: unknown) {
+      console.warn('[correlationAnalysis] getMoodsForPeriod failed:', error);
       return [];
     }
   }
@@ -973,18 +974,20 @@ class CorrelationAnalysisService {
         `/api/health/vitals?from=${encodeURIComponent(startDate.toISOString())}&limit=${fetchLimit}`
       );
       return (Array.isArray(rows) ? rows : [])
-        .filter((v) => typeof v.value === "number" && v.type)
+        .filter((v) => (typeof v.value === "number" || (typeof v.value === "string" && v.value !== "")) && v.type)
         .map((v) => ({
           id: v.id as string,
           userId: v.userId as string,
           type: String(v.type),
-          value: v.value as number,
+          value: typeof v.value === "number" ? v.value : Number.parseFloat(v.value as string),
           unit: v.unit as string | undefined,
           timestamp: new Date(v.recordedAt as string),
           source: v.source as string | undefined,
           metadata: v.metadata as Record<string, unknown> | undefined,
-        })) as VitalSign[];
-    } catch (_error) {
+        }))
+        .filter((v) => !isNaN(v.value)) as VitalSign[];
+    } catch (error: unknown) {
+      console.warn('[correlationAnalysis] getVitalsForPeriod failed:', error);
       return [];
     }
   }

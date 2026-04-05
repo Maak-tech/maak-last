@@ -25,6 +25,12 @@ enrollRoutes.post('/enroll', jwtAuth, requireRole('doctor', 'nurse', 'admin'), a
     return c.json({ error: 'Missing patientId or image' }, 400)
   }
 
+  // Validate UUID format to prevent wasted DB round-trips and accidental injection
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!UUID_RE.test(patientId)) {
+    return c.json({ error: 'Invalid patient ID format' }, 400)
+  }
+
   // Validate image size (max 5 MB) — same guard as recognize.ts
   if (imageFile.size > 5 * 1024 * 1024) {
     return c.json({ error: 'Image too large. Maximum size is 5 MB.' }, 400)
@@ -55,7 +61,7 @@ enrollRoutes.post('/enroll', jwtAuth, requireRole('doctor', 'nurse', 'admin'), a
 
   try {
     await compreface.enroll(subjectId, imageBuffer)
-  } catch (err) {
+  } catch (err: unknown) {
     // Log internally but do NOT surface internal error details to the client —
     // the CompreFace error message may contain the service URL, API key, or
     // other internal infrastructure information.
@@ -87,6 +93,11 @@ enrollRoutes.delete('/enroll/:patientId', jwtAuth, requireRole('doctor', 'admin'
   const staff = c.get('staff')
   const { patientId } = c.req.param()
 
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!UUID_RE.test(patientId)) {
+    return c.json({ error: 'Invalid patient ID format' }, 400)
+  }
+
   const enrollment = await queryOne<{ id: string; compreface_subject_id: string }>(
     'SELECT id, compreface_subject_id FROM biometric_enrollments WHERE patient_id = $1 AND is_active = true',
     [patientId]
@@ -102,7 +113,7 @@ enrollRoutes.delete('/enroll/:patientId', jwtAuth, requireRole('doctor', 'admin'
   // "enrolled" in our system but with a stale/deleted embedding.
   try {
     await compreface.deleteSubject(subjectId)
-  } catch (err) {
+  } catch (err: unknown) {
     // Log but do not re-throw — revocation of the DB record must proceed.
     // An admin can manually clean up the CompreFace subject later if needed.
     console.error('[enroll] CompreFace deleteSubject failed (DB enrollment will still be deactivated):', err)
@@ -121,6 +132,10 @@ enrollRoutes.delete('/enroll/:patientId', jwtAuth, requireRole('doctor', 'admin'
 // GET /enroll/:patientId/status (doctor/nurse/admin only)
 enrollRoutes.get('/enroll/:patientId/status', jwtAuth, requireRole('doctor', 'nurse', 'admin'), async (c) => {
   const { patientId } = c.req.param()
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!UUID_RE.test(patientId)) {
+    return c.json({ error: 'Invalid patient ID format' }, 400)
+  }
   const enrollment = await queryOne<{ enrolled_at: string }>(
     'SELECT enrolled_at FROM biometric_enrollments WHERE patient_id = $1 AND is_active = true',
     [patientId]

@@ -60,7 +60,7 @@ export default function FallDetectionScreen() {
           : 'Test notification sent successfully. Check your notifications.',
         [{ text: isRTL ? 'موافق' : 'OK' }]
       );
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error testing notifications:', error);
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
@@ -77,7 +77,7 @@ export default function FallDetectionScreen() {
     try {
       setTestingFallDetection(true);
       await testFallDetection();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error testing fall detection:', error);
     } finally {
       setTestingFallDetection(false);

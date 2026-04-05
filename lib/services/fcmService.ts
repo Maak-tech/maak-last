@@ -56,7 +56,7 @@ export const fcmService = {
       }
 
       return { success: true, token: tokenData.data };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ Error getting FCM token:', error);
       return { success: false, error: String(error) };
     }
@@ -75,7 +75,7 @@ export const fcmService = {
       });
 
       return true;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[fcm] saveFCMToken failed:', err);
       return false;
     }
@@ -99,7 +99,7 @@ export const fcmService = {
         notification,
       });
       return (result.sent ?? 0) > 0;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[fcm] sendPushNotificationHTTP failed:', err);
       return false;
     }
@@ -130,7 +130,7 @@ export const fcmService = {
       }
 
       return this.saveFCMToken(tokenResult.token);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[fcm] initializeFCM failed:', err);
       return false;
     }
@@ -147,7 +147,7 @@ export const fcmService = {
       const isExpoGo = Constants.default.appOwnership === 'expo';
 
       return !isExpoGo;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error checking FCM availability:', error);
       return false;
     }

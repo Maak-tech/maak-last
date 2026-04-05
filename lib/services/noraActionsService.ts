@@ -212,7 +212,7 @@ class NoraActionsService {
           ? `تم تسجيل ${symptomName}${severityText}. ${symptomAdvice}`
           : `I've logged your ${symptomName}${severityText}. ${symptomAdvice}`,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         success: false,
         action: "log_symptom",
@@ -268,7 +268,7 @@ class NoraActionsService {
         },
         speakableResponse: `I've added ${name} to your medications. You're taking ${dosage}, ${frequency}. Would you like me to set up a reminder for this medication?`,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         success: false,
         action: "add_medication",
@@ -338,7 +338,7 @@ class NoraActionsService {
         data: { alertId },
         speakableResponse: `I've sent a ${alertTypeText} to your family members. They'll be notified shortly.`,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         success: false,
         action: "alert_family",
@@ -397,7 +397,7 @@ class NoraActionsService {
           ? `تم تسجيل ${vitalName} عند ${value} ${displayUnit}. ${vitalAdvice}`
           : `I've recorded your ${vitalName} at ${value} ${displayUnit}. ${vitalAdvice}`,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         success: false,
         action: "log_vital",
@@ -469,7 +469,7 @@ class NoraActionsService {
         data: { medicationName, time, recurring },
         speakableResponse: `I've set a ${recurringText} reminder for ${medicationName} at ${time}. I'll make sure you don't miss it.`,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         success: false,
         action: "set_reminder",
@@ -513,7 +513,7 @@ class NoraActionsService {
           ? `I've noted your check-in request. ${reason}`
           : "I've logged your check-in. How are you feeling right now?",
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         success: false,
         action: "request_check_in",
@@ -575,7 +575,7 @@ class NoraActionsService {
         data: { type: normalizedMood, intensity: mappedIntensity },
         speakableResponse: `I've logged that you're feeling ${this.getMoodDescription(normalizedMood)}. ${moodFeedback}`,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         success: false,
         action: "log_mood",
@@ -710,7 +710,7 @@ class NoraActionsService {
         message: `${medicationName} was already marked as taken`,
         speakableResponse: `It looks like you've already taken your ${medicationName} today. Is there something else I can help you with?`,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         success: false,
         action: "mark_medication_taken",
@@ -889,7 +889,7 @@ class NoraActionsService {
         data: { id: allergyId, ...allergyData },
         speakableResponse: `I've added your ${allergen} allergy${severityText} to your profile. ${this.getAllergyAdvice(allergen, severity)}`,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         success: false,
         action: "add_allergy",
@@ -951,7 +951,7 @@ class NoraActionsService {
         data: { id: historyId, ...historyData },
         speakableResponse: `I've added ${condition}${statusText} to your medical history. ${this.getMedicalHistoryAdvice(condition)}`,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         success: false,
         action: "add_medical_history",

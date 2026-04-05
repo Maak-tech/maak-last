@@ -359,7 +359,8 @@ export class NotificationResponseHandler {
         data,
         userId
       );
-    } catch (_error) {
+    } catch (error: unknown) {
+      console.warn('[notificationResponseHandler] handleQuickAction failed for action:', action, error instanceof Error ? error.message : String(error));
       await NotificationResponseHandler.showFeedback(
         "Action could not be completed. Please try again."
       );
@@ -380,8 +381,8 @@ export class NotificationResponseHandler {
         timestamp: new Date(),
         notes: "Logged via notification",
       });
-    } catch (_error) {
-      /* no-op */
+    } catch (error: unknown) {
+      console.debug('[notificationResponseHandler] logMood failed:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -397,8 +398,8 @@ export class NotificationResponseHandler {
         timestamp: new Date(),
         resolved: false,
       });
-    } catch (_error) {
-      /* no-op */
+    } catch (error: unknown) {
+      console.warn('[notificationResponseHandler] handleEmergency failed:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -415,8 +416,8 @@ export class NotificationResponseHandler {
         timestamp: new Date(),
         notes: "Evening check-in via notification",
       });
-    } catch (_error) {
-      /* no-op */
+    } catch (error: unknown) {
+      console.debug('[notificationResponseHandler] logEveningCheckin failed:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -445,8 +446,8 @@ export class NotificationResponseHandler {
 
       const { medicationService } = await import("../medicationService");
       await medicationService.markMedicationTaken(medicationId, reminderId);
-    } catch (_error) {
-      /* no-op */
+    } catch (error: unknown) {
+      console.warn('[notificationResponseHandler] markMedicationTakenFromNotification failed:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -481,7 +482,7 @@ export class NotificationResponseHandler {
                   : "unspecified",
               confirmationType: "notification_response",
             });
-          } catch (err) {
+          } catch (err: unknown) {
             console.warn('[notificationResponseHandler] recordMedicationTaken failed:', err);
           }
         }
@@ -491,8 +492,8 @@ export class NotificationResponseHandler {
       if (!taken) {
         // Could add logic here to schedule a follow-up reminder
       }
-    } catch (_error) {
-      /* no-op */
+    } catch (error: unknown) {
+      console.debug('[notificationResponseHandler] logMedicationAdherence failed:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -507,16 +508,18 @@ export class NotificationResponseHandler {
         description: "Quick health check via notification - feeling good",
         location: "General",
       });
-    } catch (_error) {
-      /* no-op */
+    } catch (error: unknown) {
+      console.debug('[notificationResponseHandler] quickHealthLog failed:', error instanceof Error ? error.message : String(error));
     }
   }
 
   private static logNoSymptoms(_userId: string): Promise<void> {
+    // No-symptoms check-in — no data to POST; treated as a positive confirmation
     return Promise.resolve();
   }
 
   private static contactCaregiver(_userId: string): Promise<void> {
+    // Deep-link to caregiver contact — requires navigator ref; handled by navigation layer
     return Promise.resolve();
   }
 
@@ -525,10 +528,12 @@ export class NotificationResponseHandler {
     _screen: string,
     _subScreen?: string
   ): Promise<void> {
+    // Navigation requires a navigator ref; this is a no-op until navigator integration is wired
     return Promise.resolve();
   }
 
   private static showFeedback(_message: string): Promise<void> {
+    // In-app toast feedback; requires a toast/snackbar ref — currently a no-op
     return Promise.resolve();
   }
 
@@ -536,10 +541,12 @@ export class NotificationResponseHandler {
     _data: unknown,
     _delayMs: number
   ): Promise<void> {
+    // Notification rescheduling requires expo-notifications scheduler ref
     return Promise.resolve();
   }
 
   private static sendFamilyMedicationReminders(_userId: string): Promise<void> {
+    // Family medication reminders sent by server-side cron; client side is a no-op
     return Promise.resolve();
   }
 
@@ -552,39 +559,65 @@ export class NotificationResponseHandler {
         "emergency",
         "response"
       );
-    } catch (_error) {
-      /* no-op */
+    } catch (error: unknown) {
+      console.debug('[notificationResponseHandler] handleEmergencyResponse failed:', error instanceof Error ? error.message : String(error));
     }
   }
 
   private static callEmergencyContacts(_userId: string): Promise<void> {
+    // Opening phone dialer requires Linking.openURL — handled by UI layer on emergency screen
     return Promise.resolve();
   }
 
   private static confirmFamilyAppointments(_userId: string): Promise<void> {
+    // Appointment confirmation requires an appointments API endpoint (not yet built)
     return Promise.resolve();
   }
 
-  private static shareAchievement(data: unknown): Promise<void> {
-    const achievement = asRecord(data);
-    const title =
-      typeof achievement?.title === "string"
-        ? achievement.title
-        : "New Achievement";
-    const _shareMessage = `Achievement unlocked: ${title}`;
-    return Promise.resolve();
+  private static async shareAchievement(data: unknown): Promise<void> {
+    try {
+      const { Share } = await import("react-native");
+      const payload = asRecord(data);
+      const title = typeof payload?.title === "string" ? payload.title : "Health Achievement";
+      const message = typeof payload?.message === "string"
+        ? payload.message
+        : `I just unlocked a health achievement in Nuralix: ${title}`;
+      await Share.share({ message, title });
+    } catch (error: unknown) {
+      console.debug("[notificationResponseHandler] shareAchievement failed:", error instanceof Error ? error.message : String(error));
+    }
   }
 
   // Simplified helper methods for quick actions
-  private static logHydration(_userId: string, _type: string): Promise<void> {
-    return Promise.resolve();
+  private static async logHydration(userId: string, type: string): Promise<void> {
+    try {
+      await api.post("/api/health/moods", {
+        userId,
+        type: type === "coffee" ? "coffee_intake" : "water_intake",
+        intensity: 3,
+        notes: `${type === "coffee" ? "Coffee" : "Water"} intake logged via notification`,
+        recordedAt: new Date().toISOString(),
+      });
+    } catch (error: unknown) {
+      console.debug("[notificationResponseHandler] logHydration failed:", error instanceof Error ? error.message : String(error));
+    }
   }
 
-  private static logEnergyLevel(
-    _userId: string,
-    _level: string
-  ): Promise<void> {
-    return Promise.resolve();
+  private static async logEnergyLevel(userId: string, level: string): Promise<void> {
+    try {
+      const { moodService } = await import("../moodService");
+      const mood = level === "good" ? "energetic" : "tired";
+      const intensity: 1 | 2 | 3 | 4 | 5 = level === "good" ? 4 : 2;
+      await moodService.addMood({
+        userId,
+        mood,
+        intensity,
+        notes: `Energy level "${level}" logged via notification`,
+        timestamp: new Date(),
+      });
+    } catch (error: unknown) {
+      console.debug("[notificationResponseHandler] logEnergyLevel failed:", error instanceof Error ? error.message : String(error));
+    }
   }
 
   private static logNotificationAction(

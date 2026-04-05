@@ -115,6 +115,7 @@ async function getNonce(): Promise<string> {
       timestamp,
       signature,
     }).toString(),
+    signal: AbortSignal.timeout(15_000),
   });
 
   const responseData = await response.json();
@@ -182,6 +183,7 @@ async function makeSignedRequest(
     method: "POST",
     headers,
     body: bodyParams.toString(),
+    signal: AbortSignal.timeout(15_000),
   });
 
   const responseData = await response.json();
@@ -507,6 +509,7 @@ export const withingsService = {
           redirect_uri: REDIRECT_URI, // Must match registered callback URL
           signature,
         }).toString(),
+        signal: AbortSignal.timeout(15_000),
       });
 
       const responseData = await tokenResponse.json();
@@ -570,7 +573,7 @@ export const withingsService = {
             provider: "withings",
             providerUserId: withingsUserId,
           });
-        } catch (err) {
+        } catch (err: unknown) {
           console.warn("[withingsService] Failed to register integration for webhook routing (non-critical):", err);
         }
       }
@@ -578,9 +581,8 @@ export const withingsService = {
       // Subscribe to Withings notifications for real-time data updates
       try {
         await withingsService.subscribeToNotifications(tokens.access_token);
-      } catch (_subscriptionError) {
-        // Silently handle subscription error - not critical for OAuth flow
-        // User can still manually sync data
+      } catch (subscriptionError: unknown) {
+        console.debug('[withings] subscribeToNotifications failed (non-critical, user can still manually sync):', subscriptionError instanceof Error ? subscriptionError.message : String(subscriptionError));
       }
     } catch (error: unknown) {
       throw new Error(
@@ -660,6 +662,7 @@ export const withingsService = {
           refresh_token: tokens.refreshToken,
           signature,
         }).toString(),
+        signal: AbortSignal.timeout(15_000),
       });
 
       const responseData = await response.json();
@@ -681,7 +684,7 @@ export const withingsService = {
       });
 
       return newTokens.access_token;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[withings/withingsService] refreshTokenIfNeeded failed:', err);
       return null;
     }
@@ -716,6 +719,7 @@ export const withingsService = {
           startdate: Math.floor(startDate.getTime() / 1000).toString(),
           enddate: Math.floor(endDate.getTime() / 1000).toString(),
         }).toString(),
+        signal: AbortSignal.timeout(15_000),
       });
 
       const measureData = await measureResponse.json();
@@ -784,6 +788,7 @@ export const withingsService = {
               startdate: Math.floor(startDate.getTime() / 1000).toString(),
               enddate: Math.floor(endDate.getTime() / 1000).toString(),
             }).toString(),
+            signal: AbortSignal.timeout(15_000),
           });
 
           const heartData = await heartResponse.json();
@@ -806,8 +811,8 @@ export const withingsService = {
               }
             }
           }
-        } catch {
-          // Heart endpoint may not be available for all users
+        } catch (err: unknown) {
+          console.debug('[withings] Heart endpoint unavailable (non-critical):', err instanceof Error ? err.message : String(err));
         }
       }
 
@@ -825,6 +830,7 @@ export const withingsService = {
               startdateymd: formatDate(startDate),
               enddateymd: formatDate(endDate),
             }).toString(),
+            signal: AbortSignal.timeout(15_000),
           });
 
           const sleepData = await sleepResponse.json();
@@ -854,8 +860,8 @@ export const withingsService = {
               });
             }
           }
-        } catch {
-          // Sleep endpoint may not be available
+        } catch (err: unknown) {
+          console.debug('[withings] Sleep endpoint unavailable (non-critical):', err instanceof Error ? err.message : String(err));
         }
       }
 
@@ -879,6 +885,7 @@ export const withingsService = {
                 startdateymd: formatDate(startDate),
                 enddateymd: formatDate(endDate),
               }).toString(),
+              signal: AbortSignal.timeout(15_000),
             }
           );
 
@@ -928,8 +935,8 @@ export const withingsService = {
               }
             }
           }
-        } catch {
-          // Activity endpoint may not be available
+        } catch (err: unknown) {
+          console.debug('[withings] Activity endpoint unavailable (non-critical):', err instanceof Error ? err.message : String(err));
         }
       }
 
@@ -948,7 +955,7 @@ export const withingsService = {
       }
 
       return results;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[withings/withingsService] fetchHealthData failed:', err);
       return [];
     }
@@ -1006,6 +1013,7 @@ export const withingsService = {
             appli: category.toString(),
             comment: "Nuralix data sync",
           }).toString(),
+          signal: AbortSignal.timeout(15_000),
         });
 
         const responseData = await response.json();
@@ -1013,8 +1021,8 @@ export const withingsService = {
         if (responseData.status !== 0) {
           // Subscription failures are not critical
         }
-      } catch {
-        // Silently handle individual category subscription failures
+      } catch (err: unknown) {
+        console.debug('[withings] Subscription category failed (non-critical):', err instanceof Error ? err.message : String(err));
       }
     }
   },
@@ -1046,7 +1054,7 @@ export const withingsService = {
 
       await withingsService.disconnect();
       return true;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[withings/withingsService] revokeAccess failed:', err);
       return false;
     }

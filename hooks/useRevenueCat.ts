@@ -22,7 +22,7 @@ export function useRevenueCat(): UseRevenueCatResult {
       const data = await revenueCatService.getOfferings();
       setOfferings(data);
     } catch (e) {
-      setError(e as Error);
+      setError(e instanceof Error ? e : new Error(String(e)));
     }
   };
 
@@ -31,7 +31,7 @@ export function useRevenueCat(): UseRevenueCatResult {
       const info = await revenueCatService.getCustomerInfo();
       setCustomerInfo(info);
     } catch (e) {
-      setError(e as Error);
+      setError(e instanceof Error ? e : new Error(String(e)));
     }
   };
 

@@ -172,7 +172,7 @@ class AnomalyDetectionService {
         .filter((r) => !Number.isNaN(r.value));
 
       return await healthAnalytics.updateBaseline(userId, vitalType, readings);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to refresh baseline",
         { userId, vitalType, error },
@@ -225,7 +225,7 @@ class AnomalyDetectionService {
       }
 
       return statuses;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to ensure baselines",
         { userId, error },
@@ -464,7 +464,7 @@ class AnomalyDetectionService {
       };
       this.todBaselineCache.set(cacheKey, result);
       return result;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[anomalyDetection] Failed to compute time-of-day baseline:', err);
       return null;
     }
@@ -505,7 +505,7 @@ class AnomalyDetectionService {
       if (activeMeds.length > 0) {
         recentMedications = activeMeds.map((m) => m.name).slice(0, 5);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[anomalyDetection] Failed to load medications for context:', err);
     }
 
@@ -520,10 +520,13 @@ class AnomalyDetectionService {
         timeOfDay
       );
       if (todBaseline) {
-        const deviation = Math.abs((anomaly.value as number) - todBaseline.mean);
-        isTypicalForTime = deviation <= 1.5 * todBaseline.stddev;
+        const anomalyNumVal = typeof anomaly.value === "number" ? anomaly.value : Number.parseFloat(String(anomaly.value ?? ""));
+        if (!isNaN(anomalyNumVal)) {
+          const deviation = Math.abs(anomalyNumVal - todBaseline.mean);
+          isTypicalForTime = deviation <= 1.5 * todBaseline.stddev;
+        }
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[anomalyDetection] Failed to compute time-of-day deviation for enrichment:', err);
     }
 
@@ -585,7 +588,7 @@ class AnomalyDetectionService {
           }
         }
         recentReadings = [newReading, ...byType.values()];
-      } catch (err) {
+      } catch (err: unknown) {
         console.warn('[anomalyDetection] Failed to load context vitals for multivariate check — using single vital only:', err);
       }
 
@@ -645,7 +648,7 @@ class AnomalyDetectionService {
           zScore: singleAnomaly.zScore,
           timestamp: anomaly.timestamp.toISOString(),
         });
-      } catch (err) {
+      } catch (err: unknown) {
         console.warn('[anomalyDetection] Failed to persist anomaly analytics event:', err);
       }
 
@@ -662,7 +665,7 @@ class AnomalyDetectionService {
       );
 
       return anomaly;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to check anomaly",
         { userId, vitalType: newReading.type, error },
@@ -714,7 +717,7 @@ class AnomalyDetectionService {
       }
 
       return stats;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to get anomaly stats",
         { userId, error },
@@ -733,8 +736,13 @@ class AnomalyDetectionService {
   /**
    * Acknowledge an anomaly
    */
-  async acknowledgeAnomaly(_userId: string, _anomalyId: string): Promise<void> {
-    // No dedicated endpoint for acknowledgement — no-op until API is implemented
+  async acknowledgeAnomaly(userId: string, anomalyId: string): Promise<void> {
+    // Persist acknowledgement via PATCH so the UI badge count reflects reality
+    try {
+      await api.patch(`/api/health/anomalies/${anomalyId}/acknowledge`, { userId });
+    } catch (err: unknown) {
+      console.warn('[anomalyDetection] acknowledgeAnomaly failed:', err instanceof Error ? err.message : String(err));
+    }
   }
 }
 

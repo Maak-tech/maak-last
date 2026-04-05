@@ -554,6 +554,9 @@ export const patientRosters = pgTable(
     enrolledBy: text("enrolled_by"),
     status: text("status").default("active"), // 'active' | 'inactive' | 'pending'
     enrolledAt: timestamp("enrolled_at").defaultNow(),
+    riskScore: integer("risk_score"),                           // 0-100 composite VHI risk score
+    lastContactAt: timestamp("last_contact_at"),                // last time a provider contacted the patient
+    assignedProviders: text("assigned_providers").array(),      // array of org_member user IDs assigned to this patient
   },
   (t) => [
     // Prevent duplicate roster entries — duplicate rows cause webhookDispatcher
@@ -613,6 +616,7 @@ export const noraConversations = pgTable(
         timestamp: string;
       }>
     >(),
+    title: text("title").default("New Chat"),
     vhiVersionAtStart: integer("vhi_version_at_start"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),

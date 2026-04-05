@@ -139,7 +139,7 @@ class PopulationHealthService {
         else warning++;
       }
       return { critical, warning };
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[populationHealth] Failed to fetch recent anomalies:', err);
       return { critical: 0, warning: 0 };
     }
@@ -157,7 +157,7 @@ class PopulationHealthService {
       if (docs.length === 0) return null;
       const ts = docs[0].recordedAt;
       return ts ? new Date(ts) : null;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[populationHealth] Failed to fetch last vital sync:', err);
       return null;
     }
@@ -173,7 +173,7 @@ class PopulationHealthService {
       );
       const rows = Array.isArray(raw) ? raw : [];
       return rows.length;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[populationHealth] Failed to fetch active alert count:', err);
       return 0;
     }
@@ -211,7 +211,7 @@ class PopulationHealthService {
       }
 
       return missedCount;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[populationHealth] Failed to fetch missed medications:', err);
       return 0;
     }

@@ -146,8 +146,15 @@ patientRoutes.get(
 
     const [patientRes, twinRes, alertsRes, vitalsRes, medsRes] = results
 
+    // Log any non-patient query failures for observability (they degrade gracefully)
+    const queryNames = ['patient', 'twin', 'alerts', 'vitals', 'medications']
+    results.forEach((res, i) => {
+      if (res.status === 'rejected') {
+        console.error(`[patient/by-session] Failed to fetch ${queryNames[i]}:`, res.reason)
+      }
+    })
+
     if (patientRes.status === 'rejected') {
-      console.error('[patient] Failed to fetch patient:', patientRes.reason)
       return c.json({ error: 'Failed to fetch patient data' }, 500)
     }
     const patient = patientRes.value
@@ -217,8 +224,15 @@ patientRoutes.get(
 
     const [patientRes, twinRes, alertsRes, vitalsRes, medsRes] = results
 
+    // Log any non-patient query failures for observability (they degrade gracefully)
+    const queryNamesById = ['patient', 'twin', 'alerts', 'vitals', 'medications']
+    results.forEach((res, i) => {
+      if (res.status === 'rejected') {
+        console.error(`[patient/twin] Failed to fetch ${queryNamesById[i]}:`, res.reason)
+      }
+    })
+
     if (patientRes.status === 'rejected') {
-      console.error('[patient/twin] Failed to fetch patient:', patientRes.reason)
       return c.json({ error: 'Failed to fetch patient data' }, 500)
     }
     const patient = patientRes.value

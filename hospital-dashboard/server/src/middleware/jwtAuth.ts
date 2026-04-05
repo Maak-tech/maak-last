@@ -2,6 +2,12 @@ import type { Context, Next } from 'hono'
 import jwt from 'jsonwebtoken'
 import { queryOne } from '../lib/db.js'
 
+// Fail fast at startup rather than silently returning 401 for every request.
+if (!process.env.JWT_SECRET) {
+  console.error('[FATAL] JWT_SECRET environment variable is not set. Set it in .env before starting the server.')
+  process.exit(1)
+}
+
 export interface StaffPayload {
   staffId: string
   role: 'doctor' | 'nurse' | 'admin' | 'viewer'

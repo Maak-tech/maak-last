@@ -276,7 +276,7 @@ export const alertsRoutes = new Elysia({ prefix: "/api/alerts" })
         type: created.type,
         severity: created.severity,
         title: created.title,
-      }).catch((err) => console.error("[alertsRoute] Webhook dispatch failed:", err));
+      }).catch((err: unknown) => console.error("[alertsRoute] Webhook dispatch failed:", err));
 
       return toEmergencyAlert(created);
     },
@@ -285,7 +285,7 @@ export const alertsRoutes = new Elysia({ prefix: "/api/alerts" })
         type: t.String({ maxLength: 100 }),
         severity: t.Union([t.Literal("low"), t.Literal("medium"), t.Literal("high"), t.Literal("critical")]),
         message: t.String({ maxLength: 1000 }),
-        userId: t.Optional(t.String()),
+        userId: t.Optional(t.String({ maxLength: 36 })),
         metadata: t.Optional(t.Any()),
       }),
       detail: { tags: ["alerts"], summary: "Create an emergency alert" },
@@ -334,7 +334,7 @@ export const alertsRoutes = new Elysia({ prefix: "/api/alerts" })
         type: existing.type,
         severity: existing.severity,
         resolvedBy: resolverId,
-      }).catch((err) => console.error("[alertsRoute] alert.resolved webhook failed:", err));
+      }).catch((err: unknown) => console.error("[alertsRoute] alert.resolved webhook failed:", err));
 
       return toEmergencyAlert(updated);
     },
@@ -422,7 +422,7 @@ export const alertsRoutes = new Elysia({ prefix: "/api/alerts" })
     },
     {
       params: t.Object({ alertId: t.String() }),
-      body: t.Object({ responderId: t.String() }),
+      body: t.Object({ responderId: t.String({ maxLength: 36 }) }),
       detail: { tags: ["alerts"], summary: "Add a responder to an alert" },
     }
   );

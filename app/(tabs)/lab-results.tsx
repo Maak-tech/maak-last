@@ -97,9 +97,9 @@ export default function LabResultsScreen() {
     if (!user) return;
     if (!isRefresh) setLoading(true);
     try {
-      const data = await api.get<LabResult[]>("/api/health/lab-results");
+      const data = await api.get<LabResult[]>("/api/health/labs");
       setResults(Array.isArray(data) ? data : []);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[lab-results] Failed to load lab results:', err);
     } finally {
       setLoading(false);
@@ -129,7 +129,7 @@ export default function LabResultsScreen() {
     }
     setSaving(true);
     try {
-      await api.post("/api/health/lab-results", {
+      await api.post("/api/health/labs", {
         testName: testName.trim(),
         testType,
         testDate: new Date(testDate).toISOString(),
@@ -139,9 +139,11 @@ export default function LabResultsScreen() {
       });
       setShowModal(false);
       resetForm();
-      loadResults();
-    } catch (err: any) {
-      Alert.alert(isRTL ? "خطأ" : "Error", err?.message ?? "Failed to save");
+      loadResults().catch((err: unknown) => {
+        console.warn('[lab-results] Failed to reload after save (non-critical):', err instanceof Error ? err.message : String(err));
+      });
+    } catch (err: unknown) {
+      Alert.alert(isRTL ? "خطأ" : "Error", (err instanceof Error ? err.message : null) ?? "Failed to save");
     } finally {
       setSaving(false);
     }
@@ -226,7 +228,7 @@ export default function LabResultsScreen() {
                       {result.results && result.results.length > 0 && (
                         <View style={styles.resultsTable}>
                           {result.results.map((item, idx) => (
-                            <View key={idx} style={[styles.resultRow, idx > 0 && { borderTopColor: border, borderTopWidth: 1 }]}>
+                            <View key={`${item.name}-${idx}`} style={[styles.resultRow, idx > 0 && { borderTopColor: border, borderTopWidth: 1 }]}>
                               <Text style={[styles.resultName, { color: theme.colors.text.primary }]}>{item.name}</Text>
                               <View style={styles.resultRight}>
                                 <Text style={[styles.resultValue, { color: item.flag ? FLAG_COLORS[item.flag] : theme.colors.text.primary }]}>

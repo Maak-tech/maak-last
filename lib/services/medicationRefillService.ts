@@ -50,7 +50,7 @@ export const medicationRefillService = {
         `/api/medications/refills/pending?userId=${encodeURIComponent(userId)}`
       );
       return (Array.isArray(raw) ? raw : []).map(deserializeRefill);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to fetch pending medication refills",
         { userId, error },
@@ -66,7 +66,7 @@ export const medicationRefillService = {
   requestRefill: async (medicationId: string): Promise<void> => {
     try {
       await api.post("/api/medications/refills", { medicationId });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to request medication refill",
         { medicationId, error },
@@ -85,7 +85,7 @@ export const medicationRefillService = {
         `/api/medications/refills/reminders?userId=${encodeURIComponent(userId)}`
       );
       return (Array.isArray(raw) ? raw : []).map(deserializeRefill);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to fetch refill reminders",
         { userId, error },
@@ -151,7 +151,7 @@ export const medicationRefillService = {
   dismissReminder: async (refillId: string): Promise<void> => {
     try {
       await api.patch(`/api/medications/refills/${encodeURIComponent(refillId)}/dismiss`, {});
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to dismiss refill reminder",
         { refillId, error },

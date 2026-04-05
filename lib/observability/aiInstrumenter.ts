@@ -58,7 +58,7 @@ class AIInstrumenter {
       logger.debug(`AI call [${operation}] completed in ${latencyMs}ms`, { callId, model }, "aiInstrumenter");
 
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       const latencyMs = Date.now() - start;
       const record: AICallRecord = {
         callId,

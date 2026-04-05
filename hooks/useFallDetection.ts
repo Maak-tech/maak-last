@@ -134,7 +134,10 @@ export const useFallDetection = (
           }
         };
 
-        initializeSensors();
+        initializeSensors().catch((err) => {
+          console.warn('[useFallDetection] initializeSensors rejected:', err);
+          if (isSubscriptionActive) setIsInitialized(false);
+        });
       } catch (error) {
         console.warn('DeviceMotion initialization error:', error);
         setIsInitialized(false);

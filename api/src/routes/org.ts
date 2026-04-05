@@ -12,6 +12,9 @@
 import { Elysia, t } from "elysia";
 import { and, count, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import crypto from "node:crypto";
+
+/** ISO 8601 date pattern — prevents invalid dates from reaching new Date() */
+const IsoDateString = t.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}" });
 import { requireAuth } from "../middleware/requireAuth";
 import {
   auditTrail,
@@ -121,8 +124,8 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       query: t.Object({
         orgId: t.String(), // required (was Optional — now mandatory for RBAC)
         userId: t.Optional(t.String()),
-        from: t.Optional(t.String()),
-        before: t.Optional(t.String()),
+        from: t.Optional(IsoDateString),
+        before: t.Optional(IsoDateString),
         limit: t.Optional(t.Numeric()),
         actions: t.Optional(t.String()), // comma-separated action filter (server-side)
       }),
@@ -225,9 +228,9 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       params: t.Object({ orgId: t.String(), pathwayId: t.String() }),
       body: t.Object({
         isActive: t.Optional(t.Boolean()),
-        name: t.Optional(t.String()),
-        description: t.Optional(t.String()),
-        triggerCondition: t.Optional(t.String()),
+        name: t.Optional(t.String({ maxLength: 255 })),
+        description: t.Optional(t.String({ maxLength: 2000 })),
+        triggerCondition: t.Optional(t.String({ maxLength: 500 })),
         steps: t.Optional(t.Any()),
       }),
       detail: { tags: ["org"], summary: "Update a care pathway (org admin)" },
@@ -268,11 +271,11 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
     },
     {
       body: t.Object({
-        orgId: t.String(),
-        pathwayId: t.String(),
-        patientId: t.String(),
-        currentStepId: t.Optional(t.String()),
-        nextStepAt: t.Optional(t.String()),
+        orgId: t.String({ maxLength: 36 }),
+        pathwayId: t.String({ maxLength: 36 }),
+        patientId: t.String({ maxLength: 36 }),
+        currentStepId: t.Optional(t.String({ maxLength: 36 })),
+        nextStepAt: t.Optional(IsoDateString),
         metadata: t.Optional(t.Any()),
       }),
       detail: { tags: ["org"], summary: "Enroll a patient in a care pathway (org admin)" },
@@ -365,10 +368,10 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
     {
       params: t.Object({ id: t.String() }),
       body: t.Object({
-        status: t.Optional(t.String()),
-        currentStepId: t.Optional(t.String()),
-        nextStepAt: t.Optional(t.String()),
-        completedAt: t.Optional(t.String()),
+        status: t.Optional(t.String({ maxLength: 50 })),
+        currentStepId: t.Optional(t.String({ maxLength: 36 })),
+        nextStepAt: t.Optional(IsoDateString),
+        completedAt: t.Optional(IsoDateString),
         metadata: t.Optional(t.Any()),
       }),
       detail: { tags: ["org"], summary: "Update a pathway enrollment (org admin)" },
@@ -457,7 +460,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
     },
     {
       params: t.Object({ orgId: t.String() }),
-      body: t.Object({ userId: t.String() }),
+      body: t.Object({ userId: t.String({ maxLength: 36 }) }),
       detail: { tags: ["org"], summary: "Enrol a patient in the org's SDK roster (org admin)" },
     }
   )
@@ -538,7 +541,8 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
 
   /**
    * PATCH /api/org/:orgId/roster/:targetUserId
-   * Update a roster entry status. Requires org admin role.
+   * Update roster entry: status (admin-only), riskScore, lastContactAt, assignedProviders.
+   * Status updates require admin role; metadata updates allow admin/coordinator/provider.
    */
   .patch(
     "/:orgId/roster/:targetUserId",
@@ -548,9 +552,18 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
         set.status = 403;
         return { error: "You are not a member of this organisation" };
       }
-      if (membership.role !== "admin") {
+
+      // Status changes are admin-only; metadata updates allow coordinator and provider too
+      const isAdmin = membership.role === "admin";
+      const canUpdateMetadata = ["admin", "coordinator", "provider"].includes(membership.role ?? "");
+
+      if (body.status !== undefined && !isAdmin) {
         set.status = 403;
-        return { error: "Only org admins can update roster entries" };
+        return { error: "Only org admins can update roster status" };
+      }
+      if ((body.riskScore !== undefined || body.lastContactAt !== undefined || body.assignedProviders !== undefined) && !canUpdateMetadata) {
+        set.status = 403;
+        return { error: "Insufficient permissions to update roster metadata" };
       }
 
       const [existing] = await db
@@ -564,17 +577,32 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
         return { error: "Patient not found on roster" };
       }
 
+      const updateFields: Record<string, unknown> = {};
+      if (body.status !== undefined) updateFields.status = body.status;
+      if (body.riskScore !== undefined) updateFields.riskScore = body.riskScore;
+      if (body.lastContactAt !== undefined) updateFields.lastContactAt = new Date(body.lastContactAt);
+      if (body.assignedProviders !== undefined) updateFields.assignedProviders = body.assignedProviders;
+
+      if (Object.keys(updateFields).length === 0) {
+        return { ok: true, message: "Nothing to update" };
+      }
+
       await db
         .update(patientRosters)
-        .set({ ...(body.status !== undefined && { status: body.status }) })
+        .set(updateFields)
         .where(and(eq(patientRosters.orgId, params.orgId), eq(patientRosters.userId, params.targetUserId)));
 
       return { ok: true };
     },
     {
       params: t.Object({ orgId: t.String(), targetUserId: t.String() }),
-      body: t.Object({ status: t.Optional(t.String()) }),
-      detail: { tags: ["org"], summary: "Update a roster entry status (org admin)" },
+      body: t.Object({
+        status: t.Optional(t.String()),
+        riskScore: t.Optional(t.Number({ minimum: 0, maximum: 100 })),
+        lastContactAt: t.Optional(t.String()),
+        assignedProviders: t.Optional(t.Array(t.String())),
+      }),
+      detail: { tags: ["org"], summary: "Update roster entry (status, risk score, last contact, assigned providers)" },
     }
   )
 
@@ -619,16 +647,72 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
     },
     {
       body: t.Object({
-        id: t.Optional(t.String()),
-        name: t.String(),
-        type: t.Optional(t.String()),
-        email: t.Optional(t.String()),
-        phone: t.Optional(t.String()),
-        website: t.Optional(t.String()),
+        id: t.Optional(t.String({ maxLength: 36 })),
+        name: t.String({ maxLength: 255 }),
+        type: t.Optional(t.String({ maxLength: 100 })),
+        email: t.Optional(t.String({ maxLength: 255 })),
+        phone: t.Optional(t.String({ maxLength: 30 })),
+        website: t.Optional(t.String({ maxLength: 2000 })),
         settings: t.Optional(t.Any()),
       }),
       detail: { tags: ["org"], summary: "Create a new organisation (auto-enrols creator as admin)" },
     }
+  )
+
+  /**
+   * GET /api/org/me
+   * Get the authenticated user's primary organisation (admin role preferred).
+   * Returns { id, name, type, memberCount, plan } or 404 if not in any org.
+   * Must be declared before /:orgId to prevent Elysia from matching "me" as an orgId.
+   */
+  .get(
+    "/me",
+    async ({ db, userId, set }) => {
+      // Find all memberships, preferring admin role
+      const memberships = await db
+        .select({ orgId: orgMembers.orgId, role: orgMembers.role })
+        .from(orgMembers)
+        .where(eq(orgMembers.userId, userId));
+
+      if (memberships.length === 0) {
+        set.status = 404;
+        return { error: "No organisation membership found" };
+      }
+
+      // Prefer admin membership; fall back to first membership
+      const preferred = memberships.find((m) => m.role === "admin") ?? memberships[0];
+
+      const [org] = await db
+        .select()
+        .from(organizations)
+        .where(eq(organizations.id, preferred.orgId))
+        .limit(1);
+
+      if (!org) {
+        set.status = 404;
+        return { error: "Organisation not found" };
+      }
+
+      // Count members in this org
+      const [memberCountRow] = await db
+        .select({ count: count() })
+        .from(orgMembers)
+        .where(eq(orgMembers.orgId, org.id));
+
+      const memberCount = Number(memberCountRow?.count ?? 0);
+
+      const settings = (org.settings ?? {}) as Record<string, unknown>;
+      const plan = (settings.plan as string | undefined) ?? "free";
+
+      return {
+        id: org.id,
+        name: org.name,
+        type: org.type ?? "other",
+        memberCount,
+        plan,
+      };
+    },
+    { detail: { tags: ["org"], summary: "Get the authenticated user's primary organisation" } }
   )
 
   /**
@@ -697,11 +781,11 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
     {
       params: t.Object({ orgId: t.String() }),
       body: t.Object({
-        name: t.Optional(t.String()),
-        type: t.Optional(t.String()),
-        email: t.Optional(t.String()),
-        phone: t.Optional(t.String()),
-        website: t.Optional(t.String()),
+        name: t.Optional(t.String({ maxLength: 255 })),
+        type: t.Optional(t.String({ maxLength: 100 })),
+        email: t.Optional(t.String({ maxLength: 255 })),
+        phone: t.Optional(t.String({ maxLength: 30 })),
+        website: t.Optional(t.String({ maxLength: 2000 })),
         settings: t.Optional(t.Any()),
       }),
       detail: { tags: ["org"], summary: "Update organisation settings (org admin)" },
@@ -812,8 +896,8 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
     {
       params: t.Object({ orgId: t.String() }),
       body: t.Object({
-        userId: t.String(),
-        role: t.Optional(t.String()),
+        userId: t.String({ maxLength: 36 }),
+        role: t.Optional(t.String({ maxLength: 50 })),
       }),
       detail: { tags: ["org"], summary: "Add a member to the org (org admin)" },
     }
@@ -845,7 +929,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
     },
     {
       params: t.Object({ orgId: t.String(), memberId: t.String() }),
-      body: t.Object({ role: t.String() }),
+      body: t.Object({ role: t.String({ maxLength: 50 }) }),
       detail: { tags: ["org"], summary: "Update a member's role (org admin)" },
     }
   )
@@ -927,8 +1011,8 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
     {
       params: t.Object({ orgId: t.String() }),
       body: t.Object({
-        name: t.Optional(t.String()),
-        scopes: t.Optional(t.Array(t.String())),
+        name: t.Optional(t.String({ maxLength: 255 })),
+        scopes: t.Optional(t.Array(t.String({ maxLength: 100 }), { maxItems: 50 })),
       }),
       detail: { tags: ["org"], summary: "Create API key — plaintext returned once only (org admin)" },
     }
@@ -1015,8 +1099,8 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
     {
       params: t.Object({ orgId: t.String(), keyId: t.String() }),
       body: t.Object({
-        name: t.Optional(t.String()),
-        scopes: t.Optional(t.Array(t.String())),
+        name: t.Optional(t.String({ maxLength: 255 })),
+        scopes: t.Optional(t.Array(t.String({ maxLength: 100 }), { maxItems: 50 })),
       }),
       detail: { tags: ["org"], summary: "Update an API key's name or scopes (org admin)" },
     }
@@ -1161,8 +1245,8 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
     {
       params: t.Object({ orgId: t.String() }),
       body: t.Object({
-        url: t.String(),
-        events: t.Optional(t.Array(t.String())),
+        url: t.String({ maxLength: 2000 }),
+        events: t.Optional(t.Array(t.String({ maxLength: 100 }))),
       }),
       detail: { tags: ["org"], summary: "Register webhook endpoint — signing secret returned once (org admin)" },
     }
@@ -1249,8 +1333,8 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
     {
       params: t.Object({ orgId: t.String(), webhookId: t.String() }),
       body: t.Object({
-        url: t.Optional(t.String()),
-        events: t.Optional(t.Array(t.String())),
+        url: t.Optional(t.String({ maxLength: 2000 })),
+        events: t.Optional(t.Array(t.String({ maxLength: 100 }))),
         isActive: t.Optional(t.Boolean()),
       }),
       detail: { tags: ["org"], summary: "Update a webhook endpoint (org admin)" },
@@ -1480,11 +1564,11 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       body: t.Object({
         templates: t.Array(
           t.Object({
-            type: t.String(),
-            channel: t.String(),
-            language: t.Optional(t.String()),
-            titleTemplate: t.String(),
-            bodyTemplate: t.String(),
+            type: t.String({ maxLength: 100 }),
+            channel: t.String({ maxLength: 50 }),
+            language: t.Optional(t.String({ maxLength: 10 })),
+            titleTemplate: t.String({ maxLength: 500 }),
+            bodyTemplate: t.String({ maxLength: 2000 }),
             isActive: t.Optional(t.Boolean()),
           })
         ),
@@ -1570,10 +1654,10 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
     {
       params: t.Object({ orgId: t.String() }),
       body: t.Object({
-        name: t.String(),
-        description: t.Optional(t.String()),
-        condition: t.Optional(t.String()),
-        program: t.Optional(t.String()),
+        name: t.String({ maxLength: 255 }),
+        description: t.Optional(t.String({ maxLength: 2000 })),
+        condition: t.Optional(t.String({ maxLength: 255 })),
+        program: t.Optional(t.String({ maxLength: 255 })),
       }),
       detail: { tags: ["org"], summary: "Create a patient cohort (org admin)" },
     }
@@ -1665,10 +1749,10 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
     {
       params: t.Object({ orgId: t.String(), cohortId: t.String() }),
       body: t.Object({
-        name: t.Optional(t.String()),
-        description: t.Optional(t.String()),
-        condition: t.Optional(t.String()),
-        program: t.Optional(t.String()),
+        name: t.Optional(t.String({ maxLength: 255 })),
+        description: t.Optional(t.String({ maxLength: 2000 })),
+        condition: t.Optional(t.String({ maxLength: 255 })),
+        program: t.Optional(t.String({ maxLength: 255 })),
       }),
       detail: { tags: ["org"], summary: "Update a cohort (org admin)" },
     }
@@ -1724,7 +1808,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
     },
     {
       params: t.Object({ orgId: t.String(), cohortId: t.String() }),
-      body: t.Object({ userId: t.String() }),
+      body: t.Object({ userId: t.String({ maxLength: 36 }) }),
       detail: { tags: ["org"], summary: "Enroll a patient in a cohort (org admin)" },
     }
   )

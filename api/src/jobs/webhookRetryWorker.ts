@@ -141,7 +141,7 @@ async function retryDelivery(
     } else {
       lastError = `HTTP ${res.status} ${res.statusText}`;
     }
-  } catch (err) {
+  } catch (err: unknown) {
     lastError = err instanceof Error ? err.message : String(err);
   }
 

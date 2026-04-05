@@ -2,7 +2,7 @@
  * OpenAI service — Firebase-free replacement.
  *
  * Replaced:
- *   - httpsCallable(firebaseFunctions, "openaiChatCompletion") → api.post("/api/ai/complete", {...})
+ *   - httpsCallable(firebaseFunctions, "openaiChatCompletion") → api.post("/api/nora/complete", {...})
  *   - httpsCallable(firebaseFunctions, "openaiHealthCheck")    → api.get("/api/nora/health")
  *
  * All other behaviour (consent check, PII redaction, streaming shim, generateHealthInsights,
@@ -61,8 +61,11 @@ const redactOutboundText = (value: string): string => {
   return phoneRedacted;
 };
 
+const DEFAULT_MODEL = "gpt-3.5-turbo";
+
 class OpenAIService {
-  private model = "gpt-3.5-turbo";
+  // Empty string so getModel() reads the persisted value from AsyncStorage on first call
+  private model = "";
   private apiKey: string | null = null;
   private cachedHealth: {
     configured: boolean;
@@ -92,7 +95,7 @@ class OpenAIService {
       // hasAccess is true whenever configured — subscription gating is done at the route level
       this.cachedHealth = { configured, hasAccess: configured, checkedAtMs: now };
       return { configured, hasAccess: configured };
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[openai] Health check failed:', err);
       this.cachedHealth = { configured: false, hasAccess: false, checkedAtMs: now };
       return { configured: false, hasAccess: false };
@@ -101,25 +104,42 @@ class OpenAIService {
 
   async setApiKey(key: string) {
     this.apiKey = key;
-    await AsyncStorage.setItem('openai_api_key', key);
+    try {
+      await AsyncStorage.setItem('openai_api_key', key);
+    } catch (err: unknown) {
+      console.warn('[openai] Failed to persist API key:', err);
+    }
   }
 
   async getApiKey(): Promise<string | null> {
     if (!this.apiKey) {
-      this.apiKey = await AsyncStorage.getItem('openai_api_key');
+      try {
+        this.apiKey = await AsyncStorage.getItem('openai_api_key');
+      } catch (err: unknown) {
+        console.warn('[openai] Failed to read API key from storage:', err);
+      }
     }
     return this.apiKey;
   }
 
   async setModel(model: string) {
     this.model = model;
-    await AsyncStorage.setItem('openai_model', model);
+    try {
+      await AsyncStorage.setItem('openai_model', model);
+    } catch (err: unknown) {
+      console.warn('[openai] Failed to persist model preference:', err);
+    }
   }
 
   async getModel(): Promise<string> {
     if (!this.model) {
-      const savedModel = await AsyncStorage.getItem('openai_model');
-      this.model = savedModel || 'gpt-3.5-turbo';
+      try {
+        const savedModel = await AsyncStorage.getItem('openai_model');
+        this.model = savedModel || DEFAULT_MODEL;
+      } catch (err: unknown) {
+        console.warn('[openai] Failed to read saved model — using default:', err);
+        this.model = DEFAULT_MODEL;
+      }
     }
     return this.model;
   }
@@ -148,8 +168,8 @@ class OpenAIService {
       }
       
       onComplete?.();
-    } catch (error) {
-      onError?.(error as Error);
+    } catch (error: unknown) {
+      onError?.(error instanceof Error ? error : new Error(String(error)));
     }
   }
 
@@ -198,14 +218,15 @@ class OpenAIService {
     }));
 
     try {
+      const model = await this.getModel();
       const result = await api.post<{ content?: string; error?: string }>(
-        "/api/ai/complete",
+        "/api/nora/complete",
         {
           messages: sanitizedMessages.map((m) => ({
             role: m.role,
             content: m.content,
           })),
-          model: this.model,
+          model,
           temperature: 0.7,
           maxTokens: 1000,
           usePremiumKey,

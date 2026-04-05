@@ -321,7 +321,7 @@ export default function ResourcesScreen() {
 
   const handleResourcePress = (resource: Resource) => {
     if (resource.url) {
-      Linking.openURL(resource.url);
+      Linking.openURL(resource.url).catch((err) => console.warn('[resources] Failed to open resource URL:', err instanceof Error ? err.message : String(err)));
     } else {
       Alert.alert(
         isRTL ? 'قريباً' : 'Coming Soon',

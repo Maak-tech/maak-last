@@ -148,7 +148,7 @@ class FamilyDashboardService {
         ...(data as unknown as HealthScore),
         timestamp: data.timestamp ? new Date(data.timestamp as string) : new Date(),
       } as HealthScore;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to get health score",
         { userId, error },
@@ -164,7 +164,7 @@ class FamilyDashboardService {
     try {
       // No REST endpoint for risk assessments yet; return null
       return null;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to get risk assessment",
         { userId, error },
@@ -180,7 +180,7 @@ class FamilyDashboardService {
         `/api/health/alerts?userId=${encodeURIComponent(userId)}&resolved=false`
       );
       return (raw ?? []).length;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to get active alerts",
         { userId, error },
@@ -196,7 +196,7 @@ class FamilyDashboardService {
         `/api/health/alerts?userId=${encodeURIComponent(userId)}&resolved=false&priority=critical,high`
       );
       return (raw ?? []).length;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to get critical alerts",
         { userId, error },
@@ -223,14 +223,17 @@ class FamilyDashboardService {
         const vType = v.type as string;
         const ts = v.recordedAt ? new Date(v.recordedAt as string) : new Date();
         if (!lastVitals[vType]) {
+          const rawVal = v.value;
+          const numVal = typeof rawVal === "number" ? rawVal : Number.parseFloat(String(rawVal ?? ""));
+          if (isNaN(numVal)) continue;
           lastVitals[vType] = {
-            value: v.value as number,
+            value: numVal,
             unit: (v.unit as string) ?? "",
             timestamp: ts,
           };
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to get last vitals",
         { userId, error },
@@ -274,7 +277,7 @@ class FamilyDashboardService {
         count: data.count,
         severity: this.getSeverityFromEvents(data.severities),
       }));
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to get alert history",
         { userId, error },

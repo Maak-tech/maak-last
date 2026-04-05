@@ -204,7 +204,7 @@ export class AppDebugger {
       }
 
       AppDebugger.debug(`Memory tracked: ${label}`, memoryInfo, "Memory");
-    } catch (error) {
+    } catch (error: unknown) {
       AppDebugger.warn("Memory tracking failed", error, "Memory");
     }
   }
@@ -470,7 +470,7 @@ export class NetworkDebugger {
 
         AppDebugger.logNetworkResponse(url, response.status, null, duration);
         return response;
-      } catch (error) {
+      } catch (error: unknown) {
         const duration = Date.now() - startTime;
         AppDebugger.logNetworkResponse(url, 0, error, duration);
         throw error;

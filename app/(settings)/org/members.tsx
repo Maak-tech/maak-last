@@ -123,7 +123,7 @@ function InviteModal({
       });
       onInvited(member);
       handleClose();
-    } catch (err) {
+    } catch (err: unknown) {
       Alert.alert(
         "Error",
         err instanceof Error ? err.message : "Failed to add member."
@@ -478,7 +478,7 @@ export default function MembersScreen() {
       try {
         const data = await organizationService.getMembers(orgId);
         if (isMountedRef.current) setMembers(data);
-      } catch (err) {
+      } catch (err: unknown) {
         if (isMountedRef.current)
           setError(
             err instanceof Error ? err.message : "Failed to load members"
@@ -524,7 +524,7 @@ export default function MembersScreen() {
                   m.id === member.id ? { ...m, role: newRole } : m
                 )
               );
-            } catch (err) {
+            } catch (err: unknown) {
               console.warn('[members] Failed to update member role (iOS):', err);
               Alert.alert("Error", "Failed to update role.");
             }
@@ -545,7 +545,7 @@ export default function MembersScreen() {
                 setMembers((prev) =>
                   prev.map((m) => (m.id === member.id ? { ...m, role: r } : m))
                 );
-              } catch (err) {
+              } catch (err: unknown) {
                 console.warn('[members] Failed to update member role (Android):', err);
                 Alert.alert("Error", "Failed to update role.");
               }
@@ -575,7 +575,7 @@ export default function MembersScreen() {
                   member.userId
                 );
                 setMembers((prev) => prev.filter((m) => m.id !== member.id));
-              } catch (err) {
+              } catch (err: unknown) {
                 console.warn('[members] Failed to remove member:', err);
                 Alert.alert("Error", "Failed to remove member.");
               }

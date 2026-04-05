@@ -212,7 +212,7 @@ async function fetchRecentVitalsForScore(
       timestamp: d.recordedAt ? new Date(d.recordedAt as string) : new Date(),
       source: d.source as string | undefined,
     }));
-  } catch (err) {
+  } catch (err: unknown) {
     console.warn('[healthScore] fetchRecentVitalsForScore failed:', err);
     return [];
   }
@@ -324,8 +324,8 @@ export async function calculateHealthScore(
       },
       rating: getHealthRating(score),
     };
-  } catch (_error) {
-    // Return default score in case of error
+  } catch (error: unknown) {
+    console.warn('[healthScoreService] calculateHealthScore failed, returning default:', error instanceof Error ? error.message : String(error));
     return {
       score: 75,
       breakdown: {
@@ -422,8 +422,8 @@ export function calculateHealthScoreFromData(
       },
       rating: getHealthRating(score),
     };
-  } catch (_error) {
-    // Return default score in case of error
+  } catch (error: unknown) {
+    console.warn('[healthScoreService] calculateHealthScoreFromData failed, returning default:', error instanceof Error ? error.message : String(error));
     return {
       score: 75,
       breakdown: {

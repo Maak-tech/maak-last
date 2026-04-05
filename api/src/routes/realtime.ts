@@ -46,7 +46,7 @@ export async function broadcastToFamily(
       .from(familyMembers)
       .where(eq(familyMembers.familyId, familyId));
     memberUserIds = members.map((m) => m.userId);
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("[realtime] broadcastToFamily DB lookup failed:", err);
     return;
   }
@@ -113,7 +113,14 @@ export const realtimeRoutes = new Elysia({ prefix: "/ws" })
       const userId = ws.data.params.userId;
 
       // Validate session before subscribing
-      const session = await auth.api.getSession({ headers: ws.data.request.headers });
+      let session: Awaited<ReturnType<typeof auth.api.getSession>>;
+      try {
+        session = await auth.api.getSession({ headers: ws.data.request.headers });
+      } catch (err: unknown) {
+        console.error("[realtime/vhi] getSession failed:", err);
+        ws.close(1011, "Internal error");
+        return;
+      }
       if (!session || session.user.id !== userId) {
         ws.close(1008, "Unauthorized");
         return;
@@ -145,7 +152,14 @@ export const realtimeRoutes = new Elysia({ prefix: "/ws" })
     async open(ws) {
       const familyId = ws.data.params.familyId;
 
-      const session = await auth.api.getSession({ headers: ws.data.request.headers });
+      let session: Awaited<ReturnType<typeof auth.api.getSession>>;
+      try {
+        session = await auth.api.getSession({ headers: ws.data.request.headers });
+      } catch (err: unknown) {
+        console.error("[realtime/family] getSession failed:", err);
+        ws.close(1011, "Internal error");
+        return;
+      }
       if (!session) {
         ws.close(1008, "Unauthorized");
         return;
@@ -190,7 +204,14 @@ export const realtimeRoutes = new Elysia({ prefix: "/ws" })
     async open(ws) {
       const userId = ws.data.params.userId;
 
-      const session = await auth.api.getSession({ headers: ws.data.request.headers });
+      let session: Awaited<ReturnType<typeof auth.api.getSession>>;
+      try {
+        session = await auth.api.getSession({ headers: ws.data.request.headers });
+      } catch (err: unknown) {
+        console.error("[realtime/alerts] getSession failed:", err);
+        ws.close(1011, "Internal error");
+        return;
+      }
       if (!session || session.user.id !== userId) {
         ws.close(1008, "Unauthorized");
         return;

@@ -6,6 +6,9 @@ import { requireAuth } from "../middleware/requireAuth";
 
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL ?? "http://localhost:8000";
 
+/** ISO 8601 date pattern — prevents invalid dates from reaching new Date() */
+const IsoDateString = t.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}" });
+
 // ── Tigris helpers ────────────────────────────────────────────────────────────
 
 async function generateUploadUrl(key: string): Promise<string> {
@@ -35,7 +38,19 @@ export const clinicalNotesRoutes = new Elysia({ prefix: "/api/notes" })
   // ── List notes ──────────────────────────────────────────────────────────────
   .get(
     "/",
-    async ({ db, userId, query }) => {
+    async ({ db, userId, query, set }) => {
+      // Validate date strings before passing to the DB driver.
+      // new Date("garbage") produces an invalid Date, which Drizzle would
+      // silently cast to NULL or throw a cryptic Postgres error.
+      if (query.from && isNaN(new Date(query.from).getTime())) {
+        set.status = 400;
+        return { error: "Invalid 'from' date" };
+      }
+      if (query.to && isNaN(new Date(query.to).getTime())) {
+        set.status = 400;
+        return { error: "Invalid 'to' date" };
+      }
+
       let q = db
         .select()
         .from(clinicalNotes)
@@ -122,14 +137,14 @@ export const clinicalNotesRoutes = new Elysia({ prefix: "/api/notes" })
 
       // Auto-parse if content is provided (non-blocking)
       if (body.content) {
-        parsNoteAsync(note).catch(console.error);
+        parseNoteAsync(note).catch((err: unknown) => console.error(`[clinicalNotes] Auto-parse failed for note ${note.id}:`, err instanceof Error ? err.message : String(err)));
       }
 
       return { ...sanitizeNote(note), attachmentUploadUrl };
     },
     {
       body: t.Object({
-        noteDate: t.String(),
+        noteDate: IsoDateString,
         source: t.Optional(t.String({ maxLength: 100 })),
         providerName: t.Optional(t.String({ maxLength: 255 })),
         specialty: t.Optional(t.String({ maxLength: 100 })),
@@ -187,21 +202,21 @@ export const clinicalNotesRoutes = new Elysia({ prefix: "/api/notes" })
     {
       params: t.Object({ id: t.String() }),
       body: t.Object({
-        noteDate: t.Optional(t.String()),
-        providerName: t.Optional(t.String()),
-        specialty: t.Optional(t.String()),
-        facility: t.Optional(t.String()),
-        noteType: t.Optional(t.String()),
+        noteDate: t.Optional(IsoDateString),
+        providerName: t.Optional(t.String({ maxLength: 255 })),
+        specialty: t.Optional(t.String({ maxLength: 100 })),
+        facility: t.Optional(t.String({ maxLength: 255 })),
+        noteType: t.Optional(t.String({ maxLength: 50 })),
         soap: t.Optional(
           t.Object({
-            subjective: t.Optional(t.String()),
-            objective: t.Optional(t.String()),
-            assessment: t.Optional(t.String()),
-            plan: t.Optional(t.String()),
+            subjective: t.Optional(t.String({ maxLength: 20000 })),
+            objective: t.Optional(t.String({ maxLength: 20000 })),
+            assessment: t.Optional(t.String({ maxLength: 20000 })),
+            plan: t.Optional(t.String({ maxLength: 20000 })),
           })
         ),
-        content: t.Optional(t.String()),
-        tags: t.Optional(t.Array(t.String())),
+        content: t.Optional(t.String({ maxLength: 100000 })),
+        tags: t.Optional(t.Array(t.String({ maxLength: 50 }), { maxItems: 50 })),
         extractedData: t.Optional(t.Record(t.String(), t.Unknown())),
       }),
       detail: { tags: ["health"], summary: "Update a clinical note" },
@@ -234,7 +249,7 @@ export const clinicalNotesRoutes = new Elysia({ prefix: "/api/notes" })
         await client.send(new DeleteObjectCommand({
           Bucket: process.env.TIGRIS_BUCKET ?? "nuralix",
           Key: existing.attachmentKey,
-        })).catch(console.error);
+        })).catch((err: unknown) => console.error(`[clinicalNotes] Tigris delete failed for key ${existing.attachmentKey}:`, err instanceof Error ? err.message : String(err)));
       }
 
       await db.delete(clinicalNotes).where(eq(clinicalNotes.id, params.id));
@@ -264,7 +279,7 @@ export const clinicalNotesRoutes = new Elysia({ prefix: "/api/notes" })
       if (!note) { set.status = 404; return { error: "Note not found" }; }
 
       // Kick off parsing asynchronously — client polls isProcessed or uses WS
-      parsNoteAsync(note).catch((err) =>
+      parseNoteAsync(note).catch((err: unknown) =>
         console.error(`[clinicalNotes] Async parse failed for ${params.id}:`, err)
       );
 
@@ -324,7 +339,7 @@ export const clinicalNotesRoutes = new Elysia({ prefix: "/api/notes" })
 
 // ── Async ML parse helper ─────────────────────────────────────────────────────
 
-async function parsNoteAsync(note: typeof clinicalNotes.$inferSelect) {
+async function parseNoteAsync(note: typeof clinicalNotes.$inferSelect) {
   const { S3Client, GetObjectCommand } = await import("@aws-sdk/client-s3");
 
   let pdfBase64: string | undefined;
@@ -349,7 +364,7 @@ async function parsNoteAsync(note: typeof clinicalNotes.$inferSelect) {
         const buf = Buffer.concat(chunks);
         pdfBase64 = buf.toString("base64");
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("[clinicalNotes] Tigris PDF download failed:", err);
     }
   }
@@ -399,7 +414,7 @@ async function parsNoteAsync(note: typeof clinicalNotes.$inferSelect) {
     if (parsed.specialty && !note.specialty) updates.specialty = parsed.specialty;
 
     await importedDb.update(clinicalNotes).set(updates).where(eq(clinicalNotes.id, note.id));
-  } catch (err) {
+  } catch (err: unknown) {
     clearTimeout(timer);
     console.error(`[clinicalNotes] ML parse failed for note ${note.id}:`, err);
   }

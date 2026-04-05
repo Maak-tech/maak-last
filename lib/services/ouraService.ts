@@ -417,6 +417,7 @@ export const ouraService = {
           grant_type: "authorization_code",
           redirect_uri: REDIRECT_URI,
         }).toString(),
+        signal: AbortSignal.timeout(15_000),
       });
 
       if (!tokenResponse.ok) {
@@ -435,13 +436,14 @@ export const ouraService = {
             headers: {
               Authorization: `Bearer ${tokens.access_token}`,
             },
+            signal: AbortSignal.timeout(15_000),
           }
         );
         if (userResponse.ok) {
           const userData = await userResponse.json();
           userId = userData.id || userData.user_id || "unknown";
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.warn('[oura] Failed to fetch personal info for userId:', err);
         userId = tokens.userId || tokens.user_id || "unknown";
       }
@@ -521,6 +523,7 @@ export const ouraService = {
           refresh_token: tokens.refreshToken,
           grant_type: "refresh_token",
         }).toString(),
+        signal: AbortSignal.timeout(15_000),
       });
 
       if (!response.ok) {
@@ -538,7 +541,7 @@ export const ouraService = {
       });
 
       return newTokens.access_token;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[oura] Failed to refresh access token:', err);
       return null;
     }
@@ -566,6 +569,7 @@ export const ouraService = {
         Authorization: `Bearer ${accessToken}`,
         Accept: "application/json",
       },
+      signal: AbortSignal.timeout(15_000),
     });
 
     if (!response.ok) {
@@ -695,7 +699,7 @@ export const ouraService = {
             }
             allSamples[metricKey].push(...samples);
           }
-        } catch (err) {
+        } catch (err: unknown) {
           console.warn('[oura] Failed to fetch data from endpoint', endpoint + ':', err);
         }
       }
@@ -721,7 +725,7 @@ export const ouraService = {
       }
 
       return results;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[oura] Failed to fetch health data:', err);
       return [];
     }
@@ -804,7 +808,7 @@ export const ouraService = {
       // Oura doesn't have a revoke endpoint, just delete local tokens
       await ouraService.disconnect();
       return true;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[oura] Failed to revoke access tokens:', err);
       return false;
     }

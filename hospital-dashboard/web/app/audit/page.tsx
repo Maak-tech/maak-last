@@ -35,7 +35,7 @@ export default function AuditPage() {
     try {
       const s = staffJson ? JSON.parse(staffJson) as { role: string } : null
       if (!s || s.role !== 'admin') { router.push('/dashboard'); return }
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[audit] Failed to parse staff info for role check — denying access:', err)
       router.push('/dashboard')
     }
@@ -48,7 +48,7 @@ export default function AuditPage() {
       const data = await api.getAuditLogs(p)
       setLogs(data.logs as unknown as AuditLog[])
       setHasMore(data.logs.length === data.limit)
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load audit logs')
     } finally {
       setLoading(false)

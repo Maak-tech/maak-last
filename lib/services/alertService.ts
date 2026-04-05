@@ -118,7 +118,7 @@ export const alertService = {
       _activeAlertsCache.delete(alertData.userId);
 
       return alertId;
-    } catch (error) {
+    } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       observabilityEmitter.emit({
         eventType: "alert_service",
@@ -180,9 +180,10 @@ export const alertService = {
 
   async resolveAlert(alertId: string, resolverId: string): Promise<void> {
     try {
-      // Fetch current alert data for timeline + escalation
-      const alertList = await api.get<EmergencyAlert[]>(`/api/alerts?limit=200`);
-      const alertData = (Array.isArray(alertList) ? alertList : []).find((a) => a.id === alertId);
+      // Fetch only active (unresolved) alerts — the alert being resolved must be active,
+      // so this is far more efficient than fetching the full 200-alert history.
+      const activeAlerts = await api.get<EmergencyAlert[]>(`/api/alerts/active`);
+      const alertData = (Array.isArray(activeAlerts) ? activeAlerts : []).find((a) => a.id === alertId);
 
       observabilityEmitter.emit({
         eventType: "alert_service",
@@ -311,7 +312,7 @@ export const alertService = {
           location ? ` Location: ${location}.` : ""
         }`,
       });
-    } catch (notificationError) {
+    } catch (notificationError: unknown) {
       observabilityEmitter.emit({
         eventType: "alert_service",
         domain: "alerts",
@@ -418,7 +419,7 @@ export const alertService = {
       const count = result?.count ?? 0;
       _activeAlertsCountCache.set(_userId, { count, timestamp: Date.now() });
       return count;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[alert] Failed to fetch active alert count:', err);
       return 0;
     }
@@ -435,7 +436,7 @@ export const alertService = {
       const alerts = (Array.isArray(result) ? result : []).map(normalizeAlert);
       _activeAlertsCache.set(_userId, { alerts, timestamp: Date.now() });
       return alerts;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[alert] Failed to fetch active alerts:', err);
       return [];
     }

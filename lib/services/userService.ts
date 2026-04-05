@@ -64,7 +64,7 @@ const normalizeUserFromApi = (raw: Record<string, unknown>): User => {
     gender: raw.gender as User["gender"],
     dateOfBirth: raw.dateOfBirth ? new Date(raw.dateOfBirth as string) : undefined,
     familyId: raw.familyId as string | undefined,
-    avatar: raw.avatar as string | undefined,
+    avatar: (raw.avatar ?? raw.avatarUrl) as string | undefined,
     avatarType: raw.avatarType as AvatarType | undefined,
     role: (raw.role as User["role"]) ?? "admin",
     createdAt: raw.createdAt ? new Date(raw.createdAt as string) : new Date(),
@@ -91,7 +91,7 @@ export const userService = {
       const raw = await api.get<Record<string, unknown>>(`/api/users/${userId}`);
       if (!raw || (raw as { error?: string }).error) return null;
       return normalizeUserFromApi(raw);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[user] getUser failed:', err);
       return null;
     }
@@ -248,7 +248,7 @@ export const userService = {
       const members = (Array.isArray(raw) ? raw : []).map(normalizeUserFromApi);
       _familyMembersCache.set(familyId, { members, timestamp: Date.now() });
       return members;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[user] getFamilyMembers failed:', err);
       return [];
     }
@@ -273,7 +273,7 @@ export const userService = {
     try {
       await api.post(`/api/family/${familyId}/leave`, { userId });
       _familyMembersCache.delete(familyId);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[userService] leavePreviousFamily failed (non-critical):', err);
     }
   },
@@ -292,7 +292,7 @@ export const userService = {
     try {
       const user = await this.getUser(userId);
       return user?.role === "admin";
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[user] isUserAdmin failed:', err);
       return false;
     }
@@ -303,7 +303,7 @@ export const userService = {
     try {
       const user = await this.getUser(userId);
       return user?.role === "admin" || user?.role === "caregiver";
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[user] isUserCaregiverOrAdmin failed:', err);
       return false;
     }
@@ -332,7 +332,7 @@ export const userService = {
         `/api/family/${familyId}/users?role=caregiver`
       );
       return (Array.isArray(raw) ? raw : []).map(normalizeUserFromApi);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[user] getFamilyCaregivers failed:', err);
       return [];
     }

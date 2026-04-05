@@ -371,7 +371,7 @@ export default function NotificationTemplatesScreen() {
         if (isMountedRef.current) {
           setTemplates(data);
         }
-      } catch (err) {
+      } catch (err: unknown) {
         if (isMountedRef.current) {
           Alert.alert(
             "Error",
@@ -422,7 +422,7 @@ export default function NotificationTemplatesScreen() {
         isActive: template.isActive,
       });
       Alert.alert("Saved", `${type.replace(/_/g, " ")} template updated.`);
-    } catch (err) {
+    } catch (err: unknown) {
       Alert.alert(
         "Error",
         err instanceof Error ? err.message : "Failed to save template."
@@ -460,7 +460,7 @@ export default function NotificationTemplatesScreen() {
                   },
                 }));
               }
-            } catch (err) {
+            } catch (err: unknown) {
               Alert.alert(
                 "Error",
                 err instanceof Error ? err.message : "Reset failed."

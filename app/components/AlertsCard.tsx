@@ -52,7 +52,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
       // Load family alerts
       const familyAlerts = await alertService.getFamilyAlerts(userIds, 10);
       setAlerts(familyAlerts);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading alerts:', error);
     } finally {
       setLoading(false);
@@ -79,7 +79,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
 
       // Reload alerts
       await loadAlerts();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error responding to alert:', error);
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
@@ -106,7 +106,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
             try {
               await alertService.resolveAlert(alertId, user.id);
               await loadAlerts();
-            } catch (error) {
+            } catch (error: unknown) {
               console.error('Error resolving alert:', error);
               Alert.alert(
                 isRTL ? 'خطأ' : 'Error',

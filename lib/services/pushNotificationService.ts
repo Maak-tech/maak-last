@@ -91,7 +91,7 @@ export const pushNotificationService = {
 
       // Fallback: local notification (Expo Go / web)
       await scheduleLocalNotification(notification);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[pushNotification] sendToUser failed:', err);
     }
   },
@@ -128,7 +128,7 @@ export const pushNotificationService = {
       await Promise.all(
         membersToNotify.map((m) => this.sendToUser(m.id, notification))
       );
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[pushNotification] sendToFamily failed:', err);
     }
   },
@@ -164,7 +164,7 @@ export const pushNotificationService = {
       await Promise.all(
         adminsToNotify.map((m) => this.sendToUser(m.id, notification))
       );
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[pushNotification] sendToAdmins failed:', err);
     }
   },
@@ -367,7 +367,7 @@ export const pushNotificationService = {
           if (success) return;
         }
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[pushNotification] sendFamilyUpdateToAdmins FCM path failed, using fallback:', err);
     }
 
@@ -420,7 +420,7 @@ export const pushNotificationService = {
         deviceId: deviceInfo?.deviceId ?? Constants.sessionId,
         deviceName: deviceInfo?.deviceName ?? `${Platform.OS} Device`,
       });
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[pushNotification] API token save failed, using fcmService fallback:', err);
       await fcmService.saveFCMToken(token);
     }

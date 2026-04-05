@@ -173,8 +173,8 @@ class OfflineService {
         this.syncListeners.forEach((listener) => {
           try {
             listener(this.isOnline);
-          } catch (_error) {
-            // Error in sync listener
+          } catch (err: unknown) {
+            console.debug('[offlineService] Error in sync listener:', err instanceof Error ? err.message : String(err));
           }
         });
       }
@@ -329,7 +329,8 @@ class OfflineService {
 
         return restoredOp;
       });
-    } catch (_error) {
+    } catch (err: unknown) {
+      console.debug('[offlineService] Failed to restore pending operations from storage:', err instanceof Error ? err.message : String(err));
       return [];
     }
   }
@@ -347,8 +348,8 @@ class OfflineService {
       offlineData.lastSync = new Date();
 
       await AsyncStorage.setItem(OFFLINE_DATA_KEY, JSON.stringify(offlineData));
-    } catch (_error) {
-      // Handle error silently
+    } catch (err: unknown) {
+      console.debug('[offlineService] Failed to persist offline data to storage:', err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -376,7 +377,8 @@ class OfflineService {
         ...data,
         lastSync: data.lastSync ? new Date(data.lastSync) : null,
       };
-    } catch (_error) {
+    } catch (err: unknown) {
+      console.debug('[offlineService] Failed to parse offline data cache, returning empty:', err instanceof Error ? err.message : String(err));
       return {
         symptoms: [],
         medications: [],
@@ -498,7 +500,7 @@ class OfflineService {
                 relatedEntityType: "symptom",
                 actorType: "user",
               });
-            } catch (err) {
+            } catch (err: unknown) {
               console.warn('[offline] Timeline event post during sync failed (non-critical):', err);
             }
           }
@@ -543,7 +545,7 @@ class OfflineService {
 
       await this.removeOperationFromQueue(operation.id);
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       const errorDetails: {
         operationId: string;
         retries: number;

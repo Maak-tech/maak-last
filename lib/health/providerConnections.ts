@@ -23,7 +23,7 @@ export async function saveProviderConnection(
       userId,
       ...connection,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error(
       "Failed to save provider connection",
       { userId, provider: connection.provider, error },
@@ -44,7 +44,7 @@ export async function getProviderConnections(
       `/api/integrations/provider-connections?userId=${userId}`
     );
     return res.connections ?? [];
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error(
       "Failed to load provider connections",
       { userId, error },
@@ -88,7 +88,7 @@ export async function disconnectProvider(
 ): Promise<void> {
   try {
     await api.delete(`/api/integrations/provider-connections/${provider}?userId=${userId}`);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error(
       "Failed to disconnect provider",
       { userId, provider, error },

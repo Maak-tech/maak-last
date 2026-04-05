@@ -578,6 +578,7 @@ export const samsungHealthService = {
           grant_type: "authorization_code",
           redirect_uri: REDIRECT_URI,
         }).toString(),
+        signal: AbortSignal.timeout(15_000),
       });
 
       if (!tokenResponse.ok) {
@@ -662,6 +663,7 @@ export const samsungHealthService = {
           refresh_token: tokens.refreshToken,
           grant_type: "refresh_token",
         }).toString(),
+        signal: AbortSignal.timeout(15_000),
       });
 
       if (!response.ok) {
@@ -679,7 +681,7 @@ export const samsungHealthService = {
       });
 
       return newTokens.access_token;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[withings/samsungHealthService] refreshTokenIfNeeded failed:', err);
       return null;
     }
@@ -724,6 +726,7 @@ export const samsungHealthService = {
               Authorization: `Bearer ${accessToken}`,
               Accept: "application/json",
             },
+            signal: AbortSignal.timeout(15_000),
           });
 
           if (response.ok) {
@@ -746,7 +749,7 @@ export const samsungHealthService = {
       }
 
       return results;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[withings/samsungHealthService] fetchHealthData failed:', err);
       return [];
     }
@@ -826,6 +829,7 @@ export const samsungHealthService = {
             client_id: SAMSUNG_HEALTH_CLIENT_ID,
             client_secret: SAMSUNG_HEALTH_CLIENT_SECRET,
           }).toString(),
+          signal: AbortSignal.timeout(15_000),
         });
       } catch {
         // Revocation endpoint may not exist, continue with local cleanup
@@ -833,7 +837,7 @@ export const samsungHealthService = {
 
       await samsungHealthService.disconnect();
       return true;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[withings/samsungHealthService] revokeAccess failed:', err);
       return false;
     }

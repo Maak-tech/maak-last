@@ -19,6 +19,10 @@ export class ApiError extends Error {
   }
 }
 
+// Default timeout for all API calls. Prevents requests from hanging indefinitely
+// when the server is unreachable or a Railway service restarts mid-request.
+const DEFAULT_TIMEOUT_MS = 30_000;
+
 async function request<T>(
   method: string,
   path: string,
@@ -36,11 +40,16 @@ async function request<T>(
     headers,
     credentials: "include", // sends Better-auth session cookie
     body: body !== undefined ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
   });
 
   if (!res.ok) {
     let errorBody: unknown;
-    try { errorBody = await res.json(); } catch { /* ignore */ }
+    try {
+      errorBody = await res.json();
+    } catch {
+      // Response body is not JSON (e.g. plain-text error from a proxy/CDN) — ignore parse error
+    }
     const message =
       (errorBody as { error?: string })?.error ??
       `Request failed: ${res.status} ${res.statusText}`;

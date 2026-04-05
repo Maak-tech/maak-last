@@ -249,7 +249,7 @@ export default function OrgNotificationsScreen() {
     try {
       await organizationService.saveNotificationSettings(orgId, { channels });
       Alert.alert("Saved", "Notification settings updated.");
-    } catch (err) {
+    } catch (err: unknown) {
       Alert.alert(
         "Error",
         err instanceof Error ? err.message : "Failed to save settings."

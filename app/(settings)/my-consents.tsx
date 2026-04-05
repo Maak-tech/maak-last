@@ -271,7 +271,7 @@ export default function MyConsentsScreen() {
           setConsents(data);
           setOrgsMap(map);
         }
-      } catch (err) {
+      } catch (err: unknown) {
         if (isMountedRef.current)
           setError(
             err instanceof Error ? err.message : "Failed to load consents"
@@ -322,7 +322,7 @@ export default function MyConsentsScreen() {
                       : c
                   )
                 );
-              } catch (err) {
+              } catch (err: unknown) {
                 console.warn('[my-consents] Failed to revoke consent:', err);
                 Alert.alert(
                   "Error",

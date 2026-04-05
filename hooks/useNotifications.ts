@@ -67,7 +67,7 @@ export const useNotifications = () => {
             Notifications.addNotificationReceivedListener(
               (notification: any) => {
                 try {
-                  console.log('Notification received:', notification);
+                  console.debug('[useNotifications] Notification received:', notification);
                 } catch (listenerError) {
                   console.warn(
                     'Error in notification listener:',
@@ -81,7 +81,7 @@ export const useNotifications = () => {
             Notifications.addNotificationResponseReceivedListener(
               (response: any) => {
                 try {
-                  console.log('Notification response:', response);
+                  console.debug('[useNotifications] Notification response:', response);
                 } catch (responseError) {
                   console.warn('Error in response listener:', responseError);
                 }
@@ -126,7 +126,7 @@ export const useNotifications = () => {
   const scheduleNotification = useCallback(
     async (title: string, body: string, trigger: Date) => {
       if (Platform.OS === 'web') {
-        console.log('Notification scheduled (web):', { title, body, trigger });
+        console.debug('[useNotifications] Notification scheduled (web):', { title, body, trigger });
         return;
       }
 
@@ -212,7 +212,7 @@ async function registerForPushNotificationsAsync(
         return;
       }
 
-      console.log('Push notifications registered successfully');
+      console.debug('[useNotifications] Push notifications registered successfully');
     } else {
       console.warn('Must use physical device for push notifications');
     }

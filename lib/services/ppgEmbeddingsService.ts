@@ -108,18 +108,29 @@ export const ppgEmbeddingsService = {
       .get<Record<string, unknown>[]>(
         "/api/health/ppg-embeddings?limit=" + limitCount
       )
-      .catch(() => [] as Record<string, unknown>[]);
+      .catch((err: unknown) => {
+        console.warn('[ppgEmbeddings] getRecentEmbeddings failed:', err instanceof Error ? err.message : String(err));
+        return [] as Record<string, unknown>[];
+      });
 
-    return (Array.isArray(raw) ? raw : []).map((d) => ({
-      id: d.id as string,
-      embeddings: (d.embeddings as number[]) ?? [],
-      heartRate: d.heartRate as number | undefined,
-      hrv: d.hrv as number | undefined,
-      respiratoryRate: d.respiratoryRate as number | undefined,
-      signalQuality: d.signalQuality as number,
-      confidence: d.confidence as number | undefined,
-      capturedAt: d.capturedAt ? new Date(d.capturedAt as string) : new Date(),
-    }));
+    return (Array.isArray(raw) ? raw : []).map((d) => {
+      // Postgres numeric columns are returned as strings — parse to number
+      const toNum = (v: unknown): number | undefined => {
+        if (v === null || v === undefined) return undefined;
+        const n = Number(v);
+        return isNaN(n) ? undefined : n;
+      };
+      return {
+        id: d.id as string,
+        embeddings: Array.isArray(d.embeddings) ? (d.embeddings as unknown[]).map(Number) : [],
+        heartRate: toNum(d.heartRate),
+        hrv: toNum(d.hrv),
+        respiratoryRate: toNum(d.respiratoryRate),
+        signalQuality: toNum(d.signalQuality) ?? 0,
+        confidence: toNum(d.confidence),
+        capturedAt: d.capturedAt ? new Date(d.capturedAt as string) : new Date(),
+      };
+    });
   },
 
   /**
@@ -150,7 +161,7 @@ export const ppgEmbeddingsService = {
         isAnomaly: similarity < ANOMALY_THRESHOLD,
         baselineCount: baselineVectors.length,
       };
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[ppgEmbeddings] compareWithBaseline failed:', err);
       return null;
     }

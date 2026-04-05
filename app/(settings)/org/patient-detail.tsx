@@ -199,7 +199,7 @@ function CreateTaskModal({
       });
       onCreated(task);
       handleClose();
-    } catch (err) {
+    } catch (err: unknown) {
       Alert.alert(
         "Error",
         err instanceof Error ? err.message : "Failed to create task."
@@ -554,7 +554,7 @@ export default function PatientDetailScreen() {
               }),
           });
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.warn('[patient-detail] Unexpected error during data load:', err);
       } finally {
         if (isMountedRef.current) {
@@ -581,7 +581,7 @@ export default function PatientDetailScreen() {
             try {
               await taskService.updateStatus(task.id, "completed", user.id);
               setTasks((prev) => prev.filter((t) => t.id !== task.id));
-            } catch (err) {
+            } catch (err: unknown) {
               console.warn('[patient-detail] Failed to complete task:', err);
               Alert.alert("Error", "Failed to complete task.");
             }
@@ -615,7 +615,7 @@ export default function PatientDetailScreen() {
                   "Enrolled",
                   `${patientName} is now on the "${pathway.name}" pathway.`
                 );
-              } catch (err) {
+              } catch (err: unknown) {
                 Alert.alert(
                   "Error",
                   err instanceof Error ? err.message : "Failed to enroll."
@@ -1118,7 +1118,7 @@ export default function PatientDetailScreen() {
 
                   return (
                     <View
-                      key={i}
+                      key={`${entry.type}-${entry.timestamp}-${i}`}
                       style={{
                         backgroundColor: theme.colors.background.secondary,
                         borderRadius: 10,

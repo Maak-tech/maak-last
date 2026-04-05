@@ -102,8 +102,8 @@ export const healthConnectService = {
           source: "health_connect",
         }));
         readings.push(...normalized);
-      } catch (e: any) {
-        errors.push(`${metric}: ${e?.message ?? "unknown error"}`);
+      } catch (e: unknown) {
+        errors.push(`${metric}: ${e instanceof Error ? e.message : "unknown error"}`);
       }
     }
 

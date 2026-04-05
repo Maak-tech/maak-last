@@ -47,6 +47,16 @@ const SDK_RATE_WINDOW_MS = 60_000;
 const SDK_RATE_LIMIT = 100;
 const sdkRateMap = new Map<string, { count: number; windowStart: number }>();
 
+// Evict stale rate-limit entries every 5 minutes to prevent unbounded Map growth
+const _sdkRateMapCleanup = setInterval(() => {
+  const cutoff = Date.now() - SDK_RATE_WINDOW_MS * 2;
+  for (const [key, entry] of sdkRateMap) {
+    if (entry.windowStart < cutoff) sdkRateMap.delete(key);
+  }
+}, 5 * 60_000);
+// Allow Node to exit without waiting for this interval
+_sdkRateMapCleanup.unref?.();
+
 function checkSdkRateLimit(apiKeyId: string): boolean {
   const now = Date.now();
   const entry = sdkRateMap.get(apiKeyId);
@@ -881,7 +891,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
         .update(apiKeys)
         .set({ lastUsedAt: new Date() })
         .where(eq(apiKeys.id, keyRow.id))
-        .catch(console.error);
+        .catch((err: unknown) => console.error('[sdk/ws] Failed to update lastUsedAt for key', keyRow.id, err instanceof Error ? err.message : String(err)));
 
       ws.send(
         JSON.stringify({

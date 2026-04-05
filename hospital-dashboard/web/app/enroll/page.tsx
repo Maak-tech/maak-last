@@ -31,7 +31,7 @@ export default function EnrollPage() {
   useEffect(() => {
     const stored = sessionStorage.getItem('hospital_staff')
     if (stored) {
-      try { setStaff(JSON.parse(stored) as StaffInfo) } catch (err) { console.warn('[enroll] Failed to parse staff info:', err) }
+      try { setStaff(JSON.parse(stored) as StaffInfo) } catch (err: unknown) { console.warn('[enroll] Failed to parse staff info:', err) }
     }
     const token = sessionStorage.getItem('hospital_token')
     if (!token) router.push('/login')
@@ -60,7 +60,7 @@ export default function EnrollPage() {
     try {
       const data = await api.manualSearch(searchQuery)
       setSearchResults(data.results)
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[enroll] Patient search failed:', err)
     } finally {
       setSearching(false)
@@ -112,7 +112,7 @@ export default function EnrollPage() {
         throw new Error((err as { error?: string }).error ?? 'Enrollment failed')
       }
       setStep('done')
-    } catch (err) {
+    } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Enrollment failed')
       setStep('error')
     }

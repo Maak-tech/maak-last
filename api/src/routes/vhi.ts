@@ -73,9 +73,12 @@ export const vhiRoutes = new Elysia({ prefix: "/api/vhi" })
   // Acknowledge a pending VHI action
   .post(
     "/me/actions/:actionId/acknowledge",
-    async ({ db, userId, params }) => {
+    async ({ db, userId, params, set }) => {
       const [current] = await db.select().from(vhi).where(eq(vhi.userId, userId)).limit(1);
-      if (!current?.data) return { ok: false };
+      if (!current?.data) {
+        set.status = 404;
+        return { error: "VHI not found" };
+      }
 
       const data = current.data;
       const now = new Date().toISOString();
@@ -106,7 +109,7 @@ export const vhiRoutes = new Elysia({ prefix: "/api/vhi" })
     async ({ userId }) => {
       // Fire-and-forget: run the full VHI pipeline for just this user.
       // Errors are logged but never propagate to the caller.
-      processUser(userId).catch((err) =>
+      processUser(userId).catch((err: unknown) =>
         console.error(`[vhiRoutes] Background recompute failed for user ${userId}:`, err)
       );
       return { ok: true, message: "Recompute started — your VHI will update within 30 seconds" };

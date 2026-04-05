@@ -7,15 +7,12 @@ import {
   useEffect,
   useState,
 } from "react";
-import { Alert } from "react-native";
 import { api } from "@/lib/apiClient";
 import { authClient } from "@/lib/authClient";
-import { familyInviteService } from "@/lib/services/familyInviteService";
 import { fcmService } from "@/lib/services/fcmService";
-import { revenueCatService } from "@/lib/services/revenueCatService";
 import { userService } from "@/lib/services/userService";
 import { logger } from "@/lib/utils/logger";
-import type { AvatarType, EmergencyContact, User } from "@/types";
+import type { User } from "@/types";
 
 interface AuthContextType {
   user: User | null;
@@ -42,14 +39,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Debug user state changes
-  useEffect(() => {
-    console.log(
-      '🎯 AuthContext: User state changed to:',
-      user ? `${user.name} (${user.id})` : 'null'
-    );
-  }, [user]);
-
   useEffect(() => {
     let cancelled = false;
 
@@ -66,67 +55,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           return;
         }
 
-        console.log('🔥 Session found:', sessionUser.email);
-
         const userData = await userService.ensureUserDocument(
           sessionUser.id,
           sessionUser.email ?? '',
-          (sessionUser as any).name ?? 'User'
+          (sessionUser as { name?: string }).name ?? 'User'
         );
 
         if (cancelled) return;
 
-        console.log(
-          '✅ User data found/created:',
-          userData.name,
-          'Onboarding:',
-          userData.onboardingCompleted,
-          'FamilyId:',
-          userData.familyId
-        );
         setUser(userData);
 
         // Initialize FCM for push notifications (with delay to ensure auth is ready)
-        console.log('📱 Scheduling FCM initialization for user:', userData.id);
         setTimeout(() => {
-          console.log('📱 Now initializing FCM for user:', userData.id);
           fcmService
             .initializeFCM(userData.id)
-            .then((success) => {
-              if (success) {
-                console.log('✅ FCM initialized successfully');
-              } else {
-                console.log(
-                  '⚠️ FCM initialization failed - will use local notifications'
-                );
-              }
-            })
-            .catch((error) => {
-              console.log('❌ FCM initialization error:', error);
+            .catch((error: unknown) => {
+              console.warn('[AuthContext] FCM initialization error:', error);
             });
         }, 3000);
 
-        // Check for pending family code after authentication
-        console.log('🔍 Checking for pending family code...');
-        const familyCodeProcessed = await processPendingFamilyCode(
-          sessionUser.id
-        );
-        console.log('📋 Family code processing result:', familyCodeProcessed);
-
-        // Only ensure user has family if no family code was successfully processed
+        // Check for pending family code; if none processed, create a default family
+        const familyCodeProcessed = await processPendingFamilyCode(sessionUser.id);
         if (!familyCodeProcessed) {
-          console.log(
-            '🏠 No family code processed, ensuring user has default family...'
-          );
           await ensureUserHasFamily(sessionUser.id);
-        } else {
-          console.log(
-            '✅ Family code was processed successfully, skipping default family creation'
-          );
         }
-
-        console.log('🎯 Session init processing completed');
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('❌ Session init error:', error);
         if (!cancelled) setUser(null);
       } finally {
@@ -146,7 +99,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const familyData = await api.get<Record<string, unknown> | null>(
         `/api/family/${currentUser.familyId}`
-      ).catch(() => null);
+      ).catch((err: unknown) => {
+        console.debug('[AuthContext] Family data fetch failed (may be stale familyId):', err instanceof Error ? err.message : String(err));
+        return null;
+      });
       if (familyData == null) {
         await userService.updateUser(userId, { familyId: undefined, role: "admin" });
         return false;
@@ -158,8 +114,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const hasActiveFamily = isActive && isMember;
       if (!hasActiveFamily) await userService.updateUser(userId, { familyId: undefined, role: "admin" });
       return hasActiveFamily;
-    } catch (_err) {
-      logger.error("Failed to check family membership", _err, "AuthContext");
+    } catch (err: unknown) {
+      logger.error("Failed to check family membership", err, "AuthContext");
       return false;
     }
   };
@@ -167,49 +123,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Helper function to ensure user has a family (create default if needed)
   const ensureUserHasFamily = async (userId: string) => {
     try {
-      console.log('🏠 Starting ensureUserHasFamily for user:', userId);
       const currentUser = await userService.getUser(userId);
-      console.log('📋 Current user in ensureUserHasFamily:', {
-        userId,
-        familyId: currentUser?.familyId,
-        name: currentUser?.name,
-      });
-
       if (!currentUser?.familyId) {
-        console.log('👨‍👩‍👧‍👦 Creating default family for user:', userId);
-
         // Create a default family for the user
-        const newFamilyId = await userService.createFamily(
+        await userService.createFamily(
           userId,
           `${currentUser?.name}'s Family` || 'My Family'
         );
-
-        console.log('✅ Default family created successfully:', newFamilyId);
-
-        // Update the user state to reflect the new family
-        console.log(
-          '🔄 Refreshing user state after default family creation...'
-        );
+        // Refresh user state to reflect the new family
         const updatedUser = await userService.getUser(userId);
-        console.log('📋 Updated user after default family creation:', {
-          userId: updatedUser?.id,
-          familyId: updatedUser?.familyId,
-          name: updatedUser?.name,
-        });
-        if (updatedUser) {
-          setUser(updatedUser);
-          console.log('✅ User state updated after default family creation');
-        }
-      } else {
-        console.log('ℹ️ User already has family:', currentUser.familyId);
+        if (updatedUser) setUser(updatedUser);
       }
-    } catch (error) {
-      console.error('❌ Error ensuring user has family:', error);
-      console.error('Error details:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        code: (error as any)?.code,
-        stack: error instanceof Error ? error.stack : undefined,
-      });
+    } catch (error: unknown) {
+      console.error('[AuthContext] Error ensuring user has family:', error instanceof Error ? error.message : error);
     }
   };
 
@@ -229,24 +155,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       await userService.ensureUserDocument(
         sessionUser.id,
         sessionUser.email ?? '',
-        (sessionUser as any).name ?? 'User'
+        (sessionUser as { name?: string }).name ?? 'User'
       );
 
-      console.log('✅ SignIn successful');
-    } catch (error: any) {
+      // signIn succeeded
+    } catch (error: unknown) {
       console.error('Sign in error:', error);
-      let errorMessage = error.message || 'Failed to sign in. Please try again.';
-
-      if (error.code === 'auth/user-not-found' || errorMessage.includes('user-not-found')) {
-        errorMessage = 'No account found with this email.';
-      } else if (error.code === 'auth/wrong-password' || errorMessage.includes('wrong-password')) {
-        errorMessage = 'Incorrect password.';
-      } else if (error.code === 'auth/invalid-email' || errorMessage.includes('invalid-email')) {
+      // better-auth returns a plain message string; map common messages to user-friendly text.
+      // Note: Firebase error codes (auth/user-not-found, etc.) were removed — better-auth
+      // never emits them and they were dead code after the Firebase → better-auth migration.
+      const raw: string = (error instanceof Error ? error.message : null) || 'Failed to sign in. Please try again.';
+      let errorMessage = raw;
+      if (raw.toLowerCase().includes('invalid') && raw.toLowerCase().includes('email')) {
         errorMessage = 'Invalid email address.';
-      } else if (error.code === 'auth/too-many-requests' || errorMessage.includes('too-many-requests')) {
+      } else if (raw.toLowerCase().includes('rate') || raw.toLowerCase().includes('too many')) {
         errorMessage = 'Too many failed attempts. Please try again later.';
       }
-
       throw new Error(errorMessage);
     } finally {
       setLoading(false);
@@ -256,8 +180,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const signUp = async (email: string, password: string, name: string) => {
     setLoading(true);
     try {
-      console.log('🔄 Starting signup process for:', email);
-
       const result = await authClient.signUp.email({ email, password, name });
 
       if (result.error) {
@@ -267,30 +189,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const sessionUser = result.data?.user;
       if (!sessionUser) throw new Error('Failed to create account. Please try again.');
 
-      console.log('✅ Account created, creating user document...');
-
       // Create user document
       await userService.ensureUserDocument(
         sessionUser.id,
         sessionUser.email ?? '',
         name
       );
-
-      console.log('✅ User document created');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Sign up error:', error);
-      let errorMessage = error.message || 'Failed to create account. Please try again.';
-
-      if (error.code === 'auth/email-already-in-use' || errorMessage.includes('already')) {
+      // better-auth returns plain message strings; map to user-friendly text.
+      // Firebase error codes (auth/email-already-in-use etc.) removed — dead code post-migration.
+      const raw: string = (error instanceof Error ? error.message : null) || 'Failed to create account. Please try again.';
+      let errorMessage = raw;
+      if (raw.toLowerCase().includes('already') || raw.toLowerCase().includes('exists')) {
         errorMessage = 'An account with this email already exists.';
-      } else if (error.code === 'auth/weak-password' || errorMessage.includes('weak-password')) {
-        errorMessage = 'Password should be at least 6 characters.';
-      } else if (error.code === 'auth/invalid-email' || errorMessage.includes('invalid-email')) {
+      } else if (raw.toLowerCase().includes('weak') || raw.toLowerCase().includes('password')) {
+        errorMessage = 'Password should be at least 8 characters.';
+      } else if (raw.toLowerCase().includes('invalid') && raw.toLowerCase().includes('email')) {
         errorMessage = 'Invalid email address.';
       }
-
-      setLoading(false);
       throw new Error(errorMessage);
+      // Note: do NOT call setLoading(false) here — the finally block handles it unconditionally.
     } finally {
       setLoading(false);
     }
@@ -300,7 +219,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       await authClient.signOut();
       setUser(null);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[AuthContext] signOut failed:', err);
       throw new Error('Failed to sign out. Please try again.');
     }
@@ -309,21 +228,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const updateUser = async (userData: Partial<User>) => {
     if (!user) return;
     try {
-      await api.patch(`/api/user/profile`, userData).catch(() => {});
+      await api.patch(`/api/user/profile`, userData).catch((err: unknown) => {
+        console.warn('[AuthContext] Failed to sync profile update to API:', err instanceof Error ? err.message : String(err));
+      });
       setUser({ ...user, ...userData });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Update user error:', error);
       throw new Error('Failed to update user. Please try again.');
     }
   };
-
-  // Temporarily remove useMemo to ensure re-renders
-  console.log(
-    '🔥 AuthContext: Creating context value with user:',
-    user ? `${user.name} (${user.id})` : 'null',
-    'loading:',
-    loading
-  );
 
   const value = {
     user,

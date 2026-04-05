@@ -25,7 +25,7 @@ export default function CameraCapture({ onCapture, loading }: Props) {
           setStreamActive(true)
           setError(null)
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('[CameraCapture] getUserMedia failed:', err)
         setError('Camera access denied or not available.')
       }
@@ -48,14 +48,19 @@ export default function CameraCapture({ onCapture, loading }: Props) {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
     ctx.drawImage(video, 0, 0)
-    canvas.toBlob((blob) => {
+    canvas.toBlob(async (blob) => {
       if (!blob) {
         setError('Failed to capture image from camera. Please try again.')
         return
       }
-      const fd = new FormData()
-      fd.append('image', blob, 'capture.jpg')
-      onCapture(fd)
+      try {
+        const fd = new FormData()
+        fd.append('image', blob, 'capture.jpg')
+        await onCapture(fd)
+      } catch (err: unknown) {
+        console.error('[CameraCapture] onCapture threw:', err)
+        setError('Failed to process captured image. Please try again.')
+      }
     }, 'image/jpeg', 0.9)
   }, [onCapture])
 

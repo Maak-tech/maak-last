@@ -161,7 +161,7 @@ function handleGlobalError(error: Error, isFatal = false) {
           },
         }
       );
-    } catch (reportError) {
+    } catch (reportError: unknown) {
       logger.error(
         "Failed to report global error to observability",
         reportError,
@@ -191,7 +191,7 @@ function handleGlobalError(error: Error, isFatal = false) {
     if (originalErrorHandler) {
       originalErrorHandler(error, isFatal);
     }
-  } catch (handlerError) {
+  } catch (handlerError: unknown) {
     // If error handler itself fails, log to console as last resort
     console.error("Error handler failed:", handlerError);
     console.error("Original error:", error);
@@ -267,7 +267,7 @@ function handleUnhandledRejection(event: PromiseRejectionEvent | any) {
           },
         }
       );
-    } catch (reportError) {
+    } catch (reportError: unknown) {
       logger.error(
         "Failed to report promise rejection to observability",
         reportError,
@@ -279,7 +279,7 @@ function handleUnhandledRejection(event: PromiseRejectionEvent | any) {
     if (originalPromiseRejectionHandler) {
       originalPromiseRejectionHandler(event);
     }
-  } catch (handlerError) {
+  } catch (handlerError: unknown) {
     console.error("Promise rejection handler failed:", handlerError);
     console.error("Original rejection:", event);
   }

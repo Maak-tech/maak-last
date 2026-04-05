@@ -63,9 +63,12 @@ export default function PersonalInfoScreen() {
 
     setLoading(true);
     try {
-      const updates = {
+      const updates: { name: string; phone?: string } = {
         name: editForm.name.trim(),
       };
+      if (editForm.phoneNumber.trim()) {
+        updates.phone = editForm.phoneNumber.trim();
+      }
 
       await userService.updateUser(user.id, updates);
       await updateUser(updates);
@@ -75,7 +78,7 @@ export default function PersonalInfoScreen() {
         isRTL ? 'تم الحفظ' : 'Saved',
         isRTL ? 'تم تحديث الملف الشخصي بنجاح' : 'Profile updated successfully'
       );
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating profile:', error);
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',

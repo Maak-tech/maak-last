@@ -717,8 +717,8 @@ export default function PPGVitalMonitorVisionCamera({
               setPermissionDenied(false);
             }
           })
-          .catch(() => {
-            // Silently handle error
+          .catch((err: unknown) => {
+            console.debug('[PPGMonitor] requestPermission on app-active failed:', err instanceof Error ? err.message : String(err));
           });
       } else if (nextAppState === "background" || nextAppState === "inactive") {
         // If app goes to background during measurement, stop it
@@ -843,8 +843,8 @@ export default function PPGVitalMonitorVisionCamera({
 
     // Restore original brightness if it was changed
     if (originalBrightness !== null) {
-      Brightness.setSystemBrightnessAsync(originalBrightness).catch(() => {
-        // Silently handle error
+      Brightness.setSystemBrightnessAsync(originalBrightness).catch((err: unknown) => {
+        console.debug('[PPGMonitor] Failed to restore original brightness (best effort):', err instanceof Error ? err.message : String(err));
       });
       setOriginalBrightness(null);
     }
@@ -892,7 +892,7 @@ export default function PPGVitalMonitorVisionCamera({
       }
       setPermissionDenied(true);
       return false;
-    } catch (err) {
+    } catch (err: unknown) {
       setPermissionDenied(true);
       return false;
     }
@@ -905,7 +905,7 @@ export default function PPGVitalMonitorVisionCamera({
       } else {
         await Linking.openSettings();
       }
-    } catch (err) {
+    } catch (err: unknown) {
       Alert.alert(
         t("openSettings"),
         t(
@@ -974,7 +974,7 @@ export default function PPGVitalMonitorVisionCamera({
         const currentBrightness = await Brightness.getSystemBrightnessAsync();
         setOriginalBrightness(currentBrightness);
         await Brightness.setSystemBrightnessAsync(1.0); // Set to maximum brightness
-      } catch (brightnessError) {
+      } catch (brightnessError: unknown) {
         // Continue even if brightness control fails
       }
 
@@ -1717,8 +1717,9 @@ export default function PPGVitalMonitorVisionCamera({
           } else {
             bufferInfo = "no-toArrayBuffer";
           }
-        } catch (e) {
+        } catch (e: unknown) {
           bufferInfo = "buf-error";
+          console.debug("[PPGVisionCamera] toArrayBuffer debug probe failed:", e instanceof Error ? e.message : String(e));
         }
         setFrameMetaOnJS(
           `isValid=${String(frame.isValid)} ${frame.width}x${frame.height} ${String(frame.pixelFormat)} bytesPerRow=${String(frame.bytesPerRow)} ${bufferInfo}`
@@ -1779,8 +1780,8 @@ export default function PPGVitalMonitorVisionCamera({
                 debugInfo += ` nz=${nz} avg=${avg}`;
               }
             }
-          } catch (e) {
-            // ignore debug errors
+          } catch (e: unknown) {
+            console.debug("[PPGVisionCamera] Debug frame analysis failed:", e instanceof Error ? e.message : String(e));
           }
           setFrameMetaOnJS(debugInfo);
         }
@@ -1813,7 +1814,7 @@ export default function PPGVitalMonitorVisionCamera({
         const currentFrameIndex = frameCountSV.value;
         frameCountSV.value = currentFrameIndex + 1;
         processPPGFrameBatchDataOnJS([redAverage], currentFrameIndex);
-      } catch (error) {
+      } catch (error: unknown) {
         // Frame processing error - track but don't crash
         handleFrameProcessingErrorOnJS(frameCountSV.value);
         frameCountSV.value = frameCountSV.value + 1;

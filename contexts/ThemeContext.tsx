@@ -48,7 +48,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         if (savedMode && ['light', 'dark', 'system'].includes(savedMode)) {
           setThemeModeState(savedMode as ThemeMode);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error loading theme mode:', error);
       } finally {
         setIsLoaded(true);
@@ -63,7 +63,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     try {
       setThemeModeState(mode);
       await AsyncStorage.setItem(THEME_STORAGE_KEY, mode);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving theme mode:', error);
     }
   };

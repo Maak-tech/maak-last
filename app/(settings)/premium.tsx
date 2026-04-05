@@ -278,7 +278,7 @@ export default function PremiumScreen() {
     closePaywall();
     try {
       await refreshCustomerInfo();
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[premium] refreshCustomerInfo after purchase failed (non-critical):', err);
     }
   }, [closePaywall, refreshCustomerInfo]);
@@ -653,8 +653,8 @@ export default function PremiumScreen() {
           >
             <TouchableOpacity
               onPress={() =>
-                Linking.openURL(
-                  "https://app.nuralix.ai/terms-conditions"
+                Linking.openURL("https://app.nuralix.ai/terms-conditions").catch(
+                  (err) => console.warn('[premium] Failed to open Terms URL:', err instanceof Error ? err.message : String(err))
                 )
               }
               style={{ paddingHorizontal: 8, paddingVertical: 4 }}
@@ -671,8 +671,8 @@ export default function PremiumScreen() {
             <Caption style={{ color: theme.colors.text.tertiary }}>•</Caption>
             <TouchableOpacity
               onPress={() =>
-                Linking.openURL(
-                  "https://app.nuralix.ai/privacy-policy"
+                Linking.openURL("https://app.nuralix.ai/privacy-policy").catch(
+                  (err) => console.warn('[premium] Failed to open Privacy URL:', err instanceof Error ? err.message : String(err))
                 )
               }
               style={{ paddingHorizontal: 8, paddingVertical: 4 }}

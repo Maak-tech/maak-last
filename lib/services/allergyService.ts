@@ -64,7 +64,7 @@ export const allergyService = {
       const currentAllergies = await offlineService.getOfflineCollection<Allergy>("allergies");
       await offlineService.storeOfflineData("allergies", [...currentAllergies, newAllergy]);
       return tempId;
-    } catch (error) {
+    } catch (error: unknown) {
       if (isOnline) {
         const operationId = await offlineService.queueOperation({
           type: "create",
@@ -113,7 +113,7 @@ export const allergyService = {
           return timeB - timeA;
         })
         .slice(0, limitCount);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[allergy] getUserAllergies API failed, falling back to offline cache:', err);
       if (isOnline) {
         const cachedAllergies = await offlineService.getOfflineCollection<Allergy>("allergies");

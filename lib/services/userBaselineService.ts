@@ -202,12 +202,15 @@ async function fetchVitalSamples(
   const raw = await api.get<Record<string, unknown>[]>(
     `/api/health/vitals?from=${since.toISOString()}&limit=500`
   );
-  return (Array.isArray(raw) ? raw : []).map((v) => ({
-    type: v.type as string,
-    value: v.value as number,
-    unit: v.unit as string | undefined,
-    timestamp: v.recordedAt ? new Date(v.recordedAt as string) : new Date(),
-  }));
+  return (Array.isArray(raw) ? raw : [])
+    .filter((v) => (typeof v.value === "number" || (typeof v.value === "string" && v.value !== "")) && v.type)
+    .map((v) => ({
+      type: v.type as string,
+      value: typeof v.value === "number" ? v.value : Number.parseFloat(v.value as string),
+      unit: v.unit as string | undefined,
+      timestamp: v.recordedAt ? new Date(v.recordedAt as string) : new Date(),
+    }))
+    .filter((v) => !isNaN(v.value));
 }
 
 function buildVitalBaselines(
@@ -263,7 +266,7 @@ async function fetchMedicationAdherence(
 
     if (totalReminders === 0) return 100;
     return Math.round((takenReminders / totalReminders) * 100);
-  } catch (err) {
+  } catch (err: unknown) {
     console.warn('[userBaseline] fetchMedicationAdherence failed:', err);
     return 100;
   }
@@ -281,7 +284,7 @@ async function fetchPeriodBaseline(
       averagePeriodLength: cycle.averagePeriodLength ?? 5,
       pmsSymptoms: [],
     };
-  } catch (err) {
+  } catch (err: unknown) {
     console.warn('[userBaseline] fetchPeriodBaseline failed:', err);
     return null;
   }
@@ -452,7 +455,7 @@ export const userBaselineService = {
         ...baseline,
         computedAt: baseline.computedAt.toISOString(),
       });
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[userBaseline] Failed to persist baseline:', err);
       // Non-critical — proceed with in-memory baseline
     }
@@ -475,7 +478,7 @@ export const userBaselineService = {
       const ageHours = (Date.now() - computedAt.getTime()) / 3_600_000;
       if (ageHours > BASELINE_CACHE_HOURS) return null;
       return { ...data, computedAt } as UserHealthBaseline;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[userBaseline] getCachedBaseline failed:', err);
       return null;
     }
@@ -760,7 +763,7 @@ export const userBaselineService = {
           }
         }
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[userBaseline] detectDeviations partial failure (returning partial results):', err);
     }
 
@@ -817,8 +820,8 @@ export const userBaselineService = {
       });
 
       // Record notification time
-      await api.post("/api/user/baseline/last-notification", {}).catch(() => {});
-    } catch (err) {
+      await api.post("/api/user/baseline/last-notification", {}).catch((err: unknown) => { console.debug('[userBaseline] Failed to record notification time (non-critical):', err instanceof Error ? err.message : String(err)); });
+    } catch (err: unknown) {
       console.warn('[userBaseline] checkAndNotifySignificantDeviations failed:', err);
     }
   },
@@ -850,7 +853,7 @@ export const userBaselineService = {
         latest: 0,
         baseline: 0,
       }));
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[userBaseline] getZScoreVitalAnomalies failed:', err);
       return [];
     }

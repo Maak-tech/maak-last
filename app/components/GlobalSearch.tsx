@@ -65,7 +65,7 @@ export default function GlobalSearch({ visible, onClose }: Props) {
           `/api/search?q=${encodeURIComponent(query.trim())}`
         );
         setResults(Array.isArray(data) ? data : []);
-      } catch (err) {
+      } catch (err: unknown) {
         console.warn('[search] Failed to fetch search results:', err);
         setResults([]);
       } finally {

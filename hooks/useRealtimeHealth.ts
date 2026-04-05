@@ -16,7 +16,6 @@ const WS_BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000")
 interface UseRealtimeHealthOptions {
   userId?: string;
   familyId?: string;
-  familyMemberIds?: string[];
   onTrendAlert?: (alert: TrendAlert) => void;
   onFamilyMemberUpdate?: (update: FamilyMemberUpdate) => void;
   onAlertCreated?: (alert: EmergencyAlert) => void;
@@ -28,84 +27,111 @@ interface UseRealtimeHealthOptions {
 export function useRealtimeHealth({
   userId,
   familyId,
-  familyMemberIds,
   onTrendAlert,
   onFamilyMemberUpdate,
   onAlertCreated,
-  onAlertResolved: _onAlertResolved,
-  onError: _onError,
-  enabled: _enabled,
+  onAlertResolved,
+  onError,
+  enabled = true,
 }: UseRealtimeHealthOptions): void {
-  const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const vhiWsRef = useRef<WebSocket | null>(null);
+  const familyWsRef = useRef<WebSocket | null>(null);
+  const reconnectVhiTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectFamilyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
 
-  const connect = useCallback(() => {
-    if (!userId || !mountedRef.current) return;
-
+  // ── VHI + alert stream: /ws/vhi/:userId ──────────────────────────────────────
+  const connectVhi = useCallback(() => {
+    if (!userId || !mountedRef.current || !enabled) return;
     try {
-      const url = `${WS_BASE_URL}/ws/health/${userId}`;
-      const ws = new WebSocket(url);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        // Subscribe to family channels if needed
-        if (familyId) {
-          ws.send(JSON.stringify({ type: "subscribe_family", familyId }));
-        }
-        if (familyMemberIds?.length) {
-          ws.send(JSON.stringify({ type: "subscribe_members", memberIds: familyMemberIds }));
-        }
-      };
+      const ws = new WebSocket(`${WS_BASE_URL}/ws/vhi/${userId}`);
+      vhiWsRef.current = ws;
 
       ws.onmessage = (event) => {
         if (!mountedRef.current) return;
         try {
-          const msg = JSON.parse(event.data as string) as {
-            type: string;
-            payload: unknown;
-          };
-
-          switch (msg.type) {
+          const msg = JSON.parse(event.data as string) as { event: string; data: unknown };
+          switch (msg.event) {
             case "trend_alert":
-              onTrendAlert?.(msg.payload as TrendAlert);
-              break;
-            case "family_member_update":
-              onFamilyMemberUpdate?.(msg.payload as FamilyMemberUpdate);
+              onTrendAlert?.(msg.data as TrendAlert);
               break;
             case "alert_created":
-              onAlertCreated?.(msg.payload as EmergencyAlert);
+              onAlertCreated?.(msg.data as EmergencyAlert);
               break;
+            case "alert_resolved": {
+              const d = msg.data as { alertId?: string; resolverId?: string };
+              if (d?.alertId && d?.resolverId) onAlertResolved?.(d.alertId, d.resolverId);
+              break;
+            }
           }
-        } catch {
-          // Malformed message — ignore
+        } catch (parseErr) {
+          console.debug('[useRealtimeHealth] VHI message parse failed:', parseErr instanceof Error ? parseErr.message : String(parseErr));
         }
       };
 
       ws.onerror = () => {
+        onError?.(new Error("VHI WebSocket error"));
         ws.close();
       };
 
       ws.onclose = () => {
-        wsRef.current = null;
+        vhiWsRef.current = null;
         if (mountedRef.current) {
-          // Reconnect after 5 seconds
-          reconnectTimer.current = setTimeout(connect, 5_000);
+          reconnectVhiTimer.current = setTimeout(connectVhi, 5_000);
         }
       };
-    } catch {
-      // WebSocket not available (web without SSL, tests, etc.)
+    } catch (err: unknown) {
+      console.debug('[useRealtimeHealth] VHI WebSocket connection failed:', err instanceof Error ? err.message : String(err));
     }
-  }, [userId, familyId, familyMemberIds, onTrendAlert, onFamilyMemberUpdate, onAlertCreated]);
+  }, [userId, enabled, onTrendAlert, onAlertCreated, onAlertResolved, onError]);
+
+  // ── Family stream: /ws/family/:familyId ──────────────────────────────────────
+  const connectFamily = useCallback(() => {
+    if (!familyId || !mountedRef.current || !enabled) return;
+    try {
+      const ws = new WebSocket(`${WS_BASE_URL}/ws/family/${familyId}`);
+      familyWsRef.current = ws;
+
+      ws.onmessage = (event) => {
+        if (!mountedRef.current) return;
+        try {
+          const msg = JSON.parse(event.data as string) as { event: string; data: unknown };
+          if (msg.event === "family_member_update") {
+            onFamilyMemberUpdate?.(msg.data as FamilyMemberUpdate);
+          }
+        } catch (parseErr) {
+          console.debug('[useRealtimeHealth] Family message parse failed:', parseErr instanceof Error ? parseErr.message : String(parseErr));
+        }
+      };
+
+      ws.onerror = () => {
+        onError?.(new Error("Family WebSocket error"));
+        ws.close();
+      };
+
+      ws.onclose = () => {
+        familyWsRef.current = null;
+        if (mountedRef.current) {
+          reconnectFamilyTimer.current = setTimeout(connectFamily, 5_000);
+        }
+      };
+    } catch (err: unknown) {
+      console.debug('[useRealtimeHealth] Family WebSocket connection failed:', err instanceof Error ? err.message : String(err));
+    }
+  }, [familyId, enabled, onFamilyMemberUpdate, onError]);
 
   useEffect(() => {
     mountedRef.current = true;
-    connect();
+    connectVhi();
+    connectFamily();
     return () => {
       mountedRef.current = false;
-      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-      wsRef.current?.close();
-      wsRef.current = null;
+      if (reconnectVhiTimer.current) clearTimeout(reconnectVhiTimer.current);
+      if (reconnectFamilyTimer.current) clearTimeout(reconnectFamilyTimer.current);
+      vhiWsRef.current?.close();
+      familyWsRef.current?.close();
+      vhiWsRef.current = null;
+      familyWsRef.current = null;
     };
-  }, [connect]);
+  }, [connectVhi, connectFamily]);
 }

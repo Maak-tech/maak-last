@@ -140,7 +140,7 @@ class RealtimeHealthService {
             this.eventHandlers.onTrendAlert?.(trendAlert);
           }
         }
-      } catch (error) {
+      } catch (error: unknown) {
         this.eventHandlers.onError?.(
           error instanceof Error ? error : new Error("Poll error (trend alerts)")
         );
@@ -219,7 +219,7 @@ class RealtimeHealthService {
             }
           }
         }
-      } catch (error) {
+      } catch (error: unknown) {
         this.eventHandlers.onError?.(
           error instanceof Error ? error : new Error("Poll error (family updates)")
         );
@@ -275,7 +275,7 @@ class RealtimeHealthService {
             this.eventHandlers.onAlertResolved?.(id, resolvedBy);
           }
         }
-      } catch (error) {
+      } catch (error: unknown) {
         this.eventHandlers.onError?.(
           error instanceof Error ? error : new Error("Poll error (user alerts)")
         );
@@ -334,7 +334,7 @@ class RealtimeHealthService {
           onVitalAdded?.(vital);
           this.eventHandlers.onVitalAdded?.(vital);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         this.eventHandlers.onError?.(
           error instanceof Error ? error : new Error("Poll error (user vitals)")
         );

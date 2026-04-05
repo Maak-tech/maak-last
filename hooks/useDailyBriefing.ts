@@ -48,7 +48,10 @@ export function useDailyBriefing(
     api.get<Record<string, unknown> | null>(
       `/api/health/briefings/${todayKey}`
     )
-      .catch(() => null)
+      .catch((err: unknown) => {
+        console.debug('[useDailyBriefing] API request failed (non-critical, will degrade gracefully):', err instanceof Error ? err.message : String(err));
+        return null;
+      })
       .then((raw) => {
         if (raw) {
           const data = raw;
@@ -64,8 +67,9 @@ export function useDailyBriefing(
           });
         }
       })
-      .catch(() => {
-        // Silently fail — briefing is a nice-to-have enhancement
+      .catch((err) => {
+        // Non-critical: briefing is a nice-to-have enhancement
+        console.debug('[useDailyBriefing] Failed to load briefing:', err instanceof Error ? err.message : String(err));
       })
       .finally(() => setLoading(false));
   }, [userId]);

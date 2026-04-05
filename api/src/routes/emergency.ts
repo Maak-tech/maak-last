@@ -38,7 +38,7 @@ async function sendTwilioSms(to: string, body: string): Promise<boolean> {
       }
     );
     return res.ok;
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("[emergency] Twilio send failed:", err);
     return false;
   }

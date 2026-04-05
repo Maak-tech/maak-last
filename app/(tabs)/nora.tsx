@@ -72,12 +72,13 @@ export default function NoraScreen() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [showSettings, setShowSettings] = useState(false);
-  const [_selectedModel, setSelectedModel] = useState("gpt-4o");
+  // selectedModel is cosmetic only — backend always uses GPT-4o regardless of selection
   const [tempModel, setTempModel] = useState("gpt-4o");
   // System prompt is injected server-side via VHI context block — no local state needed
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
-  const [autoSpeak, _setAutoSpeak] = useState(false);
+  // autoSpeak: wired up but currently always false — auto-speak on response is not yet enabled
+  const [autoSpeak, setAutoSpeak] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [recognitionAvailable, setRecognitionAvailable] = useState(false);
   const [voiceInputEnabled, setVoiceInputEnabled] = useState(false);
@@ -126,7 +127,7 @@ export default function NoraScreen() {
     () => () => {
       isMountedRef.current = false;
       // Stop voice recognition if the screen unmounts while listening
-      voiceService.stopListening().catch(() => {});
+      voiceService.stopListening().catch((err) => { console.debug('[nora] stopListening on unmount failed (non-critical):', err instanceof Error ? err.message : String(err)); });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
@@ -170,8 +171,8 @@ export default function NoraScreen() {
         if (savedVoiceLanguage) {
           setVoiceLanguage(savedVoiceLanguage);
         }
-      } catch (_error) {
-        // Use defaults
+      } catch (error: unknown) {
+        console.debug('[nora] Failed to load saved preferences, using defaults:', error instanceof Error ? error.message : String(error));
       }
     };
 
@@ -184,7 +185,8 @@ export default function NoraScreen() {
       if (isMountedRef.current) {
         setRecognitionAvailable(available);
       }
-    } catch (_error) {
+    } catch (error: unknown) {
+      console.debug('[nora] Voice recognition availability check failed:', error instanceof Error ? error.message : String(error));
       if (isMountedRef.current) {
         setRecognitionAvailable(false);
       }
@@ -197,7 +199,8 @@ export default function NoraScreen() {
       if (isMountedRef.current) {
         setVoiceEnabled(available);
       }
-    } catch (_error) {
+    } catch (error: unknown) {
+      console.debug('[nora] voiceService.isAvailable() failed:', error instanceof Error ? error.message : String(error));
       if (isMountedRef.current) {
         setVoiceEnabled(false);
       }
@@ -208,8 +211,9 @@ export default function NoraScreen() {
     if (isListening) {
       try {
         await voiceService.stopListening();
-      } catch (_err) {
-        // stopListening failure is non-critical — ensure state is reset either way
+      } catch (err: unknown) {
+        // stopListening failure is non-critical — state is reset in finally
+        console.debug('[nora] stopListening failed (non-critical):', err instanceof Error ? err.message : String(err));
       } finally {
         setIsListening(false);
       }
@@ -271,14 +275,16 @@ export default function NoraScreen() {
         pitch: 1.0,
         volume: 1.0,
       });
-    } catch (_error) {
-      // Silently fail if TTS is not available
+    } catch (error: unknown) {
+      console.debug('[nora] TTS speak failed (non-critical):', error instanceof Error ? error.message : String(error));
     } finally {
       setIsSpeaking(false);
     }
   };
 
-  const _toggleVoiceOutput = () => {
+  // toggleVoiceOutput: prepared for a voice toggle button in the settings panel
+  // biome-ignore lint/correctness/noUnusedVariables: staged feature — will wire to UI toggle
+  const toggleVoiceOutput = () => {
     if (!voiceEnabled) {
       Alert.alert(
         t("voiceNotAvailable", "Voice Not Available"),
@@ -303,7 +309,6 @@ export default function NoraScreen() {
         setIsLoading(true);
       }
       // Model defaults to gpt-4o (server-side; client value is cosmetic only)
-      setSelectedModel("gpt-4o");
       setTempModel("gpt-4o");
 
       // Show welcome message immediately — health context loads in background
@@ -341,9 +346,6 @@ export default function NoraScreen() {
           // Throttle: only surface a proactive message if we haven't chatted recently
           const lastChatKey = `nora_last_chat_${userId}`;
           const lastChatTimestamp = await AsyncStorage.getItem(lastChatKey);
-          const sinceDate = lastChatTimestamp
-            ? new Date(lastChatTimestamp)
-            : new Date(Date.now() - 4 * 60 * 60 * 1000); // 4-hour window
 
           // Only proactively surface if last chat was > 4 hours ago
           if (lastChatTimestamp && Date.now() - new Date(lastChatTimestamp).getTime() < 4 * 60 * 60 * 1000) {
@@ -368,12 +370,15 @@ export default function NoraScreen() {
           }
 
           await AsyncStorage.setItem(lastChatKey, new Date().toISOString());
-        } catch (err) {
+        } catch (err: unknown) {
           console.warn('[nora] Proactive message load failed (non-critical):', err);
         }
+      }).catch((err) => {
+        // Outer promise rejection guard — should not reach here given the inner try/catch
+        console.warn('[nora] Proactive message promise rejected unexpectedly:', err);
       });
-    } catch (_error) {
-      // Silently handle error
+    } catch (error: unknown) {
+      console.warn('[nora] initializeChat failed:', error);
       if (isMountedRef.current) {
         setIsLoading(false);
       }
@@ -426,8 +431,8 @@ export default function NoraScreen() {
     setInputText("");
     setIsStreaming(true);
 
-    autoLogHealthSignalsFromText(userMessage.content).catch(() => {
-      // Non-blocking side effect; chat flow continues even if autolog fails.
+    autoLogHealthSignalsFromText(userMessage.content).catch((err: unknown) => {
+      console.debug('[nora] autoLogHealthSignalsFromText failed (non-blocking):', err instanceof Error ? err.message : String(err));
     });
 
     const assistantMessage: AIMessage = {
@@ -537,8 +542,7 @@ export default function NoraScreen() {
   };
 
   const handleSaveSettings = async () => {
-    // Model selection is cosmetic — backend always uses GPT-4o
-    setSelectedModel(tempModel);
+    // Model selection is cosmetic — backend always uses GPT-4o; tempModel drives the UI only
 
     // Save voice settings
     try {
@@ -551,8 +555,8 @@ export default function NoraScreen() {
         JSON.stringify(voiceInputEnabled)
       );
       await AsyncStorage.setItem("voice_language", voiceLanguage);
-    } catch (_error) {
-      // Silently handle storage error
+    } catch (error: unknown) {
+      console.debug('[nora] Failed to persist voice language setting:', error instanceof Error ? error.message : String(error));
     }
 
     setShowSettings(false);

@@ -77,7 +77,7 @@ export default function MedicalHistoryScreen() {
 
       setMedicalHistory(history);
       setSummary(summaryData);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading medical history:', error);
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
@@ -134,7 +134,7 @@ export default function MedicalHistoryScreen() {
         isRTL ? 'تم الحفظ' : 'Saved',
         isRTL ? 'تم إضافة السجل الطبي بنجاح' : 'Medical record added successfully'
       );
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error adding medical history:', error);
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
@@ -165,7 +165,7 @@ export default function MedicalHistoryScreen() {
                 isRTL ? 'تم الحذف' : 'Deleted',
                 isRTL ? 'تم حذف السجل الطبي بنجاح' : 'Medical record deleted successfully'
               );
-            } catch (error) {
+            } catch (error: unknown) {
               console.error('Error deleting medical history:', error);
               Alert.alert(
                 isRTL ? 'خطأ' : 'Error',

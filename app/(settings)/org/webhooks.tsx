@@ -485,7 +485,7 @@ export default function WebhooksScreen() {
       try {
         const data = await webhookService.listEndpoints(orgId);
         if (isMountedRef.current) setEndpoints(data);
-      } catch (err) {
+      } catch (err: unknown) {
         if (isMountedRef.current) {
           setError(
             err instanceof Error ? err.message : "Failed to load webhooks"
@@ -577,7 +577,7 @@ export default function WebhooksScreen() {
                   `${newSecret}\n\nStore this securely — it will not be shown again.`,
                   [{ text: "I've copied it", style: "default" }]
                 );
-              } catch (err) {
+              } catch (err: unknown) {
                 console.warn('[webhooks] Failed to rotate signing secret:', err);
                 Alert.alert("Error", "Failed to rotate signing secret.");
               }

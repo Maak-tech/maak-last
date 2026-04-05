@@ -2,7 +2,6 @@
 /* biome-ignore-all lint/style/noNestedTernary: Prompt template sections use nested conditional string assembly to preserve concise multilingual rendering logic. */
 import { safeFormatDate } from "@/utils/dateFormat";
 import { api } from "../apiClient";
-import type { VirtualHealthIdentity } from "../../types/vhi";
 import type { MedicationReminder } from "../../types";
 import { correlationDiscoveryService } from "./correlationDiscoveryService";
 import {
@@ -251,7 +250,7 @@ class HealthContextService {
             baseline,
             isArabic
           );
-        } catch (err) {
+        } catch (err: unknown) {
           console.warn('[healthContext] Failed to compute baseline deviations:', err);
           return [];
         }
@@ -265,7 +264,7 @@ class HealthContextService {
               try {
                 const { periodService } = await import("./periodService");
                 return await periodService.getCycleInfo(uid);
-              } catch (err) {
+              } catch (err: unknown) {
                 console.warn('[healthContext] Failed to load cycle info:', err);
                 return null;
               }
@@ -280,7 +279,7 @@ class HealthContextService {
           sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
           const allResults = await labResultService.getUserLabResults(uid, 20);
           return allResults.filter((r) => r.testDate >= sixMonthsAgo);
-        } catch (err) {
+        } catch (err: unknown) {
           console.warn('[healthContext] Failed to load lab results for context:', err);
           return [];
         }
@@ -292,7 +291,7 @@ class HealthContextService {
             "./symptomPatternRecognitionService"
           );
           return await symptomPatternRecognitionService.detectPatterns(uid);
-        } catch (err) {
+        } catch (err: unknown) {
           console.warn('[healthContext] Failed to detect symptom patterns:', err);
           return null;
         }
@@ -307,7 +306,7 @@ class HealthContextService {
             uid,
             options?.language?.startsWith("ar") ?? false
           );
-        } catch (err) {
+        } catch (err: unknown) {
           console.warn('[healthContext] Failed to generate risk assessment:', err);
           return null;
         }
@@ -528,11 +527,14 @@ class HealthContextService {
         : [];
 
     // Process symptom pattern recognition results
-    const symptomPatternsArray = (
-      symptomPatternsResult?.status === "fulfilled" && Array.isArray(symptomPatternsResult.value)
-        ? symptomPatternsResult.value
-        : []
-    ) as unknown as Array<{ name: string; confidence: number; severity?: string; duration?: string; symptoms?: string[]; triggers?: string[]; description?: string }>;
+    type SymptomPatternShape = { name: string; confidence: number; severity?: string; duration?: string; symptoms?: string[]; triggers?: string[]; description?: string };
+    const symptomPatternsRaw = symptomPatternsResult?.status === "fulfilled" && Array.isArray(symptomPatternsResult.value)
+      ? symptomPatternsResult.value
+      : [];
+    const symptomPatternsArray = symptomPatternsRaw.filter(
+      (p): p is SymptomPatternShape =>
+        p !== null && typeof p === "object" && typeof (p as SymptomPatternShape).name === "string"
+    );
     const symptomPatterns: HealthContext["symptomPatterns"] = symptomPatternsArray
       .filter((p) => p.confidence >= 40)
       .slice(0, 5)
@@ -706,8 +708,11 @@ class HealthContextService {
         if (!vitalsByType[vitalType]) {
           vitalsByType[vitalType] = [];
         }
+        const rawVal = vital.value;
+        const numVal = typeof rawVal === "number" ? rawVal : Number.parseFloat(String(rawVal ?? ""));
+        if (isNaN(numVal)) continue;
         vitalsByType[vitalType].push({
-          value: vital.value as number,
+          value: numVal,
           timestamp,
           metadata: vital.metadata as
             | { systolic?: number; diastolic?: number }

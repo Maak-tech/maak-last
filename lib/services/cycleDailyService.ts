@@ -82,7 +82,7 @@ export const cycleDailyService = {
           updatedAt: new Date(),
         } as CycleDailyEntry);
         await offlineService.storeOfflineData("cycleDailyEntries", updated);
-      } catch (err) {
+      } catch (err: unknown) {
         console.warn('[cycleDaily] upsert cache update failed (non-critical):', err);
       }
     };
@@ -123,8 +123,8 @@ export const cycleDailyService = {
 
       await updateCache();
       return `offline_${operationId}`;
-    } catch (error) {
-      throw new Error(`Failed to upsert daily entry: ${error}`);
+    } catch (error: unknown) {
+      throw new Error(`Failed to upsert daily entry: ${error instanceof Error ? error.message : String(error)}`);
     }
   },
 
@@ -204,7 +204,7 @@ export const cycleDailyService = {
       await offlineService.storeOfflineData("cycleDailyEntries", entries);
 
       return entries;
-    } catch (error) {
+    } catch (error: unknown) {
       // API unreachable — serve from cache rather than crashing
       try {
         return await getCachedEntries();
@@ -226,7 +226,7 @@ export const cycleDailyService = {
           );
         const updated = cached.filter((e) => e.id !== entryId);
         await offlineService.storeOfflineData("cycleDailyEntries", updated);
-      } catch (err) {
+      } catch (err: unknown) {
         console.warn('[cycleDaily] delete cache update failed (non-critical):', err);
       }
     };
@@ -242,8 +242,8 @@ export const cycleDailyService = {
         });
       }
       await removeFromCache();
-    } catch (error) {
-      throw new Error(`Failed to delete daily entry: ${error}`);
+    } catch (error: unknown) {
+      throw new Error(`Failed to delete daily entry: ${error instanceof Error ? error.message : String(error)}`);
     }
   },
 };

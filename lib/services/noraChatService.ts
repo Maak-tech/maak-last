@@ -101,7 +101,7 @@ class NoraChatService {
     let response: ChatResponse;
     try {
       response = await this.sendMessage(message, history, conversationId);
-    } catch (err) {
+    } catch (err: unknown) {
       const error = err instanceof Error ? err : new Error(String(err));
       onError?.(error);
       return;
@@ -131,7 +131,7 @@ class NoraChatService {
     try {
       const result = await api.get<{ configured: boolean }>("/api/nora/health");
       return result.configured;
-    } catch (err) {
+    } catch (err: unknown) {
       // If the health endpoint doesn't exist yet, assume configured (avoids blocking UI)
       console.warn('[noraChat] isConfigured health check failed — assuming configured:', err);
       return true;

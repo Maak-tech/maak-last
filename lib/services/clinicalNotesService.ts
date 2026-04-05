@@ -102,7 +102,7 @@ class ClinicalNotesService {
     try {
       const raw = await api.get<NoteApiRecord>(`/api/notes/${noteId}`);
       return raw ? mapNote(raw) : null;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[clinicalNotes] getNote failed:', err);
       return null;
     }
@@ -198,15 +198,16 @@ class ClinicalNotesService {
 
     // 2. Upload the PDF to Tigris
     try {
-      const response = await fetch(pdfUri);
+      const response = await fetch(pdfUri, { signal: AbortSignal.timeout(30_000) });
       const blob = await response.blob();
 
       await fetch(attachmentUploadUrl, {
         method: "PUT",
         headers: { "Content-Type": "application/pdf" },
         body: blob,
+        signal: AbortSignal.timeout(60_000),
       });
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn("[clinicalNotesService] PDF upload failed:", err);
       return note;
     }

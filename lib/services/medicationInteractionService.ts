@@ -50,7 +50,7 @@ export const medicationInteractionService = {
         ...item,
         createdAt: new Date(item.createdAt),
       }));
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to fetch real-time medication interaction alerts",
         { userId, error },
@@ -73,7 +73,7 @@ export const medicationInteractionService = {
         { medicationIds }
       );
       return raw ?? [];
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to check medication interactions",
         { medicationIds, error },

@@ -94,7 +94,7 @@ export async function dispatchWebhookEvent(
     await Promise.allSettled(
       matchingHooks.map((hook) => deliverToEndpoint(hook, event, envelope))
     );
-  } catch (err) {
+  } catch (err: unknown) {
     // Never propagate — webhook dispatch is always best-effort
     console.error("[webhookDispatcher] Unexpected error:", err);
   }
@@ -147,7 +147,7 @@ async function deliverToEndpoint(
     } else {
       lastError = `HTTP ${res.status} ${res.statusText}`;
     }
-  } catch (err) {
+  } catch (err: unknown) {
     lastError = err instanceof Error ? err.message : String(err);
   }
 

@@ -388,7 +388,7 @@ class HealthAnalyticsService {
         "HealthAnalytics"
       );
       return baseline;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to update baseline",
         { userId, vitalType, error },
@@ -519,7 +519,7 @@ class HealthAnalyticsService {
         eventType: "health_sync",
         metadata: { ...healthScore, timestamp: now.toISOString() },
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to save health score",
         { userId, error },
@@ -866,7 +866,7 @@ class HealthAnalyticsService {
         eventType: "health_sync",
         metadata: { ...assessment, timestamp: assessment.timestamp.toISOString() },
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to save risk assessment",
         { userId, error },

@@ -57,8 +57,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
   // Handle fall detection events
   const handleFallDetected = useCallback(
     async (alertId: string) => {
-      console.log('🚨 Fall detected! Alert ID:', alertId);
-      console.log('👤 User:', user?.name, 'Family ID:', user?.familyId);
+      console.debug('[FallDetection] Fall detected, alert ID:', alertId);
 
       // Update last alert
       setLastAlert({
@@ -78,7 +77,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
                 if (user?.id) {
                   await alertService.resolveAlert(alertId, user.id);
                 }
-              } catch (error) {
+              } catch (error: unknown) {
                 console.error('Error resolving alert:', error);
               }
             },
@@ -88,7 +87,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
             style: 'destructive',
             onPress: () => {
               // Keep alert active - family members will be notified
-              console.log('User needs help - alert remains active');
+              console.debug('[FallDetection] User needs help — alert remains active');
             },
           },
         ]
@@ -115,7 +114,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
           }
         }
         setIsInitialized(true);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error loading fall detection setting:', error);
         setIsInitialized(true);
       }
@@ -139,7 +138,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
         } else {
           fallDetection.stopFallDetection();
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error toggling fall detection:', error);
       }
     },
@@ -158,8 +157,8 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
       const testAlertId = `test-${Date.now()}`;
       await handleFallDetected(testAlertId);
 
-      console.log('🧪 Test fall detection completed');
-    } catch (error) {
+      console.debug('[FallDetection] Test fall detection completed');
+    } catch (error: unknown) {
       console.error('Error testing fall detection:', error);
       Alert.alert('Error', 'Failed to test fall detection');
     }

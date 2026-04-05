@@ -917,13 +917,15 @@ export async function getEffectivenessInsights(
     const med = (Array.isArray(medsRaw) ? medsRaw : []).find((m) => m.id === medicationId);
     if (!med) return null;
 
-    const medData = med as unknown as Medication;
     const takenDates = new Set<string>();
+    const reminders = Array.isArray(med.reminders)
+      ? (med.reminders as Array<Record<string, unknown>>)
+      : [];
 
-    for (const reminder of medData.reminders ?? []) {
+    for (const reminder of reminders) {
       if (reminder.taken && reminder.takenAt) {
-        const d = reminder.takenAt ? new Date(reminder.takenAt as unknown as string) : null;
-        if (d) takenDates.add(d.toDateString());
+        const d = new Date(reminder.takenAt as string);
+        if (!Number.isNaN(d.getTime())) takenDates.add(d.toDateString());
       }
     }
 
@@ -975,7 +977,7 @@ export async function getEffectivenessInsights(
       insight,
       insightAr,
     };
-  } catch (err) {
+  } catch (err: unknown) {
     console.warn('[medicationIntelligence] getEffectivenessInsights failed:', err);
     return null;
   }

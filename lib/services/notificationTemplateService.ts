@@ -129,9 +129,9 @@ class NotificationTemplateService {
   async getOrgTemplates(
     orgId: string
   ): Promise<Record<string, NotificationTemplate>> {
-    const rows = await api.get(
+    const rows = (await api.get(
       `/api/notifications/templates/${encodeURIComponent(orgId)}`
-    ) as RawTemplateRow[];
+    ) as RawTemplateRow[] | null) ?? [];
 
     const saved: Record<string, NotificationTemplate> = {};
     for (const row of rows) {
@@ -172,9 +172,10 @@ class NotificationTemplateService {
     try {
       const row = await api.get(
         `/api/notifications/templates/${encodeURIComponent(orgId)}/${type}/${channel}`
-      ) as RawTemplateRow;
+      ) as RawTemplateRow | null;
+      if (!row) return defaultTemplate(orgId, type, channel);
       return mapRow(row);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[notificationTemplate] getTemplate failed, using default:', err);
       return defaultTemplate(orgId, type, channel);
     }

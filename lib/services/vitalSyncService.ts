@@ -101,8 +101,9 @@ async function saveVitalSample(
   source: string,
   metadata?: Record<string, unknown>
 ): Promise<void> {
-  // Persist vital to Neon via API (replaces direct Firestore addDoc)
-  void userId; // userId is authenticated server-side via session cookie
+  // Persist vital to Neon via API (replaces direct Firestore addDoc).
+  // The API endpoint authenticates via session cookie — userId is not sent
+  // in the body, but IS used below for the local service calls.
   await api.post("/api/health/vitals", {
     type: vitalType,
     value,
@@ -319,7 +320,7 @@ async function evaluateAndCreateHealthEventIfNeeded(
             thresholdBreached: evaluation.thresholdBreached,
           },
         });
-      } catch (err) {
+      } catch (err: unknown) {
         console.warn('[vitalSyncService] health event creation failed (non-blocking):', err);
       }
 
@@ -346,7 +347,7 @@ async function evaluateAndCreateHealthEventIfNeeded(
         }
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     observabilityEmitter.emit({
       eventType: "vital_evaluation_error",
       domain: "health_data",
@@ -552,12 +553,12 @@ export async function saveIntegrationVitals(
             );
             savedCount += 1;
           }
-        } catch (_error) {
-          // Continue with next sample
+        } catch (sampleErr: unknown) {
+          console.warn('[vitalSync] Failed to process individual sample, skipping:', sampleErr);
         }
       }
     }
-  } catch (error) {
+  } catch (error: unknown) {
     const durationMs = Date.now() - syncStart;
     await observabilityEmitter.emitHealthEvent(
       "health_sync_failed",
@@ -696,8 +697,9 @@ export async function syncDexcomCGMData(userId: string): Promise<void> {
         }
       );
     }
-  } catch (_error) {
-    // Don't throw error - CGM sync failures shouldn't break other operations
+  } catch (cgmErr: unknown) {
+    // Don't rethrow — CGM sync failures shouldn't break other operations
+    console.warn('[vitalSync] CGM sync failed (non-fatal):', cgmErr);
   }
 }
 
@@ -722,8 +724,9 @@ export async function syncFreestyleLibreCGMData(userId: string): Promise<void> {
         }
       );
     }
-  } catch (_error) {
-    // Don't throw error - CGM sync failures shouldn't break other operations
+  } catch (cgmErr: unknown) {
+    // Don't rethrow — CGM sync failures shouldn't break other operations
+    console.warn('[vitalSync] CGM sync failed (non-fatal):', cgmErr);
   }
 }
 
@@ -752,8 +755,8 @@ export async function getLatestGlucoseReading(userId: string): Promise<{
           trendArrow: dexcomReading.trendArrow,
         };
       }
-    } catch (_error) {
-      // Dexcom not available or failed
+    } catch (err: unknown) {
+      console.debug('[vitalSync] Dexcom glucose read failed:', err instanceof Error ? err.message : String(err));
     }
 
     // Try Freestyle Libre as fallback
@@ -768,12 +771,12 @@ export async function getLatestGlucoseReading(userId: string): Promise<{
           trend: libreReading.trend,
         };
       }
-    } catch (_error) {
-      // Freestyle Libre not available or failed
+    } catch (err: unknown) {
+      console.debug('[vitalSync] Freestyle Libre glucose read failed:', err instanceof Error ? err.message : String(err));
     }
 
     return null;
-  } catch (err) {
+  } catch (err: unknown) {
     console.warn('[vitalSync] getLatestGlucoseReading failed:', err);
     return null;
   }

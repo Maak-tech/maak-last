@@ -91,7 +91,15 @@ export const calendarRoutes = new Elysia({ prefix: "/api/calendar" })
   // List the requesting user's own events
   .get(
     "/",
-    async ({ db, userId, query }) => {
+    async ({ db, userId, query, set }) => {
+      if (query.from && isNaN(new Date(query.from).getTime())) {
+        set.status = 400;
+        return { error: "Invalid 'from' date — use ISO 8601 format" };
+      }
+      if (query.to && isNaN(new Date(query.to).getTime())) {
+        set.status = 400;
+        return { error: "Invalid 'to' date — use ISO 8601 format" };
+      }
       const conditions = [eq(calendarEvents.userId, userId)];
       if (query.from) conditions.push(gte(calendarEvents.startDate, new Date(query.from)));
       if (query.to) conditions.push(lte(calendarEvents.startDate, new Date(query.to)));
@@ -121,6 +129,14 @@ export const calendarRoutes = new Elysia({ prefix: "/api/calendar" })
         return { error: "You are not a member of this family" };
       }
 
+      if (query.from && isNaN(new Date(query.from).getTime())) {
+        set.status = 400;
+        return { error: "Invalid 'from' date — use ISO 8601 format" };
+      }
+      if (query.to && isNaN(new Date(query.to).getTime())) {
+        set.status = 400;
+        return { error: "Invalid 'to' date — use ISO 8601 format" };
+      }
       const conditions = [eq(calendarEvents.familyId, params.familyId)];
       if (query.from) conditions.push(gte(calendarEvents.startDate, new Date(query.from)));
       if (query.to) conditions.push(lte(calendarEvents.startDate, new Date(query.to)));
@@ -259,11 +275,11 @@ export const calendarRoutes = new Elysia({ prefix: "/api/calendar" })
         endDate: t.Union([t.String({ maxLength: 50 }), t.Null()]),
         allDay: t.Boolean(),
         location: t.String({ maxLength: 500 }),
-        familyId: t.String(),
+        familyId: t.String({ maxLength: 36 }),
         recurrencePattern: t.String({ maxLength: 100 }),
         recurrenceEndDate: t.Union([t.String({ maxLength: 50 }), t.Null()]),
         recurrenceCount: t.Union([t.Number({ minimum: 1, maximum: 1000 }), t.Null()]),
-        relatedItemId: t.String(),
+        relatedItemId: t.String({ maxLength: 36 }),
         relatedItemType: t.String({ maxLength: 100 }),
         color: t.String({ maxLength: 20 }),
         reminders: t.Array(t.Object({ minutesBefore: t.Number({ minimum: 0, maximum: 43200 }), sent: t.Boolean() }), { maxItems: 10 }),

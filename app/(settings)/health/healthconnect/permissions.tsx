@@ -11,6 +11,7 @@ import {
   ThermometerSun,
   Zap,
 } from "lucide-react-native";
+import type { LucideIcon } from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -32,7 +33,7 @@ interface HealthMetric {
   labelAr: string;
   descEn: string;
   descAr: string;
-  icon: any;
+  icon: LucideIcon;
   color: string;
   category: string;
   hcType: string; // Health Connect data type name
@@ -106,9 +107,15 @@ export default function HealthConnectPermissionsScreen() {
         .filter((m) => selected.has(m.key))
         .map((m) => m.hcType);
 
-      await api.post("/api/integrations/health-connect/permissions", {
-        metrics: Array.from(selected),
-        healthConnectTypes: hcTypes,
+      // Save selected Health Connect metrics to user preferences
+      await api.patch("/api/user/preferences", {
+        preferences: {
+          healthConnectPermissions: {
+            metrics: Array.from(selected),
+            healthConnectTypes: hcTypes,
+            updatedAt: new Date().toISOString(),
+          },
+        },
       });
       Alert.alert(
         isRTL ? "تم الحفظ" : "Permissions Saved",
@@ -117,10 +124,10 @@ export default function HealthConnectPermissionsScreen() {
           : "Health Connect permissions will be requested on the next sync",
         [{ text: isRTL ? "حسناً" : "OK", onPress: () => router.back() }]
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
-        err?.message ?? (isRTL ? "تعذر حفظ الإعدادات" : "Failed to save permissions")
+        (err instanceof Error ? err.message : null) ?? (isRTL ? "تعذر حفظ الإعدادات" : "Failed to save permissions")
       );
     } finally {
       setSaving(false);

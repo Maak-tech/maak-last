@@ -33,7 +33,7 @@ export default function PrivacyPolicyScreen() {
       setError(null);
       const privacyDoc = await documentService.getPrivacyPolicy();
       setDocument(privacyDoc);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error loading privacy policy:', err);
       setError(isRTL 
         ? 'حدث خطأ في تحميل سياسة الخصوصية' 

@@ -68,10 +68,10 @@ export default function CreateOrgScreen() {
         isRTL
           ? `تم إنشاء "${org.name}" بنجاح. أنت مسجّل كمسؤول تلقائياً.`
           : `"${org.name}" created successfully. You've been enrolled as admin.`,
-        [{ text: isRTL ? "حسناً" : "OK", onPress: () => router.replace("/(tabs)/org-dashboard" as any) }]
+        [{ text: isRTL ? "حسناً" : "OK", onPress: () => router.replace({ pathname: '/(tabs)/org-dashboard' }) }]
       );
-    } catch (err: any) {
-      Alert.alert(isRTL ? "خطأ" : "Error", err?.message ?? "Failed to create organisation");
+    } catch (err: unknown) {
+      Alert.alert(isRTL ? "خطأ" : "Error", (err instanceof Error ? err.message : null) ?? "Failed to create organisation");
     } finally {
       setSaving(false);
     }

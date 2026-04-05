@@ -101,13 +101,12 @@ export const useSmartNotifications = (
       );
 
       if (filteredNotifications.length > 0) {
-        const _result =
-          await smartNotificationService.scheduleSmartNotifications(
-            filteredNotifications
-          );
+        await smartNotificationService.scheduleSmartNotifications(
+          filteredNotifications
+        );
       }
-    } catch (_error) {
-      // Silently handle errors
+    } catch (error) {
+      console.warn('[useSmartNotifications] Notification scheduling failed:', error);
     } finally {
       isCheckingRef.current = false;
     }
@@ -119,12 +118,16 @@ export const useSmartNotifications = (
     }
 
     // Initial check
-    checkAndScheduleNotifications();
+    checkAndScheduleNotifications().catch((err) => {
+      console.warn('[useSmartNotifications] Initial notification check failed:', err);
+    });
 
     // Set up periodic checks
     checkIntervalRef.current = setInterval(
       () => {
-        checkAndScheduleNotifications();
+        checkAndScheduleNotifications().catch((err) => {
+          console.warn('[useSmartNotifications] Periodic notification check failed:', err);
+        });
       },
       checkInterval * 60 * 1000
     ); // Convert minutes to milliseconds
@@ -192,8 +195,9 @@ export const useDailyNotificationScheduler = (enabled = true) => {
       // immediate "missed activity" prompts during the same day.
       lastScheduledDate.current = today;
       await AsyncStorage.setItem(storageKey, today);
-    } catch (_error) {
-      // Intentionally ignored: scheduler retries on next cycle.
+    } catch (error) {
+      // Non-critical: scheduler retries on the next cycle
+      console.debug('[useSmartNotifications] Daily scheduling failed (will retry):', error instanceof Error ? error.message : String(error));
     } finally {
       schedulingInProgressRef.current = false;
     }

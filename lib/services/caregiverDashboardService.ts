@@ -135,7 +135,7 @@ class CaregiverDashboardService {
         averageHealthScore: Math.round(averageHealthScore * 10) / 10,
         members: memberData,
       };
-    } catch (err) {
+    } catch (err: unknown) {
       if (err instanceof Error) throw err;
       throw new Error("Failed to get caregiver overview");
     }
@@ -229,7 +229,7 @@ class CaregiverDashboardService {
         );
         if (vhiRes?.data) {
           const vhiData = vhiRes.data;
-          const compositeRisk = vhiData.currentState.riskScores.compositeRisk;
+          const compositeRisk = vhiData.currentState?.riskScores?.compositeRisk ?? 0;
           const riskLevel: CaregiverDashboardData["riskLevel"] =
             compositeRisk > 85
               ? "critical"
@@ -240,7 +240,7 @@ class CaregiverDashboardService {
                   : "low";
 
           // Infer trajectory from declining factor count vs improving
-          const highDeclines = vhiData.decliningFactors.filter(
+          const highDeclines = (vhiData.decliningFactors ?? []).filter(
             (f) => f.impact === "high"
           ).length;
           const vhiTrajectory: CaregiverDashboardData["vhiTrajectory"] =
@@ -251,27 +251,26 @@ class CaregiverDashboardService {
           }
 
           vhiFields = {
-            vhiScore: vhiData.currentState.overallScore,
+            vhiScore: vhiData.currentState?.overallScore ?? 0,
             vhiTrajectory,
             riskLevel,
             riskScores: {
-              fallRisk: vhiData.currentState.riskScores.fallRisk.score,
-              adherenceRisk: vhiData.currentState.riskScores.adherenceRisk.score,
-              deteriorationRisk:
-                vhiData.currentState.riskScores.deteriorationRisk.score,
+              fallRisk: vhiData.currentState?.riskScores?.fallRisk?.score ?? 0,
+              adherenceRisk: vhiData.currentState?.riskScores?.adherenceRisk?.score ?? 0,
+              deteriorationRisk: vhiData.currentState?.riskScores?.deteriorationRisk?.score ?? 0,
               compositeRisk,
             },
-            topDecliningFactors: vhiData.decliningFactors.slice(0, 3).map((f) => ({
+            topDecliningFactors: (vhiData.decliningFactors ?? []).slice(0, 3).map((f) => ({
               factor: f.factor,
               impact: f.impact,
               recommendation: f.recommendation,
             })),
-            pendingVHIActions: vhiData.pendingActions.filter(
+            pendingVHIActions: (vhiData.pendingActions ?? []).filter(
               (a) => !a.acknowledged && a.target === "caregiver"
             ),
           };
         }
-      } catch (err) {
+      } catch (err: unknown) {
         // VHI not yet computed or API unavailable — proceed without it
         console.warn('[caregiverDashboard] VHI data unavailable for member:', err);
       }
@@ -292,7 +291,7 @@ class CaregiverDashboardService {
         attentionReasons,
         ...vhiFields,
       };
-    } catch (err) {
+    } catch (err: unknown) {
       if (err instanceof Error) throw err;
       throw new Error("Failed to get member dashboard data");
     }
@@ -353,7 +352,7 @@ class CaregiverDashboardService {
         hasAlerts,
         emergencyContacts: user.preferences?.emergencyContacts || [],
       };
-    } catch (err) {
+    } catch (err: unknown) {
       if (err instanceof Error) throw err;
       throw new Error("Failed to get elderly user dashboard");
     }
@@ -414,7 +413,7 @@ class CaregiverDashboardService {
         alertType: "sos",
         message: `Emergency SOS from ${user.firstName} ${user.lastName}: ${message}`,
       });
-    } catch (err) {
+    } catch (err: unknown) {
       if (err instanceof Error) throw err;
       throw new Error("Failed to send emergency alert");
     }

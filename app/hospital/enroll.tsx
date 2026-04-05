@@ -27,7 +27,7 @@ export default function EnrollScreen() {
       setStep('uploading')
       await hospitalService.enrollFace(photo.base64, user.id)
       setStep('success')
-    } catch (err) {
+    } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Enrollment failed')
       setStep('error')
     }

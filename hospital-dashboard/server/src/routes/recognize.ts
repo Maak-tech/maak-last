@@ -16,6 +16,16 @@ const RATE_LIMIT_WINDOW_MS = 60_000  // 1 minute
 const MAX_REQUESTS_PER_WINDOW = 20   // 20 attempts/min per staff is generous for clinical use
 const _rateLimitCounters = new Map<string, { count: number; resetAt: number }>()
 
+// Prune expired entries every 5 minutes to prevent the Map growing without bound
+// as different staff IDs are seen over time. The Map is bounded by staff count, but
+// explicit cleanup keeps memory predictable across long-running server processes.
+setInterval(() => {
+  const now = Date.now()
+  for (const [staffId, entry] of _rateLimitCounters) {
+    if (now >= entry.resetAt) _rateLimitCounters.delete(staffId)
+  }
+}, 5 * 60_000).unref?.()  // .unref() prevents the interval from keeping the process alive
+
 function checkRateLimit(staffId: string): boolean {
   const now = Date.now()
   const entry = _rateLimitCounters.get(staffId)
@@ -56,7 +66,22 @@ recognizeRoutes.post('/recognize', jwtAuth, async (c) => {
   }
 
   const imageBuffer = Buffer.from(await imageFile.arrayBuffer())
-  const result = await compreface.recognize(imageBuffer)
+
+  let result: Awaited<ReturnType<typeof compreface.recognize>>
+  try {
+    result = await compreface.recognize(imageBuffer)
+  } catch (recognizeErr: unknown) {
+    console.error('[recognize] CompreFace service error:', recognizeErr instanceof Error ? recognizeErr.message : String(recognizeErr))
+    await writeAudit({
+      staffId: staff.staffId,
+      action: 'recognition_attempt',
+      method: 'face',
+      success: false,
+      confidence: 0,
+      ipAddress: ip,
+    })
+    return c.json({ error: 'Face recognition service unavailable. Use QR code or manual search.' }, 503)
+  }
 
   if (!result) {
     await writeAudit({
@@ -93,8 +118,8 @@ recognizeRoutes.post('/recognize', jwtAuth, async (c) => {
           patientId = e.patient_id
           break
         }
-      } catch (err) {
-        console.warn('[recognize] Failed to decrypt compreface_subject_id for legacy enrollment:', err)
+      } catch (err: unknown) {
+        console.warn('[recognize] Failed to decrypt compreface_subject_id for legacy enrollment:', err instanceof Error ? err.message : String(err))
       }
     }
   }
@@ -114,11 +139,16 @@ recognizeRoutes.post('/recognize', jwtAuth, async (c) => {
   const sessionId = uuidv4()
   const expiresAt = new Date(Date.now() + SESSION_TTL_MINUTES * 60 * 1000)
 
-  await query(
-    `INSERT INTO recognition_sessions (id, patient_id, staff_id, access_level, method, confirmed, expires_at)
-     VALUES ($1, $2, $3, 'preview', 'face', false, $4)`,
-    [sessionId, patientId, staff.staffId, expiresAt]
-  )
+  try {
+    await query(
+      `INSERT INTO recognition_sessions (id, patient_id, staff_id, access_level, method, confirmed, expires_at)
+       VALUES ($1, $2, $3, 'preview', 'face', false, $4)`,
+      [sessionId, patientId, staff.staffId, expiresAt]
+    )
+  } catch (insertErr: unknown) {
+    console.error('[recognize] Failed to create recognition session:', insertErr instanceof Error ? insertErr.message : String(insertErr))
+    return c.json({ error: 'Failed to create session. Please try again.' }, 500)
+  }
 
   await writeAudit({
     staffId: staff.staffId,
@@ -136,7 +166,13 @@ recognizeRoutes.post('/recognize', jwtAuth, async (c) => {
 
 // POST /recognize/manual — manual lookup by name
 recognizeRoutes.post('/recognize/manual', jwtAuth, async (c) => {
-  const { name } = await c.req.json<{ name: string }>()
+  let name: string
+  try {
+    const body = await c.req.json<{ name?: string }>()
+    name = body.name ?? ''
+  } catch {
+    return c.json({ error: 'Invalid JSON body' }, 400)
+  }
 
   if (!name || typeof name !== 'string' || name.trim().length < 1 || name.length > 100) {
     return c.json({ error: 'Name must be between 1 and 100 characters' }, 400)
@@ -159,7 +195,13 @@ recognizeRoutes.post('/recognize/manual', jwtAuth, async (c) => {
 // POST /recognize/select — select a patient from manual search results
 recognizeRoutes.post('/recognize/select', jwtAuth, async (c) => {
   const staff = c.get('staff')
-  const { patientId } = await c.req.json<{ patientId: string }>()
+  let patientId: string
+  try {
+    const body = await c.req.json<{ patientId?: string }>()
+    patientId = body.patientId ?? ''
+  } catch {
+    return c.json({ error: 'Invalid JSON body' }, 400)
+  }
 
   // Validate UUID format to prevent injection and unnecessary DB round-trips
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -171,13 +213,18 @@ recognizeRoutes.post('/recognize/select', jwtAuth, async (c) => {
   if (!patient) return c.json({ error: 'Patient not found' }, 404)
 
   const sessionId = uuidv4()
-  const expiresAt = new Date(Date.now() + 30 * 60 * 1000)
+  const expiresAt = new Date(Date.now() + SESSION_TTL_MINUTES * 60 * 1000)
 
-  await query(
-    `INSERT INTO recognition_sessions (id, patient_id, staff_id, access_level, method, confirmed, expires_at)
-     VALUES ($1, $2, $3, 'preview', 'manual', false, $4)`,
-    [sessionId, patientId, staff.staffId, expiresAt]
-  )
+  try {
+    await query(
+      `INSERT INTO recognition_sessions (id, patient_id, staff_id, access_level, method, confirmed, expires_at)
+       VALUES ($1, $2, $3, 'preview', 'manual', false, $4)`,
+      [sessionId, patientId, staff.staffId, expiresAt]
+    )
+  } catch (insertErr: unknown) {
+    console.error('[recognize/select] Failed to create recognition session:', insertErr instanceof Error ? insertErr.message : String(insertErr))
+    return c.json({ error: 'Failed to create session. Please try again.' }, 500)
+  }
 
   await writeAudit({
     staffId: staff.staffId,

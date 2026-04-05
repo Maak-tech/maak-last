@@ -52,7 +52,7 @@ export default function AdminSettingsScreen() {
       try {
         const data = await api.get<OrgInfo>("/api/org/me");
         setOrg(data);
-      } catch (err) {
+      } catch (err: unknown) {
         // Expected when user has no org membership
         console.debug('[admin-settings] No org found or fetch failed:', err);
       } finally {
@@ -62,7 +62,7 @@ export default function AdminSettingsScreen() {
   }, []);
 
   const handleCreateOrg = () => {
-    router.push("/(settings)/create-org" as any);
+    router.push({ pathname: '/(settings)/create-org' });
   };
 
   const sections = [
@@ -74,21 +74,21 @@ export default function AdminSettingsScreen() {
           iconColor: "#3B82F6",
           label: isRTL ? "إدارة الأعضاء" : "Manage Members",
           sub: isRTL ? "دعوة الأعضاء وإدارة الأدوار" : "Invite members and manage roles",
-          onPress: () => router.push("/(settings)/org/members" as any),
+          onPress: () => router.push({ pathname: '/(settings)/org/members' }),
         },
         {
           icon: Shield,
           iconColor: "#10B981",
           label: isRTL ? "الأدوار والصلاحيات" : "Roles & Permissions",
           sub: isRTL ? "تحديد صلاحيات كل دور" : "Define permissions for each role",
-          onPress: () => router.push("/(settings)/org/roles" as any),
+          onPress: () => router.push({ pathname: '/(settings)/org/roles' }),
         },
         {
           icon: Building2,
           iconColor: "#8B5CF6",
           label: isRTL ? "إعدادات المنظمة" : "Organisation Settings",
           sub: isRTL ? "الاسم، النوع، معلومات الاتصال" : "Name, type, contact information",
-          onPress: () => router.push("/(settings)/org/settings" as any),
+          onPress: () => router.push({ pathname: '/(settings)/org/settings' }),
         },
       ],
     },
@@ -100,7 +100,7 @@ export default function AdminSettingsScreen() {
           iconColor: "#F59E0B",
           label: isRTL ? "خطة الاشتراك" : "Subscription Plan",
           sub: org ? `${org.plan} — ${org.memberCount} ${isRTL ? "أعضاء" : "members"}` : (isRTL ? "عرض الخطة الحالية" : "View current plan"),
-          onPress: () => router.push("/(settings)/subscription" as any),
+          onPress: () => router.push({ pathname: '/(settings)/subscription' }),
         },
       ],
     },
@@ -112,14 +112,14 @@ export default function AdminSettingsScreen() {
           iconColor: "#06B6D4",
           label: isRTL ? "مفاتيح API والـ Webhooks" : "API Keys & Webhooks",
           sub: isRTL ? "إدارة مفاتيح الوصول للمطورين" : "Manage developer access keys",
-          onPress: () => router.push("/(settings)/org/api-keys" as any),
+          onPress: () => router.push({ pathname: '/(settings)/org/api-keys' }),
         },
         {
           icon: Bell,
           iconColor: "#EF4444",
           label: isRTL ? "إعدادات الإشعارات" : "Notification Settings",
           sub: isRTL ? "تخصيص تنبيهات المنظمة" : "Customise organisation alerts",
-          onPress: () => router.push("/(settings)/notifications" as any),
+          onPress: () => router.push({ pathname: '/(settings)/notifications' }),
         },
       ],
     },

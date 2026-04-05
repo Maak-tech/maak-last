@@ -52,14 +52,17 @@ async function fetchRecentVitals(
   const raw = await api.get<Record<string, unknown>[]>(
     `/api/health/vitals?from=${since.toISOString()}&limit=200`
   );
-  return (Array.isArray(raw) ? raw : []).map((v) => ({
-    id: (v.id as string | undefined) ?? "",
-    type: v.type as string,
-    value: v.value as number,
-    unit: v.unit as string | undefined,
-    timestamp: v.recordedAt ? new Date(v.recordedAt as string) : new Date(),
-    source: v.source as string | undefined,
-  }));
+  return (Array.isArray(raw) ? raw : [])
+    .filter((v) => (typeof v.value === "number" || (typeof v.value === "string" && v.value !== "")) && v.type)
+    .map((v) => ({
+      id: (v.id as string | undefined) ?? "",
+      type: v.type as string,
+      value: typeof v.value === "number" ? v.value : Number.parseFloat(v.value as string),
+      unit: v.unit as string | undefined,
+      timestamp: v.recordedAt ? new Date(v.recordedAt as string) : new Date(),
+      source: v.source as string | undefined,
+    }))
+    .filter((v) => !isNaN(v.value));
 }
 
 /**
@@ -138,7 +141,7 @@ async function fetchCorrelationDiscoveries(
     return (result.discoveries ?? [])
       .filter((d) => d.status !== "dismissed")
       .map((d) => ({ ...d, discoveryType: "correlation" as DiscoveryType }));
-  } catch (err) {
+  } catch (err: unknown) {
     console.warn('[discovery] fetchCorrelationDiscoveries failed:', err);
     return [];
   }
@@ -191,7 +194,7 @@ async function fetchSymptomPatternDiscoveries(
           discoveryType: "symptom_pattern",
         })
       );
-  } catch (err) {
+  } catch (err: unknown) {
     console.warn('[discovery] fetchSymptomPatternDiscoveries failed:', err);
     return [];
   }
@@ -212,7 +215,7 @@ async function fetchVitalTrendDiscoveries(
       .map((insight, idx) =>
         patternInsightToDiscovery(insight, "vital_trend", userId, idx)
       );
-  } catch (err) {
+  } catch (err: unknown) {
     console.warn('[discovery] fetchVitalTrendDiscoveries failed:', err);
     return [];
   }
@@ -267,7 +270,7 @@ async function fetchMedicationEffectivenessDiscoveries(
           discoveryType: "medication_effectiveness",
         })
       );
-  } catch (err) {
+  } catch (err: unknown) {
     console.warn('[discovery] fetchMedicationEffectivenessDiscoveries failed:', err);
     return [];
   }
@@ -290,7 +293,7 @@ async function fetchTemporalPatternDiscoveries(
       .map((insight, idx) =>
         patternInsightToDiscovery(insight, "temporal_pattern", userId, idx)
       );
-  } catch (err) {
+  } catch (err: unknown) {
     console.warn('[discovery] fetchTemporalPatternDiscoveries failed:', err);
     return [];
   }
@@ -317,7 +320,7 @@ async function fetchMedicationPatternDiscoveries(
       .map((insight, idx) =>
         patternInsightToDiscovery(insight, "medication_pattern", userId, idx)
       );
-  } catch (err) {
+  } catch (err: unknown) {
     console.warn('[discovery] fetchMedicationPatternDiscoveries failed:', err);
     return [];
   }
@@ -337,7 +340,7 @@ async function fetchIntegrationInsightDiscoveries(
       .map((insight, idx) =>
         patternInsightToDiscovery(insight, "integration_insight", userId, idx)
       );
-  } catch (err) {
+  } catch (err: unknown) {
     console.warn('[discovery] fetchIntegrationInsightDiscoveries failed:', err);
     return [];
   }
@@ -371,7 +374,7 @@ export async function dismissDiscovery(
       discoveryId,
       timestamp: new Date().toISOString(),
     });
-  } catch (err) {
+  } catch (err: unknown) {
     console.warn('[discoveryService] dismissDiscovery timeline post failed (non-critical):', err);
   }
 }

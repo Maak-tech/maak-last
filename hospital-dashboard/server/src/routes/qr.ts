@@ -40,7 +40,16 @@ qrRoutes.get('/patient/qr/:patientId', jwtAuth, async (c) => {
 // POST /qr/resolve — resolve QR token → sessionToken
 qrRoutes.post('/qr/resolve', jwtAuth, async (c) => {
   const staff = c.get('staff')
-  const { token } = await c.req.json<{ token: string }>()
+  let token: string
+  try {
+    const body = await c.req.json<{ token?: string }>()
+    if (!body.token || typeof body.token !== 'string' || body.token.trim().length === 0) {
+      return c.json({ error: 'token is required' }, 400)
+    }
+    token = body.token.trim()
+  } catch {
+    return c.json({ error: 'Invalid JSON body' }, 400)
+  }
 
   // Atomic claim: mark used_at in the same statement that finds the valid token.
   // This prevents TOCTOU — two concurrent scans of the same QR code cannot

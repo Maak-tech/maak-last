@@ -55,7 +55,10 @@ export async function runVhiCycle() {
   if (failed.length > 0) {
     console.error(`[vhiCycle] ${failed.length} users failed:`);
     failed.forEach((r) => {
-      if (r.status === "rejected") console.error("  ", r.reason);
+      if (r.status === "rejected") {
+        const reason: unknown = r.reason;
+        console.error("  ", reason instanceof Error ? reason.message : String(reason));
+      }
     });
   }
 
@@ -356,23 +359,28 @@ export async function processUser(userId: string) {
     noraContextBlock,
   };
 
-  await db
-    .insert(vhi)
-    .values({ userId, computedAt: new Date(), data: vhiData })
-    .onConflictDoUpdate({
-      target: vhi.userId,
-      set: { computedAt: new Date(), data: vhiData, updatedAt: new Date() },
-    });
+  // Wrap VHI upsert + timeline insert in a single transaction so both succeed or fail together.
+  // Without this, a crash between the two writes would persist VHI state without a timeline record,
+  // causing the history to have silent gaps.
+  const computedAt = new Date();
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(vhi)
+      .values({ userId, computedAt, data: vhiData })
+      .onConflictDoUpdate({
+        target: vhi.userId,
+        set: { computedAt, data: vhiData, updatedAt: computedAt },
+      });
 
-  // Write timeline event
-  await db.insert(healthTimeline).values({
-    id: crypto.randomUUID(),
-    userId,
-    occurredAt: new Date(),
-    source: "vhi_cycle",
-    domain: "twin",
-    vhiVersion: 1,
-    metadata: { compositeRisk, overallScore, elevatingCount: elevatingFactors.length, decliningCount: decliningFactors.length },
+    await tx.insert(healthTimeline).values({
+      id: crypto.randomUUID(),
+      userId,
+      occurredAt: computedAt,
+      source: "vhi_cycle",
+      domain: "twin",
+      vhiVersion: 1,
+      metadata: { compositeRisk, overallScore, elevatingCount: elevatingFactors.length, decliningCount: decliningFactors.length },
+    });
   });
 
   // Trigger forecast cycle asynchronously when risk is elevated
@@ -382,45 +390,49 @@ export async function processUser(userId: string) {
     );
   }
 
-  // Dispatch webhook events to SDK consumers (non-blocking, org-roster-filtered)
-  dispatchWebhookEvent("vhi.updated", userId, {
-    overallScore,
-    compositeRisk,
-    riskLevel:
-      compositeRisk >= RISK_HIGH ? "high" : compositeRisk >= RISK_MODERATE ? "moderate" : "low",
-    trajectory: vhiData.currentState.riskScores.trajectory,
-  }).catch((err) => console.error(`[vhiCycle] Webhook dispatch failed for ${userId}:`, err));
+  // Dispatch webhook events and push alerts concurrently.
+  // These are awaited so they complete before processUser resolves — otherwise the
+  // cron process can exit before Railway finishes delivering the promises.
+  const sideEffects: Promise<unknown>[] = [
+    dispatchWebhookEvent("vhi.updated", userId, {
+      overallScore,
+      compositeRisk,
+      riskLevel:
+        compositeRisk >= RISK_HIGH ? "high" : compositeRisk >= RISK_MODERATE ? "moderate" : "low",
+      trajectory: vhiData.currentState.riskScores.trajectory,
+    }).catch((err) => console.error(`[vhiCycle] Webhook dispatch failed for ${userId}:`, err)),
+
+    dispatchPushAlerts(userId, compositeRisk, vhiData.decliningFactors[0]?.factor ?? null).catch(
+      (err) => console.error(`[vhiCycle] Push alert dispatch failed for ${userId}:`, err)
+    ),
+  ];
 
   // Fire a secondary, higher-priority event when risk crosses the high threshold
   if (compositeRisk >= RISK_HIGH) {
-    dispatchWebhookEvent("vhi.risk_elevated", userId, {
-      compositeRisk,
-      riskLevel: "high",
-      topDecliningFactor: vhiData.decliningFactors[0]?.factor ?? null,
-    }).catch((err) =>
-      console.error(`[vhiCycle] Risk-elevated webhook failed for ${userId}:`, err)
+    sideEffects.push(
+      dispatchWebhookEvent("vhi.risk_elevated", userId, {
+        compositeRisk,
+        riskLevel: "high",
+        topDecliningFactor: vhiData.decliningFactors[0]?.factor ?? null,
+      }).catch((err) =>
+        console.error(`[vhiCycle] Risk-elevated webhook failed for ${userId}:`, err)
+      )
     );
   }
 
   // Notify SDK consumers when the patient has missed 2+ consecutive doses
   if (consecutiveMissed >= 2) {
-    dispatchWebhookEvent("medication.missed", userId, {
-      consecutiveMissed,
-      adherenceRate: Math.round(adherenceRate * 100),
-    }).catch((err) =>
-      console.error(`[vhiCycle] medication.missed webhook failed for ${userId}:`, err)
+    sideEffects.push(
+      dispatchWebhookEvent("medication.missed", userId, {
+        consecutiveMissed,
+        adherenceRate: Math.round(adherenceRate * 100),
+      }).catch((err) =>
+        console.error(`[vhiCycle] medication.missed webhook failed for ${userId}:`, err)
+      )
     );
   }
 
-  // ── Push notification routing ──────────────────────────────────────────────
-  // Plan: compositeRisk >= 60 → patient only
-  //        compositeRisk >= 75 → patient + family admins
-  //        compositeRisk >= 85 → patient + family admins (urgent)
-  // PHI rule: no raw vitals/diagnoses in notification bodies.
-
-  dispatchPushAlerts(userId, compositeRisk, vhiData.decliningFactors[0]?.factor ?? null).catch(
-    (err) => console.error(`[vhiCycle] Push alert dispatch failed for ${userId}:`, err)
-  );
+  await Promise.allSettled(sideEffects);
 }
 
 /**

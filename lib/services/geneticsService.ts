@@ -83,7 +83,7 @@ class GeneticsService {
   async getProfile(): Promise<GeneticsProfile | null> {
     try {
       return await api.get<GeneticsProfile | null>("/api/genetics/me");
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[genetics] getProfile failed:', err);
       return null;
     }
@@ -100,7 +100,7 @@ class GeneticsService {
           processingStatus: "none",
         }
       );
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[genetics] getStatus failed:', err);
       return { processingStatus: "none" };
     }

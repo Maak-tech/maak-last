@@ -172,6 +172,7 @@ export async function runDnaParsingJob(
     await db.insert(healthTimeline).values({
       id: crypto.randomUUID(),
       userId,
+      domain: "twin",
       source: "genetics_processed",
       occurredAt: new Date(),
       metadata: {
@@ -186,14 +187,14 @@ export async function runDnaParsingJob(
     // The raw file contains full SNP data; only processed results are kept in DB.
     // Non-blocking — a deletion failure does not fail the job.
     s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: uploadKey }))
-      .then(() => console.log(`[dnaParsingJob] Deleted raw file ${uploadKey}`))
+      .then(() => console.debug(`[dnaParsingJob] Deleted raw file ${uploadKey}`))
       .catch((err) => console.warn(`[dnaParsingJob] Failed to delete raw file ${uploadKey}:`, err));
 
     // 7. Dispatch webhooks (non-blocking)
     dispatchWebhookEvent("genetics.processed", userId, {
       snpCount: mlResult.snp_count,
       prsConditions: mlResult.prs_scores?.map((p) => p.condition) ?? [],
-    }).catch(console.error);
+    }).catch((err) => console.error(`[dnaParsingJob] Webhook dispatch failed for user ${userId}:`, err instanceof Error ? err.message : String(err)));
 
     // 8. Trigger immediate VHI recompute so genetic baseline appears in the next cycle
     // without waiting up to 15 minutes for the scheduled cron.
@@ -203,7 +204,7 @@ export async function runDnaParsingJob(
 
     console.log(`[dnaParsingJob] Completed for user=${userId}`);
     return { ok: true };
-  } catch (err) {
+  } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[dnaParsingJob] Failed for user=${userId}:`, message);
 

@@ -63,7 +63,7 @@ class LabResultService {
         ...(labResult.tags?.length && { tags: labResult.tags }),
       });
       return created.id as string;
-    } catch (error) {
+    } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Unknown error";
       throw new Error(`Failed to add lab result: ${msg}`);
     }
@@ -87,7 +87,7 @@ class LabResultService {
         ...(updates.notes !== undefined && { notes: updates.notes }),
         ...(updates.tags !== undefined && { tags: updates.tags }),
       });
-    } catch (err) {
+    } catch (err: unknown) {
       if (err instanceof Error) throw err;
       throw new Error("Failed to update lab result");
     }
@@ -99,7 +99,7 @@ class LabResultService {
   async deleteLabResult(labResultId: string): Promise<void> {
     try {
       await api.delete(`/api/health/labs/${labResultId}`);
-    } catch (err) {
+    } catch (err: unknown) {
       if (err instanceof Error) throw err;
       throw new Error("Failed to delete lab result");
     }
@@ -113,7 +113,7 @@ class LabResultService {
       const raw = await api.get<Record<string, unknown>>(`/api/health/labs/${labResultId}`);
       if (!raw || (raw as { error?: string }).error) return null;
       return normalizeLabResult(raw);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[labResult] getLabResult failed:', err);
       return null;
     }
@@ -132,7 +132,7 @@ class LabResultService {
       if (limitCount) params.set('limit', String(limitCount));
       const raw = await api.get<Record<string, unknown>[]>(`/api/health/labs?${params.toString()}`);
       return (Array.isArray(raw) ? raw : []).map(normalizeLabResult);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[labResult] getUserLabResults failed:', err);
       return [];
     }
@@ -145,7 +145,7 @@ class LabResultService {
     try {
       const all = await this.getUserLabResults(userId);
       return all.filter((r) => r.testType === testType);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[labResult] getLabResultsByType failed:', err);
       return [];
     }
@@ -164,7 +164,7 @@ class LabResultService {
       return all.filter(
         (r) => r.testDate >= startDate && r.testDate <= endDate
       );
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[labResult] getLabResultsByDateRange failed:', err);
       return [];
     }
@@ -177,7 +177,7 @@ class LabResultService {
     try {
       const all = await this.getUserLabResults(userId);
       return all.filter((r) => r.tags?.includes(tag.toLowerCase()));
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[labResult] getLabResultsByTag failed:', err);
       return [];
     }
@@ -219,7 +219,8 @@ class LabResultService {
         return { min: Number.parseFloat(match[1]), max: Number.parseFloat(match[2]) };
       }
       return null;
-    } catch {
+    } catch (err: unknown) {
+      console.warn('[labResultService] Failed to parse reference range:', range, err);
       return null;
     }
   }

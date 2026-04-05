@@ -17,7 +17,7 @@ export default function ConfirmStep({ sessionToken, onConfirmed }: Props) {
     try {
       await api.confirmIdentity(sessionToken)
       onConfirmed()
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Confirmation failed')
     } finally {
       setLoading(false)

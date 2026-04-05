@@ -328,6 +328,7 @@ export const fitbitService = {
           grant_type: "authorization_code",
           code_verifier: verifier,
         }).toString(),
+        signal: AbortSignal.timeout(15_000),
       });
 
       if (!tokenResponse.ok) {
@@ -390,6 +391,7 @@ export const fitbitService = {
           headers: {
             Authorization: `Bearer ${tokenData.access_token}`,
           },
+          signal: AbortSignal.timeout(15_000),
         }
       );
 
@@ -433,8 +435,8 @@ export const fitbitService = {
       if (userId && userId !== "-") {
         try {
           await api.patch("/api/user/profile", { fitbitUserId: userId });
-        } catch (_error) {
-          // Silently handle update error - not critical for OAuth flow
+        } catch (err: unknown) {
+          console.debug('[fitbit] Non-critical: failed to update fitbitUserId on profile:', err instanceof Error ? err.message : String(err));
         }
       }
     } catch (error: unknown) {
@@ -476,6 +478,7 @@ export const fitbitService = {
         grant_type: "refresh_token",
         refresh_token: tokens.refreshToken,
       }).toString(),
+      signal: AbortSignal.timeout(15_000),
     });
 
     if (!refreshResponse.ok) {
@@ -565,6 +568,7 @@ export const fitbitService = {
               headers: {
                 Authorization: `Bearer ${accessToken}`,
               },
+              signal: AbortSignal.timeout(15_000),
             });
 
             if (!response.ok) {
@@ -573,7 +577,8 @@ export const fitbitService = {
 
             const data = await response.json();
             return { metricKey, metric, data, dateStr };
-          } catch (_error) {
+          } catch (err: unknown) {
+            console.debug('[fitbit] Failed to fetch/parse metric data for', metricKey, '/', dateStr, ':', err instanceof Error ? err.message : String(err));
             return null;
           }
         });
@@ -838,8 +843,8 @@ export const fitbitService = {
           // Unknown metric key - skip
           break;
       }
-    } catch (_error) {
-      // Silently handle parsing error
+    } catch (err: unknown) {
+      console.debug('[fitbit] Metric parsing error (non-critical):', err instanceof Error ? err.message : String(err));
     }
 
     return samples;
@@ -867,10 +872,11 @@ export const fitbitService = {
           body: new URLSearchParams({
             token: tokens.accessToken,
           }).toString(),
+          signal: AbortSignal.timeout(15_000),
         });
       }
-    } catch (_error) {
-      // Ignore revocation errors
+    } catch (err: unknown) {
+      console.debug('[fitbit] Token revocation warning (non-critical):', err instanceof Error ? err.message : String(err));
     }
 
     // Remove tokens

@@ -268,7 +268,7 @@ const fetchAllHealthData = async (
           new Date(m.timestamp).getTime() >= startDate.getTime() &&
           new Date(m.timestamp).getTime() <= endDate.getTime()
       );
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error fetching health data", error, "MetricsExportService");
       // Continue with vitals only if other data fails
     }
@@ -1086,8 +1086,8 @@ const shareExportArtifact = async (
       onProgress?.("Export completed successfully");
       return;
     }
-  } catch (_error) {
-    // Fall through to React Native Share fallback
+  } catch (error: unknown) {
+    console.debug('[metricsExportService] expo-sharing unavailable, falling back to system share:', error instanceof Error ? error.message : String(error));
   }
 
   await shareUsingSystemShare(artifact, options, healthData, onProgress);

@@ -67,7 +67,7 @@ function RiskBar({ label, score, color }: { label: string; score: number; color:
     <View style={styles.riskRow}>
       <Text style={styles.riskLabel}>{label}</Text>
       <View style={styles.riskTrack}>
-        <View style={[styles.riskFill, { width: `${Math.min(score * 100, 100)}%` as any, backgroundColor: color }]} />
+        <View style={[styles.riskFill, { width: `${Math.min(score * 100, 100)}%` as `${number}%`, backgroundColor: color }]} />
       </View>
       <Text style={[styles.riskScore, { color }]}>{Math.round(score * 100)}%</Text>
     </View>
@@ -90,9 +90,9 @@ export default function HealthInsightsScreen() {
     if (!user) return;
     if (!isRefresh) setLoading(true);
     try {
-      const data = await api.get<VHIResponse>("/api/vhi");
+      const data = await api.get<VHIResponse>("/api/vhi/me");
       setVhi(data);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[health-insights] Failed to load VHI:', err);
     } finally {
       setLoading(false);
@@ -105,7 +105,7 @@ export default function HealthInsightsScreen() {
   const handleAcknowledge = async (actionId: string) => {
     setAcknowledging(actionId);
     try {
-      await api.post("/api/vhi/acknowledge", { actionId });
+      await api.post(`/api/vhi/me/actions/${actionId}/acknowledge`, {});
       setVhi((prev) => {
         if (!prev?.data?.pendingActions) return prev;
         return {
@@ -118,7 +118,7 @@ export default function HealthInsightsScreen() {
           },
         };
       });
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[health-insights] Failed to acknowledge VHI action:', err);
     } finally {
       setAcknowledging(null);
@@ -239,7 +239,7 @@ export default function HealthInsightsScreen() {
                 </Text>
               </View>
               {elevating.map((f, i) => (
-                <View key={i} style={styles.factorRow}>
+                <View key={`elevating-${f.factor}-${i}`} style={styles.factorRow}>
                   <View style={[styles.impactDot, { backgroundColor: IMPACT_COLORS[f.impact] }]} />
                   <View style={styles.factorContent}>
                     <Text style={[styles.factorName, { color: textPrimary }]}>{f.factor}</Text>
@@ -260,7 +260,7 @@ export default function HealthInsightsScreen() {
                 </Text>
               </View>
               {declining.map((f, i) => (
-                <View key={i} style={[styles.factorRow, styles.decliningRow, { borderColor: border }]}>
+                <View key={`declining-${f.factor}-${i}`} style={[styles.factorRow, styles.decliningRow, { borderColor: border }]}>
                   <View style={[styles.impactDot, { backgroundColor: IMPACT_COLORS[f.impact] }]} />
                   <View style={styles.factorContent}>
                     <Text style={[styles.factorName, { color: textPrimary }]}>{f.factor}</Text>

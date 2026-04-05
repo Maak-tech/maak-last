@@ -369,7 +369,7 @@ export default function AuditTrailScreen() {
             : null;
           setHasMore(items.length === PAGE_SIZE);
         }
-      } catch (err) {
+      } catch (err: unknown) {
         if (isMountedRef.current) {
           setError(
             err instanceof Error ? err.message : "Failed to load audit trail"
@@ -415,7 +415,7 @@ export default function AuditTrailScreen() {
           : lastTimestampRef.current;
         setHasMore(more.length === PAGE_SIZE);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[audit-trail] Pagination load failed:', err);
     } finally {
       if (isMountedRef.current) setLoadingMore(false);

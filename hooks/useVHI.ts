@@ -74,8 +74,10 @@ export function useVHI(userId: string | undefined): UseVHIReturn {
           },
         };
       });
-      // Fire API call in background
-      await vhiService.acknowledgeAction(actionId);
+      // Fire API call in background — fire-and-forget, optimistic UI is already updated above
+      vhiService.acknowledgeAction(actionId).catch((err) => {
+        console.warn('[useVHI] acknowledgeAction failed (optimistic update already applied):', err);
+      });
     },
     []
   );

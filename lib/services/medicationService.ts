@@ -91,10 +91,9 @@ const dismissMedicationReminderNotifications = async (options: {
   try {
     const Notifications = await import("expo-notifications");
     const presented = await Notifications.getPresentedNotificationsAsync();
-    for (const notification of presented as any[]) {
-      const request = notification.request || notification;
-      const content = request?.content || notification.content;
-      const data = content?.data;
+    for (const notification of presented) {
+      const content = notification.request?.content;
+      const data = content?.data as Record<string, unknown> | undefined;
 
       if (data?.type !== "medication_reminder") continue;
 
@@ -108,17 +107,17 @@ const dismissMedicationReminderNotifications = async (options: {
       if (options.reminderId && data?.reminderId !== options.reminderId) continue;
       if (options.reminderTime && data?.reminderTime && data?.reminderTime !== options.reminderTime) continue;
 
-      const identifier = notification.identifier || request?.identifier;
+      const identifier = notification.request?.identifier;
       if (identifier) {
         try {
           await Notifications.dismissNotificationAsync(identifier);
-        } catch {
-          // Silently handle dismissal error
+        } catch (err: unknown) {
+          console.debug('[medication] dismissNotificationAsync failed (non-critical):', err instanceof Error ? err.message : String(err));
         }
       }
     }
-  } catch {
-    // Silently handle notification dismissal error
+  } catch (err: unknown) {
+    console.debug('[medication] dismissMedicationReminderNotifications failed (non-critical):', err instanceof Error ? err.message : String(err));
   }
 };
 
@@ -189,7 +188,7 @@ export const medicationService = {
       const currentMedications = await offlineService.getOfflineCollection<Medication>("medications");
       await offlineService.storeOfflineData("medications", [...currentMedications, newMedication]);
       return tempId;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error adding medication:', error);
       throw error;
     }
@@ -243,7 +242,7 @@ export const medicationService = {
         .filter((m) => m.userId === userId && m.isActive !== false)
         .map((m) => normalizeMedicationForClient(m, m.id || userId))
         .sort(compareMedicationStartDateDesc);
-    } catch (error) {
+    } catch (error: unknown) {
       // If online but fails, try offline cache
       if (isOnline) {
         const cachedMedications = await offlineService.getOfflineCollection<Medication>("medications");
@@ -315,7 +314,7 @@ export const medicationService = {
       const raw = await api.get<Record<string, unknown>>(`/api/health/medications/${medicationId}`);
       if (!raw || (raw as { error?: string }).error) return null;
       return normalizeMedicationFromApi(raw);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[medication] getMedication failed:', err);
       return null;
     }
@@ -364,6 +363,7 @@ export const medicationService = {
       medications.forEach((med) => {
         const medicationReminders = med.reminders || [];
         medicationReminders.forEach((reminder) => {
+          if (!reminder.time) return; // skip reminders missing a time value
           const now = new Date();
           const [hourStr, minuteStr] = reminder.time.split(':');
           const reminderTime = new Date();
@@ -388,7 +388,7 @@ export const medicationService = {
       });
 
       return reminders.sort((a, b) => a.time.localeCompare(b.time));
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error getting upcoming reminders:', error);
       throw error;
     }
@@ -420,7 +420,7 @@ export const medicationService = {
       }
     }
     this.invalidateCache(userId);
-  } catch (error) {
+  } catch (error: unknown) {
       console.error('Error resetting daily reminders:', error);
       throw error;
     }
@@ -434,7 +434,7 @@ export const medicationService = {
         user?.familyId === familyId &&
         (user?.role === "admin" || user?.role === "caregiver")
       );
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[medication] checkFamilyAccessPermission failed:', err);
       return false;
     }
@@ -528,7 +528,7 @@ export const medicationService = {
         todaysCompliance: Math.round(todaysCompliance),
         upcomingReminders,
       };
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[medication] getMemberMedicationStats failed:', err);
       return {
         totalMedications: 0,
@@ -555,7 +555,7 @@ export const medicationService = {
       try {
         await this.addMedication({ ...medication, userId });
         result.success += 1;
-      } catch (error) {
+      } catch (error: unknown) {
         result.failed += 1;
         const errorMessage =
           error instanceof Error ? error.message : `Failed to add ${medication.name}`;

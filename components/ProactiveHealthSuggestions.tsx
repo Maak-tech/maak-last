@@ -59,7 +59,7 @@ export default function ProactiveHealthSuggestions({ showDiscoveries = false }: 
       if (discoveries.status === 'fulfilled' && discoveries.value.length > 0) {
         setTopDiscovery(discoveries.value[0]);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[ProactiveHealthSuggestions] Failed to load suggestions:', err);
     } finally {
       setLoading(false);

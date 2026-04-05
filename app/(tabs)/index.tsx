@@ -75,7 +75,18 @@ export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const wavyHeaderTopPadding = 16;
   const [showAlertsModal, setShowAlertsModal] = useState(false);
-  const handleAlertsBadgePress = () => setShowAlertsModal(true);
+  const handleAlertsBadgePress = () => {
+    // Load actual alert objects when the modal is opened — the dashboard only
+    // fetches the COUNT (alertsCount), not the full list, so we need to fetch here.
+    if (user?.id) {
+      setLoadingAlerts(true);
+      alertService.getActiveAlerts(user.id)
+        .then((alerts) => setUserAlerts(alerts))
+        .catch((err) => console.warn('[dashboard] Failed to load alerts for modal:', err instanceof Error ? err.message : String(err)))
+        .finally(() => setLoadingAlerts(false));
+    }
+    setShowAlertsModal(true);
+  };
 
   const [loadingAlerts, setLoadingAlerts] = useState(false);
   const [userAlerts, setUserAlerts] = useState<any[]>([]);
@@ -618,11 +629,9 @@ export default function DashboardScreen() {
             sum +
             reminders.filter((r) => {
               if (!r.taken || !r.takenAt) return false;
-              const takenDate = (r.takenAt as any).toDate
-                ? (r.takenAt as any).toDate()
-                : new Date(r.takenAt);
-              const takenToday = takenDate.toDateString() === today;
-              return takenToday;
+              // takenAt is an ISO string or Date from Neon — no Firestore .toDate() needed
+              const takenDate = new Date(r.takenAt as string | Date);
+              return takenDate.toDateString() === today;
             }).length
           );
         }, 0);
@@ -687,11 +696,9 @@ export default function DashboardScreen() {
             sum +
             reminders.filter((r) => {
               if (!r.taken || !r.takenAt) return false;
-              const takenDate = (r.takenAt as any).toDate
-                ? (r.takenAt as any).toDate()
-                : new Date(r.takenAt);
-              const takenToday = takenDate.toDateString() === today;
-              return takenToday;
+              // takenAt is an ISO string or Date from Neon — no Firestore .toDate() needed
+              const takenDate = new Date(r.takenAt as string | Date);
+              return takenDate.toDateString() === today;
             }).length
           );
         }, 0);
@@ -705,7 +712,7 @@ export default function DashboardScreen() {
           medicationCompliance: Math.round(compliance),
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading dashboard data:', error);
     } finally {
       setLoading(false);
@@ -746,8 +753,8 @@ export default function DashboardScreen() {
       return isRTL ? 'بيانات العائلة' : 'Family Data';
     } else if (selectedFilter.type === 'member') {
       return isRTL
-        ? `بيانات ${selectedFilter.memberName}`
-        : `${selectedFilter.memberName}'s Data`;
+        ? `بيانات ${selectedFilter.memberName ?? 'العضو'}`
+        : `${selectedFilter.memberName ?? 'Member'}'s Data`;
     } else {
       return isRTL ? 'بياناتي الشخصية' : 'My Personal Data';
     }
@@ -770,7 +777,7 @@ export default function DashboardScreen() {
           text: isRTL ? 'اتصال بـ 911' : 'Call 911',
           style: 'destructive',
           onPress: () => {
-            Linking.openURL('tel:911');
+            Linking.openURL('tel:911').catch((err) => console.warn('[dashboard] Failed to dial 911:', err instanceof Error ? err.message : String(err)));
           },
         },
         {
@@ -801,7 +808,7 @@ export default function DashboardScreen() {
                   ? 'تم إرسال إشعار طوارئ لجميع أفراد العائلة'
                   : 'Emergency notification sent to all family members'
               );
-            } catch (err) {
+            } catch (err: unknown) {
               console.warn('[index] Failed to send emergency notification:', err);
               Alert.alert(
                 isRTL ? 'خطأ' : 'Error',
@@ -1213,14 +1220,14 @@ export default function DashboardScreen() {
                                           t("alertResolvedSuccessfully")
                                         );
                                       }
-                                    } catch (error: any) {
+                                    } catch (error: unknown) {
                                       console.error(
                                         "Failed to resolve alert",
                                         error
                                       );
 
                                       const errorMessage =
-                                        error?.message || t("unknownError");
+                                        (error instanceof Error ? error.message : null) || t("unknownError");
                                       let displayMessage = errorMessage;
 
                                       if (

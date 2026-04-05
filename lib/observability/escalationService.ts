@@ -190,7 +190,7 @@ class EscalationService {
       );
 
       return newId;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to start escalation",
         { alertId, error },
@@ -258,7 +258,7 @@ class EscalationService {
       );
 
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to acknowledge escalation",
         { escalationId, error },
@@ -281,7 +281,7 @@ class EscalationService {
       });
 
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       const errorCode =
         typeof error === "object" && error && "code" in error && error.code
           ? String(error.code)
@@ -312,7 +312,7 @@ class EscalationService {
   async processEscalations(): Promise<void> {
     try {
       await api.post("/api/health/escalations/process", {});
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to process escalations",
         { error },
@@ -486,7 +486,7 @@ class EscalationService {
         },
         "EscalationService"
       );
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to execute escalation level",
         { escalationId, error },
@@ -549,7 +549,7 @@ class EscalationService {
           ? new Date(item.nextEscalationAt as string)
           : undefined,
       }));
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to get active escalations",
         { familyId, error },

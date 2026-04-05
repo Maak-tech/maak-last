@@ -20,7 +20,17 @@ export const authRoutes = new Hono()
 
 authRoutes.post('/auth/login', async (c) => {
   const ip = c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? 'unknown'
-  const { email, password } = await c.req.json<{ email: string; password: string }>()
+  let email: string, password: string
+  try {
+    const body = await c.req.json<{ email?: unknown; password?: unknown }>()
+    if (typeof body?.email !== 'string' || typeof body?.password !== 'string') {
+      return c.json({ error: 'email and password are required' }, 400)
+    }
+    email = body.email
+    password = body.password
+  } catch {
+    return c.json({ error: 'Invalid JSON body' }, 400)
+  }
 
   const staff = await queryOne<Staff>(
     'SELECT * FROM hospital_staff WHERE email = $1 AND is_active = true',
@@ -91,7 +101,15 @@ authRoutes.post('/auth/logout', async (c) => {
           [payload.jti, payload.exp ?? 0]
         )
       }
-    } catch { /* ignore invalid/expired tokens — no-op is safe */ }
+    } catch (err: unknown) {
+      // jwt.verify throws JsonWebTokenError/TokenExpiredError for malformed or
+      // expired tokens — these are expected during logout and safe to ignore.
+      // Re-log only unexpected error types for visibility.
+      const name = (err as { name?: string })?.name ?? ''
+      if (name !== 'JsonWebTokenError' && name !== 'TokenExpiredError' && name !== 'NotBeforeError') {
+        console.warn('[auth/logout] Unexpected error during token revocation:', err instanceof Error ? err.message : String(err))
+      }
+    }
   }
   return c.json({ ok: true })
 })

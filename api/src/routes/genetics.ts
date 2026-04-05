@@ -133,7 +133,7 @@ export const geneticsRoutes = new Elysia({ prefix: "/api/genetics" })
         .where(eq(genetics.userId, userId));
 
       // Run parsing job in the background (non-blocking)
-      runDnaParsingJob(userId, body.uploadKey).catch(console.error);
+      runDnaParsingJob(userId, body.uploadKey).catch((err: unknown) => console.error(`[genetics] DNA parsing job failed for user ${userId}:`, err instanceof Error ? err.message : String(err)));
       return { ok: true, message: "DNA processing started. Check /me/status for updates." };
     },
     {

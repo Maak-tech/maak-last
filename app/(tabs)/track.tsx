@@ -302,7 +302,7 @@ export default function TrackScreen() {
         medicationCompliance: Math.round(compliance),
         upcomingMedications,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[Track] Error loading tracking data:', error);
       if (!isRefresh) {
         // Only alert on initial load — pull-to-refresh failures are less disruptive

@@ -213,7 +213,7 @@ class CorrelationDiscoveryService {
 
       const discoveries = await this.getDiscoveries(userId);
       return { discoveries, newCount, updatedCount, hasNewActionable };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to refresh discoveries",
         { userId, error },
@@ -317,7 +317,7 @@ class CorrelationDiscoveryService {
         const idx = cached.findIndex((d) => d.id === discoveryId);
         if (idx !== -1) cached[idx].status = "seen";
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to mark discovery as seen",
         { userId, discoveryId, error },
@@ -337,7 +337,7 @@ class CorrelationDiscoveryService {
         const idx = cached.findIndex((d) => d.id === discoveryId);
         if (idx !== -1) cached[idx].status = "dismissed";
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to dismiss discovery",
         { userId, discoveryId, error },
@@ -372,7 +372,7 @@ class CorrelationDiscoveryService {
           ? { notifiedAt: discovery.notifiedAt.toISOString() }
           : {}),
       });
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[correlationDiscovery] saveDiscovery timeline post failed (non-critical):', err);
     }
   }
@@ -388,7 +388,7 @@ class CorrelationDiscoveryService {
         const idx = cached.findIndex((d) => d.id === discoveryId);
         if (idx !== -1) cached[idx].notifiedAt = new Date();
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         "Failed to mark discovery as notified",
         { userId, discoveryId, error },

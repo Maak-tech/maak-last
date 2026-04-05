@@ -107,7 +107,7 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
                   }
                 : null,
           };
-          } catch (err) {
+          } catch (err: unknown) {
             console.error(`[family] Failed to load data for member ${member.userId}:`, err);
             // Return a minimal stub so the rest of the dashboard still renders
             return {
@@ -295,7 +295,7 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
       return { id: familyId, name: body.name ?? "My Family" };
     },
     {
-      body: t.Object({ name: t.Optional(t.String()) }),
+      body: t.Object({ name: t.Optional(t.String({ maxLength: 255 })) }),
       detail: { tags: ["family"], summary: "Create a new family (current user becomes admin)" },
     }
   )
@@ -487,9 +487,9 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
     },
     {
       body: t.Object({
-        familyId: t.String(),
-        invitedUserName: t.String(),
-        invitedUserRelation: t.String(),
+        familyId: t.String({ maxLength: 36 }),
+        invitedUserName: t.String({ maxLength: 255 }),
+        invitedUserRelation: t.String({ maxLength: 100 }),
       }),
       detail: { tags: ["family"], summary: "Create a family invitation code" },
     }
@@ -697,7 +697,7 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
     },
     {
       body: t.Object({
-        memberId: t.String(),
+        memberId: t.String({ maxLength: 36 }),
         note: t.String({ minLength: 1, maxLength: 5000 }),
         caregiverName: t.Optional(t.String({ maxLength: 255 })),
         tags: t.Optional(t.Array(t.String({ maxLength: 50 }), { maxItems: 50 })),
@@ -737,12 +737,12 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
         .from(caregiverNotes)
         .where(eq(caregiverNotes.memberId, query.memberId))
         .orderBy(caregiverNotes.createdAt)
-        .limit(query.limit ? Math.min(Math.max(1, Number(query.limit)), 100) : 20);
+        .limit(query.limit ?? 20);
     },
     {
       query: t.Object({
-        memberId: t.String(),
-        limit: t.Optional(t.String()),
+        memberId: t.String({ maxLength: 36 }),
+        limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100 })),
       }),
       detail: { tags: ["family"], summary: "Get caregiver notes for a member" },
     }

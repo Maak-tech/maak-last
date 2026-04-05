@@ -107,8 +107,8 @@ export default function MedicationsScreen() {
         );
         setMedications(userMedications);
       }
-    } catch (error) {
-      console.error('Error loading medications:', error);
+    } catch (error: unknown) {
+      console.error('[medications] Error loading medications:', error instanceof Error ? error.message : String(error));
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL ? 'حدث خطأ في تحميل البيانات' : 'Error loading data'
@@ -268,8 +268,8 @@ export default function MedicationsScreen() {
           ? 'Medication updated successfully'
           : 'Medication added successfully'
       );
-    } catch (error) {
-      console.error('Error saving medication:', error);
+    } catch (error: unknown) {
+      console.error('[medications] Error saving medication:', error instanceof Error ? error.message : String(error));
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL ? 'حدث خطأ في حفظ الدواء' : 'Error saving medication'
@@ -349,8 +349,8 @@ export default function MedicationsScreen() {
                   ? 'تم حذف الدواء بنجاح'
                   : 'Medication deleted successfully'
               );
-            } catch (error) {
-              console.error('Error deleting medication:', error);
+            } catch (error: unknown) {
+              console.error('[medications] Error deleting medication:', error instanceof Error ? error.message : String(error));
               Alert.alert(
                 isRTL ? 'خطأ' : 'Error',
                 isRTL ? 'حدث خطأ في حذف الدواء' : 'Error deleting medication'
@@ -386,8 +386,8 @@ export default function MedicationsScreen() {
             : med
         )
       );
-    } catch (error) {
-      console.error('Error toggling medication:', error);
+    } catch (error: unknown) {
+      console.error('[medications] Error toggling medication:', error instanceof Error ? error.message : String(error));
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL ? 'حدث خطأ في تحديث الدواء' : 'Error updating medication'
@@ -817,7 +817,7 @@ export default function MedicationsScreen() {
               </Text>
               <View style={styles.remindersList}>
                 {newMedication.reminders.map((reminder, index) => (
-                  <View key={index} style={styles.reminderItem}>
+                  <View key={`reminder-${reminder.time || index}-${index}`} style={styles.reminderItem}>
                     <TextInput
                       style={[styles.reminderInput, isRTL && styles.rtlInput]}
                       value={reminder.time}

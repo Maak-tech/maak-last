@@ -80,40 +80,40 @@ export const disconnectProvider = async (
           "../services/samsungHealthService"
         );
         await samsungHealthService.disconnect();
-      } catch {
-        // Best effort disconnect for optional provider.
+      } catch (err: unknown) {
+        console.debug('[healthSync] samsung_health disconnect non-critical error:', err instanceof Error ? err.message : String(err));
       }
       break;
     case "garmin":
       try {
         const { garminService } = await import("../services/garminService");
         await garminService.disconnect();
-      } catch {
-        // Best effort disconnect for optional provider.
+      } catch (err: unknown) {
+        console.debug('[healthSync] garmin disconnect non-critical error:', err instanceof Error ? err.message : String(err));
       }
       break;
     case "withings":
       try {
         const { withingsService } = await import("../services/withingsService");
         await withingsService.disconnect();
-      } catch {
-        // Best effort disconnect for optional provider.
+      } catch (err: unknown) {
+        console.debug('[healthSync] withings disconnect non-critical error:', err instanceof Error ? err.message : String(err));
       }
       break;
     case "oura":
       try {
         const { ouraService } = await import("../services/ouraService");
         await ouraService.disconnect();
-      } catch {
-        // Best effort disconnect for optional provider.
+      } catch (err: unknown) {
+        console.debug('[healthSync] oura disconnect non-critical error:', err instanceof Error ? err.message : String(err));
       }
       break;
     case "dexcom":
       try {
         const { dexcomService } = await import("../services/dexcomService");
         await dexcomService.disconnect();
-      } catch {
-        // Best effort disconnect for optional provider.
+      } catch (err: unknown) {
+        console.debug('[healthSync] dexcom disconnect non-critical error:', err instanceof Error ? err.message : String(err));
       }
       break;
     default:
@@ -122,8 +122,8 @@ export const disconnectProvider = async (
 
   try {
     await _disconnectProviderConnection(_currentUserId, provider as ProviderType);
-  } catch {
-    // Best effort — connection record removal.
+  } catch (err: unknown) {
+    console.debug('[healthSync] disconnectProviderConnection non-critical error:', err instanceof Error ? err.message : String(err));
   }
 };
 
@@ -285,9 +285,8 @@ export const syncHealthData = async (
         // Backend sync failed: ${response.statusText}
         // Continue anyway to save to Firestore
       }
-    } catch (_error) {
-      // Backend sync endpoint not available, saving to Firestore only
-      // Continue to save to Firestore
+    } catch (error: unknown) {
+      console.warn('[healthSync] Backend sync endpoint unavailable, Firestore only:', error instanceof Error ? error.message : String(error));
     }
 
     // Save vitals to Firestore for benchmark checking and admin alerts
@@ -299,8 +298,8 @@ export const syncHealthData = async (
         provider,
         metrics,
       });
-    } catch (_error) {
-      // Don't fail the sync if Firestore save fails
+    } catch (error: unknown) {
+      console.warn('[healthSync] Firestore save failed (non-critical):', error instanceof Error ? error.message : String(error));
     }
 
     // Update last sync timestamp
@@ -321,7 +320,7 @@ export const syncHealthData = async (
     };
 
     return result;
-  } catch (error) {
+  } catch (error: unknown) {
     const errorMessage = getErrorMessage(error);
     // Retry once on network failure
     if (retryOnce && errorMessage.includes("network")) {

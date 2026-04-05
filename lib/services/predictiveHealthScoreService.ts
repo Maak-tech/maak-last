@@ -334,8 +334,8 @@ export async function getPredictiveForecast(
       insightAr,
       generatedAt: new Date(),
     };
-  } catch (_error) {
-    // Return safe default
+  } catch (err: unknown) {
+    console.warn('[predictiveHealthScore] getPredictiveForecast failed, returning safe default:', err instanceof Error ? err.message : String(err));
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return {

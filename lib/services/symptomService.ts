@@ -59,7 +59,7 @@ const normalizeSymptom = (raw: Record<string, unknown>): Symptom => ({
 export const symptomService = {
   // Add new symptom
   async addSymptom(symptomData: Omit<Symptom, 'id'>): Promise<string> {
-    const isOnline = true;
+    const isOnline = offlineService.isDeviceOnline();
     try {
       if (isOnline) {
         const created = await api.post<Record<string, unknown>>("/api/health/symptoms", {
@@ -136,7 +136,7 @@ export const symptomService = {
       const currentSymptoms = await offlineService.getOfflineCollection<Symptom>("symptoms");
       await offlineService.storeOfflineData("symptoms", [...currentSymptoms, newSymptom]);
       return tempId;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error adding symptom:', error);
       throw error;
     }
@@ -198,7 +198,8 @@ export const symptomService = {
           return bTime - aTime;
         })
         .slice(0, limitCount);
-    } catch (_error) {
+    } catch (err: unknown) {
+      console.debug('[symptomService] getSymptoms failed, falling back to offline cache:', err instanceof Error ? err.message : String(err));
       // Fallback to offline cache
       if (isOnline) {
         const cachedSymptoms = await offlineService.getOfflineCollection<Symptom>("symptoms");
@@ -216,7 +217,7 @@ export const symptomService = {
           })
           .slice(0, limitCount);
       }
-      throw _error;
+      throw err;
     }
   },
 
@@ -225,7 +226,7 @@ export const symptomService = {
     try {
       const user = await userService.getUser(userId);
       return user?.familyId === familyId && (user?.role === "admin" || user?.role === "caregiver");
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[symptom] checkFamilyAccessPermission failed:', err);
       return false;
     }
@@ -247,7 +248,7 @@ export const symptomService = {
         `/api/health/symptoms/family/${familyId}?limit=${limitCount}`
       );
       return (Array.isArray(raw) ? raw : []).map(normalizeSymptom);
-    } catch (error) {
+    } catch (error: unknown) {
       throw error;
     }
   },
@@ -318,7 +319,7 @@ export const symptomService = {
       };
       _symptomStatsCache.set(statsCacheKey, { data: result, timestamp: Date.now() });
       return result;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[symptom] getSymptomStats failed:', err);
       return { totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] };
     }
@@ -359,7 +360,7 @@ export const symptomService = {
         .slice(0, 5);
 
       return { totalSymptoms, avgSeverity: Math.round(avgSeverity * 10) / 10, commonSymptoms };
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[symptom] getMemberSymptomStats failed:', err);
       return { totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] };
     }

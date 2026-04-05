@@ -140,6 +140,7 @@ export const dexcomService = {
           grant_type: "authorization_code",
           redirect_uri: REDIRECT_URI,
         }).toString(),
+        signal: AbortSignal.timeout(15_000),
       });
 
       if (!tokenResponse.ok) {
@@ -163,7 +164,7 @@ export const dexcomService = {
           const userData = await userResponse.json();
           userId = userData.accountId || userData.userId || "self";
         }
-      } catch (err) {
+      } catch (err: unknown) {
         // If user endpoint fails, use "self" as default
         console.warn('[dexcom] Failed to fetch Dexcom user ID — using "self":', err);
         userId = tokens.userId || tokens.accountId || "self";
@@ -247,6 +248,7 @@ export const dexcomService = {
           refresh_token: tokens.refreshToken,
           grant_type: "refresh_token",
         }).toString(),
+        signal: AbortSignal.timeout(15_000),
       });
 
       if (!response.ok) {
@@ -264,7 +266,8 @@ export const dexcomService = {
       });
 
       return newTokens.access_token;
-    } catch (_error) {
+    } catch (error: unknown) {
+      console.warn('[dexcom] Token refresh failed:', error instanceof Error ? error.message : String(error));
       return null;
     }
   },
@@ -312,7 +315,8 @@ export const dexcomService = {
         trend: latestReading.trend,
         trendArrow: getTrendArrow(latestReading.trend),
       };
-    } catch (_error) {
+    } catch (error: unknown) {
+      console.warn('[dexcom] getLatestReading failed:', error instanceof Error ? error.message : String(error));
       return null;
     }
   },
@@ -399,8 +403,8 @@ export const dexcomService = {
       await SecureStore.deleteItemAsync(HEALTH_STORAGE_KEYS.DEXCOM_TOKENS);
       // Connection data is stored in AsyncStorage via saveProviderConnection
       // and will be cleared by disconnectProvider in healthSync.ts
-    } catch (_error) {
-      // Best effort cleanup; ignore if secure storage is unavailable.
+    } catch (err: unknown) {
+      console.debug('[dexcom] Failed to delete tokens from secure storage (best effort):', err instanceof Error ? err.message : String(err));
     }
   },
 };

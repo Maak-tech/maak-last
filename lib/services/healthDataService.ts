@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Constants from "expo-constants";
+import Constants, { AppOwnership } from "expo-constants";
 import * as Device from "expo-device";
 import { Platform } from "react-native";
 import { api } from "@/lib/apiClient";
@@ -137,7 +137,8 @@ export const healthDataService = {
     try {
       if (Platform.OS === 'ios') {
         // For iOS, check if we're in Expo Go or standalone app
-        const isExpoGo = Device.isDevice && !Device.isDevice; // Expo Go detection
+        // Detect Expo Go: app runs inside the Expo Go client (not a standalone build)
+        const isExpoGo = Constants.appOwnership === AppOwnership.Expo;
         
         if (isExpoGo) {
           console.warn('[healthData] HealthKit requires standalone app build — simulating data');
@@ -162,16 +163,20 @@ export const healthDataService = {
               AppleHealthKit.initHealthKit(HealthKitPermissions, (error: any) => {
                 if (error) {
                   console.error('HealthKit initialization error:', error);
-                  // Fallback to simulated data
-                  this.savePermissionStatus(true);
+                  // Fallback to simulated data — fire-and-forget, non-critical
+                  this.savePermissionStatus(true).catch((saveErr) =>
+                    console.warn('[healthData] savePermissionStatus failed:', saveErr)
+                  );
                   resolve(true);
                 } else {
-                  this.savePermissionStatus(true);
+                  this.savePermissionStatus(true).catch((saveErr) =>
+                    console.warn('[healthData] savePermissionStatus failed:', saveErr)
+                  );
                   resolve(true);
                 }
               });
             });
-          } catch (error) {
+          } catch (error: unknown) {
             console.warn('[healthData] HealthKit not available — using simulated data');
             await this.savePermissionStatus(true);
             return true;
@@ -186,7 +191,7 @@ export const healthDataService = {
         console.warn('[healthData] Health data not supported on this platform');
         return false;
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error initializing health data:', error);
       // Don't fail completely, provide simulated data
       await this.savePermissionStatus(true);
@@ -199,7 +204,7 @@ export const healthDataService = {
     try {
       const status = await AsyncStorage.getItem(PERMISSIONS_STORAGE_KEY);
       return status === 'true';
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error checking health permissions:', error);
       return false;
     }
@@ -209,7 +214,7 @@ export const healthDataService = {
   async savePermissionStatus(granted: boolean): Promise<void> {
     try {
       await AsyncStorage.setItem(PERMISSIONS_STORAGE_KEY, granted.toString());
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving permission status:', error);
     }
   },
@@ -230,7 +235,8 @@ export const healthDataService = {
         return await this.getLatestVitalsFromFirestore(userId);
       }
       return null;
-    } catch (_error) {
+    } catch (error: unknown) {
+      console.debug('[healthDataService] getLatestVitals primary path failed, attempting fallback:', error instanceof Error ? error.message : String(error));
       const userId = (await authClient.getSession())?.data?.user?.id;
       if (userId) {
         return await this.getLatestVitalsFromFirestore(userId);
@@ -274,16 +280,50 @@ export const healthDataService = {
         if (!vitalsByType[vitalType]) {
           vitalsByType[vitalType] = [];
         }
+        const rawVal = data.value;
+        const numVal = typeof rawVal === "number" ? rawVal : Number.parseFloat(String(rawVal ?? ""));
+        if (isNaN(numVal)) continue;
         vitalsByType[vitalType].push({
-          value: data.value as number,
+          value: numVal,
           timestamp,
           source: data.source as string | undefined,
           metadata: data.metadata as Record<string, unknown> | undefined,
         });
       }
-      
-      return null;
-    } catch (error) {
+
+      // Helper: get the most recent sample value for a vital type
+      const getLatest = (type: string): number | undefined => {
+        const samples = vitalsByType[type];
+        if (!samples || samples.length === 0) return undefined;
+        const sorted = [...samples].sort(
+          (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+        );
+        const v = sorted[0].value;
+        return typeof v === 'number' && !Number.isNaN(v) ? v : undefined;
+      };
+
+      const vitals: VitalSigns = {
+        heartRate: getLatest('heart_rate'),
+        heartRateVariability: getLatest('heart_rate_variability'),
+        bloodPressure: getLatestBloodPressure(vitalsByType),
+        bloodGlucose: getLatest('blood_glucose'),
+        respiratoryRate: getLatest('respiratory_rate'),
+        weight: getLatest('weight'),
+        height: getLatest('height'),
+        bodyFatPercentage: getLatest('body_fat'),
+        steps: getLatest('steps'),
+        sleepHours: getLatest('sleep_hours'),
+        activeEnergy: getLatest('active_energy'),
+        distanceWalkingRunning: getLatest('distance'),
+        waterIntake: getLatest('water_intake'),
+        bodyTemperature: getLatest('body_temperature'),
+        oxygenSaturation: getLatest('oxygen_saturation'),
+        timestamp: new Date(),
+      };
+
+      _vitalsFirestoreCache.set(userId, { data: vitals, timestamp: Date.now() });
+      return vitals;
+    } catch (error: unknown) {
       console.error('Error getting vitals:', error);
       return null;
     }
@@ -380,12 +420,12 @@ export const healthDataService = {
             resolve(vitals);
           }).catch(reject);
         });
-      } catch (error) {
+      } catch (error: unknown) {
         console.warn('[healthData] HealthKit not available — using simulated data');
         // Return simulated iOS data
         return this.getSimulatedVitals();
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error getting iOS vitals:', error);
       return this.getSimulatedVitals();
     }
@@ -421,7 +461,7 @@ export const healthDataService = {
       // In a production build, you'd integrate with Google Fit APIs
       
       return await this.getSimulatedVitals();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error getting Android vitals:', error);
       return await this.getSimulatedVitals();
     }
@@ -460,7 +500,7 @@ export const healthDataService = {
       };
 
       return summary;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error getting health summary:', error);
       return null;
     }
@@ -475,7 +515,7 @@ export const healthDataService = {
       // Store locally
       await AsyncStorage.setItem(HEALTH_DATA_STORAGE_KEY, JSON.stringify(vitals));
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error syncing health data:', error);
     }
   },
@@ -491,7 +531,7 @@ export const healthDataService = {
         ...parsed,
         timestamp: new Date(parsed.timestamp),
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error getting stored health data:', error);
       return null;
     }
@@ -501,7 +541,7 @@ export const healthDataService = {
   async requestHealthPermissions(): Promise<boolean> {
     try {
       return await this.initializeHealthData();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error requesting health permissions:', error);
       return false;
     }
@@ -544,7 +584,7 @@ export const healthDataService = {
         return await this.getAndroidVitals();
       }
       return null;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[healthData] getNativeVitals failed:', err);
       return null;
     }
@@ -593,7 +633,7 @@ export const healthDataService = {
       }
 
       return results;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[healthData] getUserVitals failed:', err);
       return [];
     }

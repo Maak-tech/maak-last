@@ -72,8 +72,8 @@ try {
       FileSystem = require("expo-file-system");
     }
   }
-} catch (_error) {
-  // expo-av or expo-file-system not available
+} catch (err: unknown) {
+  console.debug('[realtimeAgent] expo-av or expo-file-system not available:', err instanceof Error ? err.message : String(err));
 }
 
 // Types for the Realtime API
@@ -946,8 +946,8 @@ class RealtimeAgentService {
         ) {
           return Promise.resolve();
         }
-      } catch (_error) {
-        // WebSocket might be in an invalid state, continue to create new connection
+      } catch (err: unknown) {
+        console.debug('[realtimeAgent] WebSocket state check failed, resetting:', err instanceof Error ? err.message : String(err));
         this.ws = null;
       }
     }
@@ -955,7 +955,7 @@ class RealtimeAgentService {
     let clientSecret: string;
     try {
       clientSecret = await this.getClientSecret();
-    } catch (error) {
+    } catch (error: unknown) {
       const message = getUnknownErrorMessage(error);
       throw new Error(
         `Nora voice is not configured on the server.\n\n${message}\n\n` +
@@ -989,7 +989,7 @@ class RealtimeAgentService {
           }
 
           this.ws = ws;
-        } catch (wsError) {
+        } catch (wsError: unknown) {
           const error = new Error(
             `Failed to create WebSocket connection: ${wsError instanceof Error ? wsError.message : String(wsError)}\n\n` +
               "This may indicate:\n" +
@@ -1224,8 +1224,8 @@ class RealtimeAgentService {
             if (ws && typeof ws.close === "function") {
               try {
                 ws.close();
-              } catch (_error) {
-                // Ignore close errors during timeout
+              } catch (err: unknown) {
+                console.debug('[realtimeAgent] ws.close() during timeout cleanup failed:', err instanceof Error ? err.message : String(err));
               }
             }
             reject(
@@ -1258,7 +1258,7 @@ class RealtimeAgentService {
             );
           }
         }, 15_000); // Increased from 10 to 15 seconds
-      } catch (error) {
+      } catch (error: unknown) {
         this.setConnectionState("error");
         reject(error);
       }
@@ -1318,8 +1318,8 @@ class RealtimeAgentService {
       if (typeof this.ws.send === "function") {
         this.ws.send(JSON.stringify(message));
       }
-    } catch (_error) {
-      // WebSocket might be in an invalid state
+    } catch (err: unknown) {
+      console.debug('[realtimeAgent] sendMessage failed (WebSocket invalid state):', err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -1358,7 +1358,8 @@ class RealtimeAgentService {
         type: "input_audio_buffer.append",
         audio: pcmData,
       });
-    } catch (_error) {
+    } catch (err: unknown) {
+      console.debug('[realtimeAgent] PCM conversion failed, sending audio as-is:', err instanceof Error ? err.message : String(err));
       // Fallback: send as-is
       this.sendMessage({
         type: "input_audio_buffer.append",
@@ -1471,11 +1472,15 @@ class RealtimeAgentService {
 
       switch (message.type) {
         case "session.created":
-          this.eventHandlers.onSessionCreated?.(message.session);
+          if (message.session !== undefined) {
+            this.eventHandlers.onSessionCreated?.(message.session);
+          }
           break;
 
         case "session.updated":
-          this.eventHandlers.onSessionUpdated?.(message.session);
+          if (message.session !== undefined) {
+            this.eventHandlers.onSessionUpdated?.(message.session);
+          }
           break;
 
         case "response.audio.delta":
@@ -1531,7 +1536,9 @@ class RealtimeAgentService {
           break;
 
         case "response.done":
-          this.eventHandlers.onResponseDone?.(message.response);
+          if (message.response !== undefined) {
+            this.eventHandlers.onResponseDone?.(message.response);
+          }
           break;
 
         case "input_audio_buffer.speech_started":
@@ -1555,22 +1562,28 @@ class RealtimeAgentService {
           break;
 
         case "conversation.item.created":
-          this.eventHandlers.onConversationItemCreated?.(message.item);
+          if (message.item !== undefined) {
+            this.eventHandlers.onConversationItemCreated?.(message.item);
+          }
           break;
 
         case "rate_limits.updated":
-          this.eventHandlers.onRateLimitsUpdated?.(message.rate_limits);
+          if (message.rate_limits !== undefined) {
+            this.eventHandlers.onRateLimitsUpdated?.(message.rate_limits);
+          }
           break;
 
         case "error":
-          this.eventHandlers.onError?.(message.error);
+          if (message.error !== undefined) {
+            this.eventHandlers.onError?.(message.error);
+          }
           break;
 
         default:
-        // Silently ignore unhandled message types
+          console.debug('[realtimeAgent] Unhandled WebSocket message type:', (message as { type?: string }).type);
       }
-    } catch (_error) {
-      // no-op
+    } catch (err: unknown) {
+      console.warn('[realtimeAgent] Failed to parse/handle WebSocket message:', err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -1616,8 +1629,8 @@ class RealtimeAgentService {
       if (!this.isPlayingAudio) {
         this.processAudioQueue();
       }
-    } catch (_error) {
-      // no-op
+    } catch (err: unknown) {
+      console.debug('[realtimeAgent] queueAudioChunk failed (non-critical):', err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -1698,7 +1711,8 @@ class RealtimeAgentService {
         await fileSystem.writeAsStringAsync(tempUri, base64Wav, {
           encoding: fileSystem.EncodingType.Base64,
         });
-      } catch (_error) {
+      } catch (err: unknown) {
+        console.debug('[realtimeAgent] Audio file write failed, falling back to data URI:', err instanceof Error ? err.message : String(err));
         // Fallback: try writing as data URI if file write fails
         const dataUri = `data:audio/wav;base64,${base64Wav}`;
         const { sound: fallbackSound } = await audio.Sound.createAsync(
@@ -1707,8 +1721,8 @@ class RealtimeAgentService {
         );
         fallbackSound.setOnPlaybackStatusUpdate((status: PlaybackStatus) => {
           if (status.didJustFinish) {
-            fallbackSound.unloadAsync().catch(() => {
-              // no-op
+            fallbackSound.unloadAsync().catch((err: unknown) => {
+              console.debug('[realtimeAgent] Fallback sound unload failed (best effort):', err instanceof Error ? err.message : String(err));
             });
             this.isPlayingAudio = false;
             this.processAudioQueue();
@@ -1727,12 +1741,12 @@ class RealtimeAgentService {
       // Clean up after playback and continue processing queue
       sound.setOnPlaybackStatusUpdate((status: PlaybackStatus) => {
         if (status.didJustFinish) {
-          sound.unloadAsync().catch(() => {
-            // no-op
+          sound.unloadAsync().catch((err: unknown) => {
+            console.debug('[realtimeAgent] Sound unload failed (best effort):', err instanceof Error ? err.message : String(err));
           });
           // Clean up temp file
-          fileSystem.deleteAsync(tempUri, { idempotent: true }).catch(() => {
-            // no-op
+          fileSystem.deleteAsync(tempUri, { idempotent: true }).catch((err: unknown) => {
+            console.debug('[realtimeAgent] Temp audio file delete failed (best effort):', err instanceof Error ? err.message : String(err));
           });
           this.isPlayingAudio = false;
           // Process next chunk in queue
@@ -1742,7 +1756,8 @@ class RealtimeAgentService {
 
       // Store reference to stop if needed
       this.currentSound = sound;
-    } catch (_error) {
+    } catch (err: unknown) {
+      console.warn('[realtimeAgent] Audio playback failed:', err instanceof Error ? err.message : String(err));
       this.isPlayingAudio = false;
       // Try to continue processing
       if (this.audioPlaybackQueue.length > 0) {
@@ -1842,7 +1857,7 @@ class RealtimeAgentService {
         // Chunks are word-aligned (pad to even)
         offset = dataEnd + (size % 2);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[realtimeAgent] WAV header parsing failed, using default 44-byte offset:', err);
     }
 
@@ -1866,8 +1881,9 @@ class RealtimeAgentService {
         await this.currentSound.stopAsync();
         await this.currentSound.unloadAsync();
         this.currentSound = null;
-      } catch (_error) {
-        // no-op
+      } catch (err: unknown) {
+        console.debug('[realtimeAgent] stopAudio cleanup failed (non-critical):', err instanceof Error ? err.message : String(err));
+        this.currentSound = null;
       }
     }
   }
@@ -1898,8 +1914,8 @@ class RealtimeAgentService {
           ) {
             this.ws.close(1000, "Client disconnect");
           }
-        } catch (_error) {
-          // Ignore close errors - connection may already be closed
+        } catch (err: unknown) {
+          console.debug('[realtimeAgent] ws.close() failed (connection may already be closed):', err instanceof Error ? err.message : String(err));
         }
       }
       this.ws = null;
@@ -1925,8 +1941,8 @@ class RealtimeAgentService {
         typeof this.ws.readyState !== "undefined" &&
         this.ws.readyState === WebSocket.OPEN
       );
-    } catch (_error) {
-      // WebSocket might be in an invalid state
+    } catch (err: unknown) {
+      console.debug('[realtimeAgent] isConnected check failed (WebSocket in invalid state):', err instanceof Error ? err.message : String(err));
       return false;
     }
   }

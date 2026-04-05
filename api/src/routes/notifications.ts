@@ -43,10 +43,11 @@ export const notificationRoutes = new Elysia({ prefix: "/api/notifications" })
     },
     {
       body: t.Object({
-        token: t.String(),
+        // Expo push tokens are typically ~88 characters; 200 gives ample room for future formats
+        token: t.String({ maxLength: 200 }),
         platform: t.Union([t.Literal("ios"), t.Literal("android"), t.Literal("web")]),
-        deviceId: t.Optional(t.String()),
-        deviceName: t.Optional(t.String()),
+        deviceId: t.Optional(t.String({ maxLength: 255 })),
+        deviceName: t.Optional(t.String({ maxLength: 255 })),
       }),
       detail: { tags: ["notifications"], summary: "Register Expo push token" },
     }
@@ -117,21 +118,30 @@ export const notificationRoutes = new Elysia({ prefix: "/api/notifications" })
         priority: body.notification.priority === "high" ? "high" : "default",
       }));
 
-      const expoResponse = await fetch("https://exp.host/--/api/v2/push/send", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          ...(process.env.EXPO_ACCESS_TOKEN
-            ? { Authorization: `Bearer ${process.env.EXPO_ACCESS_TOKEN}` }
-            : {}),
-        },
-        body: JSON.stringify(messages),
-      });
+      let expoResponse: Response;
+      try {
+        expoResponse = await fetch("https://exp.host/--/api/v2/push/send", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            ...(process.env.EXPO_ACCESS_TOKEN
+              ? { Authorization: `Bearer ${process.env.EXPO_ACCESS_TOKEN}` }
+              : {}),
+          },
+          body: JSON.stringify(messages),
+          signal: AbortSignal.timeout(15_000),
+        });
+      } catch (fetchErr: unknown) {
+        console.error("[notifications/send] Expo push fetch failed:", fetchErr instanceof Error ? fetchErr.message : String(fetchErr));
+        set.status = 504;
+        return { error: "Push notification service unreachable", sent: 0 };
+      }
 
       if (!expoResponse.ok) {
         console.error("[notifications/send] Expo error:", await expoResponse.text());
-        return { sent: 0 };
+        set.status = 502;
+        return { error: "Push notification service unavailable", sent: 0 };
       }
 
       return { sent: messages.length };
@@ -206,15 +216,22 @@ export const notificationRoutes = new Elysia({ prefix: "/api/notifications" })
         ],
       };
 
-      const sgRes = await fetch("https://api.sendgrid.com/v3/mail/send", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(sgPayload),
-        signal: AbortSignal.timeout(10_000),
-      });
+      let sgRes: Response;
+      try {
+        sgRes = await fetch("https://api.sendgrid.com/v3/mail/send", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(sgPayload),
+          signal: AbortSignal.timeout(10_000),
+        });
+      } catch (fetchErr: unknown) {
+        console.error("[notifications/email] SendGrid fetch failed:", fetchErr instanceof Error ? fetchErr.message : String(fetchErr));
+        set.status = 504;
+        return { error: "Email service unreachable. Please try again." };
+      }
 
       if (!sgRes.ok) {
         const errText = await sgRes.text();
@@ -232,9 +249,9 @@ export const notificationRoutes = new Elysia({ prefix: "/api/notifications" })
         subject: t.String({ minLength: 1, maxLength: 998 }),
         bodyHtml: t.String({ maxLength: 100_000 }),
         bodyText: t.Optional(t.String({ maxLength: 100_000 })),
-        channel: t.String(),
-        orgId: t.Optional(t.String()),
-        patientId: t.Optional(t.String()),
+        channel: t.String({ maxLength: 50 }),
+        orgId: t.Optional(t.String({ maxLength: 36 })),
+        patientId: t.Optional(t.String({ maxLength: 36 })),
       }),
       detail: { tags: ["notifications"], summary: "Send a transactional email via SendGrid" },
     }
@@ -394,10 +411,10 @@ export const notificationRoutes = new Elysia({ prefix: "/api/notifications" })
     {
       params: t.Object({ orgId: t.String() }),
       body: t.Object({
-        type: t.String(),
-        channel: t.String(),
-        titleTemplate: t.String(),
-        bodyTemplate: t.String(),
+        type: t.String({ maxLength: 100 }),
+        channel: t.String({ maxLength: 50 }),
+        titleTemplate: t.String({ maxLength: 500 }),
+        bodyTemplate: t.String({ maxLength: 2000 }),
         language: t.Union([t.Literal("en"), t.Literal("ar")]),
         isActive: t.Boolean(),
       }),

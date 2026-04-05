@@ -21,7 +21,7 @@ export default function Index() {
       } else {
         router.replace('/(tabs)');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[Index] Navigation error:', error);
     }
   }, [loading, user?.id, user?.onboardingCompleted, router]);

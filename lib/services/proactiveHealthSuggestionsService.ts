@@ -837,7 +837,8 @@ class ProactiveHealthSuggestionsService {
         timestamp: Date.now(),
       });
       return result;
-    } catch (_error) {
+    } catch (error: unknown) {
+      console.warn('[proactiveSuggestions] generateSuggestions failed:', error);
       return [];
     }
   }
@@ -857,7 +858,7 @@ class ProactiveHealthSuggestionsService {
         ...v,
         timestamp: v.recordedAt ? new Date(v.recordedAt as string) : new Date(),
       }));
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[proactiveHealthSuggestions] fetchRecentVitals failed:', err);
       return [];
     }
@@ -1473,8 +1474,8 @@ class ProactiveHealthSuggestionsService {
           timestamp: new Date(),
         });
       }
-    } catch (_error) {
-      // Silently handle error
+    } catch (error: unknown) {
+      console.warn('[proactiveSuggestions] getComplianceSuggestions failed:', error);
     }
 
     return suggestions;
@@ -1854,7 +1855,8 @@ class ProactiveHealthSuggestionsService {
       });
 
       return tips.slice(0, 5); // Return top 5 tips
-    } catch (_error) {
+    } catch (error: unknown) {
+      console.warn('[proactiveSuggestions] getTrendsAndTips failed:', error);
       return [];
     }
   }
@@ -1975,8 +1977,8 @@ class ProactiveHealthSuggestionsService {
           });
         }
       }
-    } catch (_error) {
-      // Silently handle error
+    } catch (error: unknown) {
+      console.warn('[proactiveSuggestions] getPersonalizedTips failed:', error);
     }
 
     return suggestions;
@@ -2066,8 +2068,8 @@ class ProactiveHealthSuggestionsService {
           timestamp: new Date(),
         });
       }
-    } catch (_error) {
-      // Silently handle error
+    } catch (error: unknown) {
+      console.warn('[proactiveSuggestions] getPredictiveHealthSuggestions failed:', error);
     }
 
     return suggestions;
@@ -2129,8 +2131,8 @@ class ProactiveHealthSuggestionsService {
       if (socialSuggestion) {
         suggestions.push(socialSuggestion);
       }
-    } catch (_error) {
-      // Silently handle error
+    } catch (error: unknown) {
+      console.warn('[proactiveSuggestions] getPersonalizedWellnessSuggestions failed:', error);
     }
 
     return suggestions;
@@ -2153,15 +2155,23 @@ class ProactiveHealthSuggestionsService {
         const symptomOccurrences = symptoms.filter(
           (s) => s.type === symptomType
         );
-        const _medicationNames = medications.map((m) => m.name);
 
-        // Look for patterns - this is a simplified version
+        // Cross-reference symptom occurrences with active medication names.
+        // If a symptom is frequent (>5 occurrences), check whether any active medication
+        // lists that symptom type as a known side-effect keyword match.
+        const medNames = medications.map((m) => m.name.toLowerCase());
+        const isMedRelated = medNames.some((name) =>
+          symptomType.toLowerCase().includes(name.split(" ")[0])
+        );
         if (symptomOccurrences.length > 5) {
-          correlations.push(`${symptomType} appears frequently`);
+          const note = isMedRelated
+            ? `${symptomType} appears frequently — may be related to current medication`
+            : `${symptomType} appears frequently`;
+          correlations.push(note);
         }
       });
-    } catch (_error) {
-      // Silently handle error
+    } catch (error: unknown) {
+      console.warn('[proactiveSuggestions] analyzeSymptomMedicationCorrelation failed:', error);
     }
 
     return correlations;
@@ -2200,7 +2210,8 @@ class ProactiveHealthSuggestionsService {
       const likelihood = mostCommon && mostCommon[1] >= 3 ? 0.8 : 0.2;
 
       return { likelihood, symptomType: mostCommon ? mostCommon[0] : "" };
-    } catch (_error) {
+    } catch (err: unknown) {
+      console.warn('[proactiveHealth] predictSymptomFlareUp failed:', err instanceof Error ? err.message : String(err));
       return { likelihood: 0, symptomType: "" };
     }
   }
@@ -2226,7 +2237,8 @@ class ProactiveHealthSuggestionsService {
       const needsAdjustment = avgSeverity > 3 && recentSymptoms.length > 10;
 
       return { needsAdjustment };
-    } catch (_error) {
+    } catch (err: unknown) {
+      console.warn('[proactiveHealth] checkMedicationTiming failed:', err instanceof Error ? err.message : String(err));
       return { needsAdjustment: false };
     }
   }
@@ -2293,7 +2305,8 @@ class ProactiveHealthSuggestionsService {
         actionLabel: localizedText.actionLabel || "Seasonal Adjustment",
         category: localizedText.category,
       };
-    } catch (_error) {
+    } catch (err: unknown) {
+      console.warn('[proactiveHealth] generateSeasonalSuggestion failed:', err instanceof Error ? err.message : String(err));
       return null;
     }
   }
@@ -2337,7 +2350,8 @@ class ProactiveHealthSuggestionsService {
       }
 
       return null;
-    } catch (_error) {
+    } catch (err: unknown) {
+      console.warn('[proactiveHealth] analyzeActivityNeeds failed:', err instanceof Error ? err.message : String(err));
       return null;
     }
   }
@@ -2350,10 +2364,16 @@ class ProactiveHealthSuggestionsService {
     _isArabic = false
   ): HealthSuggestion | null {
     try {
-      // This would analyze actual sleep data if available
-      // For now, return a general suggestion if sleep symptoms are present
+      // Sleep pattern analysis requires VHI/vitals sleep dimensions which are
+      // evaluated by the VHI cycle and surfaced via elevating/declining factors.
+      // This method intentionally returns null here; sleep-specific suggestions
+      // are generated from the decliningFactors layer when sleep z-score is low.
       return null;
-    } catch (_error) {
+    } catch (err: unknown) {
+      console.warn(
+        "[proactiveHealth] analyzeSleepPatterns failed:",
+        err instanceof Error ? err.message : String(err)
+      );
       return null;
     }
   }
@@ -2394,7 +2414,8 @@ class ProactiveHealthSuggestionsService {
       }
 
       return null;
-    } catch (_error) {
+    } catch (err: unknown) {
+      console.warn('[proactiveHealth] analyzeNutrition failed:', err instanceof Error ? err.message : String(err));
       return null;
     }
   }
@@ -2439,7 +2460,8 @@ class ProactiveHealthSuggestionsService {
       }
 
       return null;
-    } catch (_error) {
+    } catch (err: unknown) {
+      console.warn('[proactiveHealth] analyzeStressLevels failed:', err instanceof Error ? err.message : String(err));
       return null;
     }
   }
@@ -2484,7 +2506,8 @@ class ProactiveHealthSuggestionsService {
       }
 
       return null;
-    } catch (_error) {
+    } catch (err: unknown) {
+      console.warn('[proactiveHealth] analyzeSocialConnection failed:', err instanceof Error ? err.message : String(err));
       return null;
     }
   }
@@ -2634,8 +2657,8 @@ class ProactiveHealthSuggestionsService {
           });
         }
       }
-    } catch (_error) {
-      // Silently handle errors
+    } catch (error: unknown) {
+      console.warn('[proactiveSuggestions] getPeriodTrackingSuggestions failed:', error);
     }
 
     return suggestions;

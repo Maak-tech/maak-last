@@ -36,7 +36,7 @@ export async function getVitalAnomalySignals(
       ...item,
       timestamp: new Date(item.timestamp),
     }));
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error(
       "Failed to fetch vital anomaly signals",
       { userId, error },

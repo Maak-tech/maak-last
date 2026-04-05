@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native'
+import QRCode from 'react-native-qrcode-svg'
 import * as SecureStore from 'expo-secure-store'
 import { useAuth } from '@/contexts/AuthContext'
 import { hospitalService } from '@/lib/services/hospitalService'
@@ -12,51 +13,17 @@ interface CachedQR {
   expiresAt: string
 }
 
-function QRCodePlaceholder({ value }: { value: string }) {
-  // Simple visual QR placeholder — use a real QR library in production
-  // e.g. react-native-qrcode-svg
-  return (
-    <View style={qrStyles.container}>
-      <View style={qrStyles.qrBox}>
-        <Text style={qrStyles.qrToken} numberOfLines={3}>{value}</Text>
-        <Text style={qrStyles.qrNote}>Install react-native-qrcode-svg to render QR image</Text>
-      </View>
-    </View>
-  )
-}
-
-const qrStyles = StyleSheet.create({
-  container: { alignItems: 'center', justifyContent: 'center' },
-  qrBox: {
-    width: 200,
-    height: 200,
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-  },
-  qrToken: {
-    fontSize: 8,
-    color: '#111827',
-    fontFamily: 'monospace',
-    textAlign: 'center',
-  },
-  qrNote: {
-    fontSize: 9,
-    color: '#6b7280',
-    textAlign: 'center',
-    marginTop: 8,
-  },
-})
-
 function useCountdown(expiresAt: string | null): string {
   const [remaining, setRemaining] = useState('')
   useEffect(() => {
     if (!expiresAt) return
     function update() {
       const ms = new Date(expiresAt!).getTime() - Date.now()
-      if (ms <= 0) { setRemaining('Expired'); return }
+      if (ms <= 0) {
+        setRemaining('Expired')
+        clearInterval(id)  // Stop ticking once expired — no point continuing
+        return
+      }
       const h = Math.floor(ms / 3_600_000)
       const m = Math.floor((ms % 3_600_000) / 60_000)
       const s = Math.floor((ms % 60_000) / 1_000)
@@ -87,13 +54,18 @@ export default function QRScreen() {
       if (!forceRefresh) {
         const cached = await SecureStore.getItemAsync(QR_CACHE_KEY)
         if (cached) {
-          const parsed: CachedQR = JSON.parse(cached)
-          const expiresMs = new Date(parsed.expiresAt).getTime()
-          if (expiresMs - Date.now() > QR_EXPIRY_BUFFER_MS) {
-            setQrToken(parsed.token)
-            setExpiresAt(parsed.expiresAt)
-            setLoading(false)
-            return
+          // Guard against corrupted SecureStore data — a parse failure must not
+          // crash the screen; fall through to generate a fresh token instead.
+          let parsed: CachedQR | null = null
+          try { parsed = JSON.parse(cached) as CachedQR } catch { /* corrupted cache — ignore */ }
+          if (parsed?.token && parsed.expiresAt) {
+            const expiresMs = new Date(parsed.expiresAt).getTime()
+            if (expiresMs - Date.now() > QR_EXPIRY_BUFFER_MS) {
+              setQrToken(parsed.token)
+              setExpiresAt(parsed.expiresAt)
+              setLoading(false)
+              return
+            }
           }
         }
       }
@@ -102,7 +74,7 @@ export default function QRScreen() {
       setQrToken(data.token)
       setExpiresAt(data.expiresAt)
       await SecureStore.setItemAsync(QR_CACHE_KEY, JSON.stringify({ token: data.token, expiresAt: data.expiresAt }))
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to generate QR code')
     } finally {
       setLoading(false)
@@ -145,7 +117,12 @@ export default function QRScreen() {
         <View style={styles.qrContainer}>
           {/* Dim the QR visually when expired so staff cannot scan a stale token */}
           <View style={[styles.qrWrapper, isExpired && styles.qrWrapperExpired]}>
-            <QRCodePlaceholder value={qrToken} />
+            <QRCode
+              value={qrToken}
+              size={200}
+              color="#111827"
+              backgroundColor="#ffffff"
+            />
             {isExpired && (
               <View style={styles.expiredOverlay}>
                 <Text style={styles.expiredOverlayText}>Expired</Text>

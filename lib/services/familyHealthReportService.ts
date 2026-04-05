@@ -122,7 +122,8 @@ class FamilyHealthReportService {
         members: memberReports,
         summary,
       };
-    } catch (_error) {
+    } catch (error: unknown) {
+      console.error('[familyHealthReport] Failed to generate report:', error);
       throw new Error("Failed to generate family health report");
     }
   }
@@ -418,7 +419,7 @@ class FamilyHealthReportService {
       };
 
       return JSON.stringify(report, replacer, 2);
-    } catch (error) {
+    } catch (error: unknown) {
       throw new Error(
         `Failed to export report: ${error instanceof Error ? error.message : "Unknown error"}`
       );

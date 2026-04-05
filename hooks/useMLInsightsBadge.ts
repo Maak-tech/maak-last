@@ -47,7 +47,10 @@ export function useMLInsightsBadge(
       // 1. Unacknowledged anomalies
       const anomalySnap = await api.get<Record<string, unknown>[]>(
         `/api/health/anomalies?userId=${userId}&acknowledged=false&limit=50`
-      ).catch(() => null);
+      ).catch((err: unknown) => {
+        console.debug('[useMLInsightsBadge] Anomaly fetch failed:', err instanceof Error ? err.message : String(err));
+        return null;
+      });
       const anomalyDocs = anomalySnap ?? [];
       const criticalAnomalies = anomalyDocs.filter(
         (d) => d.severity === "critical"

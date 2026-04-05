@@ -5,6 +5,8 @@ import {
   View,
   Animated,
   StyleSheet,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native';
 import { Check } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -17,7 +19,7 @@ interface AnimatedCheckButtonProps {
   label?: string;
   size?: 'sm' | 'md' | 'lg';
   disabled?: boolean;
-  style?: any;
+  style?: StyleProp<ViewStyle>;
 }
 
 export const AnimatedCheckButton: React.FC<AnimatedCheckButtonProps> = ({

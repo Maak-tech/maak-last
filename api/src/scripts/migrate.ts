@@ -611,8 +611,8 @@ async function runMigration() {
     try {
       results[name] = await migrator();
       console.log(`  ✓ ${name}: ${results[name]} rows`);
-    } catch (err: any) {
-      errors[name] = err?.message ?? String(err);
+    } catch (err: unknown) {
+      errors[name] = err instanceof Error ? err.message : String(err);
       console.error(`  ✗ ${name}: ${errors[name]}`);
     }
   }

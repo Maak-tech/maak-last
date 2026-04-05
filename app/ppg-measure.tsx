@@ -45,12 +45,11 @@ export default function PPGMeasureScreen() {
         const visionCameraModule = require("@/components/PPGVitalMonitorVisionCamera");
         setPPGComponent(() => visionCameraModule.default);
         setUseRealCamera(true);
-      } catch (_error) {
-        // VisionCamera failed to load - NO FALLBACK ALLOWED
-        // Simulated data is scientifically invalid and completely disabled
-        // Show error to user - this is the ONLY acceptable outcome
-
-        // Set component to null - will show error message
+      } catch (error: unknown) {
+        // VisionCamera failed to load — NO FALLBACK ALLOWED
+        // Simulated data is scientifically invalid and completely disabled.
+        // Show error to user — this is the ONLY acceptable outcome.
+        console.error('[ppg-measure] VisionCamera module failed to load:', error);
         setPPGComponent(null);
         setUseRealCamera(false);
       } finally {

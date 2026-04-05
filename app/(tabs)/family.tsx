@@ -111,15 +111,15 @@ export default function FamilyScreen() {
             `/api/alerts/family?userIds=${userIds}`
           );
           setFamilyAlertCount((Array.isArray(familyAlerts) ? familyAlerts : []).filter((a) => !a.isAcknowledged).length);
-        } catch (err) { console.warn('[family] Failed to load family alert count:', err); }
+        } catch (err: unknown) { console.warn('[family] Failed to load family alert count:', err); }
       }
 
       // Fetch current user's VHI score via the typed vhiService
       try {
         const vhi = await vhiService.getMyVHI();
         setMyVhiScore(vhi?.data?.currentState?.overallScore ?? null);
-      } catch (err) { console.warn('[family] Failed to load VHI score:', err); }
-    } catch (error) {
+      } catch (err: unknown) { console.warn('[family] Failed to load VHI score:', err); }
+    } catch (error: unknown) {
       console.error('Error loading family members:', error);
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
@@ -216,7 +216,7 @@ export default function FamilyScreen() {
                     ? "دعوة للانضمام إلى معك"
                     : "Invitation to join Nuralix",
                 });
-              } catch (error) {
+              } catch (error: unknown) {
                 console.error('Error sharing:', error);
                 // Fallback to copying to clipboard
                 await Clipboard.setString(shareMessage);
@@ -247,7 +247,7 @@ export default function FamilyScreen() {
           },
         ]
       );
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error generating invite:', error);
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
@@ -326,7 +326,7 @@ export default function FamilyScreen() {
         isRTL ? 'تم الحفظ' : 'Saved',
         isRTL ? 'تم تحديث بيانات العضو بنجاح' : 'Member updated successfully'
       );
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating member:', error);
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
@@ -392,7 +392,7 @@ export default function FamilyScreen() {
                   ? 'تم إزالة العضو من العائلة بنجاح'
                   : 'Member removed from family successfully'
               );
-            } catch (error) {
+            } catch (error: unknown) {
               console.error('Error removing member:', error);
               Alert.alert(
                 isRTL ? 'خطأ' : 'Error',
@@ -508,7 +508,7 @@ export default function FamilyScreen() {
                     ? "دعوة للانضمام إلى معك"
                     : "Invitation to join Nuralix",
                 });
-              } catch (error) {
+              } catch (error: unknown) {
                 console.error('Error sharing:', error);
                 // Fallback to copying to clipboard
                 await Clipboard.setString(shareMessage);
@@ -551,7 +551,7 @@ export default function FamilyScreen() {
           },
         ]
       );
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error generating invitation code:', error);
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
@@ -602,13 +602,15 @@ export default function FamilyScreen() {
         );
 
         // Force reload the screen data to show the new family
-        setTimeout(async () => {
-          await loadFamilyMembers();
+        setTimeout(() => {
+          loadFamilyMembers().catch((err) =>
+            console.warn('[family] Deferred reload after join failed:', err)
+          );
         }, 1000);
       } else {
         Alert.alert(isRTL ? 'رمز غير صحيح' : 'Invalid Code', result.message);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error joining family:', error);
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',

@@ -290,7 +290,7 @@ export default function BillingScreen() {
         if (offeringsResult.status === "fulfilled" && offeringsResult.value) {
           setPackages(offeringsResult.value.current?.availablePackages ?? []);
         }
-      } catch (err) {
+      } catch (err: unknown) {
         Alert.alert(
           "Error",
           err instanceof Error ? err.message : "Failed to load."
@@ -316,7 +316,7 @@ export default function BillingScreen() {
       const updated = await revenueCatService.getSubscriptionStatus();
       if (isMountedRef.current) setSubscriptionStatus(updated);
       Alert.alert("Success", "Your subscription is now active.");
-    } catch (err) {
+    } catch (err: unknown) {
       if (err instanceof Error && err.message !== "Purchase was cancelled") {
         Alert.alert(
           "Purchase Failed",
@@ -335,7 +335,7 @@ export default function BillingScreen() {
       const updated = await revenueCatService.getSubscriptionStatus();
       if (isMountedRef.current) setSubscriptionStatus(updated);
       Alert.alert("Restored", "Your purchases have been restored.");
-    } catch (err) {
+    } catch (err: unknown) {
       Alert.alert(
         "Restore Failed",
         err instanceof Error ? err.message : "Unable to restore purchases."

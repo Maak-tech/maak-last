@@ -33,13 +33,14 @@ import {
   AlertCircle,
   CheckCircle,
 } from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
 import { healthDataService, VitalSigns, HealthDataSummary } from '@/lib/services/healthDataService';
 
 interface VitalCard {
   key: string;
   title: string;
   titleAr: string;
-  icon: any;
+  icon: LucideIcon;
   color: string;
   value: string;
   unit: string;
@@ -270,7 +271,7 @@ export default function VitalsScreen() {
         setSummary(summaryData);
         setLastSync(new Date());
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading vitals:', error);
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
@@ -314,7 +315,7 @@ export default function VitalsScreen() {
             : 'Please allow access to health data in Settings'
         );
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error enabling health data:', error);
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
@@ -330,7 +331,7 @@ export default function VitalsScreen() {
       setRefreshing(true);
       await healthDataService.syncHealthData();
       await loadVitalsData(true);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error syncing data:', error);
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',

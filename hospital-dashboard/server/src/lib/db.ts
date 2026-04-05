@@ -19,7 +19,7 @@ export const pool = new Pool({
 })
 
 pool.on('error', (err) => {
-  console.error('[DB] Unexpected pool error:', err.message)
+  console.error('[DB] Unexpected pool error:', err)
 })
 
 export async function query<T = Record<string, unknown>>(
