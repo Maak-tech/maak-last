@@ -72,6 +72,7 @@ export default function LabResultsScreen() {
 
   const [results, setResults] = useState<LabResult[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -96,16 +97,18 @@ export default function LabResultsScreen() {
   const loadResults = useCallback(async (isRefresh = false) => {
     if (!user) return;
     if (!isRefresh) setLoading(true);
+    setLoadError(null);
     try {
       const data = await api.get<LabResult[]>("/api/health/labs");
       setResults(Array.isArray(data) ? data : []);
     } catch (err: unknown) {
       console.warn('[lab-results] Failed to load lab results:', err);
+      setLoadError(isRTL ? 'تعذّر تحميل نتائج الفحوصات. اسحب للأسفل للمحاولة مجدداً.' : 'Failed to load lab results. Pull down to retry.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user]);
+  }, [user, isRTL]);
 
   useFocusEffect(useCallback(() => { loadResults(); }, [loadResults]));
 
@@ -127,12 +130,20 @@ export default function LabResultsScreen() {
       Alert.alert(isRTL ? "مطلوب" : "Required", isRTL ? "أدخل تاريخ الفحص (YYYY-MM-DD)" : "Enter test date (YYYY-MM-DD)");
       return;
     }
+    const parsedDate = new Date(testDate);
+    if (Number.isNaN(parsedDate.getTime())) {
+      Alert.alert(
+        isRTL ? "تاريخ غير صالح" : "Invalid Date",
+        isRTL ? "يرجى إدخال تاريخ بالصيغة YYYY-MM-DD" : "Please enter a date in YYYY-MM-DD format"
+      );
+      return;
+    }
     setSaving(true);
     try {
       await api.post("/api/health/labs", {
         testName: testName.trim(),
         testType,
-        testDate: new Date(testDate).toISOString(),
+        testDate: parsedDate.toISOString(),
         orderedBy: orderedBy.trim() || undefined,
         facility: facility.trim() || undefined,
         notes: notes.trim() || undefined,
@@ -179,6 +190,20 @@ export default function LabResultsScreen() {
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator color={theme.colors.primary.main} size="large" />
+        </View>
+      ) : loadError ? (
+        <View style={styles.center}>
+          <Text style={{ color: theme.colors.accent.error, textAlign: 'center', paddingHorizontal: 32, marginBottom: 16 }}>
+            {loadError}
+          </Text>
+          <TouchableOpacity
+            onPress={() => loadResults()}
+            style={{ backgroundColor: theme.colors.primary.main, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 8 }}
+          >
+            <Text style={{ color: '#FFFFFF', fontFamily: 'Inter-SemiBold', fontSize: 14 }}>
+              {isRTL ? 'إعادة المحاولة' : 'Retry'}
+            </Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <ScrollView

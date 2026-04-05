@@ -1,7 +1,8 @@
 'use client'
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { api, clearToken, type PreviewData, type TwinData } from '@/lib/api'
+import { useAutoLogout } from '@/lib/useAutoLogout'
 import CameraCapture from './components/CameraCapture'
 import QRScanner from './components/QRScanner'
 import ManualSearch from './components/ManualSearch'
@@ -17,30 +18,17 @@ type DashboardState =
 
 interface StaffInfo { id: string; name: string; role: string; email: string }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
-
-async function fetchTwinBySession(sessionToken: string): Promise<TwinData> {
-  const token = typeof window !== 'undefined' ? sessionStorage.getItem('hospital_token') : null
-  const res = await fetch(`${API_URL}/patient/by-session/${sessionToken}`, {
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    signal: AbortSignal.timeout(15_000), // Server must respond within 15 s
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }))
-    throw new Error((err as { error?: string }).error ?? 'Failed to load twin')
-  }
-  return res.json() as Promise<TwinData>
-}
 
 export default function DashboardPage() {
   const router = useRouter()
+  // HIPAA §164.312(a)(1) — automatic logoff after 15 minutes of inactivity
+  useAutoLogout()
   const [tab, setTab] = useState<IdentifyTab>('camera')
   const [state, setState] = useState<DashboardState>({ phase: 'idle' })
   const [identifyError, setIdentifyError] = useState<string | null>(null)
   const [identifyLoading, setIdentifyLoading] = useState(false)
   const [staff, setStaff] = useState<StaffInfo | null>(null)
+  const confirmingRef = useRef(false)
 
   useEffect(() => {
     const stored = sessionStorage.getItem('hospital_staff')
@@ -75,12 +63,18 @@ export default function DashboardPage() {
       const result = await api.recognize(formData)
       if (!result.matched || !result.sessionToken) {
         setIdentifyError(result.fallback ?? 'Face not recognized. Try QR or manual search.')
-        setIdentifyLoading(false)
         return
       }
+      // loadPreview manages its own setIdentifyLoading(true/false) internally,
+      // but we still need the outer finally to cover the early-return path above.
       await loadPreview(result.sessionToken)
     } catch (err: unknown) {
       setIdentifyError(err instanceof Error ? err.message : 'Recognition failed')
+    } finally {
+      // Always clear the outer loading flag. loadPreview's finally will have
+      // already cleared it on the success/error path through loadPreview, but
+      // calling setIdentifyLoading(false) a second time is idempotent and
+      // ensures we cover the early-return (no-match) path above.
       setIdentifyLoading(false)
     }
   }, [loadPreview])
@@ -91,21 +85,30 @@ export default function DashboardPage() {
 
   const handleConfirmed = useCallback(async () => {
     if (state.phase !== 'preview') return
+    // Guard against double-tap / rapid re-invocation before state re-renders
+    if (confirmingRef.current) return
+    confirmingRef.current = true
     const { sessionToken, preview } = state
     setState({ phase: 'loading_twin', sessionToken, preview })
     setIdentifyError(null)
     try {
-      const twinData = await fetchTwinBySession(sessionToken)
+      const twinData = await api.getTwinBySession(sessionToken)
       setState({ phase: 'twin', sessionToken, data: twinData })
     } catch (err: unknown) {
       setIdentifyError(err instanceof Error ? err.message : 'Failed to load health data')
       setState({ phase: 'preview', sessionToken, preview: { ...preview, confirmed: true } })
+    } finally {
+      confirmingRef.current = false
     }
   }, [state])
 
   const reset = useCallback(() => {
     setState({ phase: 'idle' })
     setIdentifyError(null)
+    // Also clear the loading flag — if the user hits Reset while a recognition
+    // request is still in-flight, identifyLoading would otherwise stay true and
+    // the UI would be permanently stuck showing the spinner.
+    setIdentifyLoading(false)
   }, [])
 
   async function handleLogout() {

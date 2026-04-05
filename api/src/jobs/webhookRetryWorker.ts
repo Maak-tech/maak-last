@@ -15,11 +15,42 @@
  */
 
 import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import { and, eq, lte, lt, inArray } from "drizzle-orm";
 import { db } from "../db";
 import { webhookDeliveries, webhookEndpoints } from "../db/schema";
 
 const MAX_ATTEMPTS = 5;
+
+// ── Concurrency guard ─────────────────────────────────────────────────────────
+const LOCK_FILE = path.join("/tmp", "webhook_retry.lock");
+const LOCK_STALE_MS = 8 * 60 * 1000; // 8 minutes (generous for a 5-min cron)
+
+function acquireLock(): boolean {
+  try {
+    if (fs.existsSync(LOCK_FILE)) {
+      const stat = fs.statSync(LOCK_FILE);
+      if (Date.now() - stat.mtimeMs < LOCK_STALE_MS) {
+        console.warn("[webhookRetry] Already running. Skipping.");
+        return false;
+      }
+    }
+    fs.writeFileSync(LOCK_FILE, String(process.pid));
+    return true;
+  } catch (err: unknown) {
+    console.warn("[webhookRetry] Failed to acquire lock — proceeding without guard:", err);
+    return true;
+  }
+}
+
+function releaseLock(): void {
+  try {
+    if (fs.existsSync(LOCK_FILE)) fs.unlinkSync(LOCK_FILE);
+  } catch (err: unknown) {
+    console.warn("[webhookRetry] Failed to release lock:", err);
+  }
+}
 
 // Delay (ms) before attempt N (1-indexed)
 const RETRY_DELAYS_MS = [
@@ -31,6 +62,7 @@ const RETRY_DELAYS_MS = [
 ];
 
 async function runWebhookRetryWorker() {
+  if (!acquireLock()) return;
   console.log(`[webhookRetry] Starting at ${new Date().toISOString()}`);
 
   // Fetch all failed deliveries that are due for a retry
@@ -40,6 +72,7 @@ async function runWebhookRetryWorker() {
       endpointId: webhookDeliveries.endpointId,
       event: webhookDeliveries.event,
       payload: webhookDeliveries.payload,
+      canonicalBody: webhookDeliveries.canonicalBody,
       attempts: webhookDeliveries.attempts,
     })
     .from(webhookDeliveries)
@@ -76,6 +109,7 @@ async function runWebhookRetryWorker() {
   const succeeded = results.filter((r) => r.status === "fulfilled").length;
   const failed = results.length - succeeded;
   console.log(`[webhookRetry] Done. Re-delivered: ${succeeded}, Still failing: ${failed}`);
+  releaseLock();
 }
 
 // ── Single delivery retry ─────────────────────────────────────────────────────
@@ -111,7 +145,12 @@ async function retryDelivery(
   }
 
   const attemptNumber = (delivery.attempts ?? 1) + 1;
-  const body = JSON.stringify(delivery.payload);
+  // Use the stored canonical body string to compute the HMAC.
+  // Re-serializing delivery.payload from JSONB could produce a different key
+  // order than the original JSON.stringify(), causing signature mismatch on
+  // the receiving endpoint. Fall back to re-serializing only if the field is
+  // missing (rows created before this column was added).
+  const body = delivery.canonicalBody ?? JSON.stringify(delivery.payload);
   const sig = crypto
     .createHmac("sha256", endpoint.secret)
     .update(body)
@@ -171,7 +210,9 @@ async function retryDelivery(
     return;
   }
 
-  const delayMs = RETRY_DELAYS_MS[attemptNumber] ?? 2 * 3600_000;
+  // RETRY_DELAYS_MS is 0-indexed by attempt number (attempt 1 = index 0, attempt 2 = index 1, ...).
+  // attemptNumber is 1-based (e.g. 2 for the first retry), so subtract 1 for the correct delay.
+  const delayMs = RETRY_DELAYS_MS[attemptNumber - 1] ?? 2 * 3600_000;
   const nextRetryAt = new Date(Date.now() + delayMs);
 
   await db
@@ -219,8 +260,9 @@ async function maybeDeactivateEndpoint(endpointId: string): Promise<void> {
 if (import.meta.main) {
   runWebhookRetryWorker()
     .then(() => process.exit(0))
-    .catch((err) => {
+    .catch((err: unknown) => {
       console.error("[webhookRetry] Fatal error:", err);
+      releaseLock();
       process.exit(1);
     });
 }

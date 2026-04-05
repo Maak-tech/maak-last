@@ -147,7 +147,7 @@ const getHistorySeverityLabel = (
 };
 
 const getAllergySeverityColor = (severity: Allergy["severity"]): string => {
-  if (severity === "severe-life-threatening") {
+  if (severity === "life_threatening") {
     return "#7F1D1D";
   }
   if (severity === "severe") {
@@ -163,7 +163,7 @@ const getAllergySeverityLabel = (
   severity: Allergy["severity"],
   isRTL: boolean
 ) => {
-  if (severity === "severe-life-threatening") {
+  if (severity === "life_threatening") {
     return isRTL ? "خطير جداً" : "Life-threatening";
   }
   if (severity === "severe") {
@@ -234,6 +234,12 @@ export default function FamilyMemberHealthView() {
       }
     >
   >({});
+
+  // Prevent setState calls after the component unmounts — guards the background vitals fetch.
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    return () => { isMountedRef.current = false; };
+  }, []);
 
   const loadMemberHealthData = useCallback(
     // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Data loading flow will be extracted into dedicated hooks.
@@ -341,7 +347,7 @@ export default function FamilyMemberHealthView() {
                 waterIntake: vs.waterIntake,
                 timestamp: vs.lastUpdated || new Date(),
               };
-              setVitals(bgVitals);
+              if (isMountedRef.current) setVitals(bgVitals);
             }
           } catch (err: unknown) {
             console.warn('[memberId] Health context vitals unavailable, falling back:', err);
@@ -353,7 +359,7 @@ export default function FamilyMemberHealthView() {
               const latestVitals = await healthDataService.getLatestVitalsFromFirestore(memberId);
               if (latestVitals) {
                 bgVitals = latestVitals;
-                setVitals(bgVitals);
+                if (isMountedRef.current) setVitals(bgVitals);
               }
             } catch (err: unknown) {
               console.warn('[memberId] Firestore vitals fallback failed:', err);
@@ -364,7 +370,7 @@ export default function FamilyMemberHealthView() {
           if (memberId === user?.id && bgVitals) {
             try {
               const liveVitals = await healthDataService.getLatestVitalsFromProviders();
-              if (liveVitals?.steps !== undefined && liveVitals.steps !== null) {
+              if (liveVitals?.steps !== undefined && liveVitals.steps !== null && isMountedRef.current) {
                 setVitals({
                   ...bgVitals,
                   steps: liveVitals.steps,

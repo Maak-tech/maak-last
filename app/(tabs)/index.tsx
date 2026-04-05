@@ -9,6 +9,7 @@ import {
   Alert,
   Linking,
   Modal,
+  Platform,
   StyleProp,
   TextStyle,
   ViewStyle,
@@ -37,7 +38,7 @@ import { symptomService } from '@/lib/services/symptomService';
 import { medicationService } from '@/lib/services/medicationService';
 import { alertService } from '@/lib/services/alertService';
 import { userService } from '@/lib/services/userService';
-import { Symptom, Medication, User as UserType } from '@/types';
+import { Symptom, Medication, User as UserType, EmergencyAlert } from '@/types';
 import FamilyDataFilter, {
   FilterOption,
 } from '@/app/components/FamilyDataFilter';
@@ -71,6 +72,7 @@ export default function DashboardScreen() {
     type: 'personal',
     label: '',
   });
+  const [loadError, setLoadError] = useState(false);
 
   const insets = useSafeAreaInsets();
   const wavyHeaderTopPadding = 16;
@@ -89,7 +91,7 @@ export default function DashboardScreen() {
   };
 
   const [loadingAlerts, setLoadingAlerts] = useState(false);
-  const [userAlerts, setUserAlerts] = useState<any[]>([]);
+  const [userAlerts, setUserAlerts] = useState<EmergencyAlert[]>([]);
 
   const isRTL = i18n.language === 'ar';
   const isAdmin = user?.role === 'admin';
@@ -582,6 +584,7 @@ export default function DashboardScreen() {
 
   const loadDashboardData = async () => {
     if (!user) return;
+    setLoadError(false);
 
     try {
       setLoading(true);
@@ -714,17 +717,14 @@ export default function DashboardScreen() {
       }
     } catch (error: unknown) {
       console.error('Error loading dashboard data:', error);
+      setLoadError(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  useEffect(() => {
-    loadDashboardData();
-  }, [user, selectedFilter]);
-
-  // Refresh data when tab is focused
+  // Refresh data when tab is focused (also fires on initial mount)
   useFocusEffect(
     useCallback(() => {
       loadDashboardData();
@@ -761,7 +761,7 @@ export default function DashboardScreen() {
   };
 
   const handleSOS = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     
     Alert.alert(
       isRTL ? 'طوارئ' : 'Emergency',
@@ -970,6 +970,18 @@ export default function DashboardScreen() {
 
           {/* VHI Context Banner — shown when composite risk > 60 */}
           <VHIContextBanner />
+
+          {/* Dashboard load error — shown when initial data fetch fails */}
+          {loadError && (
+            <View style={{ backgroundColor: '#FEF2F2', margin: 16, padding: 12, borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={{ color: '#DC2626', flex: 1, fontSize: 14 }}>
+                {isRTL ? 'فشل تحميل البيانات' : 'Failed to load data'}
+              </Text>
+              <TouchableOpacity onPress={loadDashboardData} style={{ marginLeft: 12, backgroundColor: '#DC2626', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 }}>
+                <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>{isRTL ? 'إعادة' : 'Retry'}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Vital anomaly monitoring — only shown when there are active alerts */}
           <View style={styles.section as ViewStyle}>

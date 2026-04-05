@@ -13,10 +13,14 @@ export class CompreFaceProvider extends BiometricProvider {
   constructor() {
     super()
     const apiKey = process.env.COMPREFACE_API_KEY
+    const baseUrl = process.env.COMPREFACE_URL
     if (!apiKey) {
-      console.warn('[CompreFace] COMPREFACE_API_KEY is not set — biometric recognition will fail.')
+      console.warn('[CompreFace] COMPREFACE_API_KEY is not set — biometric recognition will fail at runtime.')
     }
-    this.baseUrl = process.env.COMPREFACE_URL ?? 'http://localhost:8000'
+    if (!baseUrl) {
+      console.warn('[CompreFace] COMPREFACE_URL is not set — falling back to http://localhost:8000. Set COMPREFACE_URL in .env for production.')
+    }
+    this.baseUrl = baseUrl ?? 'http://localhost:8000'
     this.apiKey = apiKey ?? ''
   }
 

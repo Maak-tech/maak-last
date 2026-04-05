@@ -25,7 +25,6 @@ export default function VHIContextBanner() {
 
   const [compositeRisk, setCompositeRisk] = useState<number | null>(null);
   const [topDeclining, setTopDeclining] = useState<string | null>(null);
-  const [trajectory, setTrajectory] = useState<string | null>(null);
 
   useEffect(() => {
     api
@@ -35,9 +34,6 @@ export default function VHIContextBanner() {
         const vhi = res.data;
         setCompositeRisk(vhi.currentState.riskScores.compositeRisk);
         setTopDeclining(vhi.decliningFactors[0]?.factor ?? null);
-        // Infer trajectory from top declining factor impact
-        const topImpact = vhi.decliningFactors[0]?.impact;
-        setTrajectory(topImpact === "high" ? "worsening" : topImpact === "medium" ? "stable" : null);
       })
       .catch((err) => {
         // Silently ignore — banner is optional

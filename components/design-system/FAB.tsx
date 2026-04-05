@@ -1,5 +1,5 @@
 import { Plus } from "lucide-react-native";
-import { StyleSheet, TouchableOpacity, type TouchableOpacityProps } from "react-native";
+import { I18nManager, StyleSheet, TouchableOpacity, type TouchableOpacityProps } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
 
 interface FABProps extends TouchableOpacityProps {
@@ -14,6 +14,7 @@ export default function FAB({ icon, size = 56, style, ...props }: FABProps) {
     <TouchableOpacity
       style={[
         styles.fab,
+        I18nManager.isRTL ? styles.fabRTL : styles.fabLTR,
         {
           width: size,
           height: size,
@@ -33,7 +34,6 @@ const styles = StyleSheet.create({
   fab: {
     position: "absolute",
     bottom: 24,
-    right: 20,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
@@ -41,5 +41,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 6,
+  },
+  fabLTR: {
+    right: 20,
+  },
+  fabRTL: {
+    left: 20,
   },
 });

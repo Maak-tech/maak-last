@@ -119,16 +119,12 @@ export default function MedicationsScreen() {
     }
   };
 
-  // Refresh data when tab is focused
+  // Refresh data when tab is focused (handles initial mount + focus events)
   useFocusEffect(
     useCallback(() => {
       loadMedications();
     }, [user, selectedFilter])
   );
-
-  useEffect(() => {
-    loadMedications();
-  }, [user, selectedFilter]);
 
   const handleFilterChange = (filter: FilterOption) => {
     setSelectedFilter(filter);

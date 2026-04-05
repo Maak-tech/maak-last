@@ -41,6 +41,12 @@ export default function RegisterScreen() {
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setErrors({ email: isRTL ? 'يرجى إدخال بريد إلكتروني صالح' : 'Please enter a valid email address' });
+      return;
+    }
+
     if (password !== confirmPassword) {
       setErrors({
         confirmPassword: 'Passwords do not match',

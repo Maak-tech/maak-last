@@ -182,6 +182,10 @@ export const webhookRoutes = new Elysia({ prefix: "/webhooks" })
       const featureId = PRODUCT_TO_FEATURE[productId];
       const planName = PRODUCT_TO_PLAN[productId] ?? "individual";
 
+      if (!featureId) {
+        console.warn(`[webhooks/revenuecat] Unknown productId "${productId}" — no Autumn feature mapping; skipping entitlement sync`);
+      }
+
       // 3. Sync to Autumn
       if (featureId) {
         if (RC_GRANT_EVENTS.has(eventType)) {

@@ -69,7 +69,9 @@ export const familyInvitations = pgTable("family_invitations", {
   invitedUserName: text("invited_user_name"),
   invitedUserRelation: text("invited_user_relation"),
   status: text("status").default("pending"), // 'pending' | 'used' | 'expired'
-  expiresAt: timestamp("expires_at"),
+  // notNull: an invitation without an expiry would be permanently valid —
+  // every issued code must have an explicit TTL enforced at the DB level.
+  expiresAt: timestamp("expires_at").notNull(),
   usedAt: timestamp("used_at"),
   usedBy: text("used_by"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -313,7 +315,7 @@ export const cycleDailyEntries = pgTable("cycle_daily_entries", {
   symptoms: text("symptoms").array(),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at"),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // ── Genetics ───────────────────────────────────────────────────────────────────
@@ -570,10 +572,13 @@ export const patientRosters = pgTable(
 export const apiKeys = pgTable("api_keys", {
   id: text("id").primaryKey(),
   orgId: text("org_id").notNull(),
-  keyHash: text("key_hash").notNull(), // hashed, never stored plain
+  keyHash: text("key_hash").notNull().unique(), // hashed, never stored plain; unique for O(1) lookup
   keyPrefix: text("key_prefix").notNull(), // e.g. 'nk_live_abc123...' for display
   name: text("name"),
   scopes: text("scopes").array(), // ['vhi:read', 'fhir:export', 'webhook:write']
+  // Per-key rate limit (requests per minute). Defaults to 100.
+  // The ApiKey type references this field — it must exist in the schema.
+  rateLimit: integer("rate_limit").default(100).notNull(),
   isActive: boolean("is_active").default(true),
   lastUsedAt: timestamp("last_used_at"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -586,6 +591,9 @@ export const webhookEndpoints = pgTable("webhook_endpoints", {
   events: text("events").array(), // ['vhi.risk_elevated', 'alert.fall_detected', 'medication.missed']
   secret: text("secret").notNull(), // for HMAC webhook signature verification
   isActive: boolean("is_active").default(true),
+  // Tracks consecutive delivery failures for circuit-breaker logic.
+  // The WebhookEndpoint type references this field — it must exist in the schema.
+  failureCount: integer("failure_count").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -594,6 +602,11 @@ export const webhookDeliveries = pgTable("webhook_deliveries", {
   endpointId: text("endpoint_id").notNull(),
   event: text("event").notNull(),
   payload: jsonb("payload"),
+  // Canonical body string used to compute HMAC signature.
+  // Storing the exact JSON string used for the original delivery ensures that
+  // retries sign the same bytes — re-serializing from JSONB can produce a
+  // different key order which would invalidate the signature.
+  canonicalBody: text("canonical_body"),
   status: text("status").default("pending"), // 'pending' | 'delivered' | 'failed'
   attempts: integer("attempts").default(0),
   lastError: text("last_error"),

@@ -858,14 +858,14 @@ class NoraActionsService {
 
       const { allergyService } = await import("./allergyService");
 
-      // Map severity: "life-threatening" -> "severe-life-threatening" to match Allergy type
+      // Map severity: "life-threatening" -> "life_threatening" to match Allergy type
       const mappedSeverity:
         | "mild"
         | "moderate"
         | "severe"
-        | "severe-life-threatening" =
+        | "life_threatening" =
         severity === "life-threatening"
-          ? "severe-life-threatening"
+          ? "life_threatening"
           : ((severity || "moderate") as "mild" | "moderate" | "severe");
 
       const allergyData = {

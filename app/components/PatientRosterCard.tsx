@@ -42,7 +42,7 @@ export default function PatientRosterCard({ roster, snapshot, patientDisplayName
   const border = isDark ? "#334155" : "#E2E8F0";
   const riskLevel = roster.riskLevel ?? snapshot?.riskLevel ?? "normal";
   const riskColor = RISK_COLORS[riskLevel];
-  const displayName = patientDisplayName ?? roster.displayName ?? roster.userId;
+  const displayName = patientDisplayName ?? roster.displayName ?? "Unknown Patient";
   const vhiScore = snapshot?.vhiScore;
   const adherence = snapshot?.adherence ?? roster.adherence;
 

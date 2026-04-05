@@ -1,0 +1,8 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/(auth)/login/page": "/login",
+  "/audit/page": "/audit",
+  "/enroll/page": "/enroll",
+  "/page": "/",
+  "/dashboard/page": "/dashboard"
+}

@@ -171,7 +171,8 @@ const appendCatalogFallbackMetrics = (
  * Fetch metrics from all available providers (including all available metrics)
  */
 const fetchMetricsForExport = async (
-  options: ExportOptions
+  options: ExportOptions,
+  userId?: string
 ): Promise<NormalizedMetricPayload[]> => {
   const { startDate, endDate } = getExportDateRange(options);
 
@@ -184,7 +185,7 @@ const fetchMetricsForExport = async (
 
   for (const provider of providersToTry) {
     try {
-      const connection = await getProviderConnection("", provider);
+      const connection = userId ? await getProviderConnection(userId, provider) : null;
       const availableMetrics = getAvailableMetricsForProvider(provider);
       if (availableMetrics.length === 0) {
         continue;
@@ -235,8 +236,8 @@ const fetchAllHealthData = async (
 
   const userId = options.userId || (await authClient.getSession())?.data?.user?.id;
 
-  // Fetch vitals metrics
-  const vitals = await fetchMetricsForExport(options);
+  // Fetch vitals metrics (pass userId so provider connections are looked up correctly)
+  const vitals = await fetchMetricsForExport(options, userId);
 
   // Fetch other health data if userId is available
   let symptoms: Symptom[] = [];

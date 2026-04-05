@@ -206,7 +206,17 @@ export default function LoginScreen() {
               )}
             </View>
 
-            <TouchableOpacity style={styles.forgotButton}>
+            <TouchableOpacity
+              style={styles.forgotButton}
+              onPress={() =>
+                Alert.alert(
+                  isRTL ? 'إعادة تعيين كلمة المرور' : 'Password Reset',
+                  isRTL
+                    ? 'يرجى التواصل مع الدعم على support@maak.health لإعادة تعيين كلمة المرور.'
+                    : 'Please contact support at support@maak.health to reset your password.'
+                )
+              }
+            >
               <Text style={[styles.forgotText, isRTL && styles.rtlText]}>
                 {t('forgotPassword')}
               </Text>

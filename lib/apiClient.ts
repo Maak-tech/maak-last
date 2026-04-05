@@ -8,6 +8,14 @@
 
 const BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000").replace(/\/$/, "");
 
+// Optional global 401 handler — set by AuthContext to trigger logout when
+// the session expires mid-use. Without this, stale sessions cause silent API
+// failures that leave the user stuck on a broken screen.
+let _onUnauthorized: (() => void) | null = null;
+export function setUnauthorizedHandler(handler: () => void) {
+  _onUnauthorized = handler;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -53,6 +61,13 @@ async function request<T>(
     const message =
       (errorBody as { error?: string })?.error ??
       `Request failed: ${res.status} ${res.statusText}`;
+
+    // Trigger global logout handler on 401 so the app navigates to the login
+    // screen instead of silently failing with a broken UI.
+    if (res.status === 401 && _onUnauthorized) {
+      _onUnauthorized();
+    }
+
     throw new ApiError(message, res.status, errorBody);
   }
 

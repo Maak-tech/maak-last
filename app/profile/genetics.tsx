@@ -88,7 +88,6 @@ export default function GeneticsScreen() {
   const [profile, setProfile] = useState<GeneticsProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [pollingInterval, setPollingInterval] = useState<ReturnType<typeof setInterval> | null>(null);
   const [showAllPrs, setShowAllPrs] = useState(false);
 
   // ── Data loading ─────────────────────────────────────────────────────────
@@ -111,34 +110,44 @@ export default function GeneticsScreen() {
 
   useEffect(() => {
     let mounted = true;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
     (async () => {
       setLoading(true);
-      const keepPolling = await loadProfile();
-      if (mounted) {
-        setLoading(false);
-        if (keepPolling) {
-          const id = setInterval(() => {
-            loadProfile()
-              .then((stillPolling) => {
-                if (!stillPolling) {
-                  clearInterval(id);
-                  setPollingInterval(null);
-                }
-              })
-              .catch((err) => {
-                console.warn('[genetics] Polling loadProfile failed:', err);
-                clearInterval(id);
-                setPollingInterval(null);
-              });
-          }, 5000);
-          setPollingInterval(id);
+      try {
+        const keepPolling = await loadProfile();
+        if (mounted) {
+          if (keepPolling) {
+            intervalId = setInterval(() => {
+              loadProfile()
+                .then((stillPolling) => {
+                  if (!stillPolling && intervalId) {
+                    clearInterval(intervalId);
+                    intervalId = null;
+                  }
+                })
+                .catch((err) => {
+                  console.warn('[genetics] Polling loadProfile failed:', err);
+                  if (intervalId) {
+                    clearInterval(intervalId);
+                    intervalId = null;
+                  }
+                });
+            }, 5000);
+          }
         }
+      } catch (err: unknown) {
+        // loadProfile() catches internally and returns false — this guard handles any
+        // unexpected throw (e.g. from setGeneticsProfile itself).
+        console.warn('[genetics] Initial load threw unexpectedly:', err);
+      } finally {
+        if (mounted) setLoading(false);
       }
     })();
 
     return () => {
       mounted = false;
-      if (pollingInterval) clearInterval(pollingInterval);
+      if (intervalId) clearInterval(intervalId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

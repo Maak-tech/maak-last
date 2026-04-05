@@ -23,6 +23,29 @@ import { users, familyMembers, orgMembers, organizations } from "../db/schema";
 export const userRoutes = new Elysia({ prefix: "/api/user" })
   .use(requireAuth)
 
+  // ── GET /me — lightweight identity endpoint used by the hospital server to
+  //             validate patient better-auth sessions. Returns { id } only.
+  //             The hospital calls MAIN_API_URL/api/user/me with the patient's
+  //             Bearer token; a 200 with a valid id confirms the session.
+  .get(
+    "/me",
+    async ({ db, userId, set }) => {
+      const [user] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!user) {
+        set.status = 404;
+        return { error: "User not found" };
+      }
+
+      return { id: user.id };
+    },
+    { detail: { tags: ["user"], summary: "Get current user id (lightweight session validation endpoint)" } }
+  )
+
   // ── Profile ──────────────────────────────────────────────────────────────────
 
   .get(
@@ -61,7 +84,7 @@ export const userRoutes = new Elysia({ prefix: "/api/user" })
 
   .patch(
     "/profile",
-    async ({ db, userId, body }) => {
+    async ({ db, userId, body, set }) => {
       const updateData: Partial<typeof users.$inferInsert> = {};
 
       if (body.name !== undefined) updateData.name = body.name;
@@ -69,6 +92,7 @@ export const userRoutes = new Elysia({ prefix: "/api/user" })
       if (body.dateOfBirth !== undefined) {
         const parsed = new Date(body.dateOfBirth);
         if (isNaN(parsed.getTime())) {
+          set.status = 400;
           return { error: "Invalid dateOfBirth value" };
         }
         updateData.dateOfBirth = parsed;
@@ -508,10 +532,15 @@ export const usersRoutes = new Elysia({ prefix: "/api/users" })
       const prefsUpdates: Record<string, unknown> = {};
       if (body.firstName !== undefined) prefsUpdates.firstName = body.firstName;
       if (body.lastName !== undefined) prefsUpdates.lastName = body.lastName;
-      if (body.role !== undefined) prefsUpdates.role = body.role;
+      // Block self-role-update: a user cannot elevate their own role.
+      // Only an admin updating a DIFFERENT user may change the role field.
+      // (Admin path uses a separate admin-only route with explicit role validation.)
+      if (body.role !== undefined && targetId !== userId) prefsUpdates.role = body.role;
       if (body.onboardingCompleted !== undefined) prefsUpdates.onboardingCompleted = body.onboardingCompleted;
       if (body.dashboardTourCompleted !== undefined) prefsUpdates.dashboardTourCompleted = body.dashboardTourCompleted;
-      if (body.isPremium !== undefined) prefsUpdates.isPremium = body.isPremium;
+      // isPremium is intentionally excluded here — it must only be set by the
+      // RevenueCat / Autumn webhook handlers. Allowing users to self-set this
+      // field would be a privilege escalation vector.
       if (body.notifications !== undefined) prefsUpdates.notifications = body.notifications;
       if (body.emergencyContacts !== undefined) prefsUpdates.emergencyContacts = body.emergencyContacts;
       if (body.avatarType !== undefined) prefsUpdates.avatarType = body.avatarType;
@@ -547,7 +576,7 @@ export const usersRoutes = new Elysia({ prefix: "/api/users" })
         role: t.Optional(t.String({ maxLength: 50 })),
         onboardingCompleted: t.Optional(t.Boolean()),
         dashboardTourCompleted: t.Optional(t.Boolean()),
-        isPremium: t.Optional(t.Boolean()),
+        // isPremium is NOT accepted here — it is controlled exclusively by webhook handlers
         notifications: t.Optional(t.Boolean()),
         emergencyContacts: t.Optional(t.Any()),
       }),

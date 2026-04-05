@@ -539,7 +539,6 @@ export interface Allergy {
     | "mild"
     | "moderate"
     | "severe"
-    | "severe-life-threatening"
     | "life_threatening";
   diagnosedDate?: string | Date;
   discoveredDate?: Date;

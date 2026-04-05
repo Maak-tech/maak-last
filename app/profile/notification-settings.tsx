@@ -1,4 +1,4 @@
-import { useNavigation, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import {
   ArrowLeft,
   Bell,
@@ -12,11 +12,13 @@ import {
   Smartphone,
 } from "lucide-react-native";
 import type React from "react";
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
+  Modal,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -28,7 +30,6 @@ import {
 import GradientScreen from "@/components/figma/GradientScreen";
 import WavyBackground from "@/components/figma/WavyBackground";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNotifications } from "@/hooks/useNotifications";
 import { api } from "@/lib/apiClient";
 import { pushNotificationService } from "@/lib/services/pushNotificationService";
 import { userService } from "@/lib/services/userService";
@@ -52,6 +53,7 @@ export default function NotificationSettingsScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [timePickerField, setTimePickerField] = useState<'quietHoursStart' | 'quietHoursEnd' | null>(null);
   const [settings, setSettings] = useState<NotificationSettings>({
     enabled: true,
     fallAlerts: true,
@@ -69,7 +71,8 @@ export default function NotificationSettingsScreen() {
 
   useEffect(() => {
     loadSettings();
-  }, [user]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const loadSettings = async () => {
     if (!user) return;
@@ -85,6 +88,10 @@ export default function NotificationSettingsScreen() {
       }
     } catch (error: unknown) {
       console.error('Error loading notification settings:', error);
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'فشل في تحميل إعدادات الإشعارات' : 'Failed to load notification settings'
+      );
     } finally {
       setLoading(false);
     }
@@ -163,6 +170,19 @@ export default function NotificationSettingsScreen() {
       />
     </View>
   );
+
+  // Generate 30-minute interval time options for quiet hours picker
+  const TIME_OPTIONS: string[] = [];
+  for (let h = 0; h < 24; h++) {
+    TIME_OPTIONS.push(`${String(h).padStart(2, '0')}:00`);
+    TIME_OPTIONS.push(`${String(h).padStart(2, '0')}:30`);
+  }
+
+  const handleTimeSelect = (time: string) => {
+    if (!timePickerField) return;
+    setSettings(prev => ({ ...prev, [timePickerField]: time }));
+    setTimePickerField(null);
+  };
 
   if (loading) {
     return (
@@ -332,7 +352,10 @@ export default function NotificationSettingsScreen() {
                 <Text style={[styles.timeLabel, isRTL && styles.rtlText]}>
                   {isRTL ? 'من' : 'From'}
                 </Text>
-                <TouchableOpacity style={styles.timeButton}>
+                <TouchableOpacity
+                  style={styles.timeButton}
+                  onPress={() => setTimePickerField('quietHoursStart')}
+                >
                   <Text style={styles.timeText}>{settings.quietHoursStart}</Text>
                 </TouchableOpacity>
               </View>
@@ -340,12 +363,64 @@ export default function NotificationSettingsScreen() {
                 <Text style={[styles.timeLabel, isRTL && styles.rtlText]}>
                   {isRTL ? 'إلى' : 'To'}
                 </Text>
-                <TouchableOpacity style={styles.timeButton}>
+                <TouchableOpacity
+                  style={styles.timeButton}
+                  onPress={() => setTimePickerField('quietHoursEnd')}
+                >
                   <Text style={styles.timeText}>{settings.quietHoursEnd}</Text>
                 </TouchableOpacity>
               </View>
             </View>
           )}
+
+          {/* Quiet hours time picker modal */}
+          <Modal
+            visible={timePickerField !== null}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setTimePickerField(null)}
+          >
+            <TouchableOpacity
+              style={styles.modalOverlay}
+              activeOpacity={1}
+              onPress={() => setTimePickerField(null)}
+            >
+              <View style={styles.modalSheet}>
+                <Text style={styles.modalTitle}>
+                  {timePickerField === 'quietHoursStart'
+                    ? (isRTL ? 'وقت البدء' : 'Start Time')
+                    : (isRTL ? 'وقت الانتهاء' : 'End Time')}
+                </Text>
+                <FlatList
+                  data={TIME_OPTIONS}
+                  keyExtractor={item => item}
+                  style={styles.timeList}
+                  renderItem={({ item }) => {
+                    const isSelected =
+                      timePickerField && settings[timePickerField] === item;
+                    return (
+                      <TouchableOpacity
+                        style={[
+                          styles.timeOption,
+                          isSelected && styles.timeOptionSelected,
+                        ]}
+                        onPress={() => handleTimeSelect(item)}
+                      >
+                        <Text
+                          style={[
+                            styles.timeOptionText,
+                            isSelected && styles.timeOptionTextSelected,
+                          ]}
+                        >
+                          {item}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  }}
+                />
+              </View>
+            </TouchableOpacity>
+          </Modal>
         </View>
 
         {/* Info Card */}
@@ -539,5 +614,49 @@ const styles = StyleSheet.create({
   },
   rtlText: {
     textAlign: 'right',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 16,
+    paddingBottom: 32,
+    maxHeight: '55%',
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    textAlign: 'center',
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    marginHorizontal: 16,
+  },
+  timeList: {
+    marginTop: 8,
+  },
+  timeOption: {
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E7EB',
+  },
+  timeOptionSelected: {
+    backgroundColor: '#EBF4FF',
+  },
+  timeOptionText: {
+    fontSize: 16,
+    color: '#374151',
+    textAlign: 'center',
+  },
+  timeOptionTextSelected: {
+    color: '#2563EB',
+    fontWeight: '600',
   },
 });

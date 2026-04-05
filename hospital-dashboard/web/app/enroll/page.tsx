@@ -1,7 +1,7 @@
 'use client'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { api, type StaffInfo } from '@/lib/api'
+import { api, getToken, type StaffInfo } from '@/lib/api'
 import { useAutoLogout } from '@/lib/useAutoLogout'
 
 type Step = 'search' | 'capture' | 'consent' | 'submitting' | 'done' | 'error'
@@ -33,8 +33,7 @@ export default function EnrollPage() {
     if (stored) {
       try { setStaff(JSON.parse(stored) as StaffInfo) } catch (err: unknown) { console.warn('[enroll] Failed to parse staff info:', err) }
     }
-    const token = sessionStorage.getItem('hospital_token')
-    if (!token) router.push('/login')
+    if (!getToken()) router.push('/login')
   }, [router])
 
   // Start camera when on capture step
@@ -57,11 +56,12 @@ export default function EnrollPage() {
   async function handleSearch() {
     if (!searchQuery.trim()) return
     setSearching(true)
+    setErrorMsg(null)
     try {
       const data = await api.manualSearch(searchQuery)
       setSearchResults(data.results)
     } catch (err: unknown) {
-      console.warn('[enroll] Patient search failed:', err)
+      setErrorMsg(err instanceof Error ? err.message : 'Patient search failed. Please try again.')
     } finally {
       setSearching(false)
     }
@@ -96,7 +96,7 @@ export default function EnrollPage() {
     setStep('submitting')
     setErrorMsg(null)
     try {
-      const token = sessionStorage.getItem('hospital_token')
+      const token = getToken()
       const formData = new FormData()
       formData.append('patientId', selectedPatient.id)
       formData.append('consentGiven', 'true')
@@ -157,6 +157,9 @@ export default function EnrollPage() {
                   {searching ? '...' : 'Search'}
                 </button>
               </div>
+              {errorMsg && (
+                <p className="text-red-400 text-sm">{errorMsg}</p>
+              )}
               {searchResults.length > 0 && (
                 <ul className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden divide-y divide-gray-700">
                   {searchResults.map((p) => (
@@ -209,7 +212,7 @@ export default function EnrollPage() {
                   </button>
                 </div>
               )}
-              <button onClick={() => setStep('search')} className="w-full text-gray-400 hover:text-white text-sm transition py-2">
+              <button onClick={() => { setStep('search'); setErrorMsg(null) }} className="w-full text-gray-400 hover:text-white text-sm transition py-2">
                 Back
               </button>
             </div>
@@ -280,7 +283,7 @@ export default function EnrollPage() {
                 <p className="text-sm text-gray-400 mt-1">{selectedPatient.name} has been successfully enrolled.</p>
               </div>
               <button
-                onClick={() => { setStep('search'); setSelectedPatient(null); setSearchQuery(''); setSearchResults([]); setCapturedBlob(null); setCapturedUrl(null); setConsentChecked(false) }}
+                onClick={() => { setStep('search'); setSelectedPatient(null); setSearchQuery(''); setSearchResults([]); setCapturedBlob(null); setCapturedUrl(null); setConsentChecked(false); setErrorMsg(null) }}
                 className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition"
               >
                 Enroll Another Patient

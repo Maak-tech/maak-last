@@ -22,10 +22,42 @@ import {
 } from "../db/schema";
 import { eq, gte, desc, and } from "drizzle-orm";
 import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 
 const COMPOSITE_RISK_THRESHOLD = 60;
 const WORSENING_NOTIFICATION_THRESHOLD = 70;
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL ?? "http://localhost:8000";
+
+// ── Concurrency guard ─────────────────────────────────────────────────────────
+const LOCK_FILE = path.join("/tmp", "forecast_cycle.lock");
+const LOCK_STALE_MS = 90 * 60 * 1000; // 90 minutes (forecast can be slow with many users)
+
+function acquireLock(): boolean {
+  try {
+    if (fs.existsSync(LOCK_FILE)) {
+      const stat = fs.statSync(LOCK_FILE);
+      if (Date.now() - stat.mtimeMs < LOCK_STALE_MS) {
+        console.warn("[forecastCycle] Already running. Skipping.");
+        return false;
+      }
+      console.warn("[forecastCycle] Stale lock detected. Overriding.");
+    }
+    fs.writeFileSync(LOCK_FILE, String(process.pid));
+    return true;
+  } catch (err: unknown) {
+    console.warn("[forecastCycle] Failed to acquire lock — proceeding without guard:", err);
+    return true;
+  }
+}
+
+function releaseLock(): void {
+  try {
+    if (fs.existsSync(LOCK_FILE)) fs.unlinkSync(LOCK_FILE);
+  } catch (err: unknown) {
+    console.warn("[forecastCycle] Failed to release lock:", err);
+  }
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -59,39 +91,48 @@ type ForecastResult = {
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 async function runForecastCycle(targetUserId?: string) {
+  // Only guard full sweeps — single-user calls from vhiCycle are fast and safe to overlap
+  if (!targetUserId && !acquireLock()) return;
+
   console.log(`[forecastCycle] Starting at ${new Date().toISOString()}`);
 
-  // Select users who need forecasting.
-  // When a specific userId is provided (triggered from vhiCycle) filter at the DB level
-  // to avoid a full table scan that loads every user's VHI JSONB into memory.
-  const vhiQuery = db
-    .select({ userId: vhi.userId, data: vhi.data, computedAt: vhi.computedAt })
-    .from(vhi);
+  try {
+    // Select users who need forecasting.
+    // When a specific userId is provided (triggered from vhiCycle) filter at the DB level
+    // to avoid a full table scan that loads every user's VHI JSONB into memory.
+    const vhiQuery = db
+      .select({ userId: vhi.userId, data: vhi.data, computedAt: vhi.computedAt })
+      .from(vhi);
 
-  const allVhi = targetUserId
-    ? await vhiQuery.where(eq(vhi.userId, targetUserId))
-    : await vhiQuery;
+    const allVhi = targetUserId
+      ? await vhiQuery.where(eq(vhi.userId, targetUserId))
+      : await vhiQuery;
 
-  const eligibleUsers = allVhi.filter((row) => {
-    const compositeRisk = row.data?.currentState?.riskScores?.compositeRisk ?? 0;
-    return compositeRisk >= COMPOSITE_RISK_THRESHOLD;
-  });
+    const eligibleUsers = allVhi.filter((row) => {
+      const compositeRisk = row.data?.currentState?.riskScores?.compositeRisk ?? 0;
+      return compositeRisk >= COMPOSITE_RISK_THRESHOLD;
+    });
 
-  console.log(
-    `[forecastCycle] ${eligibleUsers.length} users above risk threshold (${COMPOSITE_RISK_THRESHOLD})`
-  );
+    console.log(
+      `[forecastCycle] ${eligibleUsers.length} users above risk threshold (${COMPOSITE_RISK_THRESHOLD})`
+    );
 
-  const results = await Promise.allSettled(
-    eligibleUsers.map((row) => processUserForecast(row.userId, row.data))
-  );
+    const results = await Promise.allSettled(
+      eligibleUsers.map((row) => processUserForecast(row.userId, row.data))
+    );
 
-  const failed = results.filter((r) => r.status === "rejected");
-  console.log(
-    `[forecastCycle] Done. Success: ${results.length - failed.length}, Failed: ${failed.length}`
-  );
-  failed.forEach((r) => {
-    if (r.status === "rejected") console.error("[forecastCycle]", r.reason);
-  });
+    const failed = results.filter((r) => r.status === "rejected");
+    console.log(
+      `[forecastCycle] Done. Success: ${results.length - failed.length}, Failed: ${failed.length}`
+    );
+    failed.forEach((r) => {
+      if (r.status === "rejected") console.error("[forecastCycle]", r.reason);
+    });
+  } finally {
+    // Always release the lock for full-sweep runs — a DB error must not hold the
+    // lock for the full 90-minute LOCK_STALE_MS window and silently skip the next runs.
+    if (!targetUserId) releaseLock();
+  }
 }
 
 // ── Per-user forecast ─────────────────────────────────────────────────────────
@@ -297,7 +338,11 @@ function linearRegression(
   const slope = ssXX !== 0 ? ssXY / ssXX : 0;
   const intercept = meanY - slope * meanX;
   const ssRes = ys.reduce((s, y, i) => s + (y - (slope * xs[i] + intercept)) ** 2, 0);
-  const r2 = ssTot !== 0 ? 1 - ssRes / ssTot : 0;
+  // Use Number.EPSILON guard instead of strict !== 0: floating-point rounding can
+  // produce a tiny positive ssTot even when all values are identical, and dividing
+  // by it would yield ±Infinity which Math.max(0,...) later clamps to 0 — but only
+  // after potentially producing a NaN intermediate if ssRes is also epsilon-positive.
+  const r2 = Math.abs(ssTot) > Number.EPSILON ? 1 - ssRes / ssTot : 0;
 
   return { slope, intercept, r2 };
 }
@@ -334,14 +379,22 @@ function forecastDimension(dimension: string, series: VitalSeries): DimensionFor
     }
   }
 
+  const confidence = Math.max(0, Math.min(1, r2));
+
+  // If R² < 0.1, the linear model explains less than 10% of variance — it is unreliable.
+  // Mark as "insufficient" so that a random-noise downward slope doesn't drive a
+  // "worsening" notification for the user.
+  const reliableTrend7d: DimensionForecast["trend7d"] =
+    confidence < 0.1 ? "insufficient" : trend7d;
+
   return {
     dimension,
-    trend7d,
+    trend7d: reliableTrend7d,
     slope: slopePerDay,
     projectedValue7d: project(7),
     projectedValue14d: project(14),
     projectedValue30d: project(30),
-    confidence: Math.max(0, Math.min(1, r2)),
+    confidence,
   };
 }
 
@@ -426,7 +479,7 @@ async function sendWorseningNotification(
   }));
 
   const expoToken = process.env.EXPO_ACCESS_TOKEN;
-  await fetch("https://exp.host/--/api/v2/push/send", {
+  const pushRes = await fetch("https://exp.host/--/api/v2/push/send", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -434,7 +487,17 @@ async function sendWorseningNotification(
     },
     body: JSON.stringify(messages),
     signal: AbortSignal.timeout(10_000), // 10-second delivery timeout
-  }).catch((err) => console.error("[forecastCycle] Push failed:", err));
+  }).catch((err: unknown) => {
+    console.error("[forecastCycle] Push network error:", err);
+    return null;
+  });
+
+  // fetch() only rejects on network errors — HTTP 4xx/5xx resolve with res.ok=false.
+  // Check the status explicitly so Expo errors (429 rate limit, 400 bad token) are visible.
+  if (pushRes && !pushRes.ok) {
+    const body = await pushRes.text().catch(() => "");
+    console.error(`[forecastCycle] Expo push returned ${pushRes.status}: ${body.slice(0, 200)}`);
+  }
 }
 
 // ── Entry point ───────────────────────────────────────────────────────────────
@@ -453,8 +516,9 @@ if (import.meta.main) {
   const targetUser = process.argv[2];
   runForecastCycle(targetUser)
     .then(() => process.exit(0))
-    .catch((err) => {
+    .catch((err: unknown) => {
       console.error("[forecastCycle] Fatal error:", err);
+      if (!targetUser) releaseLock();
       process.exit(1);
     });
 }

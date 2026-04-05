@@ -135,11 +135,12 @@ export const taskRoutes = new Elysia({ prefix: "/api/tasks" })
       }
 
       const updates: Record<string, unknown> = { status: body.status, updatedAt: new Date() };
-      if (body.status === "completed" && body.completedBy) {
+      if (body.status === "completed") {
         updates.completedAt = new Date();
-        updates.completedBy = body.completedBy;
+        // Always attribute completion to the authenticated caller, not a caller-supplied value
+        updates.completedBy = userId;
       }
-      await db.update(tasks).set(updates).where(eq(tasks.id, params.id));
+      await db.update(tasks).set(updates).where(and(eq(tasks.id, params.id), eq(tasks.orgId, task.orgId)));
       return { ok: true };
     },
     {
@@ -152,7 +153,7 @@ export const taskRoutes = new Elysia({ prefix: "/api/tasks" })
           t.Literal("cancelled"),
           t.Literal("escalated"),
         ]),
-        completedBy: t.Optional(t.String()),
+        // completedBy is resolved from session on the server; client field removed
       }),
       detail: { tags: ["tasks"], summary: "Update task status (org member)" },
     }
@@ -186,7 +187,7 @@ export const taskRoutes = new Elysia({ prefix: "/api/tasks" })
       await db
         .update(tasks)
         .set({ assignedTo: body.assignedTo, status: "in_progress", updatedAt: new Date() })
-        .where(eq(tasks.id, params.id));
+        .where(and(eq(tasks.id, params.id), eq(tasks.orgId, task.orgId)));
       return { ok: true };
     },
     {
@@ -224,7 +225,7 @@ export const taskRoutes = new Elysia({ prefix: "/api/tasks" })
       await db
         .update(tasks)
         .set({ status: "escalated", priority: "urgent", context: body.context, updatedAt: new Date() })
-        .where(eq(tasks.id, params.id));
+        .where(and(eq(tasks.id, params.id), eq(tasks.orgId, task.orgId)));
       return { ok: true };
     },
     {

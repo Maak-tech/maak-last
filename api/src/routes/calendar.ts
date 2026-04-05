@@ -247,13 +247,25 @@ export const calendarRoutes = new Elysia({ prefix: "/api/calendar" })
       if (body.title !== undefined) updates.title = body.title;
       if (body.description !== undefined) updates.description = body.description;
       if (body.type !== undefined) updates.type = body.type;
-      if (body.startDate !== undefined) updates.startDate = new Date(body.startDate);
+      if (body.startDate !== undefined) {
+        const d = new Date(body.startDate);
+        if (Number.isNaN(d.getTime())) { set.status = 400; return { error: "Invalid startDate" }; }
+        updates.startDate = d;
+      }
       if (body.endDate !== undefined) updates.endDate = body.endDate ? new Date(body.endDate) : null;
       if (body.allDay !== undefined) updates.allDay = body.allDay;
       if (body.location !== undefined) updates.location = body.location;
       if (body.familyId !== undefined) updates.familyId = body.familyId;
       if (body.recurrencePattern !== undefined) updates.recurrencePattern = body.recurrencePattern;
-      if (body.recurrenceEndDate !== undefined) updates.recurrenceEndDate = body.recurrenceEndDate ? new Date(body.recurrenceEndDate) : null;
+      if (body.recurrenceEndDate !== undefined) {
+        if (body.recurrenceEndDate) {
+          const rd = new Date(body.recurrenceEndDate);
+          if (Number.isNaN(rd.getTime())) { set.status = 400; return { error: "Invalid recurrenceEndDate" }; }
+          updates.recurrenceEndDate = rd;
+        } else {
+          updates.recurrenceEndDate = null;
+        }
+      }
       if (body.recurrenceCount !== undefined) updates.recurrenceCount = body.recurrenceCount;
       if (body.relatedItemId !== undefined) updates.relatedItemId = body.relatedItemId;
       if (body.relatedItemType !== undefined) updates.relatedItemType = body.relatedItemType;
@@ -262,7 +274,9 @@ export const calendarRoutes = new Elysia({ prefix: "/api/calendar" })
       if (body.tags !== undefined) updates.tags = body.tags;
       if (body.attendees !== undefined) updates.attendees = body.attendees;
 
-      await db.update(calendarEvents).set(updates).where(eq(calendarEvents.id, params.id));
+      await db.update(calendarEvents).set(updates).where(
+        and(eq(calendarEvents.id, params.id), eq(calendarEvents.userId, event.userId))
+      );
       return { ok: true };
     },
     {
@@ -275,7 +289,7 @@ export const calendarRoutes = new Elysia({ prefix: "/api/calendar" })
         endDate: t.Union([t.String({ maxLength: 50 }), t.Null()]),
         allDay: t.Boolean(),
         location: t.String({ maxLength: 500 }),
-        familyId: t.String({ maxLength: 36 }),
+        familyId: t.Union([t.String({ maxLength: 36 }), t.Null()]),
         recurrencePattern: t.String({ maxLength: 100 }),
         recurrenceEndDate: t.Union([t.String({ maxLength: 50 }), t.Null()]),
         recurrenceCount: t.Union([t.Number({ minimum: 1, maximum: 1000 }), t.Null()]),
@@ -310,7 +324,9 @@ export const calendarRoutes = new Elysia({ prefix: "/api/calendar" })
         return { error: "Only the event creator can delete it" };
       }
 
-      await db.delete(calendarEvents).where(eq(calendarEvents.id, params.id));
+      // Include userId in WHERE to close the TOCTOU window between the
+      // ownership check above and this mutation.
+      await db.delete(calendarEvents).where(and(eq(calendarEvents.id, params.id), eq(calendarEvents.userId, userId)));
       return { ok: true };
     },
     {

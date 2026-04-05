@@ -93,8 +93,13 @@ class ClinicalNotesService {
     if (options.limit !== undefined) params.set("limit", String(options.limit));
 
     const qs = params.toString();
-    const rows = await api.get<NoteApiRecord[]>(`/api/notes${qs ? `?${qs}` : ""}`);
-    return (Array.isArray(rows) ? rows : []).map(mapNote);
+    try {
+      const rows = await api.get<NoteApiRecord[]>(`/api/notes${qs ? `?${qs}` : ""}`);
+      return (Array.isArray(rows) ? rows : []).map(mapNote);
+    } catch (err: unknown) {
+      console.warn('[clinicalNotes] listNotes failed:', err);
+      return [];
+    }
   }
 
   /** Fetch a single clinical note by ID. */
@@ -199,6 +204,9 @@ class ClinicalNotesService {
     // 2. Upload the PDF to Tigris
     try {
       const response = await fetch(pdfUri, { signal: AbortSignal.timeout(30_000) });
+      if (!response.ok) {
+        throw new Error(`Failed to read PDF file (HTTP ${response.status})`);
+      }
       const blob = await response.blob();
 
       await fetch(attachmentUploadUrl, {

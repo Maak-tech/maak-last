@@ -1,5 +1,5 @@
 /* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Screen is currently large/stateful; refactor can be done separately from feature work. */
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { api } from "@/lib/apiClient";
 import {
   AlertCircle,
@@ -11,7 +11,7 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -196,9 +196,12 @@ export default function BloodPressureScreen() {
     }
   }, [user?.id, t]);
 
-  useEffect(() => {
-    loadReadings();
-  }, [loadReadings]);
+  // Refresh data when tab is focused (also fires on initial mount)
+  useFocusEffect(
+    useCallback(() => {
+      loadReadings();
+    }, [loadReadings])
+  );
 
   const latestReading = readings[0];
 

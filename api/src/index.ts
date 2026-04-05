@@ -1,6 +1,7 @@
 ﻿import { Elysia } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { swagger } from "@elysiajs/swagger";
+import { sql } from "drizzle-orm";
 import { db } from "./db";
 import { authRoutes } from "./routes/auth";
 import { vhiRoutes } from "./routes/vhi";
@@ -38,48 +39,66 @@ const app = new Elysia()
     cors({
       origin: IS_PROD
         ? ["https://app.nuralix.ai", "https://nuralix.ai"]
-        : true,
+        // Explicit allowlist instead of `true` (reflect any origin) to prevent
+        // credentialed cross-origin requests from arbitrary origins in dev/staging.
+        : ["http://localhost:3000", "http://localhost:8081", "http://localhost:19006", "exp://localhost:8081"],
       credentials: true,
     })
   )
+  // Swagger UI is only served in non-production environments to prevent API surface
+  // enumeration. In production this is a no-op Elysia plugin (returns 404 for /swagger).
   .use(
-    swagger({
-      documentation: {
-        info: {
-          title: "Nuralix API",
-          version: "1.0.0",
-          description: "Virtual Health Identity platform API",
-        },
-        tags: [
-          { name: "auth", description: "Authentication" },
-          { name: "vhi", description: "Virtual Health Identity" },
-          { name: "health", description: "Health data (vitals, symptoms, medications, clinical notes)" },
-          { name: "family", description: "Family management and caregiver dashboard" },
-          { name: "genetics", description: "DNA and genomic analysis" },
-          { name: "nora", description: "Nora AI assistant" },
-          { name: "sdk", description: "Third-party SDK endpoints" },
-          { name: "emergency", description: "Emergency SMS alerts" },
-          { name: "audit", description: "HIPAA audit trail" },
-          { name: "webhooks", description: "RevenueCat + Autumn billing webhooks" },
-          { name: "subscriptions", description: "Plan and entitlement state" },
-          { name: "user", description: "User profile and preferences" },
-          { name: "alerts", description: "Emergency alerts CRUD" },
-          { name: "calendar", description: "Calendar events" },
-          { name: "tasks", description: "Org/caregiver task management" },
-          { name: "org", description: "Organization management" },
-          { name: "clinical", description: "Clinical integration requests" },
-          { name: "consent", description: "Patient consent management" },
-          { name: "integrations", description: "Third-party health provider integrations (Withings, Fitbit, Oura, etc.)" },
-          { name: "search", description: "Full-text search across user health records" },
-          { name: "medications", description: "Medication refill workflows" },
-        ],
-      },
-    })
+    IS_PROD
+      ? new Elysia()
+      : swagger({
+          documentation: {
+            info: {
+              title: "Nuralix API",
+              version: "1.0.0",
+              description: "Virtual Health Identity platform API",
+            },
+            tags: [
+              { name: "auth", description: "Authentication" },
+              { name: "vhi", description: "Virtual Health Identity" },
+              { name: "health", description: "Health data (vitals, symptoms, medications, clinical notes)" },
+              { name: "family", description: "Family management and caregiver dashboard" },
+              { name: "genetics", description: "DNA and genomic analysis" },
+              { name: "nora", description: "Nora AI assistant" },
+              { name: "sdk", description: "Third-party SDK endpoints" },
+              { name: "emergency", description: "Emergency SMS alerts" },
+              { name: "audit", description: "HIPAA audit trail" },
+              { name: "webhooks", description: "RevenueCat + Autumn billing webhooks" },
+              { name: "subscriptions", description: "Plan and entitlement state" },
+              { name: "user", description: "User profile and preferences" },
+              { name: "alerts", description: "Emergency alerts CRUD" },
+              { name: "calendar", description: "Calendar events" },
+              { name: "tasks", description: "Org/caregiver task management" },
+              { name: "org", description: "Organization management" },
+              { name: "clinical", description: "Clinical integration requests" },
+              { name: "consent", description: "Patient consent management" },
+              { name: "integrations", description: "Third-party health provider integrations (Withings, Fitbit, Oura, etc.)" },
+              { name: "search", description: "Full-text search across user health records" },
+              { name: "medications", description: "Medication refill workflows" },
+            ],
+          },
+        })
   )
   // Inject db into context for all routes
   .decorate("db", db)
-  // Health check
+  // Liveness probe — returns ok even if DB is down (keeps the process running)
   .get("/health", () => ({ status: "ok", timestamp: new Date().toISOString() }))
+  // Readiness probe — verifies DB connectivity before Railway routes traffic here.
+  // Returns 503 if the database is unreachable so the load balancer can failover.
+  .get("/ready", async ({ db, set }) => {
+    try {
+      await db.execute(sql`SELECT 1`);
+      return { status: "ready" };
+    } catch (err: unknown) {
+      console.error("[ready] DB ping failed:", err);
+      set.status = 503;
+      return { status: "unavailable" };
+    }
+  })
   // Route groups
   .use(authRoutes)
   .use(vhiRoutes)
@@ -123,6 +142,6 @@ const app = new Elysia()
   .listen(PORT);
 
 console.info(`Nuralix API running on http://localhost:${PORT}`);
-console.info(`Docs: http://localhost:${PORT}/swagger`);
+if (!IS_PROD) console.info(`Docs: http://localhost:${PORT}/swagger`);
 
 export type App = typeof app;

@@ -622,7 +622,7 @@ export const healthDataService = {
           id: (data.id as string) ?? "",
           userId,
           type: mappedType,
-          value: typeof data.value === "number" ? data.value : 0,
+          value: typeof data.value === "number" ? data.value : Number.parseFloat(String(data.value ?? 0)),
           unit: typeof data.unit === "string" ? data.unit : "",
           timestamp: data.recordedAt ? new Date(data.recordedAt as string) : new Date(),
           source:

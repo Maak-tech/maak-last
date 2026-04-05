@@ -91,15 +91,18 @@ export default function HealthSummaryScreen() {
   const [vhi, setVhi] = useState<VHISummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async (isRefresh = false) => {
     if (!user) return;
+    setLoadError(false);
     if (!isRefresh) setLoading(true);
     try {
       const data = await api.get<VHISummary>("/api/vhi/me");
       setVhi(data);
     } catch (err: unknown) {
       console.warn('[health-summary] Failed to load VHI:', err);
+      setLoadError(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -146,6 +149,15 @@ export default function HealthSummaryScreen() {
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator color={theme.colors.primary.main} size="large" />
+        </View>
+      ) : loadError ? (
+        <View style={styles.center}>
+          <Text style={{ color: theme.colors.text.secondary, marginBottom: 12, textAlign: 'center' }}>
+            {isRTL ? 'فشل تحميل بيانات الصحة' : 'Failed to load health data'}
+          </Text>
+          <TouchableOpacity onPress={() => load()} style={{ backgroundColor: theme.colors.primary.main, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 }}>
+            <Text style={{ color: '#fff', fontWeight: '600' }}>{isRTL ? 'إعادة المحاولة' : 'Retry'}</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <ScrollView

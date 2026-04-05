@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia";
-import { and, eq, lt, sql } from "drizzle-orm";
+import { and, eq, inArray, lt, sql } from "drizzle-orm";
 import crypto from "node:crypto";
 import { requireAuth } from "../middleware/requireAuth";
 import { families, familyMembers, familyInvitations, vhi, genetics, alerts, users, caregiverNotes } from "../db/schema";
@@ -592,21 +592,40 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
   )
 
   // ── POST mark expired invitations ────────────────────────────────────────────
+  // Scoped to families where the caller is an admin — prevents any authenticated
+  // user from mass-expiring invitations across all families in the system.
   .post(
     "/invitations/cleanup",
-    async ({ db }) => {
+    async ({ db, userId, set }) => {
+      // Resolve the families where the caller holds the admin role
+      const adminMemberships = await db
+        .select({ familyId: familyMembers.familyId })
+        .from(familyMembers)
+        .where(
+          and(eq(familyMembers.userId, userId), eq(familyMembers.role, "admin"))
+        );
+
+      if (adminMemberships.length === 0) {
+        set.status = 403;
+        return { error: "You must be a family admin to run invitation cleanup" };
+      }
+
+      const familyIds = adminMemberships.map((m) => m.familyId);
+
+      // Only expire invitations belonging to families the caller administers
       await db
         .update(familyInvitations)
         .set({ status: "expired" })
         .where(
           and(
             eq(familyInvitations.status, "pending"),
-            lt(familyInvitations.expiresAt, new Date())
+            lt(familyInvitations.expiresAt, new Date()),
+            inArray(familyInvitations.familyId, familyIds)
           )
         );
       return { ok: true };
     },
-    { detail: { tags: ["family"], summary: "Mark expired invitations as expired" } }
+    { detail: { tags: ["family"], summary: "Mark expired invitations as expired (scoped to caller's admin families)" } }
   )
 
   // ── GET family by ID ──────────────────────────────────────────────────────────
@@ -768,8 +787,16 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
         return { error: "You can only delete your own caregiver notes" };
       }
 
-      await db.delete(caregiverNotes).where(eq(caregiverNotes.id, params.noteId));
+      // Include caregiverId in WHERE to close the TOCTOU window between the
+      // ownership check above and this mutation — prevents a race where another
+      // request deletes the note and a new note with the same id is inserted.
+      await db.delete(caregiverNotes).where(
+        and(eq(caregiverNotes.id, params.noteId), eq(caregiverNotes.caregiverId, userId))
+      );
       return { ok: true };
     },
-    { detail: { tags: ["family"], summary: "Delete a caregiver note" } }
+    {
+      params: t.Object({ noteId: t.String() }),
+      detail: { tags: ["family"], summary: "Delete a caregiver note" },
+    }
   );

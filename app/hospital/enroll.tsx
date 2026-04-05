@@ -34,8 +34,18 @@ export default function EnrollScreen() {
   }
 
   async function handleRequestPermission() {
-    const result = await requestPermission()
-    if (result.granted) setStep('camera')
+    try {
+      const result = await requestPermission()
+      if (result.granted) {
+        setStep('camera')
+      } else {
+        setErrorMsg('Camera permission is required to enroll. Please enable it in your device settings and try again.')
+        setStep('error')
+      }
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Failed to request camera permission')
+      setStep('error')
+    }
   }
 
   // Step 1: Consent
@@ -48,7 +58,7 @@ export default function EnrollScreen() {
           <Text style={styles.consentHeading}>Before enrolling your face, please read:</Text>
           <View style={styles.consentPoints}>
             {[
-              'Your facial image will be encrypted and stored securely.',
+              'Only a mathematical representation of your face (embedding) is stored — your actual photo is never saved.',
               'Hospital staff can use facial recognition to identify you during visits.',
               'You can revoke enrollment at any time from this screen.',
               'Your biometric data will NOT be shared with third parties.',

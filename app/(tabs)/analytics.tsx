@@ -9,7 +9,7 @@ import {
   Zap,
 } from "lucide-react-native";
 import type { LucideIcon } from "lucide-react-native";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -114,6 +114,9 @@ export default function AnalyticsScreen() {
   const [period, setPeriod] = useState<Period>("30d");
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // Skip the period-change effect on initial mount — useFocusEffect already fires load() then.
+  const periodMountedRef = useRef(false);
+
   const load = useCallback(async (isRefresh = false) => {
     if (!user) return;
     if (!isRefresh) setLoading(true);
@@ -135,7 +138,17 @@ export default function AnalyticsScreen() {
     }
   }, [user, period, isRTL]);
 
+  // Reload when screen gains focus (handles returning from other screens)
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  // Also reload when period changes while screen is already focused.
+  // useFocusEffect only re-fires on navigation focus events, not on dep changes
+  // while the screen is already in the foreground.
+  // Skip the first render — useFocusEffect already fires load() on mount.
+  useEffect(() => {
+    if (!periodMountedRef.current) { periodMountedRef.current = true; return; }
+    load();
+  }, [period]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const summaries = buildSummaries(vitals, isRTL);
 
@@ -183,7 +196,7 @@ export default function AnalyticsScreen() {
         </View>
       ) : loadError ? (
         <View style={styles.center}>
-          <Text style={[styles.emptyTitle, { color: theme.colors.status?.error ?? "#EF4444", textAlign: "center", paddingHorizontal: 32 }]}>
+          <Text style={[styles.emptyTitle, { color: theme.colors.accent.error, textAlign: "center", paddingHorizontal: 32 }]}>
             {loadError}
           </Text>
           <TouchableOpacity

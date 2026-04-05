@@ -8,7 +8,6 @@
 /* biome-ignore-all lint/correctness/noUnusedVariables: multiple staged feature flags/helpers are intentionally retained. */
 /* biome-ignore-all lint/nursery/noShadow: local naming overlap in event handlers will be cleaned up later. */
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useIsFocused } from "@react-navigation/native";
 /* biome-ignore lint/performance/noNamespaceImport: Sentry namespace import retained for SDK compatibility. */
 import * as Sentry from "@sentry/react-native";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
@@ -75,7 +74,6 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-import GlobalSearch from "@/app/components/GlobalSearch";
 import Avatar from "@/components/Avatar";
 import {
   Button,
@@ -91,7 +89,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useMyOrganization } from "@/hooks/useMyOrganization";
-import { calendarService } from "@/lib/services/calendarService";
 import {
   healthDataService,
   type VitalSigns,
@@ -187,7 +184,6 @@ export default function ProfileScreen() {
   // --- Missing state/variable declarations (stubs for referenced but undeclared names) ---
   const [syncStatus, setSyncStatus] = useState<{ isOnline: boolean; queueLength: number }>({ isOnline: true, queueLength: 0 });
   const [syncing, setSyncing] = useState(false);
-  const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [vitalsSparklines, setVitalsSparklines] = useState<{
     heartRate: number[];
     steps: number[];
@@ -220,9 +216,6 @@ export default function ProfileScreen() {
     }
   }, [checkSyncStatus]);
 
-  const loadCalendarEvents = useCallback(async () => {
-    // stub — calendar events loaded on demand
-  }, []);
 
   const handleHealthOverviewPress = useCallback(() => {
     router.push('/health-summary');
@@ -384,10 +377,6 @@ export default function ProfileScreen() {
     }, [user])
   );
 
-  useEffect(() => {
-    loadUserSettings();
-    loadHealthData();
-  }, [user]);
 
   const loadUserSettings = async () => {
     try {
@@ -410,9 +399,17 @@ export default function ProfileScreen() {
       } else {
         setLoading(true);
       }
-      const [symptoms, medications] = await Promise.all([
+      const [symptoms, medications, sparklineData, latestVitalsData] = await Promise.all([
         symptomService.getUserSymptoms(user.id),
         medicationService.getUserMedications(user.id),
+        fetchVitalsSparklines(user.id).catch((err: unknown) => {
+          console.warn('[profile] fetchVitalsSparklines failed:', err);
+          return null;
+        }),
+        healthDataService.getLatestVitals().catch((err: unknown) => {
+          console.warn('[profile] getLatestVitals failed:', err);
+          return null;
+        }),
       ]);
 
       // Calculate health score based on recent symptoms and medication compliance
@@ -432,8 +429,30 @@ export default function ProfileScreen() {
         medications: activeMedications,
         healthScore: score,
       });
+
+      if (sparklineData) {
+        setVitalsSparklines(sparklineData);
+      }
+
+      if (latestVitalsData) {
+        setLatestVitals({
+          heartRate: latestVitalsData.heartRate ?? undefined,
+          restingHeartRate: latestVitalsData.restingHeartRate ?? undefined,
+          sleepHours: latestVitalsData.sleepHours ?? undefined,
+          steps: latestVitalsData.steps ?? undefined,
+          timestamp: latestVitalsData.timestamp instanceof Date
+            ? latestVitalsData.timestamp.toISOString()
+            : latestVitalsData.timestamp
+              ? new Date(latestVitalsData.timestamp as unknown as string).toISOString()
+              : undefined,
+        });
+      }
     } catch (error: unknown) {
       console.error('Error loading health data:', error);
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'فشل تحميل البيانات الصحية' : 'Failed to load health data'
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -572,10 +591,7 @@ export default function ProfileScreen() {
             ? t("calendar")
             : t("calendar").charAt(0).toUpperCase() +
               t("calendar").slice(1).toLowerCase(),
-          onPress: () => {
-            setShowCalendarModal(true);
-            loadCalendarEvents();
-          },
+          onPress: () => router.push('/(tabs)/timeline'),
         },
         // Show additional options only for admin users
         ...(isAdmin
@@ -797,30 +813,30 @@ export default function ProfileScreen() {
       ? `${user.firstName} ${user.lastName}`
       : user?.firstName || (isRTL ? "مستخدم" : "User");
   const handleAvatarChange = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert(
-        isRTL ? "إذن مطلوب" : "Permission Required",
-        isRTL
-          ? "يحتاج التطبيق إلى إذن للوصول إلى مكتبة الصور."
-          : "The app needs permission to access your photo library."
-      );
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-      base64: false,
-    });
-
-    if (result.canceled || !result.assets?.[0]?.uri) return;
-
-    const uri = result.assets[0].uri;
-
     try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          isRTL ? "إذن مطلوب" : "Permission Required",
+          isRTL
+            ? "يحتاج التطبيق إلى إذن للوصول إلى مكتبة الصور."
+            : "The app needs permission to access your photo library."
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+        base64: false,
+      });
+
+      if (result.canceled || !result.assets?.[0]?.uri) return;
+
+      const uri = result.assets[0].uri;
+
       if (!user?.id || !updateUser) return;
       await userService.updateUser(user.id, { avatar: uri, avatarType: "custom" });
       await updateUser({ avatar: uri, avatarType: "custom" });
@@ -955,7 +971,7 @@ export default function ProfileScreen() {
           ? getInsightLabel(hrTrend.direction, hrTrend.percent)
           : "",
       trendDirection: hrTrend.direction,
-      sparkline: heartRateValue !== null ? vitalsSparklines.heartRate : [],
+      sparkline: (heartRateValue !== null && (vitalsSparklines.hasHeartRateData ?? false)) ? vitalsSparklines.heartRate : [],
       color: "#EF4444",
       onPress: handleHealthOverviewPress,
     },
@@ -973,7 +989,7 @@ export default function ProfileScreen() {
           ? getInsightLabel(sleepTrend.direction, sleepTrend.percent)
           : "",
       trendDirection: sleepTrend.direction,
-      sparkline: sleepValue !== null ? vitalsSparklines.sleepHours : [],
+      sparkline: (sleepValue !== null && (vitalsSparklines.hasSleepData ?? false)) ? vitalsSparklines.sleepHours : [],
       color: "#3B82F6",
       onPress: handleHealthOverviewPress,
     },
@@ -991,7 +1007,7 @@ export default function ProfileScreen() {
           ? getInsightLabel(stepsTrend.direction, stepsTrend.percent)
           : "",
       trendDirection: stepsTrend.direction,
-      sparkline: stepsValue !== null ? vitalsSparklines.steps : [],
+      sparkline: (stepsValue !== null && (vitalsSparklines.hasStepsData ?? false)) ? vitalsSparklines.steps : [],
       color: "#10B981",
       onPress: handleHealthOverviewPress,
     },
@@ -1036,10 +1052,7 @@ export default function ProfileScreen() {
             : t("calendar").charAt(0).toUpperCase() +
               t("calendar").slice(1).toLowerCase(),
           icon: Calendar,
-          onPress: () => {
-            setShowCalendarModal(true);
-            loadCalendarEvents();
-          },
+          onPress: () => router.push('/(tabs)/timeline'),
         },
         {
           label: isRTL

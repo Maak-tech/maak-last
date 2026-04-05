@@ -133,7 +133,7 @@ export default function DiscoveriesScreen() {
         </View>
       ) : loadError ? (
         <View style={styles.center}>
-          <Text style={[styles.errorText, { color: theme.colors.status?.error ?? "#EF4444" }]}>
+          <Text style={[styles.errorText, { color: theme.colors.accent.error }]}>
             {loadError}
           </Text>
           <TouchableOpacity

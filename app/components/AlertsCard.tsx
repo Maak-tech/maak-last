@@ -27,6 +27,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
   const { user } = useAuth();
   const [alerts, setAlerts] = useState<EmergencyAlert[]>([]);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [familyMembers, setFamilyMembers] = useState<User[]>([]);
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
 
@@ -41,6 +42,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
 
     try {
       setLoading(true);
+      setErrorMessage(null);
 
       // Load family members first
       const members = await userService.getFamilyMembers(user.familyId);
@@ -54,6 +56,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
       setAlerts(familyAlerts);
     } catch (error: unknown) {
       console.error('Error loading alerts:', error);
+      setErrorMessage(isRTL ? 'فشل تحميل التنبيهات' : 'Failed to load alerts');
     } finally {
       setLoading(false);
     }
@@ -167,7 +170,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
   const renderAlert = ({ item }: { item: EmergencyAlert }) => {
     const memberName = getMemberName(item.userId);
     const isResponding = respondingTo === item.id;
-    const hasResponded = item.responders?.includes(user?.id || '');
+    const hasResponded = !!(user?.id && item.responders?.includes(user.id));
 
     return (
       <View
@@ -263,6 +266,27 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#2563EB" />
+        </View>
+      </View>
+    );
+  }
+
+  if (errorMessage) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={[styles.title, isRTL && styles.rtlText]}>
+            {isRTL ? 'التنبيهات النشطة' : 'Active Alerts'}
+          </Text>
+        </View>
+        <View style={styles.emptyContainer}>
+          <AlertTriangle size={32} color="#EF4444" />
+          <Text style={[styles.emptyText, { color: '#EF4444' }, isRTL && styles.rtlText]}>
+            {errorMessage}
+          </Text>
+          <TouchableOpacity onPress={loadAlerts} style={{ marginTop: 8, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#2563EB', borderRadius: 6 }}>
+            <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>{isRTL ? 'إعادة المحاولة' : 'Retry'}</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );

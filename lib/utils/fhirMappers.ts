@@ -276,9 +276,12 @@ export function vitalToObservation(
 
   // Blood pressure — compound observation
   if (isBP(type)) {
-    const systolicVal =
-      (data.systolic as number) ?? (data.value as number) ?? 0;
-    const diastolicVal = data.diastolic as number | undefined;
+    const rawSystolic = data.systolic ?? data.value;
+    const systolicVal = typeof rawSystolic === "number" ? rawSystolic : Number.parseFloat(String(rawSystolic ?? 0));
+    const rawDiastolic = data.diastolic;
+    const diastolicVal: number | undefined = rawDiastolic !== undefined
+      ? (typeof rawDiastolic === "number" ? rawDiastolic : Number.parseFloat(String(rawDiastolic)))
+      : undefined;
 
     const components: FhirObservationComponent[] = [
       {
@@ -308,7 +311,8 @@ export function vitalToObservation(
 
   // Standard single-value vital
   const loinc = VITAL_LOINC[type];
-  const value = data.value as number;
+  const rawValue = data.value;
+  const value = typeof rawValue === "number" ? rawValue : Number.parseFloat(String(rawValue ?? 0));
   const unit = (data.unit as string) ?? loinc?.displayUnit ?? "";
 
   return {

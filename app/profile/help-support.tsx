@@ -10,7 +10,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { useNavigation, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import GradientScreen from '@/components/figma/GradientScreen';
 import WavyBackground from '@/components/figma/WavyBackground';
 import type { LucideIcon } from "lucide-react-native";

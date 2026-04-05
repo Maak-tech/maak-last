@@ -38,6 +38,11 @@ export function useDailyBriefing(
   const fetchedRef = useRef(false);
 
   useEffect(() => {
+    // Reset the guard whenever userId changes so each user fetches their own briefing
+    fetchedRef.current = false;
+  }, [userId]);
+
+  useEffect(() => {
     if (!userId || fetchedRef.current) return;
     fetchedRef.current = true;
 

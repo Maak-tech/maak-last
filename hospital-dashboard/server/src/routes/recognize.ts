@@ -166,6 +166,7 @@ recognizeRoutes.post('/recognize', jwtAuth, async (c) => {
 
 // POST /recognize/manual — manual lookup by name
 recognizeRoutes.post('/recognize/manual', jwtAuth, async (c) => {
+  const staff = c.get('staff')
   let name: string
   try {
     const body = await c.req.json<{ name?: string }>()
@@ -186,7 +187,23 @@ recognizeRoutes.post('/recognize/manual', jwtAuth, async (c) => {
     [`%${escapedName}%`]
   )
 
-  if (patients.length === 0) return c.json({ results: [] })
+  if (patients.length === 0) {
+    await writeAudit({
+      staffId: staff.staffId,
+      action: 'manual_search_no_results',
+      method: 'manual',
+      success: false,
+    })
+    return c.json({ results: [] })
+  }
+
+  // Log the fact that a search returned results (name searched is PHI-adjacent — log the event, not the query string)
+  await writeAudit({
+    staffId: staff.staffId,
+    action: 'manual_search_results_returned',
+    method: 'manual',
+    success: true,
+  })
 
   // Return list of name matches — staff selects one → then call /recognize/select
   return c.json({ results: patients.map(p => ({ id: p.id, name: p.name })) })

@@ -1,20 +1,8 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { api } from '@/lib/api'
+import { api, getToken, type AuditLog } from '@/lib/api'
 import { useAutoLogout } from '@/lib/useAutoLogout'
-
-interface AuditLog {
-  id: string
-  staff_name: string | null
-  patient_name: string | null
-  action: string
-  method: string | null
-  success: boolean | null
-  confidence: number | null
-  ip_address: string | null
-  created_at: string
-}
 
 export default function AuditPage() {
   const router = useRouter()
@@ -26,8 +14,7 @@ export default function AuditPage() {
   const [hasMore, setHasMore] = useState(true)
 
   useEffect(() => {
-    const token = sessionStorage.getItem('hospital_token')
-    if (!token) { router.push('/login'); return }
+    if (!getToken()) { router.push('/login'); return }
     // Check role — redirect to dashboard if not admin or if parse fails.
     // A parse failure must also redirect: without a valid role we cannot
     // confirm admin access, so we must deny access rather than silently skip the check.
@@ -46,7 +33,7 @@ export default function AuditPage() {
     setError(null)
     try {
       const data = await api.getAuditLogs(p)
-      setLogs(data.logs as unknown as AuditLog[])
+      setLogs(data.logs)
       setHasMore(data.logs.length === data.limit)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load audit logs')
@@ -89,8 +76,14 @@ export default function AuditPage() {
 
       <main className="flex-1 p-6">
         {error && (
-          <div className="bg-red-900/40 border border-red-700 rounded-lg px-4 py-3 text-red-300 text-sm mb-4">
-            {error}
+          <div className="bg-red-900/40 border border-red-700 rounded-lg px-4 py-3 text-red-300 text-sm mb-4 flex items-center justify-between gap-4">
+            <span>{error}</span>
+            <button
+              onClick={() => fetchLogs(page)}
+              className="shrink-0 text-xs text-red-300 hover:text-white border border-red-600 hover:border-white rounded px-2 py-1 transition"
+            >
+              Retry
+            </button>
           </div>
         )}
 

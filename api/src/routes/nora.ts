@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import crypto from "node:crypto";
 import { requireAuth } from "../middleware/requireAuth";
 import { vhi, noraConversations } from "../db/schema";
@@ -79,7 +79,7 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
 
       // Propagate OpenAI errors to the caller with the correct HTTP status
       if (!openaiRes.ok) {
-        const errText = await openaiRes.text();
+        const errText = await openaiRes.text().catch(() => "(unreadable)");
         if (openaiRes.status === 429) {
           set.status = 429;
           return { error: "AI quota exceeded. Please try again in a moment." };
@@ -163,7 +163,7 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
         .select()
         .from(noraConversations)
         .where(eq(noraConversations.userId, userId))
-        .orderBy(noraConversations.updatedAt)
+        .orderBy(desc(noraConversations.updatedAt))
         .limit(20);
 
       return rows.map((row) => {
@@ -187,13 +187,14 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
   .get(
     "/conversations/:id",
     async ({ db, userId, params, set }) => {
+      // Include userId in WHERE to enforce ownership at the DB level (no TOCTOU window).
       const [conv] = await db
         .select()
         .from(noraConversations)
-        .where(eq(noraConversations.id, params.id))
+        .where(and(eq(noraConversations.id, params.id), eq(noraConversations.userId, userId)))
         .limit(1);
 
-      if (!conv || conv.userId !== userId) {
+      if (!conv) {
         set.status = 404;
         return { error: "Conversation not found" };
       }
@@ -279,7 +280,7 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
       }
 
       if (!response.ok) {
-        const errorText = await response.text();
+        const errorText = await response.text().catch(() => "(unreadable)");
         if (response.status === 429) {
           set.status = 429;
           return { error: "AI quota exceeded. Please try again later." };
@@ -467,7 +468,7 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
    */
   .patch(
     "/chat-sessions/:id",
-    async ({ db, userId, params, body }) => {
+    async ({ db, userId, params, body, set }) => {
       // Fetch existing session first so we can append (not replace) messages
       const [existing] = await db
         .select({ messages: noraConversations.messages })
@@ -475,7 +476,7 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
         .where(and(eq(noraConversations.id, params.id), eq(noraConversations.userId, userId)))
         .limit(1);
 
-      if (!existing) return { ok: false, error: "Session not found" };
+      if (!existing) { set.status = 404; return { error: "Session not found" }; }
 
       const now = new Date().toISOString();
       const appendedMessages = (body.messages ?? []).map((m: { role: string; content: string; timestamp?: string }) => ({

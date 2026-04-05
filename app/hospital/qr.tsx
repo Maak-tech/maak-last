@@ -17,6 +17,10 @@ function useCountdown(expiresAt: string | null): string {
   const [remaining, setRemaining] = useState('')
   useEffect(() => {
     if (!expiresAt) return
+    // Declare id with let before the first update() call so that clearInterval(id)
+    // inside update() doesn't hit the temporal dead zone when the token is already
+    // expired on mount. clearInterval(undefined) is a safe no-op.
+    let id: ReturnType<typeof setInterval> | undefined
     function update() {
       const ms = new Date(expiresAt!).getTime() - Date.now()
       if (ms <= 0) {
@@ -30,7 +34,7 @@ function useCountdown(expiresAt: string | null): string {
       setRemaining(h > 0 ? `${h}h ${m}m remaining` : `${m}m ${s}s remaining`)
     }
     update()
-    const id = setInterval(update, 1000)
+    id = setInterval(update, 1000)
     return () => clearInterval(id)
   }, [expiresAt])
   return remaining

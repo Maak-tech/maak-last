@@ -6,14 +6,50 @@
  */
 
 import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import { db } from "../db";
 import { healthTimeline, vhi, alerts } from "../db/schema";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
 
 const OUTCOME_WINDOW_DAYS = 30;
 
+// ── Concurrency guard ─────────────────────────────────────────────────────────
+const LOCK_FILE = path.join("/tmp", "outcome_resolver.lock");
+const LOCK_STALE_MS = 4 * 60 * 60 * 1000; // 4 hours
+
+function acquireLock(): boolean {
+  try {
+    if (fs.existsSync(LOCK_FILE)) {
+      const stat = fs.statSync(LOCK_FILE);
+      if (Date.now() - stat.mtimeMs < LOCK_STALE_MS) {
+        console.warn("[outcomeResolver] Already running. Skipping.");
+        return false;
+      }
+      // Lock exists but is stale — override it and log so the condition is
+      // detectable in production logs (unlike vhiCycle and forecastCycle which both log here).
+      console.warn("[outcomeResolver] Stale lock detected — overriding.");
+    }
+    fs.writeFileSync(LOCK_FILE, String(process.pid));
+    return true;
+  } catch (err: unknown) {
+    console.warn("[outcomeResolver] Failed to acquire lock — proceeding without guard:", err);
+    return true;
+  }
+}
+
+function releaseLock(): void {
+  try {
+    if (fs.existsSync(LOCK_FILE)) fs.unlinkSync(LOCK_FILE);
+  } catch (err: unknown) {
+    console.warn("[outcomeResolver] Failed to release lock:", err);
+  }
+}
+
 async function runOutcomeResolverCycle() {
+  if (!acquireLock()) return;
   console.log(`[outcomeResolver] Starting at ${new Date().toISOString()}`);
+  try {
 
   const windowStart = new Date(
     Date.now() - OUTCOME_WINDOW_DAYS * 24 * 60 * 60 * 1000
@@ -48,14 +84,22 @@ async function runOutcomeResolverCycle() {
       } | null;
       if (!meta?.compositeRisk) continue;
 
-      // Check what actually happened in the 30 days since prediction
+      // Check what actually happened in the 30 days since prediction.
+      // Lower bound: event.occurredAt (not windowStart — see prior fix).
+      // Upper bound: event.occurredAt + OUTCOME_WINDOW_DAYS — without this, alerts
+      // from today (when the resolver runs) would be counted in the outcome window,
+      // inflating hadFall/hadCritical and corrupting the learning loop.
+      const outcomeWindowEnd = new Date(
+        new Date(event.occurredAt).getTime() + OUTCOME_WINDOW_DAYS * 24 * 60 * 60 * 1000
+      );
       const actualAlerts = await db
         .select()
         .from(alerts)
         .where(
           and(
             eq(alerts.userId, userId),
-            gte(alerts.createdAt, windowStart)
+            gte(alerts.createdAt, new Date(event.occurredAt)),
+            lte(alerts.createdAt, outcomeWindowEnd)
           )
         );
 
@@ -87,14 +131,20 @@ async function runOutcomeResolverCycle() {
     }
   }
 
-  console.log(`[outcomeResolver] Done. Resolved ${resolved} outcomes.`);
+    console.log(`[outcomeResolver] Done. Resolved ${resolved} outcomes.`);
+  } finally {
+    // Always release the lock — a DB error on the outer pastEvents query must not
+    // hold the lock for the full 4-hour LOCK_STALE_MS window.
+    releaseLock();
+  }
 }
 
 if (import.meta.main) {
   runOutcomeResolverCycle()
     .then(() => process.exit(0))
-    .catch((err) => {
+    .catch((err: unknown) => {
       console.error("[outcomeResolver] Fatal error:", err);
+      releaseLock();
       process.exit(1);
     });
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -103,7 +103,8 @@ export default function TrackScreen() {
         let totalSev = 0;
         for (const s of familySymptoms) {
           countMap.set(s.type, (countMap.get(s.type) ?? 0) + 1);
-          totalSev += (s.severity as number) ?? 0;
+          const sevNum = typeof s.severity === "number" ? s.severity : Number.parseFloat(String(s.severity ?? 0));
+          totalSev += Number.isNaN(sevNum) ? 0 : sevNum;
         }
         const familyStats = {
           totalSymptoms: familySymptoms.length,
@@ -147,16 +148,13 @@ export default function TrackScreen() {
     }
   };
 
-  // Refresh data when tab is focused
+  // Refresh data when tab is focused or when user/filter changes.
+  // useFocusEffect fires on both mount and tab-focus, so no separate useEffect is needed.
   useFocusEffect(
     useCallback(() => {
       loadSymptoms();
     }, [user, selectedFilter])
   );
-
-  useEffect(() => {
-    loadSymptoms();
-  }, [user, selectedFilter]);
 
   const handleFilterChange = (filter: FilterOption) => {
     setSelectedFilter(filter);

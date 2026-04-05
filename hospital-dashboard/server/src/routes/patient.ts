@@ -31,6 +31,10 @@ async function getValidSession(sessionToken: string): Promise<Session | null> {
 }
 
 // GET /patient/preview/:sessionToken — limited preview (no full PHI)
+// NOTE: The `viewer` role intentionally has access to this endpoint.
+// Per the access ladder, viewer can see name + masked DOB + risk badge only.
+// The `requireRole('doctor', 'nurse', 'admin')` guard is applied to /patient/by-session
+// and /patient/:patientId/twin (full PHI) — not to preview (minimum necessary principle).
 patientRoutes.get('/patient/preview/:sessionToken', jwtAuth, async (c) => {
   const staff = c.get('staff')
   const { sessionToken } = c.req.param()
@@ -96,9 +100,12 @@ patientRoutes.post('/patient/confirm/:sessionToken', jwtAuth, async (c) => {
     return c.json({ error: 'Forbidden' }, 403)
   }
 
+  // Include staff_id in the WHERE clause to close the TOCTOU window between the
+  // ownership SELECT above and this UPDATE — prevents a race where another request
+  // could modify the session between the two DB calls.
   await query(
-    "UPDATE recognition_sessions SET confirmed = true, access_level = 'confirmed', confirmed_at = now() WHERE id = $1",
-    [sessionToken]
+    "UPDATE recognition_sessions SET confirmed = true, access_level = 'confirmed', confirmed_at = now() WHERE id = $1 AND staff_id = $2",
+    [sessionToken, staff.staffId]
   )
 
   await writeAudit({
@@ -123,6 +130,19 @@ patientRoutes.get(
     const session = await getValidSession(sessionToken)
     if (!session || !session.confirmed) {
       return c.json({ error: 'Confirmed session required' }, 403)
+    }
+
+    // Verify session belongs to the requesting staff member.
+    // Without this, any authenticated staff with a stolen/shared sessionToken
+    // could retrieve an unrelated patient's full twin data.
+    if (session.staff_id !== staff.staffId) {
+      await writeAudit({
+        staffId: staff.staffId,
+        patientId: session.patient_id,
+        action: 'session_ownership_violation',
+        success: false,
+      })
+      return c.json({ error: 'Forbidden' }, 403)
     }
 
     const patientId = session.patient_id
@@ -192,6 +212,8 @@ patientRoutes.get(
   async (c) => {
     const staff = c.get('staff')
     const { patientId } = c.req.param()
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (!UUID_RE.test(patientId)) return c.json({ error: 'Invalid patient ID format' }, 400)
     // Header only — query param was removed to prevent session token leaking into server access logs
     const sessionToken = c.req.header('X-Session-Token')
 
@@ -200,6 +222,17 @@ patientRoutes.get(
     const session = await getValidSession(sessionToken)
     if (!session || !session.confirmed || session.patient_id !== patientId) {
       return c.json({ error: 'Confirmed session required' }, 403)
+    }
+
+    // Verify session belongs to the requesting staff member (same check as /confirm).
+    if (session.staff_id !== staff.staffId) {
+      await writeAudit({
+        staffId: staff.staffId,
+        patientId,
+        action: 'session_ownership_violation',
+        success: false,
+      })
+      return c.json({ error: 'Forbidden' }, 403)
     }
 
     const results = await Promise.allSettled([

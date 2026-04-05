@@ -67,9 +67,9 @@ function RiskBar({ label, score, color }: { label: string; score: number; color:
     <View style={styles.riskRow}>
       <Text style={styles.riskLabel}>{label}</Text>
       <View style={styles.riskTrack}>
-        <View style={[styles.riskFill, { width: `${Math.min(score * 100, 100)}%` as `${number}%`, backgroundColor: color }]} />
+        <View style={[styles.riskFill, { width: `${Math.min(score, 100)}%` as `${number}%`, backgroundColor: color }]} />
       </View>
-      <Text style={[styles.riskScore, { color }]}>{Math.round(score * 100)}%</Text>
+      <Text style={[styles.riskScore, { color }]}>{Math.round(score)}%</Text>
     </View>
   );
 }

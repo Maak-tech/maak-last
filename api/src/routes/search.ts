@@ -145,7 +145,7 @@ export const searchRoutes = new Elysia({ prefix: "/api" })
         })),
         ...labResults_.map((l) => ({
           id: l.id,
-          type: "vital" as const,
+          type: "lab" as const,
           title: l.testName,
           subtitle: l.testType ?? undefined,
           date: l.testDate ? new Date(l.testDate).toLocaleDateString() : undefined,

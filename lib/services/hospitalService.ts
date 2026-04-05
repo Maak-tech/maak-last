@@ -48,7 +48,9 @@ export const hospitalService = {
     formData.append('image', blob)
 
     const token = await getPatientToken()
-    const res = await fetch(HOSPITAL_API_URL + '/enroll', {
+    // /enroll/self validates the patient's better-auth session against the main Nuralix API.
+    // /enroll (staff-only) is separate and requires a hospital staff JWT.
+    const res = await fetch(HOSPITAL_API_URL + '/enroll/self', {
       method: 'POST',
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: formData,
@@ -75,9 +77,12 @@ export const hospitalService = {
       `/enroll/${patientId}/status`
     ),
 
-  generateQR: async (patientId: string): Promise<{ token: string; expiresAt: string }> => {
+  generateQR: async (_patientId: string): Promise<{ token: string; expiresAt: string }> => {
+    // /patient/qr/generate validates the patient's better-auth session against the
+    // main Nuralix API to identify the patient — patientId param is not needed.
     const token = await getPatientToken()
-    const res = await fetch(HOSPITAL_API_URL + `/patient/qr/${patientId}`, {
+    const res = await fetch(HOSPITAL_API_URL + '/patient/qr/generate', {
+      method: 'POST',
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       signal: AbortSignal.timeout(15_000),
     })

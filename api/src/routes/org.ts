@@ -361,7 +361,11 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
           completedAt: body.completedAt ? new Date(body.completedAt) : undefined,
           metadata: body.metadata ?? undefined,
         })
-        .where(eq(pathwayEnrollments.id, params.id));
+        // Include orgId in the WHERE clause to close the TOCTOU window between the
+        // SELECT (which determined membership/authorization) and this UPDATE.
+        // Without orgId here an attacker could PATCH an enrollment in a different org
+        // by racing a membership change between the two queries.
+        .where(and(eq(pathwayEnrollments.id, params.id), eq(pathwayEnrollments.orgId, enrollment.orgId)));
 
       return { ok: true };
     },
@@ -1092,7 +1096,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
           ...(body.name !== undefined && { name: body.name }),
           ...(body.scopes !== undefined && { scopes: body.scopes }),
         })
-        .where(eq(apiKeys.id, params.keyId));
+        .where(and(eq(apiKeys.id, params.keyId), eq(apiKeys.orgId, params.orgId)));
 
       return { ok: true };
     },
@@ -1135,7 +1139,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
         return { error: "API key not found" };
       }
 
-      await db.update(apiKeys).set({ isActive: false }).where(eq(apiKeys.id, params.keyId));
+      await db.update(apiKeys).set({ isActive: false }).where(and(eq(apiKeys.id, params.keyId), eq(apiKeys.orgId, params.orgId)));
 
       return { ok: true };
     },
@@ -1175,8 +1179,8 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
         return { error: "API key not found" };
       }
 
-      // Revoke old
-      await db.update(apiKeys).set({ isActive: false }).where(eq(apiKeys.id, params.keyId));
+      // Revoke old — include orgId to close TOCTOU window
+      await db.update(apiKeys).set({ isActive: false }).where(and(eq(apiKeys.id, params.keyId), eq(apiKeys.orgId, params.orgId)));
 
       // Create replacement with same name and scopes
       const rawBytes = crypto.randomBytes(24);
@@ -1326,7 +1330,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
           ...(body.events !== undefined && { events: body.events }),
           ...(body.isActive !== undefined && { isActive: body.isActive }),
         })
-        .where(eq(webhookEndpoints.id, params.webhookId));
+        .where(and(eq(webhookEndpoints.id, params.webhookId), eq(webhookEndpoints.orgId, params.orgId)));
 
       return { ok: true };
     },
@@ -1542,7 +1546,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
                 isActive: tpl.isActive ?? true,
                 updatedAt: new Date(),
               })
-              .where(eq(notificationTemplates.id, existingId));
+              .where(and(eq(notificationTemplates.id, existingId), eq(notificationTemplates.orgId, params.orgId)));
           } else {
             return db.insert(notificationTemplates).values({
               orgId: params.orgId,

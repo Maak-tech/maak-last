@@ -13,20 +13,24 @@ import type { ProviderConnection, ProviderType } from "./healthTypes";
 /**
  * Persist a provider connection (called after successful OAuth or SDK auth).
  * Creates or updates the connection record for this user + provider pair.
+ * NOTE: The server resolves userId from the authenticated session — the userId
+ * parameter here is kept for backward compatibility but is no longer sent in the
+ * request body (the API ignores it).  Pass "" or omit it when calling from OAuth
+ * callbacks where userId is not yet available.
  */
 export async function saveProviderConnection(
-  userId: string,
+  _userId: string,
   connection: Omit<ProviderConnection, "isConnected"> & { isConnected: boolean }
 ): Promise<void> {
   try {
     await api.post("/api/integrations/provider-connections", {
-      userId,
+      // userId intentionally omitted — server resolves it from the auth session
       ...connection,
     });
   } catch (error: unknown) {
     logger.error(
       "Failed to save provider connection",
-      { userId, provider: connection.provider, error },
+      { provider: connection.provider, error },
       "providerConnections"
     );
     throw error;

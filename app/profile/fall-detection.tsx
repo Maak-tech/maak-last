@@ -79,6 +79,10 @@ export default function FallDetectionScreen() {
       await testFallDetection();
     } catch (error: unknown) {
       console.error('Error testing fall detection:', error);
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'فشل في اختبار كشف السقوط' : 'Failed to test fall detection'
+      );
     } finally {
       setTestingFallDetection(false);
     }

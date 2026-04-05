@@ -73,20 +73,23 @@ export default function TimelineScreen() {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadTimeline = useCallback(async (isRefresh = false) => {
     if (!user) return;
     if (!isRefresh) setLoading(true);
+    setLoadError(null);
     try {
       const data = await api.get<TimelineEvent[]>("/api/health/timeline?limit=100");
       setEvents(Array.isArray(data) ? data : []);
     } catch (err: unknown) {
       console.warn('[timeline] Failed to load timeline events:', err);
+      setLoadError(isRTL ? "تعذّر تحميل الجدول الزمني. اسحب للأسفل للمحاولة." : "Failed to load timeline. Pull down to retry.");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user]);
+  }, [user, isRTL]);
 
   useFocusEffect(useCallback(() => { loadTimeline(); }, [loadTimeline]));
 
@@ -135,6 +138,20 @@ export default function TimelineScreen() {
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator color={theme.colors.primary.main} size="large" />
+        </View>
+      ) : loadError ? (
+        <View style={styles.center}>
+          <Text style={[styles.emptyTitle, { color: theme.colors.accent.error, textAlign: "center", paddingHorizontal: 32 }]}>
+            {loadError}
+          </Text>
+          <TouchableOpacity
+            onPress={() => loadTimeline()}
+            style={{ marginTop: 16, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20, borderWidth: 1, borderColor: theme.colors.primary.main }}
+          >
+            <Text style={{ color: theme.colors.primary.main, fontSize: 14, fontWeight: "600" }}>
+              {isRTL ? "إعادة المحاولة" : "Retry"}
+            </Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <ScrollView

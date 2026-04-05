@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -7,7 +7,7 @@ import {
   Trash2,
   X,
 } from "lucide-react-native";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -25,8 +25,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { api } from "@/lib/apiClient";
-import { useFocusEffect } from "expo-router";
-import { useCallback } from "react";
 
 type Severity = "mild" | "moderate" | "severe" | "life_threatening";
 
@@ -56,6 +54,7 @@ export default function AllergiesScreen() {
 
   const [allergies, setAllergies] = useState<Allergy[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -78,16 +77,18 @@ export default function AllergiesScreen() {
   const loadAllergies = useCallback(async (isRefresh = false) => {
     if (!user) return;
     if (!isRefresh) setLoading(true);
+    setLoadError(null);
     try {
       const data = await api.get<Allergy[]>("/api/health/allergies");
       setAllergies(Array.isArray(data) ? data : []);
     } catch (err: unknown) {
       console.warn('[allergies] Failed to load allergies:', err);
+      setLoadError(isRTL ? 'تعذّر تحميل الحساسيات. اسحب للأسفل للمحاولة مجدداً.' : 'Failed to load allergies. Pull down to retry.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user]);
+  }, [user, isRTL]);
 
   useFocusEffect(useCallback(() => { loadAllergies(); }, [loadAllergies]));
 
@@ -171,6 +172,20 @@ export default function AllergiesScreen() {
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator color={theme.colors.primary.main} size="large" />
+        </View>
+      ) : loadError ? (
+        <View style={styles.center}>
+          <Text style={{ color: theme.colors.accent.error, textAlign: 'center', paddingHorizontal: 32, marginBottom: 16 }}>
+            {loadError}
+          </Text>
+          <TouchableOpacity
+            onPress={() => loadAllergies()}
+            style={{ backgroundColor: theme.colors.primary.main, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 8 }}
+          >
+            <Text style={{ color: '#FFFFFF', fontFamily: 'Inter-SemiBold', fontSize: 14 }}>
+              {isRTL ? 'إعادة المحاولة' : 'Retry'}
+            </Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <ScrollView

@@ -14,6 +14,7 @@ const DateRangeQuery = t.Object({
   from: t.Optional(IsoDateString),
   to: t.Optional(IsoDateString),
   limit: t.Optional(t.Numeric()),
+  type: t.Optional(t.String({ maxLength: 64 })),
 });
 
 /**
@@ -60,13 +61,23 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       const filters = [eq(vitals.userId, userId)];
       if (query.from) filters.push(gte(vitals.recordedAt, new Date(query.from)));
       if (query.to) filters.push(lte(vitals.recordedAt, new Date(query.to)));
+      if (query.type) filters.push(eq(vitals.type, query.type));
 
-      return db
+      const rows = await db
         .select()
         .from(vitals)
         .where(and(...filters))
         .orderBy(desc(vitals.recordedAt))
         .limit(query.limit ?? 100);
+
+      // Drizzle's numeric() column with the neon-http driver returns string | null
+      // at runtime (PostgreSQL's text wire format). Parse to number so that
+      // arithmetic on the client (avg, min, max, sparklines) works correctly.
+      return rows.map((r) => ({
+        ...r,
+        value: r.value != null ? parseFloat(r.value) : null,
+        valueSecondary: r.valueSecondary != null ? parseFloat(r.valueSecondary) : null,
+      }));
     },
     { query: DateRangeQuery, detail: { tags: ["health"], summary: "Get vitals" } }
   )
@@ -88,7 +99,12 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
           recordedAt: new Date(body.recordedAt),
         })
         .returning();
-      return created;
+      // Parse numeric strings back to numbers for consistent client-side arithmetic.
+      return {
+        ...created,
+        value: created.value != null ? parseFloat(created.value) : null,
+        valueSecondary: created.valueSecondary != null ? parseFloat(created.valueSecondary) : null,
+      };
     },
     {
       body: t.Object({
@@ -153,6 +169,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       const filters = [eq(symptoms.userId, userId)];
       if (query.from) filters.push(gte(symptoms.recordedAt, new Date(query.from)));
       if (query.to) filters.push(lte(symptoms.recordedAt, new Date(query.to)));
+      if (query.type) filters.push(eq(symptoms.type, query.type));
 
       return db
         .select()
@@ -629,7 +646,10 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       const authErr = await assertFamilyAccess(db, userId, med.userId);
       if (authErr) { set.status = 403; return authErr; }
 
-      const takenBy = body?.caregiverId !== userId ? body?.caregiverId : undefined;
+      // Record who administered the medication. Always derive from the authenticated
+      // session — never from the body, to prevent attributing the action to others.
+      // Only populate when a caregiver/admin is acting on behalf of the patient.
+      const takenBy = userId !== med.userId ? userId : undefined;
 
       // Find earliest pending reminder
       const [pending] = await db
@@ -1237,7 +1257,8 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     async ({ db, userId, params, set }) => {
       const [existing] = await db.select({ id: cycleDailyEntries.id, userId: cycleDailyEntries.userId }).from(cycleDailyEntries).where(eq(cycleDailyEntries.id, params.id)).limit(1);
       if (!existing || existing.userId !== userId) { set.status = 404; return { error: "Cycle daily entry not found" }; }
-      await db.delete(cycleDailyEntries).where(eq(cycleDailyEntries.id, params.id));
+      // Include userId in WHERE to close the TOCTOU window between ownership check and mutation.
+      await db.delete(cycleDailyEntries).where(and(eq(cycleDailyEntries.id, params.id), eq(cycleDailyEntries.userId, userId)));
       return { ok: true };
     },
     {
@@ -1871,7 +1892,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
    */
   .patch(
     "/escalations/:id",
-    async ({ db, body, params }) => {
+    async ({ db, userId, body, params, set }) => {
       const updates: Record<string, unknown> = {};
       if (body.status) updates.status = body.status;
       if (body.acknowledgedBy) {
@@ -1886,11 +1907,26 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       if (body.currentLevel != null) updates.currentLevel = body.currentLevel;
       if (body.notificationsSentAppend) {
         // Fetch current array and merge
-        const [current] = await db.select({ notificationsSent: escalations.notificationsSent })
+        const [current] = await db.select({ notificationsSent: escalations.notificationsSent, userId: escalations.userId })
           .from(escalations).where(eq(escalations.id, params.id)).limit(1);
+        if (!current) { set.status = 404; return { error: "Not found" }; }
+        // Only the escalation owner or a family admin may update it
+        if (current.userId !== userId) {
+          const authErr = await assertFamilyAccess(db, userId, current.userId);
+          if (authErr) { set.status = 403; return authErr; }
+        }
         const existing = (current?.notificationsSent as string[] | null) ?? [];
         const merged = [...new Set([...existing, ...body.notificationsSentAppend])];
         updates.notificationsSent = merged;
+      } else {
+        // Authorization check when notificationsSentAppend is not set
+        const [existing] = await db.select({ userId: escalations.userId })
+          .from(escalations).where(eq(escalations.id, params.id)).limit(1);
+        if (!existing) { set.status = 404; return { error: "Not found" }; }
+        if (existing.userId !== userId) {
+          const authErr = await assertFamilyAccess(db, userId, existing.userId);
+          if (authErr) { set.status = 403; return authErr; }
+        }
       }
       const [updated] = await db.update(escalations)
         .set(updates as never)
@@ -1917,7 +1953,19 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
    */
   .post(
     "/escalations/resolve-by-alert",
-    async ({ db, body }) => {
+    async ({ db, userId, body, set }) => {
+      // Verify at least one active escalation for this alertId belongs to the calling user
+      // (or they are a family admin for the escalation owner)
+      const [sample] = await db
+        .select({ escalUserId: escalations.userId })
+        .from(escalations)
+        .where(and(eq(escalations.alertId, body.alertId), eq(escalations.status, "active")))
+        .limit(1);
+      if (!sample) return { ok: true }; // nothing to resolve
+      if (sample.escalUserId !== userId) {
+        const authErr = await assertFamilyAccess(db, userId, sample.escalUserId);
+        if (authErr) { set.status = 403; return authErr; }
+      }
       await db.update(escalations)
         .set({
           status: "resolved",
@@ -1925,7 +1973,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
           resolvedAt: new Date(),
           resolutionNotes: body.notes ?? null,
         } as never)
-        .where(and(eq(escalations.alertId, body.alertId), eq(escalations.status, "active")));
+        .where(and(eq(escalations.alertId, body.alertId), eq(escalations.status, "active"), eq(escalations.userId, sample.escalUserId)));
       return { ok: true };
     },
     {

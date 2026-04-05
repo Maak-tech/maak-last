@@ -234,11 +234,20 @@ export const alertService = {
         });
       }
 
+      // Always clear all alert caches after a successful resolve — we know the alert
+      // is now resolved on the server regardless of whether alertData was found.
+      // Without this, a race where alertData is undefined (already resolved elsewhere)
+      // leaves the per-user count and list caches stale for up to their TTL.
       familyAlertsCache.clear();
       familyAlertsInFlight.clear();
       if (alertData?.userId) {
         _activeAlertsCountCache.delete(alertData.userId);
         _activeAlertsCache.delete(alertData.userId);
+      } else {
+        // alertData not found (already resolved or stale list) — clear all per-user
+        // caches so no stale "active" badge lingers anywhere.
+        _activeAlertsCountCache.clear();
+        _activeAlertsCache.clear();
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";

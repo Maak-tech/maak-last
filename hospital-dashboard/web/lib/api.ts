@@ -1,17 +1,50 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
-function getToken(): string | null {
-  if (typeof window === 'undefined') return null
-  return sessionStorage.getItem('hospital_token')
+// ── Token storage ─────────────────────────────────────────────────────────────
+// The JWT is kept in a module-level variable (in-memory) instead of
+// sessionStorage. sessionStorage is readable by any script on the same origin,
+// so an XSS attack can steal a sessionStorage token trivially. An in-memory
+// variable has the same tab-scoped lifecycle (cleared on tab/navigation away)
+// but is invisible to injected scripts.
+//
+// For an even stronger posture, upgrade to httpOnly cookies: have the server
+// set `Set-Cookie: hospital_token=...; HttpOnly; Secure; SameSite=Strict` on
+// login, configure the Hono CORS middleware with `credentials: true`, and use
+// `credentials: 'include'` in fetch calls below.
+//
+// All token access is funnelled through getToken/setToken/clearToken so that
+// switching storage strategy is a single-file change.
+// ─────────────────────────────────────────────────────────────────────────────
+let _token: string | null = null
+
+// One-time migration: if a previous build stored the token in sessionStorage,
+// pull it into memory and erase the persistent copy immediately.
+if (typeof window !== 'undefined') {
+  const legacy = sessionStorage.getItem('hospital_token')
+  if (legacy) {
+    _token = legacy
+    sessionStorage.removeItem('hospital_token')
+  }
+}
+
+export function getToken(): string | null {
+  return _token
 }
 
 export function setToken(token: string) {
-  sessionStorage.setItem('hospital_token', token)
-  sessionStorage.setItem('hospital_last_active', Date.now().toString())
+  _token = token
+  // Keep last-active timestamp in sessionStorage only (no PHI, no token).
+  if (typeof window !== 'undefined') {
+    sessionStorage.setItem('hospital_last_active', Date.now().toString())
+  }
 }
 
 export function clearToken() {
-  sessionStorage.removeItem('hospital_token')
+  _token = null
+  // Belt-and-suspenders: also remove any legacy sessionStorage copy.
+  if (typeof window !== 'undefined') {
+    sessionStorage.removeItem('hospital_token')
+  }
 }
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
@@ -129,12 +162,23 @@ export const api = {
   confirmIdentity: (sessionToken: string) =>
     apiFetch<{ confirmed: boolean }>(`/patient/confirm/${sessionToken}`, { method: 'POST' }),
 
-  // NOTE: Full twin data is fetched via /patient/by-session/:sessionToken (see fetchTwinBySession
-  // in dashboard/page.tsx). The /patient/:patientId/twin endpoint exists server-side for callers
-  // that already have a patientId, but the dashboard always uses the session-based route.
+  getTwinBySession: (sessionToken: string) =>
+    apiFetch<TwinData>(`/patient/by-session/${sessionToken}`),
 
   getAuditLogs: (page = 1) =>
-    apiFetch<{ logs: Array<Record<string, unknown>>; page: number; limit: number }>(
+    apiFetch<{ logs: AuditLog[]; page: number; limit: number }>(
       `/audit?page=${page}`
     ),
+}
+
+export interface AuditLog {
+  id: string
+  staff_name: string | null
+  patient_name: string | null
+  action: string
+  method: string | null
+  success: boolean | null
+  confidence: number | null
+  ip_address: string | null
+  created_at: string
 }

@@ -2,6 +2,7 @@ import 'dotenv/config'
 import bcrypt from 'bcryptjs'
 import { v4 as uuidv4 } from 'uuid'
 import { pool } from './lib/db.js'
+import { encrypt, hmac } from './lib/encryption.js'
 
 const SALT_ROUNDS = 12
 const PASSWORD = 'Password123!'
@@ -294,14 +295,17 @@ async function seed() {
   console.log(`Seeded ${medicationsData.length} medications`)
 
   // ── Biometric enrollments (placeholder — CompreFace not running during seed) ──
+  // Subject IDs are encrypted and HMAC-indexed, matching the pattern in enroll.ts
   const enrolledPatientIndices = [0, 1, 3]
   for (const idx of enrolledPatientIndices) {
     const placeholderSubjectId = `SEED_PLACEHOLDER_${uuidv4()}`
+    const encryptedSubjectId = encrypt(placeholderSubjectId)
+    const subjectIdHmac = hmac(placeholderSubjectId)
     await pool.query(
-      `INSERT INTO biometric_enrollments (id, patient_id, compreface_subject_id, enrolled_by, is_active)
-       VALUES ($1, $2, $3, $4, true)
+      `INSERT INTO biometric_enrollments (id, patient_id, compreface_subject_id, subject_id_hmac, enrolled_by, is_active)
+       VALUES ($1, $2, $3, $4, $5, true)
        ON CONFLICT (id) DO NOTHING`,
-      [uuidv4(), patients[idx].id, placeholderSubjectId, staffDoctor.id]
+      [uuidv4(), patients[idx].id, encryptedSubjectId, subjectIdHmac, staffDoctor.id]
     )
   }
   console.log(`Seeded ${enrolledPatientIndices.length} biometric enrollment placeholders`)

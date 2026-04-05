@@ -261,9 +261,11 @@ class CaregiverDashboardService {
               compositeRisk,
             },
             topDecliningFactors: (vhiData.decliningFactors ?? []).slice(0, 3).map((f) => ({
-              factor: f.factor,
-              impact: f.impact,
-              recommendation: f.recommendation,
+              // Nullish-coalesce each field: JSONB deserialization may produce
+              // partial objects if the VHI was written by an older vhiCycle version.
+              factor: f.factor ?? '',
+              impact: (f.impact ?? 'low') as 'high' | 'medium' | 'low',
+              recommendation: f.recommendation ?? '',
             })),
             pendingVHIActions: (vhiData.pendingActions ?? []).filter(
               (a) => !a.acknowledged && a.target === "caregiver"
@@ -323,14 +325,14 @@ class CaregiverDashboardService {
           user.familyId
         );
       const nextEntry = scheduleEntries.find((entry) => entry.nextDose);
-      const nextMedication = nextEntry
+      const nextMedication = nextEntry?.medication
         ? {
-            name: nextEntry.medication.name,
+            name: nextEntry.medication.name ?? 'Unknown medication',
             time: safeFormatTime(nextEntry.nextDose, "en-US", {
               hour: "2-digit",
               minute: "2-digit",
             }) ?? '',
-            dosage: nextEntry.medication.dosage,
+            dosage: nextEntry.medication.dosage ?? '',
           }
         : undefined;
 

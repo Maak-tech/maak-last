@@ -170,7 +170,9 @@ export const consentRoutes = new Elysia({ prefix: "/api/consent" })
           ...(hasRevoke && {
             isActive: false,
             revokedAt: new Date(),
-            revokedBy: body.revokedBy ?? userId,
+            // Always use the authenticated caller's ID — never trust a body-supplied revokedBy
+            // field, which would allow false attribution to another user.
+            revokedBy: userId,
           }),
           ...(body.scope !== undefined && { scope: body.scope }),
         })
@@ -188,7 +190,7 @@ export const consentRoutes = new Elysia({ prefix: "/api/consent" })
       params: t.Object({ targetUserId: t.String(), orgId: t.String() }),
       body: t.Object({
         isActive: t.Optional(t.Boolean()),
-        revokedBy: t.Optional(t.String()),
+        // revokedBy intentionally omitted — always derived from the authenticated session
         scope: t.Optional(t.Array(t.String({ maxLength: 100 }), { maxItems: 50 })),
       }),
       detail: { tags: ["consent"], summary: "Revoke or update scope of active consent" },

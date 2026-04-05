@@ -387,18 +387,15 @@ class RiskAssessmentService {
       return 0;
     }
 
-    // Weighted average of all risk factors
-    const totalWeight = riskFactors.reduce(
-      (sum, factor) => sum + factor.impact,
-      0
+    // Sum all individual risk factor scores, capped at 100.
+    // Previous formula was Σ(impact²)/Σ(impact) which is not a meaningful clinical score
+    // and deflated the result when multiple high-weight factors co-occurred.
+    // Since factor.impact === config.weight, the correct aggregate is an additive sum
+    // so that each additional risk factor raises the score toward the 100 cap.
+    return Math.min(
+      100,
+      riskFactors.reduce((sum, factor) => sum + factor.impact, 0)
     );
-    const weightedScore = riskFactors.reduce((sum, factor) => {
-      const weight =
-        RISK_FACTORS[factor.id as keyof typeof RISK_FACTORS]?.weight || 10;
-      return sum + factor.impact * weight;
-    }, 0);
-
-    return Math.min(100, totalWeight > 0 ? weightedScore / totalWeight : 0);
   }
 
   /**
@@ -855,15 +852,22 @@ class RiskAssessmentService {
       const raw = await api.get<Record<string, unknown>[]>(
         `/api/health/vitals?from=${thirtyDaysAgo.toISOString()}&limit=100`
       );
-      return (Array.isArray(raw) ? raw : []).map((d) => ({
-        id: (d.id as string) ?? "",
-        userId,
-        type: d.type as string,
-        value: d.value as string | number,
-        unit: d.unit as string | undefined,
-        timestamp: d.recordedAt ? new Date(d.recordedAt as string) : new Date(),
-        source: d.source as string | undefined,
-      } as VitalSign));
+      return (Array.isArray(raw) ? raw : [])
+        .filter((d) => d.type && d.value !== null && d.value !== undefined)
+        .map((d) => {
+          const rawVal = d.value;
+          const numVal = typeof rawVal === "number" ? rawVal : Number.parseFloat(String(rawVal ?? ""));
+          return {
+            id: (d.id as string) ?? "",
+            userId,
+            type: d.type as string,
+            value: numVal,
+            unit: d.unit as string | undefined,
+            timestamp: d.recordedAt ? new Date(d.recordedAt as string) : new Date(),
+            source: d.source as string | undefined,
+          } as VitalSign;
+        })
+        .filter((d) => !isNaN(d.value as number));
     } catch (err: unknown) {
       console.warn('[riskAssessment] getRecentVitals failed:', err);
       return [];

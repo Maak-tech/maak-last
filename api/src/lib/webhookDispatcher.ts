@@ -161,6 +161,10 @@ async function deliverToEndpoint(
       endpointId: hook.id,
       event,
       payload: envelope,
+      // Store the exact JSON string so retries can sign the same bytes.
+      // Re-serializing from JSONB can produce different key ordering, which
+      // would produce a different HMAC and fail endpoint signature verification.
+      canonicalBody: body,
       status,
       attempts: 1,
       lastError,

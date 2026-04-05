@@ -97,7 +97,7 @@ export default function DebugNotificationsScreen() {
       console.log('📱 Testing FCM token...');
       const tokenResult = await fcmService.getFCMToken();
       setLastTest(`FCM Token: ${JSON.stringify(tokenResult, null, 2)}`);
-      console.log('📱 FCM Token result:', tokenResult);
+      if (__DEV__) console.log('📱 FCM Token result:', tokenResult);
     } catch (error: unknown) {
       console.error('❌ FCM token failed:', error);
       setLastTest(`Error: ${error}`);

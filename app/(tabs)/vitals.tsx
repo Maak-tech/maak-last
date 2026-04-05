@@ -283,17 +283,16 @@ export default function VitalsScreen() {
     }
   };
 
-  useEffect(() => {
-    loadVitalsData();
-  }, []);
-
+  // useFocusEffect handles both initial mount and tab focus events.
+  // isRTL is included because loadVitalsData is re-created when isRTL changes (it formats labels).
   useFocusEffect(
     useCallback(() => {
       loadVitalsData();
-    }, [])
+    }, [isRTL])
   );
 
   const handleEnableHealthData = async () => {
+    if (Platform.OS === 'web') return;
     try {
       setLoading(true);
       const granted = await healthDataService.requestHealthPermissions();
@@ -337,6 +336,10 @@ export default function VitalsScreen() {
         isRTL ? 'خطأ' : 'Error',
         isRTL ? 'حدث خطأ في مزامنة البيانات' : 'Error syncing data'
       );
+    } finally {
+      // Ensure the spinner is always cleared even if syncHealthData throws
+      // before loadVitalsData (which owns the setRefreshing(false) on the happy path).
+      setRefreshing(false);
     }
   };
 
@@ -354,8 +357,8 @@ export default function VitalsScreen() {
         color: theme.colors.accent.error,
         value: vitals.heartRate?.toString() || '0',
         unit: 'BPM',
-        trend: summary.heartRate.trend,
-        status: vitals.heartRate && vitals.heartRate > 100 ? 'warning' : 'normal',
+        trend: summary.heartRate?.trend ?? 'stable',
+        status: vitals.heartRate == null ? undefined : vitals.heartRate > 100 ? 'warning' : 'normal',
       },
       {
         key: 'steps',

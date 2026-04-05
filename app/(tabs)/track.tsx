@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   Alert,
   View,
@@ -49,11 +49,8 @@ export default function TrackScreen() {
     label: '',
   });
   const [stats, setStats] = useState({
-    totalSymptoms: 0,
-    totalMedications: 0,
     symptomsThisWeek: 0,
     medicationCompliance: 0,
-    upcomingMedications: 0,
   });
 
   const isRTL = i18n.language === 'ar';
@@ -276,12 +273,10 @@ export default function TrackScreen() {
       setTodaysMedications(medications);
 
       // Calculate stats
-      const totalSymptoms = symptoms.length;
-      const totalMedications = medications.length;
-      const symptomsThisWeek = symptoms.filter(s => 
+      const symptomsThisWeek = symptoms.filter(s =>
         new Date(s.timestamp).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000
       ).length;
-      
+
       const totalReminders = medications.reduce((sum, med) => {
         const reminders = Array.isArray(med.reminders) ? med.reminders : [];
         return sum + reminders.length;
@@ -293,14 +288,10 @@ export default function TrackScreen() {
       }, 0);
 
       const compliance = totalReminders > 0 ? (takenReminders / totalReminders) * 100 : 100;
-      const upcomingMedications = totalReminders - takenReminders;
 
       setStats({
-        totalSymptoms,
-        totalMedications,
         symptomsThisWeek,
         medicationCompliance: Math.round(compliance),
-        upcomingMedications,
       });
     } catch (error: unknown) {
       console.error('[Track] Error loading tracking data:', error);
@@ -319,14 +310,12 @@ export default function TrackScreen() {
     }
   };
 
-  useEffect(() => {
-    loadTrackingData();
-  }, [user, selectedFilter]);
-
+  // useFocusEffect handles both initial mount and returning to this tab.
+  // The separate useEffect was removed to prevent a double-load on mount.
   useFocusEffect(
     useCallback(() => {
       loadTrackingData();
-    }, [user, selectedFilter])
+    }, [user])
   );
 
   const handleFilterChange = (filter: FilterOption) => {

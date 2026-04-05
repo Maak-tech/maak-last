@@ -854,10 +854,18 @@ class ProactiveHealthSuggestionsService {
       const rows = await api.get<Record<string, unknown>[]>(
         `/api/health/vitals?from=${thirtyDaysAgo.toISOString()}&limit=100`
       );
-      return (Array.isArray(rows) ? rows : []).map((v) => ({
-        ...v,
-        timestamp: v.recordedAt ? new Date(v.recordedAt as string) : new Date(),
-      }));
+      return (Array.isArray(rows) ? rows : [])
+        .filter((v) => v.type && (v.value !== null && v.value !== undefined))
+        .map((v) => {
+          const rawVal = v.value;
+          const numVal = typeof rawVal === "number" ? rawVal : Number.parseFloat(String(rawVal ?? ""));
+          return {
+            ...v,
+            value: numVal,
+            timestamp: v.recordedAt ? new Date(v.recordedAt as string) : new Date(),
+          };
+        })
+        .filter((v) => !isNaN(v.value));
     } catch (err: unknown) {
       console.warn('[proactiveHealthSuggestions] fetchRecentVitals failed:', err);
       return [];
@@ -1219,7 +1227,7 @@ class ProactiveHealthSuggestionsService {
 
     // ── Layer 2: Severe allergy reminder (no active conflict found) ────────
     const severeAllergies = allergies.filter(
-      (a) => a.severity === "severe" || a.severity === "severe-life-threatening"
+      (a) => a.severity === "severe" || a.severity === "life_threatening"
     );
     const medicationKeywords = Object.keys(DRUG_CLASS_MAP).concat([
       "antihistamine",

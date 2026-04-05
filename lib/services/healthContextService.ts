@@ -934,6 +934,14 @@ class HealthContextService {
 
     // Fetch VHI from new API (best-effort — does not block context assembly)
     let vhiSummary: string | null = null;
+    try {
+      const vhiResult = await api.get<{ data?: { noraContextBlock?: string } } | null>('/api/vhi/me');
+      if (vhiResult?.data?.noraContextBlock) {
+        vhiSummary = vhiResult.data.noraContextBlock;
+      }
+    } catch (err: unknown) {
+      console.debug('[healthContextService] VHI fetch failed (non-critical):', err instanceof Error ? err.message : String(err));
+    }
 
     // Construct comprehensive health context
     const healthContext: HealthContext = {
@@ -1049,6 +1057,7 @@ ${context.vitalSigns.glucoseLevel ? `• Glucose: ${context.vitalSigns.glucoseLe
 ${context.vitalSigns.weight ? `• Weight: ${context.vitalSigns.weight}` : ''}
 ` : ''}
 
+${context.vhiSummary ? `\n## Virtual Health Identity\n${context.vhiSummary}\n` : ''}
 INSTRUCTIONS FOR YOUR RESPONSES:
 1. Provide personalized health insights based on the complete medical profile
 2. Consider all medications when discussing drug interactions or new treatments

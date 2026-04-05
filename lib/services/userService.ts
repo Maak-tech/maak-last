@@ -216,7 +216,7 @@ export const userService = {
       payload.onboardingCompleted = updates.onboardingCompleted;
     if (updates.dashboardTourCompleted !== undefined)
       payload.dashboardTourCompleted = updates.dashboardTourCompleted;
-    if (updates.isPremium !== undefined) payload.isPremium = updates.isPremium;
+    // isPremium is intentionally omitted — controlled exclusively by RevenueCat/Autumn webhook handlers
     if (updates.preferences?.language !== undefined)
       payload.language = updates.preferences.language;
     if (updates.preferences?.notifications !== undefined)

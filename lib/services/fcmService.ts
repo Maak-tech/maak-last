@@ -88,7 +88,7 @@ export const fcmService = {
     notification: {
       title: string;
       body: string;
-      data?: Record<string, any>;
+      data?: Record<string, unknown>;
       sound?: string;
       priority?: 'normal' | 'high';
     }
@@ -111,7 +111,7 @@ export const fcmService = {
     notification: {
       title: string;
       body: string;
-      data?: Record<string, any>;
+      data?: Record<string, unknown>;
       sound?: string;
       priority?: 'normal' | 'high';
     }

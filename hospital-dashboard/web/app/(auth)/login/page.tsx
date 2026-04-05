@@ -17,6 +17,9 @@ export default function LoginPage() {
     try {
       const data = await api.login(email, password)
       setToken(data.token)
+      // Store non-sensitive staff metadata only (no token, no DOB, no PHI).
+      // sessionStorage is tab-scoped and cleared when the tab closes, which is
+      // acceptable for a hospital workstation; never use localStorage here.
       sessionStorage.setItem('hospital_staff', JSON.stringify(data.staff))
       router.push('/dashboard')
     } catch (err: unknown) {

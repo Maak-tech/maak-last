@@ -34,7 +34,9 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
   )
 }
 
-function VitalTypeLabel(type: string) {
+// Plain helper — lowercase name signals it is NOT a React component (avoids
+// ESLint react/display-name and hooks-in-function false-positive warnings).
+function vitalTypeLabel(type: string): string {
   const map: Record<string, string> = {
     heart_rate: 'Heart Rate',
     sleep_hours: 'Sleep',
@@ -44,7 +46,12 @@ function VitalTypeLabel(type: string) {
 }
 
 export default function DigitalTwinView({ data }: Props) {
-  const { patient, vhi, recentAlerts, vitalsTrends, activeMedications } = data
+  const { patient, vhi, vitalsTrends } = data
+  // Guard all array fields against null/undefined returned by the API to prevent
+  // "Cannot read properties of null (reading 'length')" runtime crashes.
+  const recentAlerts = Array.isArray(data.recentAlerts) ? data.recentAlerts : []
+  const activeMedications = Array.isArray(data.activeMedications) ? data.activeMedications : []
+  const emergencyContacts = Array.isArray(patient.emergencyContacts) ? patient.emergencyContacts : []
   const summary = vhi?.summary_json as Record<string, unknown> | undefined
 
   // Group vitals by type for display — guard against null/undefined from API
@@ -125,19 +132,21 @@ export default function DigitalTwinView({ data }: Props) {
           <div className="space-y-4">
             {Object.entries(vitalsByType).map(([type, readings]) => {
               const latest = readings[readings.length - 1]
-              const values = readings.map((r) => r.value)
+              // Postgres NUMERIC columns are returned as strings by node-postgres — parse explicitly
+              const values = readings.map((r) => typeof r.value === 'number' ? r.value : Number.parseFloat(String(r.value ?? 0)))
               const max = Math.max(...values)
               const min = Math.min(...values)
               return (
                 <div key={type}>
                   <div className="flex justify-between text-xs text-gray-400 mb-1.5">
-                    <span className="font-medium text-gray-300">{VitalTypeLabel(type)}</span>
-                    <span>{latest.value} {latest.unit}</span>
+                    <span className="font-medium text-gray-300">{vitalTypeLabel(type)}</span>
+                    <span>{typeof latest.value === 'number' ? latest.value : Number.parseFloat(String(latest.value ?? 0))} {latest.unit}</span>
                   </div>
                   <div className="flex items-end gap-0.5 h-8">
                     {readings.map((r, i) => {
+                      const numVal = typeof r.value === 'number' ? r.value : Number.parseFloat(String(r.value ?? 0))
                       const range = max - min || 1
-                      const height = Math.max(8, ((r.value - min) / range) * 100)
+                      const height = Math.max(8, ((numVal - min) / range) * 100)
                       return (
                         <div
                           key={`${r.recorded_at}-${r.value}-${i}`}
@@ -177,11 +186,11 @@ export default function DigitalTwinView({ data }: Props) {
       )}
 
       {/* Emergency Contacts */}
-      {patient.emergencyContacts.length > 0 && (
+      {emergencyContacts.length > 0 && (
         <div className="bg-gray-800 rounded-xl border border-gray-700 p-4">
           <h3 className="font-semibold text-white mb-3">Emergency Contacts</h3>
           <ul className="space-y-2">
-            {patient.emergencyContacts.map((contact, i) => (
+            {emergencyContacts.map((contact, i) => (
               <li key={`${contact.phone}-${contact.relation}-${i}`} className="flex items-center justify-between">
                 <div>
                   <p className="text-white text-xs font-medium">{contact.name}</p>

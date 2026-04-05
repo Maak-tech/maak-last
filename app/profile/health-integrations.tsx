@@ -236,11 +236,15 @@ export default function HealthIntegrationsScreen() {
 
         const connectionsMap = new Map<HealthProvider, ProviderConnection>();
 
-        // Use static list instead of providers array to avoid dependency issues
-        for (const providerId of allProviderIds) {
-          const connection = await getProviderConnection("", providerId);
-          if (connection) {
-            connectionsMap.set(providerId, connection);
+        // Only fetch per-user connections when a user session exists.
+        // Passing an empty string previously caused all connections to appear
+        // disconnected because the API query became ?userId= (no value).
+        if (user?.id) {
+          for (const providerId of allProviderIds) {
+            const connection = await getProviderConnection(user.id, providerId);
+            if (connection) {
+              connectionsMap.set(providerId, connection);
+            }
           }
         }
 

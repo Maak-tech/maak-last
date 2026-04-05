@@ -127,13 +127,30 @@ export const geneticsRoutes = new Elysia({ prefix: "/api/genetics" })
         return { error: "Invalid upload key" };
       }
 
+      // Verify that the user has given consent before processing their DNA.
+      // Without consent, no genetic data should be extracted or stored.
+      const [existing] = await db
+        .select({ consentGiven: genetics.consentGiven })
+        .from(genetics)
+        .where(eq(genetics.userId, userId))
+        .limit(1);
+
+      if (!existing?.consentGiven) {
+        set.status = 403;
+        return { error: "Genetic data processing requires consent. Please give consent before processing." };
+      }
+
       await db
         .update(genetics)
         .set({ processingStatus: "processing" })
         .where(eq(genetics.userId, userId));
 
       // Run parsing job in the background (non-blocking)
-      runDnaParsingJob(userId, body.uploadKey).catch((err: unknown) => console.error(`[genetics] DNA parsing job failed for user ${userId}:`, err instanceof Error ? err.message : String(err)));
+      runDnaParsingJob(userId, body.uploadKey).catch(async (err: unknown) => {
+        console.error(`[genetics] DNA parsing job failed for user ${userId}:`, err instanceof Error ? err.message : String(err));
+        // Mark processing as failed so the status endpoint reflects reality
+        await db.update(genetics).set({ processingStatus: "failed" }).where(eq(genetics.userId, userId)).catch(() => {});
+      });
       return { ok: true, message: "DNA processing started. Check /me/status for updates." };
     },
     {
@@ -145,7 +162,7 @@ export const geneticsRoutes = new Elysia({ prefix: "/api/genetics" })
   // Update family sharing consent
   .patch(
     "/me/consent",
-    async ({ db, userId, body }) => {
+    async ({ db, userId, body, set }) => {
       const [updated] = await db
         .update(genetics)
         .set({
@@ -155,6 +172,10 @@ export const geneticsRoutes = new Elysia({ prefix: "/api/genetics" })
         .where(eq(genetics.userId, userId))
         .returning({ familySharingConsent: genetics.familySharingConsent });
 
+      if (!updated) {
+        set.status = 404;
+        return { error: "No genetics record found. Upload DNA data first." };
+      }
       return updated;
     },
     {

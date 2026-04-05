@@ -54,7 +54,9 @@ CREATE TABLE IF NOT EXISTS biometric_enrollments (
   -- HMAC-SHA256(subjectId) stored as a fast lookup index — no IV, deterministic.
   -- Allows O(1) lookup in recognize.ts instead of decrypting every row.
   subject_id_hmac       TEXT,
-  enrolled_by           TEXT NOT NULL REFERENCES hospital_staff(id),
+  -- NULL means patient self-enrolled (no staff involved).
+  -- NOT NULL + FK applies only for staff-assisted enrollments.
+  enrolled_by           TEXT REFERENCES hospital_staff(id),
   is_active             BOOLEAN DEFAULT true,
   enrolled_at           TIMESTAMPTZ DEFAULT now(),
   deactivated_at        TIMESTAMPTZ

@@ -13,22 +13,28 @@ export default function ChatMessage({ role, content, isStreaming, timestamp }: C
   const [displayedContent, setDisplayedContent] = useState('');
   const [currentIndex, setCurrentIndex] = useState(0);
 
+  // Reset typing animation when content or role changes
   useEffect(() => {
-    if (isStreaming && role === 'assistant') {
+    if (role !== 'assistant' || isStreaming) {
       setDisplayedContent(content);
-    } else if (!isStreaming && role === 'assistant' && displayedContent !== content) {
-      // Typing effect for non-streaming messages
-      const timer = setTimeout(() => {
-        if (currentIndex < content.length) {
-          setDisplayedContent(content.slice(0, currentIndex + 1));
-          setCurrentIndex(currentIndex + 1);
-        }
-      }, 20);
-      return () => clearTimeout(timer);
+      setCurrentIndex(content.length);
     } else {
-      setDisplayedContent(content);
+      // New content for typing effect — restart from beginning
+      setDisplayedContent('');
+      setCurrentIndex(0);
     }
-  }, [content, currentIndex, isStreaming, role, displayedContent]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [content, role, isStreaming]);
+
+  // Advance the typing cursor one character at a time
+  useEffect(() => {
+    if (role !== 'assistant' || isStreaming || currentIndex >= content.length) return;
+    const timer = setTimeout(() => {
+      setDisplayedContent(content.slice(0, currentIndex + 1));
+      setCurrentIndex(prev => prev + 1);
+    }, 20);
+    return () => clearTimeout(timer);
+  }, [content, currentIndex, isStreaming, role]);
 
   const isUser = role === 'user';
 

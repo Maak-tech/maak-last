@@ -300,7 +300,7 @@ async function buildRiskContext(
     .map((h) => h.condition.toLowerCase());
 
   const severeAllergies = allergies.filter(
-    (a) => a.severity === "severe" || a.severity === "severe-life-threatening"
+    (a) => a.severity === "severe" || a.severity === "life_threatening"
   );
 
   return {

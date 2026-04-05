@@ -1,7 +1,7 @@
 ﻿/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Large screen composed of multiple localized UI states. */
 /* biome-ignore-all lint/correctness/noNestedComponentDefinitions: Local section renderer intentionally captures `isRTL`. */
 /* biome-ignore-all lint/style/noNestedTernary: State rendering is explicit and localized. */
-import { useNavigation, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import {
   View,
   Text,

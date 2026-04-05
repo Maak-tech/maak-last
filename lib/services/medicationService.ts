@@ -539,9 +539,14 @@ export const medicationService = {
     }
   },
 
-  // Cache invalidation stub (no-op — cache is managed per-request by the API layer)
-  invalidateCache(_userId?: string): void {
-    // no-op stub: cache invalidation is handled server-side
+  // Invalidate the in-memory _medCache so that the next call to getUserMedications
+  // hits the API instead of returning a stale pre-write snapshot.
+  invalidateCache(userId?: string): void {
+    if (userId) {
+      _medCache.data.delete(userId);
+    } else {
+      _medCache.data.clear();
+    }
   },
 
   // Bulk add medications

@@ -7,7 +7,7 @@ import {
   useEffect,
   useState,
 } from "react";
-import { api } from "@/lib/apiClient";
+import { api, setUnauthorizedHandler } from "@/lib/apiClient";
 import { authClient } from "@/lib/authClient";
 import { fcmService } from "@/lib/services/fcmService";
 import { userService } from "@/lib/services/userService";
@@ -41,6 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     let cancelled = false;
+    let fcmInitTimer: ReturnType<typeof setTimeout> | null = null;
 
     const initSession = async () => {
       try {
@@ -66,12 +67,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setUser(userData);
 
         // Initialize FCM for push notifications (with delay to ensure auth is ready)
-        setTimeout(() => {
-          fcmService
-            .initializeFCM(userData.id)
-            .catch((error: unknown) => {
-              console.warn('[AuthContext] FCM initialization error:', error);
-            });
+        fcmInitTimer = setTimeout(() => {
+          if (!cancelled) {
+            fcmService
+              .initializeFCM(userData.id)
+              .catch((error: unknown) => {
+                console.warn('[AuthContext] FCM initialization error:', error);
+              });
+          }
         }, 3000);
 
         // Check for pending family code; if none processed, create a default family
@@ -88,7 +91,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     initSession();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (fcmInitTimer !== null) clearTimeout(fcmInitTimer);
+    };
   }, []);
 
   // Helper function to process pending family codes
@@ -126,9 +132,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const currentUser = await userService.getUser(userId);
       if (!currentUser?.familyId) {
         // Create a default family for the user
+        const familyName = currentUser?.name ? `${currentUser.name}'s Family` : 'My Family';
         await userService.createFamily(
           userId,
-          `${currentUser?.name}'s Family` || 'My Family'
+          familyName
         );
         // Refresh user state to reflect the new family
         const updatedUser = await userService.getUser(userId);
@@ -151,13 +158,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const sessionUser = result.data?.user;
       if (!sessionUser) throw new Error('Failed to sign in. Please try again.');
 
-      // Ensure user document exists
-      await userService.ensureUserDocument(
+      // Ensure user document exists and update auth state immediately
+      const userData = await userService.ensureUserDocument(
         sessionUser.id,
         sessionUser.email ?? '',
         (sessionUser as { name?: string }).name ?? 'User'
       );
-
+      setUser(userData);
       // signIn succeeded
     } catch (error: unknown) {
       console.error('Sign in error:', error);
@@ -224,6 +231,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       throw new Error('Failed to sign out. Please try again.');
     }
   };
+
+  // Register a global 401 handler so that any API call that returns 401
+  // (expired session) automatically triggers logout + redirect to login screen.
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      // Fire-and-forget — don't await, since this may be called inside a non-async context
+      logout().catch((err: unknown) => {
+        console.warn('[AuthContext] Auto-logout on 401 failed:', err);
+        // Still clear the user from state even if the API call failed
+        setUser(null);
+      });
+    });
+    // No cleanup needed — the handler is module-level and remains valid for the
+    // lifetime of the AuthProvider (which wraps the entire app).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const updateUser = async (userData: Partial<User>) => {
     if (!user) return;

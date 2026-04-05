@@ -10,10 +10,10 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
-  Clipboard,
   Share,
   RefreshControl,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFocusEffect } from 'expo-router';
@@ -80,11 +80,6 @@ export default function FamilyScreen() {
   const [myVhiScore, setMyVhiScore] = useState<number | null>(null);
 
   const isRTL = i18n.language === 'ar';
-
-  // Load family members on component mount
-  useEffect(() => {
-    loadFamilyMembers();
-  }, [user]);
 
   const loadFamilyMembers = async (isRefresh = false) => {
     if (!user?.familyId) {
@@ -219,7 +214,7 @@ export default function FamilyScreen() {
               } catch (error: unknown) {
                 console.error('Error sharing:', error);
                 // Fallback to copying to clipboard
-                await Clipboard.setString(shareMessage);
+                await Clipboard.setStringAsync(shareMessage);
                 Alert.alert(
                   isRTL ? 'تم النسخ' : 'Copied',
                   isRTL
@@ -232,7 +227,7 @@ export default function FamilyScreen() {
           {
             text: isRTL ? 'نسخ' : 'Copy',
             onPress: async () => {
-              await Clipboard.setString(shareMessage);
+              await Clipboard.setStringAsync(shareMessage);
               Alert.alert(
                 isRTL ? 'تم النسخ' : 'Copied',
                 isRTL
@@ -511,7 +506,7 @@ export default function FamilyScreen() {
               } catch (error: unknown) {
                 console.error('Error sharing:', error);
                 // Fallback to copying to clipboard
-                await Clipboard.setString(shareMessage);
+                await Clipboard.setStringAsync(shareMessage);
                 Alert.alert(
                   isRTL ? 'تم النسخ' : 'Copied',
                   isRTL
@@ -524,7 +519,7 @@ export default function FamilyScreen() {
           {
             text: isRTL ? 'نسخ الرسالة' : 'Copy Message',
             onPress: async () => {
-              await Clipboard.setString(shareMessage);
+              await Clipboard.setStringAsync(shareMessage);
               Alert.alert(
                 isRTL ? 'تم النسخ' : 'Copied',
                 isRTL
@@ -536,7 +531,7 @@ export default function FamilyScreen() {
           {
             text: isRTL ? 'نسخ الرمز فقط' : 'Copy Code Only',
             onPress: async () => {
-              await Clipboard.setString(code);
+              await Clipboard.setStringAsync(code);
               Alert.alert(
                 isRTL ? 'تم النسخ' : 'Copied',
                 isRTL
@@ -601,12 +596,7 @@ export default function FamilyScreen() {
             : 'You have successfully joined! You can now see your new family members below.'
         );
 
-        // Force reload the screen data to show the new family
-        setTimeout(() => {
-          loadFamilyMembers().catch((err) =>
-            console.warn('[family] Deferred reload after join failed:', err)
-          );
-        }, 1000);
+        // loadFamilyMembers() was already called above — the deferred reload is redundant.
       } else {
         Alert.alert(isRTL ? 'رمز غير صحيح' : 'Invalid Code', result.message);
       }
@@ -856,6 +846,7 @@ export default function FamilyScreen() {
             <TouchableOpacity
               onPress={() => {
                 setShowInviteModal(false);
+                setGeneratedCode(null);
                 setInviteForm({
                   name: '',
                   relation: '',

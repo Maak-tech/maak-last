@@ -160,8 +160,11 @@ class OfflineService {
       this.isOnline = await this.checkNetworkStatus();
 
       if (!wasOnline && this.isOnline) {
-        // Just came online, trigger sync
-        this.syncAll();
+        // Just came online — trigger sync, catch errors so a syncAll failure does not
+        // crash the polling interval and leave the service in a broken state.
+        this.syncAll().catch((err: unknown) => {
+          console.warn('[offline] syncAll on reconnect failed:', err instanceof Error ? err.message : String(err));
+        });
       }
 
       // Notify listeners if status changed
@@ -415,6 +418,12 @@ class OfflineService {
    */
   private async syncOperation(operation: OfflineOperation): Promise<boolean> {
     if (!this.isOnline) {
+      return false;
+    }
+    // Guard against concurrent duplicate dispatch: if syncAll() fired in the
+    // 100 ms window between queueOperation() and this setTimeout callback,
+    // it may have already submitted this same operation.
+    if (this.isSyncing) {
       return false;
     }
 

@@ -28,7 +28,9 @@ export async function jwtAuth(c: Context, next: Next) {
 
   const token = auth.slice(7)
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET!) as StaffPayload
+    // Specify the algorithm explicitly to prevent algorithm confusion attacks
+    // (e.g. an attacker switching the header to 'none' or 'RS256').
+    const payload = jwt.verify(token, process.env.JWT_SECRET!, { algorithms: ['HS256'] }) as StaffPayload
 
     // Check token revocation list
     const revoked = await queryOne(

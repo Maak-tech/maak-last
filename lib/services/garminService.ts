@@ -15,6 +15,7 @@ import {
 } from "expo-web-browser";
 import { Platform } from "react-native";
 import { api } from "@/lib/apiClient";
+import { authClient } from "@/lib/authClient";
 import type {
   GarminTokens,
   NormalizedMetricPayload,
@@ -49,16 +50,13 @@ function extractParams(url: string): Record<string, string> {
 
 export const garminService = {
   isAvailable: (): Promise<ProviderAvailability> => {
-    if (Platform.OS === "web") {
-      // Web support depends on your app's auth + API config.
-      // We still allow it, but users may need to complete auth in a separate flow.
-      return Promise.resolve({ available: true });
-    }
     return Promise.resolve({ available: true });
   },
 
   isConnected: async (): Promise<boolean> => {
-    const conn = await getProviderConnection("", "garmin");
+    const userId = (await authClient.getSession())?.data?.user?.id;
+    if (!userId) return false;
+    const conn = await getProviderConnection(userId, "garmin");
     return !!conn?.isConnected;
   },
 

@@ -190,7 +190,9 @@ export const medicationRoutes = new Elysia({ prefix: "/api/medications" })
         await db
           .update(medicationReminders)
           .set({ status: "snoozed" })
-          .where(eq(medicationReminders.id, reminder.id));
+          // Include userId in WHERE to close the TOCTOU window between the
+          // ownership check above and this mutation.
+          .where(and(eq(medicationReminders.id, reminder.id), eq(medicationReminders.userId, userId)));
         return { id: reminder.id, status: "dismissed" };
       }
 
@@ -213,11 +215,13 @@ export const medicationRoutes = new Elysia({ prefix: "/api/medications" })
       await db
         .update(medications)
         .set({ refillDate: newRefillDate, updatedAt: new Date() })
-        .where(eq(medications.id, med.id));
+        // Include userId in WHERE to close the TOCTOU window.
+        .where(and(eq(medications.id, med.id), eq(medications.userId, userId)));
 
       return { id: med.id, status: "dismissed" };
     },
     {
+      params: t.Object({ id: t.String() }),
       detail: { tags: ["health"], summary: "Dismiss a medication refill reminder" },
     }
   );

@@ -55,9 +55,14 @@ authRoutes.post('/auth/login', async (c) => {
   const valid = await bcrypt.compare(password, staff.password_hash)
   if (!valid) {
     await query(
+      // Threshold: lock after 5 consecutive failures.
+      // Use `failed_login_attempts + 1 >= 5` so the lock is set atomically
+      // in the same UPDATE that records the 5th failure — the old value
+      // `failed_login_attempts` is evaluated in the DB at the time of the UPDATE,
+      // so this correctly fires when the pre-increment count is 4 (i.e. this is the 5th bad attempt).
       `UPDATE hospital_staff
        SET failed_login_attempts = failed_login_attempts + 1,
-           locked_until = CASE WHEN failed_login_attempts >= 4 THEN now() + interval '30 minutes' ELSE locked_until END
+           locked_until = CASE WHEN failed_login_attempts + 1 >= 5 THEN now() + interval '30 minutes' ELSE locked_until END
        WHERE id = $1`,
       [staff.id]
     )
@@ -75,7 +80,7 @@ authRoutes.post('/auth/login', async (c) => {
   const token = jwt.sign(
     { staffId: staff.id, role: staff.role, jti },
     process.env.JWT_SECRET!,
-    { expiresIn: '8h' }
+    { algorithm: 'HS256', expiresIn: '8h' }
   )
 
   await writeAudit({ staffId: staff.id, action: 'login_success', ipAddress: ip, success: true })

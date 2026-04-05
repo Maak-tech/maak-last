@@ -252,7 +252,8 @@ export const clinicalNotesRoutes = new Elysia({ prefix: "/api/notes" })
         })).catch((err: unknown) => console.error(`[clinicalNotes] Tigris delete failed for key ${existing.attachmentKey}:`, err instanceof Error ? err.message : String(err)));
       }
 
-      await db.delete(clinicalNotes).where(eq(clinicalNotes.id, params.id));
+      // Include userId in the WHERE clause to prevent TOCTOU race conditions
+      await db.delete(clinicalNotes).where(and(eq(clinicalNotes.id, params.id), eq(clinicalNotes.userId, userId)));
       return { ok: true };
     },
     {
@@ -317,7 +318,8 @@ export const clinicalNotesRoutes = new Elysia({ prefix: "/api/notes" })
           soap: body.soap ?? undefined,
           updatedAt: new Date(),
         })
-        .where(eq(clinicalNotes.id, params.id));
+        // Include userId to prevent TOCTOU race conditions (matches ownership check above)
+        .where(and(eq(clinicalNotes.id, params.id), eq(clinicalNotes.userId, userId)));
       return { ok: true };
     },
     {
@@ -413,7 +415,9 @@ async function parseNoteAsync(note: typeof clinicalNotes.$inferSelect) {
     if (parsed.providerName && !note.providerName) updates.providerName = parsed.providerName;
     if (parsed.specialty && !note.specialty) updates.specialty = parsed.specialty;
 
-    await importedDb.update(clinicalNotes).set(updates).where(eq(clinicalNotes.id, note.id));
+    await importedDb.update(clinicalNotes).set(updates).where(
+      and(eq(clinicalNotes.id, note.id), eq(clinicalNotes.userId, note.userId))
+    );
   } catch (err: unknown) {
     clearTimeout(timer);
     console.error(`[clinicalNotes] ML parse failed for note ${note.id}:`, err);

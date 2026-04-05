@@ -11,6 +11,7 @@
 import { db } from "../db";
 import { runForecastCycle } from "./forecastCycle";
 import { dispatchWebhookEvent } from "../lib/webhookDispatcher";
+import { broadcastToUser } from "../routes/realtime";
 import {
   pushToUser,
   pushToFamilyAdmins,
@@ -35,36 +36,81 @@ import {
 } from "../db/schema";
 import { eq, desc, gte, and, isNull } from "drizzle-orm";
 import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 
 const WINDOW_DAYS = 21; // minimum days to establish baseline confidence
 const RISK_HIGH = 75;
 const RISK_MODERATE = 50;
 
+// ── Concurrency guard ─────────────────────────────────────────────────────────
+// Railway cron runs each invocation as a fresh Bun process in the same container.
+// A lock file prevents a new run from starting if a previous one is still active.
+// If the lock is older than 20 minutes (a stuck run), it is treated as stale and removed.
+const LOCK_FILE = path.join("/tmp", "vhi_cycle.lock");
+const LOCK_STALE_MS = 20 * 60 * 1000; // 20 minutes
+
+function acquireLock(): boolean {
+  try {
+    if (fs.existsSync(LOCK_FILE)) {
+      const stat = fs.statSync(LOCK_FILE);
+      const ageMs = Date.now() - stat.mtimeMs;
+      if (ageMs < LOCK_STALE_MS) {
+        console.warn(`[vhiCycle] Already running (lock age: ${Math.round(ageMs / 1000)}s). Skipping.`);
+        return false;
+      }
+      console.warn(`[vhiCycle] Stale lock detected (age: ${Math.round(ageMs / 1000)}s). Overriding.`);
+    }
+    fs.writeFileSync(LOCK_FILE, String(process.pid));
+    return true;
+  } catch (err: unknown) {
+    console.warn("[vhiCycle] Failed to acquire lock file — proceeding without guard:", err);
+    return true; // Non-fatal: proceed if file I/O fails
+  }
+}
+
+function releaseLock(): void {
+  try {
+    if (fs.existsSync(LOCK_FILE)) fs.unlinkSync(LOCK_FILE);
+  } catch (err: unknown) {
+    console.warn("[vhiCycle] Failed to release lock file:", err);
+  }
+}
+
 export async function runVhiCycle() {
+  if (!acquireLock()) return;
+
   console.log(`[vhiCycle] Starting at ${new Date().toISOString()}`);
 
-  // Fetch all users with enough data to compute VHI
-  const allUsers = await db.select({ id: users.id }).from(users);
-  console.log(`[vhiCycle] Processing ${allUsers.length} users`);
+  try {
+    // Fetch all users with enough data to compute VHI
+    const allUsers = await db.select({ id: users.id }).from(users);
+    console.log(`[vhiCycle] Processing ${allUsers.length} users`);
 
-  const results = await Promise.allSettled(
-    allUsers.map(({ id }) => processUser(id))
-  );
+    const results = await Promise.allSettled(
+      allUsers.map(({ id }) => processUser(id))
+    );
 
-  const failed = results.filter((r) => r.status === "rejected");
-  if (failed.length > 0) {
-    console.error(`[vhiCycle] ${failed.length} users failed:`);
-    failed.forEach((r) => {
-      if (r.status === "rejected") {
-        const reason: unknown = r.reason;
-        console.error("  ", reason instanceof Error ? reason.message : String(reason));
-      }
-    });
+    const failed = results.filter((r) => r.status === "rejected");
+    if (failed.length > 0) {
+      console.error(`[vhiCycle] ${failed.length} users failed:`);
+      failed.forEach((r) => {
+        if (r.status === "rejected") {
+          const reason: unknown = r.reason;
+          console.error("  ", reason instanceof Error ? reason.message : String(reason));
+        }
+      });
+    }
+
+    console.log(
+      `[vhiCycle] Done. Success: ${results.length - failed.length}, Failed: ${failed.length}`
+    );
+  } finally {
+    // Always release the lock — even if the DB query or Promise.allSettled throws.
+    // Without this, a single DB glitch would hold the lock for LOCK_STALE_MS (20 min)
+    // and cause the next two 15-minute cron invocations to be silently skipped.
+    releaseLock();
   }
-
-  console.log(
-    `[vhiCycle] Done. Success: ${results.length - failed.length}, Failed: ${failed.length}`
-  );
 }
 
 export async function processUser(userId: string) {
@@ -228,7 +274,7 @@ export async function processUser(userId: string) {
     });
 
   // Genetic elevating/declining
-  if (geneticsData?.prsScores) {
+  if (geneticsData?.prsScores && Array.isArray(geneticsData.prsScores)) {
     const prs = geneticsData.prsScores as Array<{
       condition: string;
       percentile: number;
@@ -336,13 +382,16 @@ export async function processUser(userId: string) {
         name: m.name,
         adherence: adherenceRate,
       })),
-      labAbnormalities: abnormalLabs.map((l) => {
+      labAbnormalities: abnormalLabs.flatMap((l) => {
         const flaggedResult = l.results?.find((r) => r.flag && r.flag !== "normal");
-        return {
+        // Skip entries where no individual result carries a flag — avoids emitting
+        // an entry with an empty value string and a hardcoded "high" flag.
+        if (!flaggedResult) return [];
+        return [{
           test: l.testName,
-          value: String(flaggedResult?.value ?? ""),
-          flag: (flaggedResult?.flag as "high" | "low" | "critical") ?? "high",
-        };
+          value: String(flaggedResult.value),
+          flag: flaggedResult.flag as "high" | "low" | "critical",
+        }];
       }),
       recentDoctorNotes: recentNotes.slice(0, 3).map((n) => ({
         date: n.noteDate?.toISOString() ?? "",
@@ -389,6 +438,16 @@ export async function processUser(userId: string) {
       console.error(`[vhiCycle] forecastCycle failed for ${userId}:`, err)
     );
   }
+
+  // Broadcast updated VHI to any connected WebSocket clients immediately after write.
+  // broadcastToUser is synchronous and in-memory — no await needed.
+  broadcastToUser(userId, "vhi.updated", {
+    overallScore,
+    compositeRisk,
+    riskLevel: compositeRisk >= RISK_HIGH ? "high" : compositeRisk >= RISK_MODERATE ? "moderate" : "low",
+    trajectory: vhiData.currentState.riskScores.trajectory,
+    updatedAt: computedAt.toISOString(),
+  });
 
   // Dispatch webhook events and push alerts concurrently.
   // These are awaited so they complete before processUser resolves — otherwise the
@@ -496,10 +555,10 @@ async function dispatchPushAlerts(
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function computeGeneticRiskLoad(geneticsData: typeof genetics.$inferSelect | null): number {
-  if (!geneticsData?.prsScores) return 0;
+  if (!geneticsData?.prsScores || !Array.isArray(geneticsData.prsScores)) return 0;
   const prs = geneticsData.prsScores as Array<{ percentile: number; level: string }>;
   if (!prs.length) return 0;
-  const avg = prs.reduce((sum, p) => sum + p.percentile, 0) / prs.length;
+  const avg = prs.reduce((sum, p) => sum + (Number.isFinite(p.percentile) ? p.percentile : 0), 0) / prs.length;
   const highCount = prs.filter((p) => p.level === "high").length;
   return Math.min(100, Math.round(avg * 0.6 + highCount * 10));
 }
@@ -507,10 +566,10 @@ function computeGeneticRiskLoad(geneticsData: typeof genetics.$inferSelect | nul
 function buildGeneticBaseline(g: typeof genetics.$inferSelect) {
   return {
     hasGeneticData: true,
-    prsScores: (g.prsScores as Array<{ condition: string; percentile: number; level: string }> | null) ?? [],
+    prsScores: (Array.isArray(g.prsScores) ? g.prsScores : []) as Array<{ condition: string; percentile: number; level: string }>,
     protectiveVariants: [],
     riskVariants: [],
-    pharmacogenomics: (g.pharmacogenomics as Array<{ drug: string; interaction: string; gene: string }> | null) ?? [],
+    pharmacogenomics: (Array.isArray(g.pharmacogenomics) ? g.pharmacogenomics : []) as Array<{ drug: string; interaction: string; gene: string }>,
     ancestryGroup: "unknown",
   };
 }
@@ -604,13 +663,13 @@ function buildNoraContext({
     `Medication Adherence: ${Math.round(adherenceRate * 100)}%`,
   ];
 
-  if (geneticsData?.prsScores) {
+  if (geneticsData?.prsScores && Array.isArray(geneticsData.prsScores)) {
     lines.push("", "Genetic Baseline:");
     const prs = geneticsData.prsScores as Array<{ condition: string; percentile: number; level: string }>;
     prs.slice(0, 4).forEach(({ condition, percentile, level }) => {
       lines.push(`  ${condition}: ${percentile}th percentile (${level})`);
     });
-    if (geneticsData.pharmacogenomics) {
+    if (geneticsData.pharmacogenomics && Array.isArray(geneticsData.pharmacogenomics)) {
       const pg = geneticsData.pharmacogenomics as Array<{ drug: string; interaction: string }>;
       if (pg.length)
         lines.push(
@@ -669,13 +728,22 @@ const STALE_THRESHOLD_MS = 48 * 60 * 60 * 1000; // 48 hours
 /** Extract numeric values (most-recent-first) for a given vital type. */
 function vitalValues(rows: VitalRow[], ...types: string[]): { value: number; recordedAt: Date }[] {
   return rows
-    .filter((r) => types.includes(r.type) && r.value !== null)
-    .map((r) => ({ value: parseFloat(r.value as string), recordedAt: r.recordedAt }))
+    .filter((r) => types.includes(r.type) && r.value !== null && r.value !== undefined)
+    .map((r) => ({ value: parseFloat(String(r.value)), recordedAt: r.recordedAt }))
     .filter((v) => !isNaN(v.value));
 }
 
 /** Convert an array of {value, recordedAt} readings into a DBDimension. */
-function toDimension(readings: { value: number; recordedAt: Date }[]): DBDimension {
+/**
+ * @param higherIsBetter  true for metrics where trending up = health improving
+ *                        (HRV, sleep, steps, mood, SpO2, adherence).
+ *                        false for metrics where trending down = health improving
+ *                        (heart rate, blood pressure, symptom burden, respiratory rate).
+ */
+function toDimension(
+  readings: { value: number; recordedAt: Date }[],
+  higherIsBetter = true,
+): DBDimension {
   if (readings.length === 0) {
     return {
       currentValue: null, baselineValue: null, zScore: null,
@@ -689,7 +757,10 @@ function toDimension(readings: { value: number; recordedAt: Date }[]): DBDimensi
   const recentSlice = values.slice(0, Math.min(7, values.length));
   const currentValue = recentSlice.reduce((s, v) => s + v, 0) / recentSlice.length;
 
-  const spread = baselineValue * 0.1 || 1;
+  // Use Math.max to handle baselineValue = 0 (e.g. a vital that hasn't been recorded yet).
+  // Without this guard, spread = 0 * 0.1 || 1 = 1, which is correct by accident via the
+  // || fallback, but explicit Math.max is clearer and handles negative baselines too.
+  const spread = Math.max(Math.abs(baselineValue * 0.1), 1);
   const zScore = Math.max(-3, Math.min(3, (currentValue - baselineValue) / spread));
 
   const absZ = Math.abs(zScore);
@@ -699,14 +770,19 @@ function toDimension(readings: { value: number; recordedAt: Date }[]): DBDimensi
   const direction: DBDimension["direction"] =
     zScore > 0.5 ? "above" : zScore < -0.5 ? "below" : "stable";
 
-  // Trend: compare recent 7 vs older readings; "insufficient" if < 5 total
+  // Trend: compare recent half vs older half of the window.
+  // Data is ordered desc (most-recent first), so slice(0, mid) = most recent half.
+  // Interpretation flips for metrics where lower = healthier.
   let trend7d: DBDimension["trend7d"] = "insufficient";
   if (values.length >= 5) {
     const mid = Math.floor(values.length / 2);
     const recentAvg = values.slice(0, mid).reduce((s, v) => s + v, 0) / mid;
     const olderAvg = values.slice(mid).reduce((s, v) => s + v, 0) / (values.length - mid);
     const delta = (recentAvg - olderAvg) / (olderAvg || 1);
-    trend7d = delta > 0.05 ? "improving" : delta < -0.05 ? "worsening" : "stable";
+    // For lower-is-better metrics, invert the polarity: values going down = improving
+    const improving = higherIsBetter ? delta > 0.05 : delta < -0.05;
+    const worsening = higherIsBetter ? delta < -0.05 : delta > 0.05;
+    trend7d = improving ? "improving" : worsening ? "worsening" : "stable";
   }
 
   const lastDataAt = readings[0].recordedAt.toISOString();
@@ -768,19 +844,19 @@ function buildDimensions({
   };
 
   return {
-    heartRate: toDimension(vitalValues(recentVitals, "heart_rate")),
-    hrv: toDimension(hrvReadings),
-    sleepHours: toDimension(vitalValues(recentVitals, "sleep", "sleep_duration", "sleep_hours")),
-    steps: toDimension(vitalValues(recentVitals, "steps")),
-    mood: toDimension(moodReadings),
-    symptomBurden: toDimension(symptomReadings),
+    heartRate:        toDimension(vitalValues(recentVitals, "heart_rate"),                      false), // lower is healthier
+    hrv:              toDimension(hrvReadings),                                                         // higher is healthier
+    sleepHours:       toDimension(vitalValues(recentVitals, "sleep", "sleep_duration", "sleep_hours")), // higher is healthier
+    steps:            toDimension(vitalValues(recentVitals, "steps")),                                  // higher is healthier
+    mood:             toDimension(moodReadings),                                                        // higher is healthier (1–5)
+    symptomBurden:    toDimension(symptomReadings,                                               false), // lower is healthier
     medicationAdherence: adherenceDimension,
-    bloodPressure: toDimension(vitalValues(recentVitals, "blood_pressure")),
-    bloodGlucose: toDimension(vitalValues(recentVitals, "blood_glucose", "glucose")),
-    oxygenSaturation: toDimension(vitalValues(recentVitals, "oxygen_saturation", "spo2")),
-    weight: toDimension(vitalValues(recentVitals, "weight")),
-    respiratoryRate: toDimension(vitalValues(recentVitals, "respiratory_rate")),
-    bodyTemperature: toDimension(vitalValues(recentVitals, "temperature", "body_temperature")),
+    bloodPressure:    toDimension(vitalValues(recentVitals, "blood_pressure"),                   false), // lower is healthier
+    bloodGlucose:     toDimension(vitalValues(recentVitals, "blood_glucose", "glucose"),         false), // lower is healthier
+    oxygenSaturation: toDimension(vitalValues(recentVitals, "oxygen_saturation", "spo2")),              // higher is healthier
+    weight:           toDimension(vitalValues(recentVitals, "weight")),                                 // neutral — treat as higher=better (trend for adherence context)
+    respiratoryRate:  toDimension(vitalValues(recentVitals, "respiratory_rate"),                 false), // lower is healthier
+    bodyTemperature:  toDimension(vitalValues(recentVitals, "temperature", "body_temperature"),  false), // lower is healthier (fever reducing = improving)
   };
 }
 
@@ -813,6 +889,7 @@ if (import.meta.main) {
     .then(() => process.exit(0))
     .catch((err) => {
       console.error("[vhiCycle] Fatal error:", err);
+      releaseLock();
       process.exit(1);
     });
 }

@@ -112,15 +112,10 @@ export default function PersonalInfoScreen() {
     </View>
   );
 
-  const memberSinceDate = new Date(user?.createdAt || new Date());
-  const formattedDate = memberSinceDate.toLocaleDateString(
-    isRTL ? 'ar-SA' : 'en-US',
-    {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    }
-  );
+  const memberSinceDate = user?.createdAt ? new Date(user.createdAt) : null;
+  const formattedDate = memberSinceDate
+    ? memberSinceDate.toLocaleDateString(isRTL ? 'ar-SA' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    : (isRTL ? "—" : "—");
 
   return (
     <SafeAreaView style={styles.container}>
@@ -265,7 +260,7 @@ export default function PersonalInfoScreen() {
           <InfoCard
             icon={Phone}
             label={isRTL ? 'رقم الهاتف' : 'Phone Number'}
-            value={isRTL ? 'غير محدد' : 'Not specified'}
+            value={user?.phone || (isRTL ? 'غير محدد' : 'Not specified')}
             description={
               isRTL ? 'للطوارئ والإشعارات' : 'For emergencies and notifications'
             }
@@ -281,11 +276,9 @@ export default function PersonalInfoScreen() {
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
               <Text style={[styles.statValue, isRTL && styles.rtlText]}>
-                {Math.floor(
-                  (Date.now() -
-                    new Date(user?.createdAt || new Date()).getTime()) /
-                    (1000 * 60 * 60 * 24)
-                )}
+                {memberSinceDate
+                  ? Math.floor((Date.now() - memberSinceDate.getTime()) / (1000 * 60 * 60 * 24))
+                  : "—"}
               </Text>
               <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
                 {isRTL ? 'أيام العضوية' : 'Days Active'}

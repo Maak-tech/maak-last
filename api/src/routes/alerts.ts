@@ -296,7 +296,7 @@ export const alertsRoutes = new Elysia({ prefix: "/api/alerts" })
   // Caller must be the alert owner OR a family admin/caregiver of the alert owner.
   .patch(
     "/:alertId/resolve",
-    async ({ db, userId, params, body, set }) => {
+    async ({ db, userId, params, set }) => {
       const [existing] = await db
         .select()
         .from(alerts)
@@ -313,19 +313,22 @@ export const alertsRoutes = new Elysia({ prefix: "/api/alerts" })
         return { error: "Access denied" };
       }
 
-      const resolverId = body?.resolverId ?? userId;
+      // Always use the authenticated caller as resolver — do NOT allow the client
+      // to supply an arbitrary resolverId (identity spoofing in acknowledgedBy).
       const existingMeta = (existing.metadata as Record<string, unknown>) ?? {};
 
       const [updated] = await db
         .update(alerts)
         .set({
           isAcknowledged: true,
-          acknowledgedBy: resolverId,
+          acknowledgedBy: userId,
           acknowledgedAt: new Date(),
           resolvedAt: new Date(),
-          metadata: { ...existingMeta, resolvedBy: resolverId },
+          metadata: { ...existingMeta, resolvedBy: userId },
         })
-        .where(eq(alerts.id, params.alertId))
+        // Include the owner userId in WHERE to close the TOCTOU window between
+        // the hasAlertAccess check above and this mutation.
+        .where(and(eq(alerts.id, params.alertId), eq(alerts.userId, existing.userId)))
         .returning();
 
       // Dispatch alert.resolved webhook to SDK consumers (non-blocking)
@@ -333,14 +336,13 @@ export const alertsRoutes = new Elysia({ prefix: "/api/alerts" })
         alertId: existing.id,
         type: existing.type,
         severity: existing.severity,
-        resolvedBy: resolverId,
+        resolvedBy: userId,
       }).catch((err: unknown) => console.error("[alertsRoute] alert.resolved webhook failed:", err));
 
       return toEmergencyAlert(updated);
     },
     {
       params: t.Object({ alertId: t.String() }),
-      body: t.Optional(t.Object({ resolverId: t.Optional(t.String()) })),
       detail: { tags: ["alerts"], summary: "Resolve (close) an alert" },
     }
   )
@@ -349,7 +351,7 @@ export const alertsRoutes = new Elysia({ prefix: "/api/alerts" })
   // Caller must be the alert owner OR a family admin/caregiver of the alert owner.
   .patch(
     "/:alertId/acknowledge",
-    async ({ db, userId, params, body, set }) => {
+    async ({ db, userId, params, set }) => {
       const [existing] = await db
         .select()
         .from(alerts)
@@ -366,23 +368,22 @@ export const alertsRoutes = new Elysia({ prefix: "/api/alerts" })
         return { error: "Access denied" };
       }
 
-      const caregiverId = body?.caregiverId ?? userId;
-
+      // Always use the authenticated caller — never accept caregiverId from the body,
+      // as that would allow falsely attributing acknowledgment to another user.
       const [updated] = await db
         .update(alerts)
         .set({
           isAcknowledged: true,
-          acknowledgedBy: caregiverId,
+          acknowledgedBy: userId,
           acknowledgedAt: new Date(),
         })
-        .where(eq(alerts.id, params.alertId))
+        .where(and(eq(alerts.id, params.alertId), eq(alerts.userId, existing.userId)))
         .returning();
 
       return toEmergencyAlert(updated);
     },
     {
       params: t.Object({ alertId: t.String() }),
-      body: t.Optional(t.Object({ caregiverId: t.Optional(t.String()) })),
       detail: { tags: ["alerts"], summary: "Acknowledge an alert (caregiver check-in)" },
     }
   )
@@ -415,7 +416,7 @@ export const alertsRoutes = new Elysia({ prefix: "/api/alerts" })
       const [updated] = await db
         .update(alerts)
         .set({ metadata: { ...existingMeta, responders: newResponders } })
-        .where(eq(alerts.id, params.alertId))
+        .where(and(eq(alerts.id, params.alertId), eq(alerts.userId, existing.userId)))
         .returning();
 
       return toEmergencyAlert(updated);

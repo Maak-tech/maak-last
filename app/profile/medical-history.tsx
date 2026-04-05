@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,26 +9,20 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  RefreshControl,
   TextInput,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { medicalHistoryService } from '@/lib/services/medicalHistoryService';
 import {
   ArrowLeft,
   Heart,
-  User,
-  Users,
-  Calendar,
-  AlertCircle,
-  TrendingUp,
   FileText,
   Plus,
-  Search,
   X,
   Save,
-  Edit,
   Trash2,
 } from 'lucide-react-native';
 import { MedicalHistory } from '@/types';
@@ -44,8 +38,8 @@ export default function MedicalHistoryScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [medicalHistory, setMedicalHistory] = useState<MedicalHistory[]>([]);
-  const [summary, setSummary] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'personal' | 'family'>('personal');
   const [showAddModal, setShowAddModal] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
@@ -59,24 +53,23 @@ export default function MedicalHistoryScreen() {
   });
 
   const isRTL = i18n.language === 'ar';
-  const isAdmin = user?.role === 'admin';
 
-  useEffect(() => {
-    loadMedicalHistory();
-  }, [user]);
+  // useFocusEffect so the list refreshes when the user navigates back
+  // (e.g. after adding a condition from another screen).
+  useFocusEffect(
+    useCallback(() => {
+      loadMedicalHistory();
+    }, [user?.id])
+  );
 
-  const loadMedicalHistory = async () => {
+  const loadMedicalHistory = async (isPullToRefresh = false) => {
     if (!user?.id) return;
 
     try {
-      setLoading(true);
-      const [history, summaryData] = await Promise.all([
-        medicalHistoryService.getUserMedicalHistory(user.id),
-        medicalHistoryService.getMedicalHistorySummary(user.id),
-      ]);
-
+      if (isPullToRefresh) setRefreshing(true);
+      else setLoading(true);
+      const history = await medicalHistoryService.getUserMedicalHistory(user.id);
       setMedicalHistory(history);
-      setSummary(summaryData);
     } catch (error: unknown) {
       console.error('Error loading medical history:', error);
       Alert.alert(
@@ -87,6 +80,7 @@ export default function MedicalHistoryScreen() {
       );
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -227,7 +221,16 @@ export default function MedicalHistoryScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => loadMedicalHistory(true)}
+          />
+        }
+      >
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#2563EB" />

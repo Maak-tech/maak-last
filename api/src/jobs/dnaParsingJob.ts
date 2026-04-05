@@ -100,14 +100,18 @@ async function callMLParser(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       file_content_b64: b64,
-      provider: provider === "raw_vcf" ? "raw_vcf" : provider, // pass through
+      provider,
     }),
     signal: AbortSignal.timeout(120_000), // 2 min timeout for large files
   });
 
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`ML service error ${res.status}: ${text}`);
+    // Truncate the response body before embedding in the error message.
+    // ML service errors may contain Python tracebacks with variable contents
+    // (file paths, parsed SNP fragments) that would become PHI if stored in DB.
+    const raw = await res.text().catch(() => "");
+    const safe = raw.slice(0, 200).replace(/[^\x20-\x7E]/g, "?");
+    throw new Error(`ML service error ${res.status}: ${safe}`);
   }
 
   return res.json() as Promise<MLParseResult>;
@@ -119,7 +123,9 @@ export async function runDnaParsingJob(
   userId: string,
   uploadKey: string
 ): Promise<{ ok: boolean; error?: string }> {
-  console.log(`[dnaParsingJob] Starting for user=${userId} key=${uploadKey}`);
+  // Log only an opaque prefix of the userId and never the S3 key (which encodes
+  // the user's upload path) — both are linkable PHI in cloud log streams.
+  console.log(`[dnaParsingJob] Starting for user=${userId.slice(0, 8)}…`);
 
   // Mark as processing
   await db
@@ -139,7 +145,8 @@ export async function runDnaParsingJob(
 
     // 2. Download raw file from Tigris
     const fileBuffer = await downloadFromTigris(uploadKey);
-    console.log(`[dnaParsingJob] Downloaded ${fileBuffer.length} bytes for user=${userId}`);
+    // Log byte count without userId to avoid PHI in log streams.
+    console.log(`[dnaParsingJob] Downloaded ${fileBuffer.length} bytes`);
 
     // 3. Send to ML service
     const mlResult = await callMLParser(fileBuffer, provider);

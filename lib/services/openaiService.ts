@@ -10,6 +10,7 @@
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from 'expo-secure-store';
 import { api } from "@/lib/apiClient";
 import { aiInstrumenter } from "@/lib/observability";
 import aiConsentService from "@/lib/services/aiConsentService";
@@ -105,18 +106,20 @@ class OpenAIService {
   async setApiKey(key: string) {
     this.apiKey = key;
     try {
-      await AsyncStorage.setItem('openai_api_key', key);
+      // Use SecureStore (encrypted) not AsyncStorage (plaintext) — API keys are
+      // credentials and must not be stored in unencrypted device storage.
+      await SecureStore.setItemAsync('openai_api_key', key);
     } catch (err: unknown) {
-      console.warn('[openai] Failed to persist API key:', err);
+      console.warn('[openai] Failed to persist API key to secure storage:', err);
     }
   }
 
   async getApiKey(): Promise<string | null> {
     if (!this.apiKey) {
       try {
-        this.apiKey = await AsyncStorage.getItem('openai_api_key');
+        this.apiKey = await SecureStore.getItemAsync('openai_api_key');
       } catch (err: unknown) {
-        console.warn('[openai] Failed to read API key from storage:', err);
+        console.warn('[openai] Failed to read API key from secure storage:', err);
       }
     }
     return this.apiKey;

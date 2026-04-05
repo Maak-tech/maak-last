@@ -547,14 +547,17 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
         set.status = 403;
         return error(403, { error: "Insufficient scope: webhook:write required" });
       }
-      // Verify the webhook belongs to this org before deactivating
+      // Verify the webhook belongs to this org before deactivating.
+      // Include orgId in the WHERE clause so the SELECT itself returns no row for
+      // webhooks belonging to other orgs — prevents timing-based webhook ID enumeration
+      // across organisations (information disclosure side-channel).
       const [existing] = await db
-        .select({ id: webhookEndpoints.id, orgId: webhookEndpoints.orgId })
+        .select({ id: webhookEndpoints.id })
         .from(webhookEndpoints)
-        .where(eq(webhookEndpoints.id, params.webhookId))
+        .where(and(eq(webhookEndpoints.id, params.webhookId), eq(webhookEndpoints.orgId, orgId)))
         .limit(1);
 
-      if (!existing || existing.orgId !== orgId) {
+      if (!existing) {
         set.status = 404;
         return { error: "Webhook not found" };
       }
@@ -562,7 +565,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
       await db
         .update(webhookEndpoints)
         .set({ isActive: false })
-        .where(eq(webhookEndpoints.id, params.webhookId));
+        .where(and(eq(webhookEndpoints.id, params.webhookId), eq(webhookEndpoints.orgId, orgId)));
       return { ok: true };
     },
     {

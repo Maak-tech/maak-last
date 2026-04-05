@@ -21,6 +21,7 @@ export function useRevenueCat(): UseRevenueCatResult {
     try {
       const data = await revenueCatService.getOfferings();
       setOfferings(data);
+      setError(null);
     } catch (e) {
       setError(e instanceof Error ? e : new Error(String(e)));
     }
@@ -30,6 +31,7 @@ export function useRevenueCat(): UseRevenueCatResult {
     try {
       const info = await revenueCatService.getCustomerInfo();
       setCustomerInfo(info);
+      setError(null);
     } catch (e) {
       setError(e instanceof Error ? e : new Error(String(e)));
     }

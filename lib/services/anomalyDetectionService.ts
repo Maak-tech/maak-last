@@ -150,7 +150,7 @@ class AnomalyDetectionService {
       ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
       const raw = await api.get<Record<string, unknown>[]>(
-        `/api/health/vitals?from=${ninetyDaysAgo.toISOString()}&limit=500`
+        `/api/health/vitals?from=${ninetyDaysAgo.toISOString()}&limit=500&type=${encodeURIComponent(vitalType)}`
       );
 
       const filtered = (Array.isArray(raw) ? raw : []).filter((v) => v.type === vitalType);
@@ -428,7 +428,7 @@ class AnomalyDetectionService {
       ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
       const raw = await api.get<Record<string, unknown>[]>(
-        `/api/health/vitals?from=${ninetyDaysAgo.toISOString()}&limit=500`
+        `/api/health/vitals?from=${ninetyDaysAgo.toISOString()}&limit=500&type=${encodeURIComponent(vitalType)}`
       );
 
       const filtered = (Array.isArray(raw) ? raw : []).filter((v) => v.type === vitalType);
