@@ -49,7 +49,7 @@ export default function PPGMeasureScreen() {
         // VisionCamera failed to load — NO FALLBACK ALLOWED
         // Simulated data is scientifically invalid and completely disabled.
         // Show error to user — this is the ONLY acceptable outcome.
-        console.error('[ppg-measure] VisionCamera module failed to load:', error);
+        console.error('[ppg-measure] VisionCamera module failed to load:', error instanceof Error ? error.message : String(error));
         setPPGComponent(null);
         setUseRealCamera(false);
       } finally {

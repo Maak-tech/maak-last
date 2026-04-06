@@ -22,7 +22,7 @@ export const revenueCatService = {
       if (!apiKey) return;
       Purchases.configure({ apiKey });
       if (userId) Purchases.logIn(userId).catch((err: unknown) => {
-        console.warn('[revenueCat] logIn failed:', err);
+        console.warn('[revenueCat] logIn failed:', err instanceof Error ? err.message : String(err));
       });
     } catch {
       // RevenueCat SDK not available in this build
@@ -33,7 +33,7 @@ export const revenueCatService = {
     try {
       return await Purchases.getCustomerInfo();
     } catch (err: unknown) {
-      console.warn('[revenueCat] getCustomerInfo failed:', err);
+      console.warn('[revenueCat] getCustomerInfo failed:', err instanceof Error ? err.message : String(err));
       return null;
     }
   },
@@ -42,7 +42,7 @@ export const revenueCatService = {
     try {
       return await Purchases.getOfferings();
     } catch (err: unknown) {
-      console.warn('[revenueCat] getOfferings failed:', err);
+      console.warn('[revenueCat] getOfferings failed:', err instanceof Error ? err.message : String(err));
       return null;
     }
   },
@@ -85,7 +85,7 @@ export const revenueCatService = {
         subscriptionPeriod,
       };
     } catch (err: unknown) {
-      console.warn('[revenueCat] getSubscriptionStatus failed:', err);
+      console.warn('[revenueCat] getSubscriptionStatus failed:', err instanceof Error ? err.message : String(err));
       return null;
     }
   },

@@ -174,7 +174,7 @@ export default function ProfileScreen() {
         queueLength: status.queueLength,
       });
     } catch (err: unknown) {
-      console.warn('[profile] checkSyncStatus failed:', err);
+      console.warn('[profile] checkSyncStatus failed:', err instanceof Error ? err.message : String(err));
     }
   }, []);
 
@@ -210,7 +210,7 @@ export default function ProfileScreen() {
     try {
       await checkSyncStatus();
     } catch (err: unknown) {
-      console.warn('[profile] handleSync failed:', err);
+      console.warn('[profile] handleSync failed:', err instanceof Error ? err.message : String(err));
     } finally {
       setSyncing(false);
     }
@@ -374,7 +374,7 @@ export default function ProfileScreen() {
     useCallback(() => {
       loadHealthData();
       loadUserSettings();
-    }, [user])
+    }, [user, isRTL])
   );
 
 
@@ -386,7 +386,7 @@ export default function ProfileScreen() {
         setNotificationsEnabled(JSON.parse(notifications));
       }
     } catch (error: unknown) {
-      console.error('[Profile] Error loading notification settings:', error);
+      console.error('[Profile] Error loading notification settings:', error instanceof Error ? error.message : String(error));
     }
   };
 
@@ -403,11 +403,11 @@ export default function ProfileScreen() {
         symptomService.getUserSymptoms(user.id),
         medicationService.getUserMedications(user.id),
         fetchVitalsSparklines(user.id).catch((err: unknown) => {
-          console.warn('[profile] fetchVitalsSparklines failed:', err);
+          console.warn('[profile] fetchVitalsSparklines failed:', err instanceof Error ? err.message : String(err));
           return null;
         }),
         healthDataService.getLatestVitals().catch((err: unknown) => {
-          console.warn('[profile] getLatestVitals failed:', err);
+          console.warn('[profile] getLatestVitals failed:', err instanceof Error ? err.message : String(err));
           return null;
         }),
       ]);
@@ -448,7 +448,7 @@ export default function ProfileScreen() {
         });
       }
     } catch (error: unknown) {
-      console.error('Error loading health data:', error);
+      console.error('Error loading health data:', error instanceof Error ? error.message : String(error));
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL ? 'فشل تحميل البيانات الصحية' : 'Failed to load health data'
@@ -552,7 +552,7 @@ export default function ProfileScreen() {
               await logout();
               router.replace('/(auth)/login');
             } catch (error: unknown) {
-              console.error('Logout failed:', error);
+              console.error('Logout failed:', error instanceof Error ? error.message : String(error));
               Alert.alert(
                 isRTL ? 'خطأ' : 'Error',
                 isRTL
@@ -845,7 +845,7 @@ export default function ProfileScreen() {
         isRTL ? "تم تحديث الصورة الشخصية بنجاح." : "Profile picture updated successfully."
       );
     } catch (err: unknown) {
-      console.error("[Profile] Avatar update failed:", err);
+      console.error("[Profile] Avatar update failed:", err instanceof Error ? err.message : String(err));
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL ? "فشل تحديث الصورة. حاول مرة أخرى." : "Failed to update avatar. Please try again."

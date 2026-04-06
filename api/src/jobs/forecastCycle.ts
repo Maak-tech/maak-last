@@ -46,7 +46,7 @@ function acquireLock(): boolean {
     fs.writeFileSync(LOCK_FILE, String(process.pid));
     return true;
   } catch (err: unknown) {
-    console.warn("[forecastCycle] Failed to acquire lock — proceeding without guard:", err);
+    console.warn("[forecastCycle] Failed to acquire lock — proceeding without guard:", err instanceof Error ? err.message : String(err));
     return true;
   }
 }
@@ -55,7 +55,7 @@ function releaseLock(): void {
   try {
     if (fs.existsSync(LOCK_FILE)) fs.unlinkSync(LOCK_FILE);
   } catch (err: unknown) {
-    console.warn("[forecastCycle] Failed to release lock:", err);
+    console.warn("[forecastCycle] Failed to release lock:", err instanceof Error ? err.message : String(err));
   }
 }
 
@@ -126,7 +126,7 @@ async function runForecastCycle(targetUserId?: string) {
       `[forecastCycle] Done. Success: ${results.length - failed.length}, Failed: ${failed.length}`
     );
     failed.forEach((r) => {
-      if (r.status === "rejected") console.error("[forecastCycle]", r.reason);
+      if (r.status === "rejected") console.error("[forecastCycle]", r.reason instanceof Error ? r.reason.message : String(r.reason));
     });
   } finally {
     // Always release the lock for full-sweep runs — a DB error must not hold the
@@ -488,7 +488,7 @@ async function sendWorseningNotification(
     body: JSON.stringify(messages),
     signal: AbortSignal.timeout(10_000), // 10-second delivery timeout
   }).catch((err: unknown) => {
-    console.error("[forecastCycle] Push network error:", err);
+    console.error("[forecastCycle] Push network error:", err instanceof Error ? err.message : String(err));
     return null;
   });
 
@@ -517,7 +517,7 @@ if (import.meta.main) {
   runForecastCycle(targetUser)
     .then(() => process.exit(0))
     .catch((err: unknown) => {
-      console.error("[forecastCycle] Fatal error:", err);
+      console.error("[forecastCycle] Fatal error:", err instanceof Error ? err.message : String(err));
       if (!targetUser) releaseLock();
       process.exit(1);
     });

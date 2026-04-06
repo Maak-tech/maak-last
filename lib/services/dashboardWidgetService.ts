@@ -74,7 +74,7 @@ class DashboardWidgetService {
       const widgets = await this.readWidgets();
       return { userId, widgets, updatedAt: new Date() };
     } catch (err: unknown) {
-      console.warn('[dashboardWidget] getDashboardConfig failed, using defaults:', err);
+      console.warn('[dashboardWidget] getDashboardConfig failed, using defaults:', err instanceof Error ? err.message : String(err));
       return { userId, widgets: DEFAULT_WIDGETS, updatedAt: new Date() };
     }
   }

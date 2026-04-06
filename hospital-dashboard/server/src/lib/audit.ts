@@ -30,6 +30,6 @@ export async function writeAudit(entry: AuditEntry): Promise<void> {
     )
   } catch (err: unknown) {
     // Never throw — audit failures must not block the caller
-    console.error('[audit] writeAudit failed — audit trail may have a gap:', err)
+    console.error('[audit] writeAudit failed — audit trail may have a gap:', err instanceof Error ? err.message : String(err))
   }
 }

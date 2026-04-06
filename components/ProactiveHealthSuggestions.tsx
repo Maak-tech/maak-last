@@ -60,7 +60,7 @@ export default function ProactiveHealthSuggestions({ showDiscoveries = false }: 
         setTopDiscovery(discoveries.value[0]);
       }
     } catch (err: unknown) {
-      console.warn('[ProactiveHealthSuggestions] Failed to load suggestions:', err);
+      console.warn('[ProactiveHealthSuggestions] Failed to load suggestions:', err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }

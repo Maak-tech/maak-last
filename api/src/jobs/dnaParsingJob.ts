@@ -195,7 +195,7 @@ export async function runDnaParsingJob(
     // Non-blocking — a deletion failure does not fail the job.
     s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: uploadKey }))
       .then(() => console.debug(`[dnaParsingJob] Deleted raw file ${uploadKey}`))
-      .catch((err) => console.warn(`[dnaParsingJob] Failed to delete raw file ${uploadKey}:`, err));
+      .catch((err: unknown) => console.warn(`[dnaParsingJob] Failed to delete raw file:`, err instanceof Error ? err.message : String(err)));
 
     // 7. Dispatch webhooks (non-blocking)
     dispatchWebhookEvent("genetics.processed", userId, {
@@ -205,11 +205,11 @@ export async function runDnaParsingJob(
 
     // 8. Trigger immediate VHI recompute so genetic baseline appears in the next cycle
     // without waiting up to 15 minutes for the scheduled cron.
-    processUser(userId).catch((err) =>
-      console.warn(`[dnaParsingJob] VHI recompute after genetics failed for ${userId}:`, err)
+    processUser(userId).catch((err: unknown) =>
+      console.warn(`[dnaParsingJob] VHI recompute after genetics failed for ${userId}:`, err instanceof Error ? err.message : String(err))
     );
 
-    console.log(`[dnaParsingJob] Completed for user=${userId}`);
+    console.log(`[dnaParsingJob] Completed for user=${userId.slice(0, 8)}…`);
     return { ok: true };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);

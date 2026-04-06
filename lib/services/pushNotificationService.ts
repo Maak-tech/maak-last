@@ -92,7 +92,7 @@ export const pushNotificationService = {
       // Fallback: local notification (Expo Go / web)
       await scheduleLocalNotification(notification);
     } catch (err: unknown) {
-      console.warn('[pushNotification] sendToUser failed:', err);
+      console.warn('[pushNotification] sendToUser failed:', err instanceof Error ? err.message : String(err));
     }
   },
 
@@ -129,7 +129,7 @@ export const pushNotificationService = {
         membersToNotify.map((m) => this.sendToUser(m.id, notification))
       );
     } catch (err: unknown) {
-      console.warn('[pushNotification] sendToFamily failed:', err);
+      console.warn('[pushNotification] sendToFamily failed:', err instanceof Error ? err.message : String(err));
     }
   },
 
@@ -165,7 +165,7 @@ export const pushNotificationService = {
         adminsToNotify.map((m) => this.sendToUser(m.id, notification))
       );
     } catch (err: unknown) {
-      console.warn('[pushNotification] sendToAdmins failed:', err);
+      console.warn('[pushNotification] sendToAdmins failed:', err instanceof Error ? err.message : String(err));
     }
   },
 
@@ -368,7 +368,7 @@ export const pushNotificationService = {
         }
       }
     } catch (err: unknown) {
-      console.warn('[pushNotification] sendFamilyUpdateToAdmins FCM path failed, using fallback:', err);
+      console.warn('[pushNotification] sendFamilyUpdateToAdmins FCM path failed, using fallback:', err instanceof Error ? err.message : String(err));
     }
 
     // Fallback: local notification broadcast to admins
@@ -421,7 +421,7 @@ export const pushNotificationService = {
         deviceName: deviceInfo?.deviceName ?? `${Platform.OS} Device`,
       });
     } catch (err: unknown) {
-      console.warn('[pushNotification] API token save failed, using fcmService fallback:', err);
+      console.warn('[pushNotification] API token save failed, using fcmService fallback:', err instanceof Error ? err.message : String(err));
       await fcmService.saveFCMToken(token);
     }
   },

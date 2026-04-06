@@ -57,7 +57,7 @@ export const fcmService = {
 
       return { success: true, token: tokenData.data };
     } catch (error: unknown) {
-      console.error('❌ Error getting FCM token:', error);
+      console.error('❌ Error getting FCM token:', error instanceof Error ? error.message : String(error));
       return { success: false, error: String(error) };
     }
   },
@@ -76,7 +76,7 @@ export const fcmService = {
 
       return true;
     } catch (err: unknown) {
-      console.warn('[fcm] saveFCMToken failed:', err);
+      console.warn('[fcm] saveFCMToken failed:', err instanceof Error ? err.message : String(err));
       return false;
     }
   },
@@ -100,7 +100,7 @@ export const fcmService = {
       });
       return (result.sent ?? 0) > 0;
     } catch (err: unknown) {
-      console.warn('[fcm] sendPushNotificationHTTP failed:', err);
+      console.warn('[fcm] sendPushNotificationHTTP failed:', err instanceof Error ? err.message : String(err));
       return false;
     }
   },
@@ -131,7 +131,7 @@ export const fcmService = {
 
       return this.saveFCMToken(tokenResult.token);
     } catch (err: unknown) {
-      console.warn('[fcm] initializeFCM failed:', err);
+      console.warn('[fcm] initializeFCM failed:', err instanceof Error ? err.message : String(err));
       return false;
     }
   },
@@ -148,7 +148,7 @@ export const fcmService = {
 
       return !isExpoGo;
     } catch (error: unknown) {
-      console.error('Error checking FCM availability:', error);
+      console.error('Error checking FCM availability:', error instanceof Error ? error.message : String(error));
       return false;
     }
   },

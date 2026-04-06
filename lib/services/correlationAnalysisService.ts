@@ -955,7 +955,7 @@ class CorrelationAnalysisService {
         timestamp: new Date(m.recordedAt as string),
       }));
     } catch (error: unknown) {
-      console.warn('[correlationAnalysis] getMoodsForPeriod failed:', error);
+      console.warn('[correlationAnalysis] getMoodsForPeriod failed:', error instanceof Error ? error.message : String(error));
       return [];
     }
   }
@@ -987,7 +987,7 @@ class CorrelationAnalysisService {
         }))
         .filter((v) => !isNaN(v.value)) as VitalSign[];
     } catch (error: unknown) {
-      console.warn('[correlationAnalysis] getVitalsForPeriod failed:', error);
+      console.warn('[correlationAnalysis] getVitalsForPeriod failed:', error instanceof Error ? error.message : String(error));
       return [];
     }
   }

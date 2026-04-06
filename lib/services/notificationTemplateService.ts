@@ -176,7 +176,7 @@ class NotificationTemplateService {
       if (!row) return defaultTemplate(orgId, type, channel);
       return mapRow(row);
     } catch (err: unknown) {
-      console.warn('[notificationTemplate] getTemplate failed, using default:', err);
+      console.warn('[notificationTemplate] getTemplate failed, using default:', err instanceof Error ? err.message : String(err));
       return defaultTemplate(orgId, type, channel);
     }
   }

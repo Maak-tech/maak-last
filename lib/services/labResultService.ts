@@ -114,7 +114,7 @@ class LabResultService {
       if (!raw || (raw as { error?: string }).error) return null;
       return normalizeLabResult(raw);
     } catch (err: unknown) {
-      console.warn('[labResult] getLabResult failed:', err);
+      console.warn('[labResult] getLabResult failed:', err instanceof Error ? err.message : String(err));
       return null;
     }
   }
@@ -133,7 +133,7 @@ class LabResultService {
       const raw = await api.get<Record<string, unknown>[]>(`/api/health/labs?${params.toString()}`);
       return (Array.isArray(raw) ? raw : []).map(normalizeLabResult);
     } catch (err: unknown) {
-      console.warn('[labResult] getUserLabResults failed:', err);
+      console.warn('[labResult] getUserLabResults failed:', err instanceof Error ? err.message : String(err));
       return [];
     }
   }
@@ -146,7 +146,7 @@ class LabResultService {
       const all = await this.getUserLabResults(userId);
       return all.filter((r) => r.testType === testType);
     } catch (err: unknown) {
-      console.warn('[labResult] getLabResultsByType failed:', err);
+      console.warn('[labResult] getLabResultsByType failed:', err instanceof Error ? err.message : String(err));
       return [];
     }
   }
@@ -165,7 +165,7 @@ class LabResultService {
         (r) => r.testDate >= startDate && r.testDate <= endDate
       );
     } catch (err: unknown) {
-      console.warn('[labResult] getLabResultsByDateRange failed:', err);
+      console.warn('[labResult] getLabResultsByDateRange failed:', err instanceof Error ? err.message : String(err));
       return [];
     }
   }
@@ -178,7 +178,7 @@ class LabResultService {
       const all = await this.getUserLabResults(userId);
       return all.filter((r) => r.tags?.includes(tag.toLowerCase()));
     } catch (err: unknown) {
-      console.warn('[labResult] getLabResultsByTag failed:', err);
+      console.warn('[labResult] getLabResultsByTag failed:', err instanceof Error ? err.message : String(err));
       return [];
     }
   }
@@ -220,7 +220,7 @@ class LabResultService {
       }
       return null;
     } catch (err: unknown) {
-      console.warn('[labResultService] Failed to parse reference range:', range, err);
+      console.warn('[labResultService] Failed to parse reference range:', range, err instanceof Error ? err.message : String(err));
       return null;
     }
   }

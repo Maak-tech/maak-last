@@ -89,7 +89,7 @@ class CarePathwayService {
       );
       return result?.data ?? [];
     } catch (err: unknown) {
-      console.warn('[carePathway] listPathways failed:', err);
+      console.warn('[carePathway] listPathways failed:', err instanceof Error ? err.message : String(err));
       return [];
     }
   }
@@ -107,7 +107,7 @@ class CarePathwayService {
       );
       return result?.data ?? [];
     } catch (err: unknown) {
-      console.warn('[carePathway] getPathwaysForTrigger failed:', err);
+      console.warn('[carePathway] getPathwaysForTrigger failed:', err instanceof Error ? err.message : String(err));
       return [];
     }
   }
@@ -123,7 +123,7 @@ class CarePathwayService {
     try {
       await api.patch(`/api/org/${orgId}/pathways/${pathwayId}`, { isActive });
     } catch (err: unknown) {
-      console.warn('[carePathway] setPathwayActive failed:', err);
+      console.warn('[carePathway] setPathwayActive failed:', err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -159,7 +159,7 @@ class CarePathwayService {
       );
       return result;
     } catch (err: unknown) {
-      console.warn('[carePathway] enrollPatient failed:', err);
+      console.warn('[carePathway] enrollPatient failed:', err instanceof Error ? err.message : String(err));
       return null;
     }
   }
@@ -177,7 +177,7 @@ class CarePathwayService {
       );
       return result?.data ?? [];
     } catch (err: unknown) {
-      console.warn('[carePathway] listActiveEnrollments failed:', err);
+      console.warn('[carePathway] listActiveEnrollments failed:', err instanceof Error ? err.message : String(err));
       return [];
     }
   }
@@ -195,7 +195,7 @@ class CarePathwayService {
       );
       return result?.data ?? [];
     } catch (err: unknown) {
-      console.warn('[carePathway] listPatientEnrollments failed:', err);
+      console.warn('[carePathway] listPatientEnrollments failed:', err instanceof Error ? err.message : String(err));
       return [];
     }
   }
@@ -215,7 +215,7 @@ class CarePathwayService {
         nextStepAt: nextStepAt.toISOString(),
       });
     } catch (err: unknown) {
-      console.warn('[carePathway] advanceToNextStep failed:', err);
+      console.warn('[carePathway] advanceToNextStep failed:', err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -229,7 +229,7 @@ class CarePathwayService {
         completedAt: new Date().toISOString(),
       });
     } catch (err: unknown) {
-      console.warn('[carePathway] completeEnrollment failed:', err);
+      console.warn('[carePathway] completeEnrollment failed:', err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -243,7 +243,7 @@ class CarePathwayService {
         cancelledReason: reason,
       });
     } catch (err: unknown) {
-      console.warn('[carePathway] cancelEnrollment failed:', err);
+      console.warn('[carePathway] cancelEnrollment failed:', err instanceof Error ? err.message : String(err));
     }
   }
 

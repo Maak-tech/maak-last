@@ -20,7 +20,8 @@ export const requireAuth = new Elysia({ name: "require-auth" })
       } catch (err: unknown) {
         // Auth service threw (e.g., DB connection error during session lookup).
         // Return 401 instead of 500 — the client should re-authenticate.
-        console.error("[requireAuth] getSession threw:", err);
+        // Log only the message — full error objects may contain DB connection strings or stack traces
+        console.error("[requireAuth] getSession threw:", err instanceof Error ? err.message : String(err));
         return error(401, { error: "Unauthorized" });
       }
 

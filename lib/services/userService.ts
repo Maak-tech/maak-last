@@ -92,7 +92,7 @@ export const userService = {
       if (!raw || (raw as { error?: string }).error) return null;
       return normalizeUserFromApi(raw);
     } catch (err: unknown) {
-      console.warn('[user] getUser failed:', err);
+      console.warn('[user] getUser failed:', err instanceof Error ? err.message : String(err));
       return null;
     }
   },
@@ -249,7 +249,7 @@ export const userService = {
       _familyMembersCache.set(familyId, { members, timestamp: Date.now() });
       return members;
     } catch (err: unknown) {
-      console.warn('[user] getFamilyMembers failed:', err);
+      console.warn('[user] getFamilyMembers failed:', err instanceof Error ? err.message : String(err));
       return [];
     }
   },
@@ -274,7 +274,7 @@ export const userService = {
       await api.post(`/api/family/${familyId}/leave`, { userId });
       _familyMembersCache.delete(familyId);
     } catch (err: unknown) {
-      console.warn('[userService] leavePreviousFamily failed (non-critical):', err);
+      console.warn('[userService] leavePreviousFamily failed (non-critical):', err instanceof Error ? err.message : String(err));
     }
   },
 
@@ -293,7 +293,7 @@ export const userService = {
       const user = await this.getUser(userId);
       return user?.role === "admin";
     } catch (err: unknown) {
-      console.warn('[user] isUserAdmin failed:', err);
+      console.warn('[user] isUserAdmin failed:', err instanceof Error ? err.message : String(err));
       return false;
     }
   },
@@ -304,7 +304,7 @@ export const userService = {
       const user = await this.getUser(userId);
       return user?.role === "admin" || user?.role === "caregiver";
     } catch (err: unknown) {
-      console.warn('[user] isUserCaregiverOrAdmin failed:', err);
+      console.warn('[user] isUserCaregiverOrAdmin failed:', err instanceof Error ? err.message : String(err));
       return false;
     }
   },
@@ -333,7 +333,7 @@ export const userService = {
       );
       return (Array.isArray(raw) ? raw : []).map(normalizeUserFromApi);
     } catch (err: unknown) {
-      console.warn('[user] getFamilyCaregivers failed:', err);
+      console.warn('[user] getFamilyCaregivers failed:', err instanceof Error ? err.message : String(err));
       return [];
     }
   },

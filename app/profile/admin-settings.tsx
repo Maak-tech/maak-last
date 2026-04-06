@@ -54,7 +54,7 @@ export default function AdminSettingsScreen() {
         setOrg(data);
       } catch (err: unknown) {
         // Expected when user has no org membership
-        console.debug('[admin-settings] No org found or fetch failed:', err);
+        console.debug('[admin-settings] No org found or fetch failed:', err instanceof Error ? err.message : String(err));
       } finally {
         setLoading(false);
       }

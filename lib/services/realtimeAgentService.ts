@@ -1858,7 +1858,7 @@ class RealtimeAgentService {
         offset = dataEnd + (size % 2);
       }
     } catch (err: unknown) {
-      console.warn('[realtimeAgent] WAV header parsing failed, using default 44-byte offset:', err);
+      console.warn('[realtimeAgent] WAV header parsing failed, using default 44-byte offset:', err instanceof Error ? err.message : String(err));
     }
 
     // Typical PCM WAV header is 44 bytes; fallback to that if we can't parse.

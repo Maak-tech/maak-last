@@ -68,9 +68,9 @@ export const taskRoutes = new Elysia({ prefix: "/api/tasks" })
         source: t.String({ maxLength: 100 }),
         title: t.String({ minLength: 1, maxLength: 500 }),
         description: t.Optional(t.String({ maxLength: 5000 })),
-        assignedTo: t.Optional(t.String()),
+        assignedTo: t.Optional(t.String({ maxLength: 36 })),
         dueAt: t.Optional(t.String({ maxLength: 50 })),
-        context: t.Optional(t.Any()),
+        context: t.Optional(t.Record(t.String(), t.Unknown())),
         // assignedBy is intentionally omitted — always set to the calling userId
       }),
       detail: { tags: ["tasks"], summary: "Create a task (org member)" },
@@ -102,11 +102,11 @@ export const taskRoutes = new Elysia({ prefix: "/api/tasks" })
     },
     {
       query: t.Object({
-        orgId: t.String(), // required — mandatory for RBAC
-        status: t.Optional(t.String()),
-        assignedTo: t.Optional(t.String()),
-        priority: t.Optional(t.String()),
-        patientId: t.Optional(t.String()),
+        orgId: t.String({ minLength: 1, maxLength: 36 }), // required — mandatory for RBAC
+        status: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
+        assignedTo: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
+        priority: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
+        patientId: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
         limit: t.Optional(t.Numeric({ minimum: 1, maximum: 500 })),
       }),
       detail: { tags: ["tasks"], summary: "List org tasks (org member)" },
@@ -144,7 +144,7 @@ export const taskRoutes = new Elysia({ prefix: "/api/tasks" })
       return { ok: true };
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({
         status: t.Union([
           t.Literal("open"),
@@ -191,7 +191,7 @@ export const taskRoutes = new Elysia({ prefix: "/api/tasks" })
       return { ok: true };
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({ assignedTo: t.String({ maxLength: 36 }) }),
       detail: { tags: ["tasks"], summary: "Assign a task (org admin or coordinator)" },
     }
@@ -229,8 +229,8 @@ export const taskRoutes = new Elysia({ prefix: "/api/tasks" })
       return { ok: true };
     },
     {
-      params: t.Object({ id: t.String() }),
-      body: t.Object({ context: t.Optional(t.Any()) }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
+      body: t.Object({ context: t.Optional(t.Record(t.String(), t.Unknown())) }),
       detail: { tags: ["tasks"], summary: "Escalate a task (org admin or coordinator)" },
     }
   );

@@ -93,7 +93,7 @@ export const useNotifications = () => {
 
         isInitialized.current = true;
       } catch (error) {
-        console.warn('Failed to initialize notifications:', error);
+        console.warn('Failed to initialize notifications:', error instanceof Error ? error.message : String(error));
       } finally {
         initializationInProgress.current = false;
       }
@@ -110,14 +110,14 @@ export const useNotifications = () => {
         try {
           notificationListener.current.remove();
         } catch (error) {
-          console.warn('Error removing notification listener:', error);
+          console.warn('Error removing notification listener:', error instanceof Error ? error.message : String(error));
         }
       }
       if (responseListener.current) {
         try {
           responseListener.current.remove();
         } catch (error) {
-          console.warn('Error removing response listener:', error);
+          console.warn('Error removing response listener:', error instanceof Error ? error.message : String(error));
         }
       }
     };
@@ -148,7 +148,7 @@ export const useNotifications = () => {
           trigger: trigger as any,
         });
       } catch (error) {
-        console.warn('Failed to schedule notification:', error);
+        console.warn('Failed to schedule notification:', error instanceof Error ? error.message : String(error));
       }
     },
     []
@@ -217,7 +217,7 @@ async function registerForPushNotificationsAsync(
       console.warn('Must use physical device for push notifications');
     }
   } catch (error) {
-    console.warn('Failed to register for push notifications:', error);
+    console.warn('Failed to register for push notifications:', error instanceof Error ? error.message : String(error));
     throw error; // Re-throw to be caught by the calling function
   }
 }

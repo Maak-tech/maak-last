@@ -115,11 +115,11 @@ export const symptomService = {
         import("./trendAlertService")
           .then(({ checkTrendsForNewSymptom }) => {
             checkTrendsForNewSymptom(symptomData.userId, symptomData.type).catch((err: unknown) => {
-              console.warn('[symptom] checkTrendsForNewSymptom failed:', err);
+              console.warn('[symptom] checkTrendsForNewSymptom failed:', err instanceof Error ? err.message : String(err));
             });
           })
           .catch((err: unknown) => {
-            console.warn('[symptom] Failed to import trendAlertService:', err);
+            console.warn('[symptom] Failed to import trendAlertService:', err instanceof Error ? err.message : String(err));
           });
 
         return created.id as string;
@@ -137,7 +137,7 @@ export const symptomService = {
       await offlineService.storeOfflineData("symptoms", [...currentSymptoms, newSymptom]);
       return tempId;
     } catch (error: unknown) {
-      console.error('Error adding symptom:', error);
+      console.error('Error adding symptom:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   },
@@ -227,7 +227,7 @@ export const symptomService = {
       const user = await userService.getUser(userId);
       return user?.familyId === familyId && (user?.role === "admin" || user?.role === "caregiver");
     } catch (err: unknown) {
-      console.warn('[symptom] checkFamilyAccessPermission failed:', err);
+      console.warn('[symptom] checkFamilyAccessPermission failed:', err instanceof Error ? err.message : String(err));
       return false;
     }
   },
@@ -320,7 +320,7 @@ export const symptomService = {
       _symptomStatsCache.set(statsCacheKey, { data: result, timestamp: Date.now() });
       return result;
     } catch (err: unknown) {
-      console.warn('[symptom] getSymptomStats failed:', err);
+      console.warn('[symptom] getSymptomStats failed:', err instanceof Error ? err.message : String(err));
       return { totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] };
     }
   },
@@ -361,7 +361,7 @@ export const symptomService = {
 
       return { totalSymptoms, avgSeverity: Math.round(avgSeverity * 10) / 10, commonSymptoms };
     } catch (err: unknown) {
-      console.warn('[symptom] getMemberSymptomStats failed:', err);
+      console.warn('[symptom] getMemberSymptomStats failed:', err instanceof Error ? err.message : String(err));
       return { totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] };
     }
   },

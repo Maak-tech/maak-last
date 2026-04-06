@@ -207,9 +207,9 @@ export const alertsRoutes = new Elysia({ prefix: "/api/alerts" })
     },
     {
       query: t.Object({
-        userIds: t.Optional(t.String()),
+        userIds: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
         limit: t.Optional(t.Numeric()),
-        resolved: t.Optional(t.String()),
+        resolved: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
       }),
       detail: { tags: ["alerts"], summary: "Get alerts for a list of userIds (family view)" },
     }
@@ -264,8 +264,10 @@ export const alertsRoutes = new Elysia({ prefix: "/api/alerts" })
           title: `${body.type} alert`,
           body: body.message,
           isAcknowledged: false,
+          // structuredClone strips prototype-polluting keys (__proto__, constructor, etc.)
+          // before spreading into the JSONB column.
           metadata: body.metadata
-            ? ({ ...body.metadata, responders: [] } as Record<string, unknown>)
+            ? ({ ...structuredClone(body.metadata), responders: [] } as Record<string, unknown>)
             : { responders: [] },
         })
         .returning();
@@ -276,7 +278,7 @@ export const alertsRoutes = new Elysia({ prefix: "/api/alerts" })
         type: created.type,
         severity: created.severity,
         title: created.title,
-      }).catch((err: unknown) => console.error("[alertsRoute] Webhook dispatch failed:", err));
+      }).catch((err: unknown) => console.error("[alertsRoute] Webhook dispatch failed:", err instanceof Error ? err.message : String(err)));
 
       return toEmergencyAlert(created);
     },
@@ -286,7 +288,9 @@ export const alertsRoutes = new Elysia({ prefix: "/api/alerts" })
         severity: t.Union([t.Literal("low"), t.Literal("medium"), t.Literal("high"), t.Literal("critical")]),
         message: t.String({ maxLength: 1000 }),
         userId: t.Optional(t.String({ maxLength: 36 })),
-        metadata: t.Optional(t.Any()),
+        // Use a typed record instead of t.Any() to prevent prototype-pollution attacks
+        // via payloads like { "__proto__": { ... } } being spread into object literals.
+        metadata: t.Optional(t.Record(t.String(), t.Unknown())),
       }),
       detail: { tags: ["alerts"], summary: "Create an emergency alert" },
     }
@@ -337,12 +341,12 @@ export const alertsRoutes = new Elysia({ prefix: "/api/alerts" })
         type: existing.type,
         severity: existing.severity,
         resolvedBy: userId,
-      }).catch((err: unknown) => console.error("[alertsRoute] alert.resolved webhook failed:", err));
+      }).catch((err: unknown) => console.error("[alertsRoute] alert.resolved webhook failed:", err instanceof Error ? err.message : String(err)));
 
       return toEmergencyAlert(updated);
     },
     {
-      params: t.Object({ alertId: t.String() }),
+      params: t.Object({ alertId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["alerts"], summary: "Resolve (close) an alert" },
     }
   )
@@ -383,7 +387,7 @@ export const alertsRoutes = new Elysia({ prefix: "/api/alerts" })
       return toEmergencyAlert(updated);
     },
     {
-      params: t.Object({ alertId: t.String() }),
+      params: t.Object({ alertId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["alerts"], summary: "Acknowledge an alert (caregiver check-in)" },
     }
   )
@@ -411,7 +415,9 @@ export const alertsRoutes = new Elysia({ prefix: "/api/alerts" })
 
       const existingMeta = (existing.metadata as Record<string, unknown>) ?? {};
       const currentResponders = (existingMeta.responders as string[]) ?? [];
-      const newResponders = Array.from(new Set([...currentResponders, body.responderId]));
+      // Always use the authenticated caller as the responder — do NOT allow the client
+      // to supply an arbitrary responderId (identity spoofing in metadata.responders).
+      const newResponders = Array.from(new Set([...currentResponders, userId]));
 
       const [updated] = await db
         .update(alerts)
@@ -422,8 +428,10 @@ export const alertsRoutes = new Elysia({ prefix: "/api/alerts" })
       return toEmergencyAlert(updated);
     },
     {
-      params: t.Object({ alertId: t.String() }),
-      body: t.Object({ responderId: t.String({ maxLength: 36 }) }),
+      params: t.Object({ alertId: t.String({ minLength: 1, maxLength: 36 }) }),
+      // responderId is accepted for API compatibility but ignored — the authenticated
+      // caller's userId is always used. See handler above.
+      body: t.Object({ responderId: t.Optional(t.String({ maxLength: 36 })) }),
       detail: { tags: ["alerts"], summary: "Add a responder to an alert" },
     }
   );

@@ -60,7 +60,7 @@ class ClinicalIntegrationService {
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
     } catch (err: unknown) {
-      console.warn('[clinicalIntegration] getIntegrationRequests failed:', err);
+      console.warn('[clinicalIntegration] getIntegrationRequests failed:', err instanceof Error ? err.message : String(err));
       return [];
     }
   }

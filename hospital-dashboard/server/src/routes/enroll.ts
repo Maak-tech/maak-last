@@ -65,7 +65,7 @@ enrollRoutes.post('/enroll', jwtAuth, requireRole('doctor', 'nurse', 'admin'), a
     // Log internally but do NOT surface internal error details to the client —
     // the CompreFace error message may contain the service URL, API key, or
     // other internal infrastructure information.
-    console.error('[enroll] CompreFace enroll failed:', err)
+    console.error('[enroll] CompreFace enroll failed:', err instanceof Error ? err.message : String(err))
     return c.json({ error: 'Face enrollment failed. Please try again or use QR fallback.' }, 500)
   }
 
@@ -111,7 +111,7 @@ enrollRoutes.delete('/enroll/:patientId', jwtAuth, requireRole('doctor', 'admin'
   try {
     subjectId = decrypt(enrollment.compreface_subject_id)
   } catch (decryptErr: unknown) {
-    console.error('[enroll] Failed to decrypt subject ID during revocation:', decryptErr)
+    console.error('[enroll] Failed to decrypt subject ID during revocation:', decryptErr instanceof Error ? decryptErr.message : String(decryptErr))
     return c.json({ error: 'Enrollment record is corrupted. Contact an administrator.' }, 500)
   }
 
@@ -124,7 +124,7 @@ enrollRoutes.delete('/enroll/:patientId', jwtAuth, requireRole('doctor', 'admin'
   } catch (err: unknown) {
     // Log but do not re-throw — revocation of the DB record must proceed.
     // An admin can manually clean up the CompreFace subject later if needed.
-    console.error('[enroll] CompreFace deleteSubject failed (DB enrollment will still be deactivated):', err)
+    console.error('[enroll] CompreFace deleteSubject failed (DB enrollment will still be deactivated):', err instanceof Error ? err.message : String(err))
   }
 
   await query(
@@ -213,7 +213,7 @@ enrollRoutes.post('/enroll/self', async (c) => {
   try {
     await compreface.enroll(subjectId, imageBuffer)
   } catch (err: unknown) {
-    console.error('[enroll/self] CompreFace enroll failed:', err)
+    console.error('[enroll/self] CompreFace enroll failed:', err instanceof Error ? err.message : String(err))
     return c.json({ error: 'Face enrollment failed. Please try again.' }, 500)
   }
 

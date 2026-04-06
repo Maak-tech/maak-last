@@ -78,7 +78,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
                   await alertService.resolveAlert(alertId, user.id);
                 }
               } catch (error: unknown) {
-                console.error('Error resolving alert:', error);
+                console.error('Error resolving alert:', error instanceof Error ? error.message : String(error));
               }
             },
           },
@@ -115,7 +115,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
         }
         setIsInitialized(true);
       } catch (error: unknown) {
-        console.error('Error loading fall detection setting:', error);
+        console.error('Error loading fall detection setting:', error instanceof Error ? error.message : String(error));
         setIsInitialized(true);
       }
     };
@@ -139,7 +139,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
           fallDetection.stopFallDetection();
         }
       } catch (error: unknown) {
-        console.error('Error toggling fall detection:', error);
+        console.error('Error toggling fall detection:', error instanceof Error ? error.message : String(error));
       }
     },
     [user?.id, fallDetection]
@@ -159,7 +159,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
 
       console.debug('[FallDetection] Test fall detection completed');
     } catch (error: unknown) {
-      console.error('Error testing fall detection:', error);
+      console.error('Error testing fall detection:', error instanceof Error ? error.message : String(error));
       Alert.alert('Error', 'Failed to test fall detection');
     }
   }, [user?.id, handleFallDetected]);

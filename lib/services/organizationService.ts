@@ -109,7 +109,7 @@ class OrganizationService {
       const raw = await api.get<Record<string, unknown>>(`/api/org/${orgId}`);
       return raw ? mapOrg(raw) : null;
     } catch (err: unknown) {
-      console.warn('[organization] failed to fetch organization:', err);
+      console.warn('[organization] failed to fetch organization:', err instanceof Error ? err.message : String(err));
       return null;
     }
   }
@@ -165,7 +165,7 @@ class OrganizationService {
       const row = await api.get<{ role: OrgRole } | null>(`/api/org/${orgId}/members/${userId}`);
       return row?.role ?? null;
     } catch (err: unknown) {
-      console.warn('[organization] failed to fetch user role in org:', err);
+      console.warn('[organization] failed to fetch user role in org:', err instanceof Error ? err.message : String(err));
       return null;
     }
   }
@@ -256,7 +256,7 @@ class OrganizationService {
       const raw = await api.get<Record<string, unknown>>(`/api/org/${orgId}/roster/${userId}`);
       return raw ? mapRoster(raw) : null;
     } catch (err: unknown) {
-      console.warn('[organization] failed to fetch patient roster entry:', err);
+      console.warn('[organization] failed to fetch patient roster entry:', err instanceof Error ? err.message : String(err));
       return null;
     }
   }
@@ -343,7 +343,7 @@ class OrganizationService {
       const rows = await api.get<unknown[]>(`/api/org/${orgId}/notification-settings`);
       return rows ? { templates: rows } : null;
     } catch (err: unknown) {
-      console.warn('[organization] failed to fetch notification settings:', err);
+      console.warn('[organization] failed to fetch notification settings:', err instanceof Error ? err.message : String(err));
       return null;
     }
   }

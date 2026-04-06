@@ -838,7 +838,7 @@ class ProactiveHealthSuggestionsService {
       });
       return result;
     } catch (error: unknown) {
-      console.warn('[proactiveSuggestions] generateSuggestions failed:', error);
+      console.warn('[proactiveSuggestions] generateSuggestions failed:', error instanceof Error ? error.message : String(error));
       return [];
     }
   }
@@ -867,7 +867,7 @@ class ProactiveHealthSuggestionsService {
         })
         .filter((v) => !isNaN(v.value));
     } catch (err: unknown) {
-      console.warn('[proactiveHealthSuggestions] fetchRecentVitals failed:', err);
+      console.warn('[proactiveHealthSuggestions] fetchRecentVitals failed:', err instanceof Error ? err.message : String(err));
       return [];
     }
   }
@@ -1483,7 +1483,7 @@ class ProactiveHealthSuggestionsService {
         });
       }
     } catch (error: unknown) {
-      console.warn('[proactiveSuggestions] getComplianceSuggestions failed:', error);
+      console.warn('[proactiveSuggestions] getComplianceSuggestions failed:', error instanceof Error ? error.message : String(error));
     }
 
     return suggestions;
@@ -1864,7 +1864,7 @@ class ProactiveHealthSuggestionsService {
 
       return tips.slice(0, 5); // Return top 5 tips
     } catch (error: unknown) {
-      console.warn('[proactiveSuggestions] getTrendsAndTips failed:', error);
+      console.warn('[proactiveSuggestions] getTrendsAndTips failed:', error instanceof Error ? error.message : String(error));
       return [];
     }
   }
@@ -1986,7 +1986,7 @@ class ProactiveHealthSuggestionsService {
         }
       }
     } catch (error: unknown) {
-      console.warn('[proactiveSuggestions] getPersonalizedTips failed:', error);
+      console.warn('[proactiveSuggestions] getPersonalizedTips failed:', error instanceof Error ? error.message : String(error));
     }
 
     return suggestions;
@@ -2077,7 +2077,7 @@ class ProactiveHealthSuggestionsService {
         });
       }
     } catch (error: unknown) {
-      console.warn('[proactiveSuggestions] getPredictiveHealthSuggestions failed:', error);
+      console.warn('[proactiveSuggestions] getPredictiveHealthSuggestions failed:', error instanceof Error ? error.message : String(error));
     }
 
     return suggestions;
@@ -2140,7 +2140,7 @@ class ProactiveHealthSuggestionsService {
         suggestions.push(socialSuggestion);
       }
     } catch (error: unknown) {
-      console.warn('[proactiveSuggestions] getPersonalizedWellnessSuggestions failed:', error);
+      console.warn('[proactiveSuggestions] getPersonalizedWellnessSuggestions failed:', error instanceof Error ? error.message : String(error));
     }
 
     return suggestions;
@@ -2179,7 +2179,7 @@ class ProactiveHealthSuggestionsService {
         }
       });
     } catch (error: unknown) {
-      console.warn('[proactiveSuggestions] analyzeSymptomMedicationCorrelation failed:', error);
+      console.warn('[proactiveSuggestions] analyzeSymptomMedicationCorrelation failed:', error instanceof Error ? error.message : String(error));
     }
 
     return correlations;
@@ -2666,7 +2666,7 @@ class ProactiveHealthSuggestionsService {
         }
       }
     } catch (error: unknown) {
-      console.warn('[proactiveSuggestions] getPeriodTrackingSuggestions failed:', error);
+      console.warn('[proactiveSuggestions] getPeriodTrackingSuggestions failed:', error instanceof Error ? error.message : String(error));
     }
 
     return suggestions;

@@ -15,6 +15,49 @@ import crypto from "node:crypto";
 
 /** ISO 8601 date pattern — prevents invalid dates from reaching new Date() */
 const IsoDateString = t.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}" });
+
+/**
+ * Returns true if the URL points to a private/loopback/link-local address.
+ * Used to block SSRF attacks via webhook URL registration (e.g. https://169.254.169.254/...).
+ */
+function isInternalHost(url: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return true; // unparseable → reject
+  }
+  const h = parsed.hostname.toLowerCase();
+  // IPv4 loopback, private ranges, link-local (AWS metadata), and localhost
+  return (
+    h === "localhost" ||
+    h === "127.0.0.1" ||
+    h.startsWith("10.") ||
+    h.startsWith("192.168.") ||
+    h.startsWith("172.16.") ||
+    h.startsWith("172.17.") ||
+    h.startsWith("172.18.") ||
+    h.startsWith("172.19.") ||
+    h.startsWith("172.20.") ||
+    h.startsWith("172.21.") ||
+    h.startsWith("172.22.") ||
+    h.startsWith("172.23.") ||
+    h.startsWith("172.24.") ||
+    h.startsWith("172.25.") ||
+    h.startsWith("172.26.") ||
+    h.startsWith("172.27.") ||
+    h.startsWith("172.28.") ||
+    h.startsWith("172.29.") ||
+    h.startsWith("172.30.") ||
+    h.startsWith("172.31.") ||
+    h === "169.254.169.254" || // AWS metadata
+    h.startsWith("169.254.") || // link-local
+    h === "::1" ||             // IPv6 loopback
+    h === "[::1]" ||
+    h.startsWith("fd") ||      // IPv6 ULA
+    h.startsWith("fc")         // IPv6 ULA
+  );
+}
 import { requireAuth } from "../middleware/requireAuth";
 import {
   auditTrail,
@@ -122,12 +165,12 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
     },
     {
       query: t.Object({
-        orgId: t.String(), // required (was Optional — now mandatory for RBAC)
-        userId: t.Optional(t.String()),
+        orgId: t.String({ minLength: 1, maxLength: 36 }), // required (was Optional — now mandatory for RBAC)
+        userId: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
         from: t.Optional(IsoDateString),
         before: t.Optional(IsoDateString),
         limit: t.Optional(t.Numeric()),
-        actions: t.Optional(t.String()), // comma-separated action filter (server-side)
+        actions: t.Optional(t.String({ minLength: 1, maxLength: 256 })), // comma-separated action filter (server-side)
       }),
       detail: { tags: ["org"], summary: "Query audit trail for org patients (org admin)" },
     }
@@ -156,7 +199,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return row ?? null;
     },
     {
-      params: t.Object({ orgId: t.String(), userId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }), userId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["org"], summary: "Get patient agent state for org (org member)" },
     }
   )
@@ -190,10 +233,10 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
         .limit(Math.min(query.limit ?? 100, 500));
     },
     {
-      params: t.Object({ orgId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }) }),
       query: t.Object({
-        isActive: t.Optional(t.String()),
-        triggerCondition: t.Optional(t.String()),
+        isActive: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
+        triggerCondition: t.Optional(t.String({ minLength: 1, maxLength: 256 })),
         limit: t.Optional(t.Numeric()),
       }),
       detail: { tags: ["org"], summary: "List care pathways for an org (org member)" },
@@ -225,13 +268,13 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return { ok: true };
     },
     {
-      params: t.Object({ orgId: t.String(), pathwayId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }), pathwayId: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({
         isActive: t.Optional(t.Boolean()),
         name: t.Optional(t.String({ maxLength: 255 })),
         description: t.Optional(t.String({ maxLength: 2000 })),
         triggerCondition: t.Optional(t.String({ maxLength: 500 })),
-        steps: t.Optional(t.Any()),
+        steps: t.Optional(t.Array(t.Record(t.String(), t.Unknown()), { maxItems: 100 })),
       }),
       detail: { tags: ["org"], summary: "Update a care pathway (org admin)" },
     }
@@ -276,7 +319,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
         patientId: t.String({ maxLength: 36 }),
         currentStepId: t.Optional(t.String({ maxLength: 36 })),
         nextStepAt: t.Optional(IsoDateString),
-        metadata: t.Optional(t.Any()),
+        metadata: t.Optional(t.Record(t.String(), t.Unknown())),
       }),
       detail: { tags: ["org"], summary: "Enroll a patient in a care pathway (org admin)" },
     }
@@ -313,9 +356,9 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
     },
     {
       query: t.Object({
-        orgId: t.String(), // required for RBAC
-        patientId: t.Optional(t.String()),
-        status: t.Optional(t.String()),
+        orgId: t.String({ minLength: 1, maxLength: 36 }), // required for RBAC
+        patientId: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
+        status: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
         limit: t.Optional(t.Numeric()),
       }),
       detail: { tags: ["org"], summary: "List pathway enrollments (org member)" },
@@ -370,13 +413,13 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return { ok: true };
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({
         status: t.Optional(t.String({ maxLength: 50 })),
         currentStepId: t.Optional(t.String({ maxLength: 36 })),
         nextStepAt: t.Optional(IsoDateString),
         completedAt: t.Optional(IsoDateString),
-        metadata: t.Optional(t.Any()),
+        metadata: t.Optional(t.Record(t.String(), t.Unknown())),
       }),
       detail: { tags: ["org"], summary: "Update a pathway enrollment (org admin)" },
     }
@@ -409,9 +452,9 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
         .limit(Math.min(query.limit ?? 500, 1000));
     },
     {
-      params: t.Object({ orgId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }) }),
       query: t.Object({
-        status: t.Optional(t.String()), // 'active' | 'inactive' | 'pending'
+        status: t.Optional(t.String({ minLength: 1, maxLength: 36 })), // 'active' | 'inactive' | 'pending'
         limit: t.Optional(t.Numeric()),
       }),
       detail: { tags: ["org"], summary: "List patients on org's SDK roster (org member)" },
@@ -463,7 +506,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return { id, ok: true, action: "enrolled" };
     },
     {
-      params: t.Object({ orgId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({ userId: t.String({ maxLength: 36 }) }),
       detail: { tags: ["org"], summary: "Enrol a patient in the org's SDK roster (org admin)" },
     }
@@ -506,7 +549,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return { ok: true };
     },
     {
-      params: t.Object({ orgId: t.String(), userId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }), userId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["org"], summary: "Remove a patient from the org's SDK roster (org admin)" },
     }
   )
@@ -538,7 +581,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return row;
     },
     {
-      params: t.Object({ orgId: t.String(), targetUserId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }), targetUserId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["org"], summary: "Get a specific roster entry (org member)" },
     }
   )
@@ -599,12 +642,12 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return { ok: true };
     },
     {
-      params: t.Object({ orgId: t.String(), targetUserId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }), targetUserId: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({
-        status: t.Optional(t.String()),
+        status: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
         riskScore: t.Optional(t.Number({ minimum: 0, maximum: 100 })),
-        lastContactAt: t.Optional(t.String()),
-        assignedProviders: t.Optional(t.Array(t.String())),
+        lastContactAt: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
+        assignedProviders: t.Optional(t.Array(t.String({ minLength: 1, maxLength: 36 }))),
       }),
       detail: { tags: ["org"], summary: "Update roster entry (status, risk score, last contact, assigned providers)" },
     }
@@ -657,7 +700,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
         email: t.Optional(t.String({ maxLength: 255 })),
         phone: t.Optional(t.String({ maxLength: 30 })),
         website: t.Optional(t.String({ maxLength: 2000 })),
-        settings: t.Optional(t.Any()),
+        settings: t.Optional(t.Record(t.String(), t.Unknown())),
       }),
       detail: { tags: ["org"], summary: "Create a new organisation (auto-enrols creator as admin)" },
     }
@@ -746,7 +789,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return org;
     },
     {
-      params: t.Object({ orgId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["org"], summary: "Get organisation details (org member)" },
     }
   )
@@ -783,14 +826,14 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return { ok: true };
     },
     {
-      params: t.Object({ orgId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({
         name: t.Optional(t.String({ maxLength: 255 })),
         type: t.Optional(t.String({ maxLength: 100 })),
         email: t.Optional(t.String({ maxLength: 255 })),
         phone: t.Optional(t.String({ maxLength: 30 })),
         website: t.Optional(t.String({ maxLength: 2000 })),
-        settings: t.Optional(t.Any()),
+        settings: t.Optional(t.Record(t.String(), t.Unknown())),
       }),
       detail: { tags: ["org"], summary: "Update organisation settings (org admin)" },
     }
@@ -818,7 +861,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
         .orderBy(orgMembers.joinedAt);
     },
     {
-      params: t.Object({ orgId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["org"], summary: "List org members (org member)" },
     }
   )
@@ -850,7 +893,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return row;
     },
     {
-      params: t.Object({ orgId: t.String(), memberId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }), memberId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["org"], summary: "Get a specific org member (org member)" },
     }
   )
@@ -898,7 +941,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return { id, ok: true, action: "added" };
     },
     {
-      params: t.Object({ orgId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({
         userId: t.String({ maxLength: 36 }),
         role: t.Optional(t.String({ maxLength: 50 })),
@@ -932,7 +975,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return { ok: true };
     },
     {
-      params: t.Object({ orgId: t.String(), memberId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }), memberId: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({ role: t.String({ maxLength: 50 }) }),
       detail: { tags: ["org"], summary: "Update a member's role (org admin)" },
     }
@@ -967,7 +1010,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return { ok: true };
     },
     {
-      params: t.Object({ orgId: t.String(), memberId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }), memberId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["org"], summary: "Remove a member from the org (org admin)" },
     }
   )
@@ -1013,7 +1056,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return { id, keyPrefix, scopes: body.scopes ?? [], name: body.name ?? null, plaintext, ok: true };
     },
     {
-      params: t.Object({ orgId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({
         name: t.Optional(t.String({ maxLength: 255 })),
         scopes: t.Optional(t.Array(t.String({ maxLength: 100 }), { maxItems: 50 })),
@@ -1057,7 +1100,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
         .orderBy(desc(apiKeys.createdAt));
     },
     {
-      params: t.Object({ orgId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["org"], summary: "List API keys — no hashes or plaintext (org admin)" },
     }
   )
@@ -1101,7 +1144,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return { ok: true };
     },
     {
-      params: t.Object({ orgId: t.String(), keyId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }), keyId: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({
         name: t.Optional(t.String({ maxLength: 255 })),
         scopes: t.Optional(t.Array(t.String({ maxLength: 100 }), { maxItems: 50 })),
@@ -1144,7 +1187,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return { ok: true };
     },
     {
-      params: t.Object({ orgId: t.String(), keyId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }), keyId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["org"], summary: "Revoke an API key (org admin)" },
     }
   )
@@ -1202,7 +1245,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return { id: newId, keyPrefix, scopes: oldKey.scopes ?? [], name: oldKey.name, plaintext, ok: true };
     },
     {
-      params: t.Object({ orgId: t.String(), keyId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }), keyId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["org"], summary: "Rotate an API key — new plaintext returned once (org admin)" },
     }
   )
@@ -1230,6 +1273,10 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
         set.status = 400;
         return { error: "Webhook URL must use HTTPS" };
       }
+      if (isInternalHost(body.url)) {
+        set.status = 400;
+        return { error: "Webhook URL must point to a public host" };
+      }
 
       const secret = `whsec_${crypto.randomBytes(24).toString("hex")}`;
       const id = crypto.randomUUID();
@@ -1247,7 +1294,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return { id, url: body.url, events: body.events ?? [], signingSecret: secret, ok: true };
     },
     {
-      params: t.Object({ orgId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({
         url: t.String({ maxLength: 2000 }),
         events: t.Optional(t.Array(t.String({ maxLength: 100 }))),
@@ -1285,7 +1332,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
         .orderBy(desc(webhookEndpoints.createdAt));
     },
     {
-      params: t.Object({ orgId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["org"], summary: "List webhook endpoints — no secrets returned (org member)" },
     }
   )
@@ -1311,6 +1358,10 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
         set.status = 400;
         return { error: "Webhook URL must use HTTPS" };
       }
+      if (body.url && isInternalHost(body.url)) {
+        set.status = 400;
+        return { error: "Webhook URL must point to a public host" };
+      }
 
       const [endpoint] = await db
         .select({ id: webhookEndpoints.id })
@@ -1335,7 +1386,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return { ok: true };
     },
     {
-      params: t.Object({ orgId: t.String(), webhookId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }), webhookId: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({
         url: t.Optional(t.String({ maxLength: 2000 })),
         events: t.Optional(t.Array(t.String({ maxLength: 100 }))),
@@ -1382,7 +1433,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return { ok: true };
     },
     {
-      params: t.Object({ orgId: t.String(), webhookId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }), webhookId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["org"], summary: "Disable a webhook endpoint (org admin)" },
     }
   )
@@ -1426,7 +1477,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return { signingSecret: newSecret, ok: true };
     },
     {
-      params: t.Object({ orgId: t.String(), webhookId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }), webhookId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["org"], summary: "Rotate webhook signing secret — returned once only (org admin)" },
     }
   )
@@ -1465,7 +1516,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
         .limit(Math.min(query.limit ?? 50, 200));
     },
     {
-      params: t.Object({ orgId: t.String(), webhookId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }), webhookId: t.String({ minLength: 1, maxLength: 36 }) }),
       query: t.Object({ limit: t.Optional(t.Numeric()) }),
       detail: { tags: ["org"], summary: "List recent webhook delivery attempts (org member)" },
     }
@@ -1494,7 +1545,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
         .orderBy(notificationTemplates.type);
     },
     {
-      params: t.Object({ orgId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["org"], summary: "Get org notification templates (org member)" },
     }
   )
@@ -1564,7 +1615,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return { ok: true };
     },
     {
-      params: t.Object({ orgId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({
         templates: t.Array(
           t.Object({
@@ -1613,7 +1664,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
         .orderBy(desc(patientConsents.grantedAt));
     },
     {
-      params: t.Object({ orgId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["org"], summary: "List active patient consents for an org (org admin)" },
     }
   )
@@ -1656,7 +1707,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return { ...row, patientCount: 0 };
     },
     {
-      params: t.Object({ orgId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({
         name: t.String({ maxLength: 255 }),
         description: t.Optional(t.String({ maxLength: 2000 })),
@@ -1703,7 +1754,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return rows.map((r) => ({ ...r, patientCount: countMap[r.id] ?? 0 }));
     },
     {
-      params: t.Object({ orgId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["org"], summary: "List cohorts for an org (org member)" },
     }
   )
@@ -1751,7 +1802,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return { ok: true };
     },
     {
-      params: t.Object({ orgId: t.String(), cohortId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }), cohortId: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({
         name: t.Optional(t.String({ maxLength: 255 })),
         description: t.Optional(t.String({ maxLength: 2000 })),
@@ -1811,7 +1862,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return { ok: true };
     },
     {
-      params: t.Object({ orgId: t.String(), cohortId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }), cohortId: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({ userId: t.String({ maxLength: 36 }) }),
       detail: { tags: ["org"], summary: "Enroll a patient in a cohort (org admin)" },
     }
@@ -1839,7 +1890,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return { ok: true };
     },
     {
-      params: t.Object({ orgId: t.String(), cohortId: t.String(), userId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }), cohortId: t.String({ minLength: 1, maxLength: 36 }), userId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["org"], summary: "Remove a patient from a cohort (org admin)" },
     }
   )
@@ -1874,7 +1925,7 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
       return { cohortId: params.cohortId, members, count: members.length };
     },
     {
-      params: t.Object({ orgId: t.String(), cohortId: t.String() }),
+      params: t.Object({ orgId: t.String({ minLength: 1, maxLength: 36 }), cohortId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["org"], summary: "List patients in a cohort (org member)" },
     }
   );

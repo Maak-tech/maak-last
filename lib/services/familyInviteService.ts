@@ -76,7 +76,7 @@ export const familyInviteService = {
       if (!raw || (raw as { error?: string }).error) return null;
       return normalizeInvitation(raw);
     } catch (err: unknown) {
-      console.warn('[familyInvite] getInvitationByCode failed:', err);
+      console.warn('[familyInvite] getInvitationByCode failed:', err instanceof Error ? err.message : String(err));
       return null;
     }
   },
@@ -118,7 +118,7 @@ export const familyInviteService = {
       );
       return (Array.isArray(raw) ? raw : []).map(normalizeInvitation);
     } catch (err: unknown) {
-      console.warn('[familyInvite] getInvitations failed:', err);
+      console.warn('[familyInvite] getInvitations failed:', err instanceof Error ? err.message : String(err));
       return [];
     }
   },
@@ -147,7 +147,7 @@ export const familyInviteService = {
         patientCount: 0,
       };
     } catch (err: unknown) {
-      console.warn('[familyInvite] getFamily failed:', err);
+      console.warn('[familyInvite] getFamily failed:', err instanceof Error ? err.message : String(err));
       return null;
     }
   },

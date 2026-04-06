@@ -50,13 +50,13 @@ export default function AnomalyDashboardSection({ onlyWhenActive = false }: Anom
       since.setHours(since.getHours() - 24);
       const raw = await api.get<VitalAnomaly[]>(
         `/api/health/anomalies?from=${since.toISOString()}&limit=10`
-      ).catch((err) => { console.warn('[AnomalyDashboardSection] Failed to fetch anomaly history:', err); return [] as VitalAnomaly[]; });
+      ).catch((err) => { console.warn('[AnomalyDashboardSection] Failed to fetch anomaly history:', err instanceof Error ? err.message : String(err)); return [] as VitalAnomaly[]; });
       const active = (Array.isArray(raw) ? raw : []).filter(
         (a) => !a.isAcknowledged && !a.acknowledged
       );
       setAnomalies(active);
     } catch (err: unknown) {
-      console.warn('[AnomalyDashboardSection] Failed to load recent anomalies:', err);
+      console.warn('[AnomalyDashboardSection] Failed to load recent anomalies:', err instanceof Error ? err.message : String(err));
     }
   }, [user?.id]);
 
@@ -77,7 +77,7 @@ export default function AnomalyDashboardSection({ onlyWhenActive = false }: Anom
     setAnomalies((prev) => prev.filter((a) => a.id !== anomalyId));
     if (user?.id) {
       await anomalyDetectionService.acknowledgeAnomaly(user.id, anomalyId).catch((err) => {
-        console.warn('[AnomalyDashboardSection] Failed to acknowledge anomaly:', err);
+        console.warn('[AnomalyDashboardSection] Failed to acknowledge anomaly:', err instanceof Error ? err.message : String(err));
       });
     }
   }, [user?.id]);

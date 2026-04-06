@@ -83,7 +83,7 @@ export default function TimelineScreen() {
       const data = await api.get<TimelineEvent[]>("/api/health/timeline?limit=100");
       setEvents(Array.isArray(data) ? data : []);
     } catch (err: unknown) {
-      console.warn('[timeline] Failed to load timeline events:', err);
+      console.warn('[timeline] Failed to load timeline events:', err instanceof Error ? err.message : String(err));
       setLoadError(isRTL ? "تعذّر تحميل الجدول الزمني. اسحب للأسفل للمحاولة." : "Failed to load timeline. Pull down to retry.");
     } finally {
       setLoading(false);

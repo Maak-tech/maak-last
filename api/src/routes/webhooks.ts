@@ -156,14 +156,20 @@ export const webhookRoutes = new Elysia({ prefix: "/webhooks" })
       }
 
       const event = body.event as Record<string, unknown>;
-      const eventType = event?.type as string;
-      const appUserId = event?.app_user_id as string;
-      const productId = event?.product_id as string;
-      const expiresAt = event?.expiration_at_ms
-        ? new Date(event.expiration_at_ms as number)
+      const eventType = typeof event?.type === "string" ? event.type : "";
+      const appUserId = typeof event?.app_user_id === "string" ? event.app_user_id : "";
+      const productId = typeof event?.product_id === "string" ? event.product_id : "";
+      const expiresAt = typeof event?.expiration_at_ms === "number"
+        ? new Date(event.expiration_at_ms)
         : undefined;
 
-      console.info(`[webhooks/revenuecat] ${eventType} userId=${appUserId} product=${productId}`);
+      // Guard: malformed payload (missing required fields) — ack with 200 to stop retries
+      if (!eventType || !appUserId) {
+        console.warn("[webhooks/revenuecat] Malformed event — missing type or app_user_id");
+        return { ok: true, ignored: true };
+      }
+
+      console.info(`[webhooks/revenuecat] ${eventType} userId=${appUserId.slice(0, 8)}… product=${productId}`);
 
       // 2. Look up user by RevenueCat app_user_id (which we set to the Nuralix userId)
       const [user] = await db
@@ -175,7 +181,7 @@ export const webhookRoutes = new Elysia({ prefix: "/webhooks" })
       if (!user) {
         // RevenueCat may send events for users who don't have a Nuralix account yet
         // (e.g., anonymous purchase before sign-up). Log and return 200 to prevent retry.
-        console.warn(`[webhooks/revenuecat] Unknown user ${appUserId} — ignoring`);
+        console.warn(`[webhooks/revenuecat] Unknown user — ignoring`);
         return { ok: true, ignored: true };
       }
 
@@ -190,11 +196,11 @@ export const webhookRoutes = new Elysia({ prefix: "/webhooks" })
       if (featureId) {
         if (RC_GRANT_EVENTS.has(eventType)) {
           await autumnAttach(appUserId, productId).catch((err: unknown) =>
-            console.error("[webhooks/revenuecat] Autumn attach failed:", err)
+            console.error("[webhooks/revenuecat] Autumn attach failed:", err instanceof Error ? err.message : String(err))
           );
         } else if (RC_REVOKE_EVENTS.has(eventType)) {
           await autumnDetach(appUserId, productId).catch((err: unknown) =>
-            console.error("[webhooks/revenuecat] Autumn detach failed:", err)
+            console.error("[webhooks/revenuecat] Autumn detach failed:", err instanceof Error ? err.message : String(err))
           );
         }
       }
@@ -229,7 +235,7 @@ export const webhookRoutes = new Elysia({ prefix: "/webhooks" })
     },
     {
       // Accept the full RevenueCat payload as an opaque object
-      body: t.Object({ event: t.Any() }, { additionalProperties: true }),
+      body: t.Object({ event: t.Optional(t.Record(t.String(), t.Unknown())) }, { additionalProperties: true }),
       detail: {
         tags: ["webhooks"],
         summary: "RevenueCat subscription event webhook",

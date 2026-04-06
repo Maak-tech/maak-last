@@ -116,7 +116,7 @@ export default function AIAssistant() {
       
       setIsLoading(false);
     } catch (error: unknown) {
-      console.error('Error initializing chat:', error);
+      console.error('Error initializing chat:', error instanceof Error ? error.message : String(error));
       setIsLoading(false);
     }
   };
@@ -159,7 +159,7 @@ export default function AIAssistant() {
       setCurrentSessionId(result.id);
       return result.id;
     } catch (error: unknown) {
-      console.warn('[ai-assistant] Failed to create chat session:', error);
+      console.warn('[ai-assistant] Failed to create chat session:', error instanceof Error ? error.message : String(error));
       return null;
     }
   };
@@ -198,10 +198,10 @@ export default function AIAssistant() {
       }
 
       await api.patch(`/api/nora/chat-sessions/${currentSessionId}`, updates).catch((err) => {
-        console.debug('[ai-assistant] saveMessageToSession patch failed (non-critical):', err);
+        console.debug('[ai-assistant] saveMessageToSession patch failed (non-critical):', err instanceof Error ? err.message : String(err));
       });
     } catch (error: unknown) {
-      console.warn('[ai-assistant] saveMessageToSession failed:', error);
+      console.warn('[ai-assistant] saveMessageToSession failed:', error instanceof Error ? error.message : String(error));
     }
   };
 
@@ -269,7 +269,7 @@ export default function AIAssistant() {
       },
       (error) => {
         setIsStreaming(false);
-        console.error('Chat error:', error);
+        console.error('Chat error:', error instanceof Error ? error.message : String(error));
         
         // More user-friendly error messages
         if (error.message.includes('quota exceeded')) {
@@ -323,7 +323,7 @@ export default function AIAssistant() {
       });
       setChatHistory(sessions ?? []);
     } catch (error: unknown) {
-      console.error('Error loading chat history:', error);
+      console.error('Error loading chat history:', error instanceof Error ? error.message : String(error));
     }
   };
 
@@ -348,7 +348,7 @@ export default function AIAssistant() {
         scrollToBottom();
       }
     } catch (error: unknown) {
-      console.error('Error loading session:', error);
+      console.error('Error loading session:', error instanceof Error ? error.message : String(error));
       Alert.alert('Error', 'Failed to load chat session');
     } finally {
       setIsLoading(false);
@@ -374,7 +374,7 @@ export default function AIAssistant() {
                 await handleNewChat();
               }
             } catch (error: unknown) {
-              console.error('Error deleting session:', error);
+              console.error('Error deleting session:', error instanceof Error ? error.message : String(error));
               Alert.alert('Error', 'Failed to delete chat session');
             }
           },

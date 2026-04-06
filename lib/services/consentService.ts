@@ -98,7 +98,7 @@ class ConsentService {
       );
       return raw ? mapConsent(raw) : null;
     } catch (err: unknown) {
-      console.warn('[consent] getConsent failed:', err);
+      console.warn('[consent] getConsent failed:', err instanceof Error ? err.message : String(err));
       return null;
     }
   }

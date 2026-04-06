@@ -978,7 +978,7 @@ export async function getEffectivenessInsights(
       insightAr,
     };
   } catch (err: unknown) {
-    console.warn('[medicationIntelligence] getEffectivenessInsights failed:', err);
+    console.warn('[medicationIntelligence] getEffectivenessInsights failed:', err instanceof Error ? err.message : String(err));
     return null;
   }
 }

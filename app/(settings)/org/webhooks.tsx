@@ -578,7 +578,7 @@ export default function WebhooksScreen() {
                   [{ text: "I've copied it", style: "default" }]
                 );
               } catch (err: unknown) {
-                console.warn('[webhooks] Failed to rotate signing secret:', err);
+                console.warn('[webhooks] Failed to rotate signing secret:', err instanceof Error ? err.message : String(err));
                 Alert.alert("Error", "Failed to rotate signing secret.");
               }
             },

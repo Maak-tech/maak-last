@@ -108,7 +108,7 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
                 : null,
           };
           } catch (err: unknown) {
-            console.error(`[family] Failed to load data for member ${member.userId}:`, err);
+            console.error(`[family] Failed to load data for member ${member.userId.slice(0, 8)}…:`, err instanceof Error ? err.message : String(err));
             // Return a minimal stub so the rest of the dashboard still renders
             return {
               memberId: member.userId,
@@ -129,7 +129,7 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
       return memberData;
     },
     {
-      params: t.Object({ familyId: t.String() }),
+      params: t.Object({ familyId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["family"], summary: "Caregiver dashboard — all family members with VHI" },
     }
   )
@@ -184,7 +184,7 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
       return updated;
     },
     {
-      params: t.Object({ alertId: t.String() }),
+      params: t.Object({ alertId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["family"], summary: "Acknowledge a family member's alert" },
     }
   )
@@ -257,8 +257,8 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
       return userRows.filter(Boolean);
     },
     {
-      params: t.Object({ familyId: t.String() }),
-      query: t.Object({ role: t.Optional(t.String()) }),
+      params: t.Object({ familyId: t.String({ minLength: 1, maxLength: 36 }) }),
+      query: t.Object({ role: t.Optional(t.String({ minLength: 1, maxLength: 36 })) }),
       detail: { tags: ["family"], summary: "Get family members as User objects (basic profile)" },
     }
   )
@@ -368,8 +368,8 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
       return { ok: true, familyId, role };
     },
     {
-      params: t.Object({ familyId: t.String() }),
-      body: t.Optional(t.Object({ userId: t.Optional(t.String()) })),
+      params: t.Object({ familyId: t.String({ minLength: 1, maxLength: 36 }) }),
+      body: t.Optional(t.Object({ userId: t.Optional(t.String({ maxLength: 36 })) })),
       detail: { tags: ["family"], summary: "Join a family" },
     }
   )
@@ -393,8 +393,8 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
       return { ok: true };
     },
     {
-      params: t.Object({ familyId: t.String() }),
-      body: t.Optional(t.Object({ userId: t.Optional(t.String()) })),
+      params: t.Object({ familyId: t.String({ minLength: 1, maxLength: 36 }) }),
+      body: t.Optional(t.Object({ userId: t.Optional(t.String({ maxLength: 36 })) })),
       detail: { tags: ["family"], summary: "Leave a family" },
     }
   )
@@ -433,7 +433,7 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
       return { ok: true };
     },
     {
-      params: t.Object({ familyId: t.String(), memberId: t.String() }),
+      params: t.Object({ familyId: t.String({ minLength: 1, maxLength: 36 }), memberId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["family"], summary: "Remove a family member (admin only)" },
     }
   )
@@ -508,7 +508,7 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
       return invitation ?? null;
     },
     {
-      params: t.Object({ code: t.String() }),
+      params: t.Object({ code: t.String({ pattern: "^\\d{6}$" }) }),
       detail: { tags: ["family"], summary: "Look up a family invitation by code" },
     }
   )
@@ -553,7 +553,7 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
       return { ok: true, familyId: invitation.familyId, message: "Code accepted" };
     },
     {
-      params: t.Object({ code: t.String() }),
+      params: t.Object({ code: t.String({ pattern: "^\\d{6}$" }) }),
       detail: { tags: ["family"], summary: "Claim a family invitation code" },
     }
   )
@@ -586,7 +586,7 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
       return rows;
     },
     {
-      params: t.Object({ familyId: t.String() }),
+      params: t.Object({ familyId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["family"], summary: "Get pending invitations for a family" },
     }
   )
@@ -670,7 +670,7 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
       };
     },
     {
-      params: t.Object({ familyId: t.String() }),
+      params: t.Object({ familyId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["family"], summary: "Get family by ID" },
     }
   )
@@ -796,7 +796,7 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
       return { ok: true };
     },
     {
-      params: t.Object({ noteId: t.String() }),
+      params: t.Object({ noteId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["family"], summary: "Delete a caregiver note" },
     }
   );

@@ -75,7 +75,7 @@ export const medicationRoutes = new Elysia({ prefix: "/api/medications" })
       });
     },
     {
-      query: t.Object({ userId: t.Optional(t.String()) }),
+      query: t.Object({ userId: t.Optional(t.String({ minLength: 1, maxLength: 36 })) }),
       detail: { tags: ["health"], summary: "Get pending medication refills" },
     }
   )
@@ -114,7 +114,7 @@ export const medicationRoutes = new Elysia({ prefix: "/api/medications" })
       return { id: reminderId, medicationId: med.id, medicationName: med.name, status: "requested" };
     },
     {
-      body: t.Object({ medicationId: t.String() }),
+      body: t.Object({ medicationId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["health"], summary: "Request a medication refill" },
     }
   )
@@ -166,7 +166,7 @@ export const medicationRoutes = new Elysia({ prefix: "/api/medications" })
       });
     },
     {
-      query: t.Object({ userId: t.Optional(t.String()) }),
+      query: t.Object({ userId: t.Optional(t.String({ minLength: 1, maxLength: 36 })) }),
       detail: { tags: ["health"], summary: "Get medication refill reminders" },
     }
   )
@@ -221,7 +221,7 @@ export const medicationRoutes = new Elysia({ prefix: "/api/medications" })
       return { id: med.id, status: "dismissed" };
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["health"], summary: "Dismiss a medication refill reminder" },
     }
   );

@@ -249,7 +249,7 @@ class AnomalyDetectionService {
     if (count % this.BASELINE_REFRESH_INTERVAL === 0) {
       // Non-blocking baseline refresh
       this.refreshBaseline(userId, vitalType).catch((err) => {
-        console.warn('[anomalyDetection] refreshBaseline failed:', err);
+        console.warn('[anomalyDetection] refreshBaseline failed:', err instanceof Error ? err.message : String(err));
       });
     }
   }
@@ -465,7 +465,7 @@ class AnomalyDetectionService {
       this.todBaselineCache.set(cacheKey, result);
       return result;
     } catch (err: unknown) {
-      console.warn('[anomalyDetection] Failed to compute time-of-day baseline:', err);
+      console.warn('[anomalyDetection] Failed to compute time-of-day baseline:', err instanceof Error ? err.message : String(err));
       return null;
     }
   }
@@ -506,7 +506,7 @@ class AnomalyDetectionService {
         recentMedications = activeMeds.map((m) => m.name).slice(0, 5);
       }
     } catch (err: unknown) {
-      console.warn('[anomalyDetection] Failed to load medications for context:', err);
+      console.warn('[anomalyDetection] Failed to load medications for context:', err instanceof Error ? err.message : String(err));
     }
 
     // Determine if this reading is within the normal range for this time of day.
@@ -527,7 +527,7 @@ class AnomalyDetectionService {
         }
       }
     } catch (err: unknown) {
-      console.warn('[anomalyDetection] Failed to compute time-of-day deviation for enrichment:', err);
+      console.warn('[anomalyDetection] Failed to compute time-of-day deviation for enrichment:', err instanceof Error ? err.message : String(err));
     }
 
     return {
@@ -589,7 +589,7 @@ class AnomalyDetectionService {
         }
         recentReadings = [newReading, ...byType.values()];
       } catch (err: unknown) {
-        console.warn('[anomalyDetection] Failed to load context vitals for multivariate check — using single vital only:', err);
+        console.warn('[anomalyDetection] Failed to load context vitals for multivariate check — using single vital only:', err instanceof Error ? err.message : String(err));
       }
 
       // Run multivariate check if we have multiple vital types
@@ -649,7 +649,7 @@ class AnomalyDetectionService {
           timestamp: anomaly.timestamp.toISOString(),
         });
       } catch (err: unknown) {
-        console.warn('[anomalyDetection] Failed to persist anomaly analytics event:', err);
+        console.warn('[anomalyDetection] Failed to persist anomaly analytics event:', err instanceof Error ? err.message : String(err));
       }
 
       logger.info(

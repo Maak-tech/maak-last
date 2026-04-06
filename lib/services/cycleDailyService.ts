@@ -83,7 +83,7 @@ export const cycleDailyService = {
         } as CycleDailyEntry);
         await offlineService.storeOfflineData("cycleDailyEntries", updated);
       } catch (err: unknown) {
-        console.warn('[cycleDaily] upsert cache update failed (non-critical):', err);
+        console.warn('[cycleDaily] upsert cache update failed (non-critical):', err instanceof Error ? err.message : String(err));
       }
     };
 
@@ -227,7 +227,7 @@ export const cycleDailyService = {
         const updated = cached.filter((e) => e.id !== entryId);
         await offlineService.storeOfflineData("cycleDailyEntries", updated);
       } catch (err: unknown) {
-        console.warn('[cycleDaily] delete cache update failed (non-critical):', err);
+        console.warn('[cycleDaily] delete cache update failed (non-critical):', err instanceof Error ? err.message : String(err));
       }
     };
 

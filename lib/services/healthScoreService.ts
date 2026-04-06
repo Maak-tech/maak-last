@@ -213,7 +213,7 @@ async function fetchRecentVitalsForScore(
       source: d.source as string | undefined,
     }));
   } catch (err: unknown) {
-    console.warn('[healthScore] fetchRecentVitalsForScore failed:', err);
+    console.warn('[healthScore] fetchRecentVitalsForScore failed:', err instanceof Error ? err.message : String(err));
     return [];
   }
 }

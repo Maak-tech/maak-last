@@ -294,7 +294,7 @@ export default function TrackScreen() {
         medicationCompliance: Math.round(compliance),
       });
     } catch (error: unknown) {
-      console.error('[Track] Error loading tracking data:', error);
+      console.error('[Track] Error loading tracking data:', error instanceof Error ? error.message : String(error));
       if (!isRefresh) {
         // Only alert on initial load — pull-to-refresh failures are less disruptive
         Alert.alert(
@@ -315,7 +315,7 @@ export default function TrackScreen() {
   useFocusEffect(
     useCallback(() => {
       loadTrackingData();
-    }, [user])
+    }, [user, isRTL])
   );
 
   const handleFilterChange = (filter: FilterOption) => {

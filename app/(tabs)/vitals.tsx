@@ -272,7 +272,7 @@ export default function VitalsScreen() {
         setLastSync(new Date());
       }
     } catch (error: unknown) {
-      console.error('Error loading vitals:', error);
+      console.error('Error loading vitals:', error instanceof Error ? error.message : String(error));
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL ? 'حدث خطأ في تحميل البيانات الصحية' : 'Error loading health data'
@@ -315,7 +315,7 @@ export default function VitalsScreen() {
         );
       }
     } catch (error: unknown) {
-      console.error('Error enabling health data:', error);
+      console.error('Error enabling health data:', error instanceof Error ? error.message : String(error));
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL ? 'حدث خطأ في تفعيل دمج البيانات الصحية' : 'Error enabling health data integration'
@@ -331,7 +331,7 @@ export default function VitalsScreen() {
       await healthDataService.syncHealthData();
       await loadVitalsData(true);
     } catch (error: unknown) {
-      console.error('Error syncing data:', error);
+      console.error('Error syncing data:', error instanceof Error ? error.message : String(error));
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL ? 'حدث خطأ في مزامنة البيانات' : 'Error syncing data'

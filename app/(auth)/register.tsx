@@ -74,7 +74,7 @@ export default function RegisterScreen() {
             familyCode.trim()
           );
         } catch (error: unknown) {
-          console.error('[Register] Error storing family code:', error);
+          console.error('[Register] Error storing family code:', error instanceof Error ? error.message : String(error));
           Alert.alert(
             'Notice',
             'There was an issue storing your family code. Please use the family code in the Family tab after registration.'

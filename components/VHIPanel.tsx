@@ -78,7 +78,7 @@ export default function VHIPanel({
       })
       .catch((err) => {
         if (!(err instanceof ApiError && err.status === 404)) {
-          console.warn("[VHIPanel]", err);
+          console.warn("[VHIPanel]", err instanceof Error ? err.message : String(err));
         }
       })
       .finally(() => setInternalLoading(false));

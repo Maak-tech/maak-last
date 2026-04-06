@@ -25,7 +25,9 @@ async function sendOTPViaTwilio(phone: string, code: string): Promise<void> {
   });
 
   if (!response.ok) {
-    console.error("[Twilio OTP]", await response.text());
+    // Truncate Twilio error body — it may contain the destination phone number (PHI)
+    const errBody = await response.text().catch(() => "");
+    console.error("[Twilio OTP] Send failed:", errBody.slice(0, 120).replace(/[^\x20-\x7E]/g, "?"));
     throw new Error("Failed to send OTP");
   }
 }

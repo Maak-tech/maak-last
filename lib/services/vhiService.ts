@@ -51,7 +51,7 @@ class VHIService {
     try {
       return await api.get<VHI | null>("/api/vhi/me");
     } catch (err: unknown) {
-      console.warn('[vhi] getMyVHI failed:', err);
+      console.warn('[vhi] getMyVHI failed:', err instanceof Error ? err.message : String(err));
       return null;
     }
   }
@@ -65,7 +65,7 @@ class VHIService {
     try {
       return await api.get<VHI | null>(`/api/vhi/${memberId}`);
     } catch (err: unknown) {
-      console.warn('[vhi] getMemberVHI failed:', err);
+      console.warn('[vhi] getMemberVHI failed:', err instanceof Error ? err.message : String(err));
       return null;
     }
   }
@@ -81,7 +81,7 @@ class VHIService {
       );
       return result.ok;
     } catch (err: unknown) {
-      console.warn('[vhi] acknowledgeAction failed:', err);
+      console.warn('[vhi] acknowledgeAction failed:', err instanceof Error ? err.message : String(err));
       return false;
     }
   }
@@ -94,7 +94,7 @@ class VHIService {
     try {
       await api.post("/api/vhi/me/recompute", {});
     } catch (err: unknown) {
-      console.warn('[vhiService] requestRecompute failed (non-critical):', err);
+      console.warn('[vhiService] requestRecompute failed (non-critical):', err instanceof Error ? err.message : String(err));
     }
   }
 

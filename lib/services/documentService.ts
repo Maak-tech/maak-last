@@ -45,7 +45,7 @@ class DocumentService {
       
       return parsed;
     } catch (error: unknown) {
-      console.error(`Error loading document ${fileName}:`, error);
+      console.error(`Error loading document ${fileName}:`, error instanceof Error ? error.message : String(error));
       throw new Error(`Failed to load document: ${fileName}`);
     }
   }

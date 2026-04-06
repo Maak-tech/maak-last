@@ -45,8 +45,8 @@ export const clinicalRoutes = new Elysia({ prefix: "/api/clinical" })
     {
       query: t.Object({
         orgId: t.String({ maxLength: 36 }), // required — mandatory for RBAC
-        patientId: t.Optional(t.String()),
-        status: t.Optional(t.String()),
+        patientId: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
+        status: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
         limit: t.Optional(t.Numeric()),
       }),
       detail: { tags: ["clinical"], summary: "List clinical integration requests (org member)" },
@@ -85,7 +85,7 @@ export const clinicalRoutes = new Elysia({ prefix: "/api/clinical" })
         orgId: t.String({ maxLength: 36 }),
         patientId: t.Optional(t.String({ maxLength: 36 })),
         integrationType: t.String({ maxLength: 100 }),
-        requestData: t.Optional(t.Any()),
+        requestData: t.Optional(t.Record(t.String(), t.Unknown())),
       }),
       detail: { tags: ["clinical"], summary: "Create a clinical integration request (org member)" },
     }

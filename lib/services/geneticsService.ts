@@ -84,7 +84,7 @@ class GeneticsService {
     try {
       return await api.get<GeneticsProfile | null>("/api/genetics/me");
     } catch (err: unknown) {
-      console.warn('[genetics] getProfile failed:', err);
+      console.warn('[genetics] getProfile failed:', err instanceof Error ? err.message : String(err));
       return null;
     }
   }
@@ -101,7 +101,7 @@ class GeneticsService {
         }
       );
     } catch (err: unknown) {
-      console.warn('[genetics] getStatus failed:', err);
+      console.warn('[genetics] getStatus failed:', err instanceof Error ? err.message : String(err));
       return { processingStatus: "none" };
     }
   }

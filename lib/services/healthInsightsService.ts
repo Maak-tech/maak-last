@@ -660,7 +660,7 @@ class HealthInsightsService {
         timestamp: new Date(m.recordedAt as string),
       }));
     } catch (error: unknown) {
-      console.warn('[healthInsights] getMoodsForPeriod failed:', error);
+      console.warn('[healthInsights] getMoodsForPeriod failed:', error instanceof Error ? error.message : String(error));
       return [];
     }
   }
@@ -859,7 +859,7 @@ class HealthInsightsService {
         }))
         .filter((v) => !isNaN(v.value));
     } catch (err: unknown) {
-      console.warn('[healthInsights] fetchVitalsForAnalysis failed:', err);
+      console.warn('[healthInsights] fetchVitalsForAnalysis failed:', err instanceof Error ? err.message : String(err));
       return [];
     }
   }

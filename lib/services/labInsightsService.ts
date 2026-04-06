@@ -347,7 +347,7 @@ export async function analyzeLabResults(
           aiNarrativeAr = response.narrativeAr;
         }
       } catch (err: unknown) {
-        console.warn('[labInsights] AI narrative generation failed, using default:', err);
+        console.warn('[labInsights] AI narrative generation failed, using default:', err instanceof Error ? err.message : String(err));
       }
     }
 
@@ -372,12 +372,12 @@ export async function analyzeLabResults(
       aiNarrativeAr,
       generatedAt: new Date().toISOString(),
     }).catch((err) => {
-      console.debug('[labInsights] Failed to cache lab insights summary:', err);
+      console.debug('[labInsights] Failed to cache lab insights summary:', err instanceof Error ? err.message : String(err));
     });
 
     return summary;
   } catch (error: unknown) {
-    console.error('[labInsights] analyzeLabResults failed:', error);
+    console.error('[labInsights] analyzeLabResults failed:', error instanceof Error ? error.message : String(error));
     return {
       flaggedCount: 0,
       criticalCount: 0,

@@ -71,7 +71,7 @@ export const useSmartNotifications = (
           cachedVhiRef.current = await vhiService.getMyVHI();
           vhiLastFetchedRef.current = Date.now();
         } catch (err) {
-          console.warn('[useSmartNotifications] VHI fetch failed — VHI alerts skipped this cycle:', err);
+          console.warn('[useSmartNotifications] VHI fetch failed — VHI alerts skipped this cycle:', err instanceof Error ? err.message : String(err));
         }
       }
 
@@ -106,7 +106,7 @@ export const useSmartNotifications = (
         );
       }
     } catch (error) {
-      console.warn('[useSmartNotifications] Notification scheduling failed:', error);
+      console.warn('[useSmartNotifications] Notification scheduling failed:', error instanceof Error ? error.message : String(error));
     } finally {
       isCheckingRef.current = false;
     }
@@ -119,14 +119,14 @@ export const useSmartNotifications = (
 
     // Initial check
     checkAndScheduleNotifications().catch((err) => {
-      console.warn('[useSmartNotifications] Initial notification check failed:', err);
+      console.warn('[useSmartNotifications] Initial notification check failed:', err instanceof Error ? err.message : String(err));
     });
 
     // Set up periodic checks
     checkIntervalRef.current = setInterval(
       () => {
         checkAndScheduleNotifications().catch((err) => {
-          console.warn('[useSmartNotifications] Periodic notification check failed:', err);
+          console.warn('[useSmartNotifications] Periodic notification check failed:', err instanceof Error ? err.message : String(err));
         });
       },
       checkInterval * 60 * 1000

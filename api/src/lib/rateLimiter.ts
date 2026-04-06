@@ -184,3 +184,80 @@ export const transcribeRateLimiter = new RateLimiter({
   windowMs: 60_000,
   maxRequests: 10,
 });
+
+/**
+ * /api/auth/* — better-auth endpoints (sign-in, sign-up, OTP).
+ *
+ * 10 requests / IP / minute.
+ * Prevents brute-force password attacks, credential stuffing, and OTP enumeration.
+ * Keyed by IP address since auth requests are pre-authentication (no userId available).
+ */
+export const authRateLimiter = new RateLimiter({
+  windowMs: 60_000,
+  maxRequests: 10,
+});
+
+/**
+ * /api/notifications/send — Expo push notification dispatch.
+ *
+ * 30 sends / user / minute.
+ * Family notification flows (alert dispatched to all admins) can produce bursts,
+ * so a generous-but-bounded limit prevents runaway token floods from misbehaving clients.
+ */
+export const pushSendRateLimiter = new RateLimiter({
+  windowMs: 60_000,
+  maxRequests: 30,
+});
+
+/**
+ * /api/vhi/me/recompute — on-demand VHI pipeline recompute.
+ *
+ * 3 requests / user / 10 minutes.
+ * The full VHI pipeline is compute-intensive (runs all risk models + forecasts).
+ * Normal usage is at most one manual recompute per session; this limit prevents
+ * runaway clients or scripts from flooding the pipeline and impacting other users.
+ */
+export const vhiRecomputeRateLimiter = new RateLimiter({
+  windowMs: 10 * 60_000, // 10 minutes
+  maxRequests: 3,
+});
+
+/**
+ * /api/notifications/email — SendGrid transactional email.
+ *
+ * 20 emails / user / 10 minutes.
+ * Tight ceiling prevents SendGrid quota exhaustion and domain reputation abuse.
+ * Legitimate notification flows rarely exceed a few emails per minute.
+ */
+export const emailRateLimiter = new RateLimiter({
+  windowMs: 10 * 60_000, // 10 minutes
+  maxRequests: 20,
+});
+
+/**
+ * /api/health/ppg/analyze — PaPaGei ML inference (PPG signal → vitals).
+ *
+ * 10 requests / user / minute.
+ * Each call holds a connection open for up to 30 seconds while the ML service
+ * runs inference. A tight-but-usable ceiling prevents resource exhaustion from
+ * tight retry loops or misbehaving clients without impacting real-time PPG
+ * monitoring flows (typical usage: 1–3 captures per measurement session).
+ */
+export const ppgAnalyzeRateLimiter = new RateLimiter({
+  windowMs: 60_000, // 1 minute
+  maxRequests: 10,
+});
+
+/**
+ * /api/notes/:id/parse — MedGemma clinical note ML parsing.
+ *
+ * 20 requests / user / hour.
+ * Each parse request triggers a 60-second background ML job (MedGemma PDF →
+ * SOAP extraction). Normal usage is at most a few note parses per session;
+ * this limit prevents scripted mass-upload + re-parse abuse that would saturate
+ * the ML service worker pool and degrade quality for all users.
+ */
+export const noteParseRateLimiter = new RateLimiter({
+  windowMs: 60 * 60_000, // 1 hour
+  maxRequests: 20,
+});

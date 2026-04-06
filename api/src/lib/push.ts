@@ -141,7 +141,7 @@ async function deliverToTokens(tokens: string[], msg: PushMessage): Promise<void
       console.error(`[push] Expo Push API responded ${res.status}:`, await res.text().catch(() => ""));
     }
   } catch (err: unknown) {
-    console.error("[push] Failed to deliver notifications:", err);
+    console.error("[push] Failed to deliver notifications:", err instanceof Error ? err.message : String(err));
   }
 }
 

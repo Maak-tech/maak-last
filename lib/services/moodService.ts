@@ -135,7 +135,7 @@ export const moodService = {
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
         .slice(0, limitCount);
     } catch (err: unknown) {
-      console.warn('[mood] getUserMoods failed:', err);
+      console.warn('[mood] getUserMoods failed:', err instanceof Error ? err.message : String(err));
       if (isOnline) {
         const cachedMoods = await offlineService.getOfflineCollection<Mood>("moods");
         return cachedMoods
@@ -153,7 +153,7 @@ export const moodService = {
       const user = await userService.getUser(userId);
       return user?.familyId === familyId && (user?.role === "admin" || user?.role === "caregiver");
     } catch (err: unknown) {
-      console.warn('[mood] checkFamilyAccessPermission failed:', err);
+      console.warn('[mood] checkFamilyAccessPermission failed:', err instanceof Error ? err.message : String(err));
       return false;
     }
   },
@@ -226,7 +226,7 @@ export const moodService = {
 
       return { totalMoods, avgIntensity: Math.round(avgIntensity * 10) / 10, moodDistribution };
     } catch (err: unknown) {
-      console.warn('[mood] getFamilyMoodStats failed:', err);
+      console.warn('[mood] getFamilyMoodStats failed:', err instanceof Error ? err.message : String(err));
       return { totalMoods: 0, avgIntensity: 0, moodDistribution: [] };
     }
   },
@@ -281,7 +281,7 @@ export const moodService = {
 
       return { totalMoods, avgIntensity: Math.round(avgIntensity * 10) / 10, moodDistribution };
     } catch (err: unknown) {
-      console.warn('[mood] getMoodStats failed:', err);
+      console.warn('[mood] getMoodStats failed:', err instanceof Error ? err.message : String(err));
       return { totalMoods: 0, avgIntensity: 0, moodDistribution: [] };
     }
   },
@@ -323,7 +323,7 @@ export const moodService = {
 
       return { totalMoods, avgIntensity: Math.round(avgIntensity * 10) / 10, moodDistribution };
     } catch (err: unknown) {
-      console.warn('[mood] getMemberMoodStats failed:', err);
+      console.warn('[mood] getMemberMoodStats failed:', err instanceof Error ? err.message : String(err));
       return { totalMoods: 0, avgIntensity: 0, moodDistribution: [] };
     }
   },

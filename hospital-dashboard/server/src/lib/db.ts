@@ -21,7 +21,8 @@ export const pool = new Pool({
 })
 
 pool.on('error', (err) => {
-  console.error('[DB] Unexpected pool error:', err)
+  // Log only the message — pool errors can contain the DATABASE_URL with credentials
+  console.error('[DB] Unexpected pool error:', err instanceof Error ? err.message : String(err))
 })
 
 export async function query<T = Record<string, unknown>>(

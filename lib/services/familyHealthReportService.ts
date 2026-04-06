@@ -123,7 +123,7 @@ class FamilyHealthReportService {
         summary,
       };
     } catch (error: unknown) {
-      console.error('[familyHealthReport] Failed to generate report:', error);
+      console.error('[familyHealthReport] Failed to generate report:', error instanceof Error ? error.message : String(error));
       throw new Error("Failed to generate family health report");
     }
   }

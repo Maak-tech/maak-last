@@ -270,7 +270,7 @@ export default function HealthIntegrationsScreen() {
           setClinicalRequests(new Map());
         }
       } catch (error: unknown) {
-        console.warn('[health-integrations] Failed to load provider availability:', error);
+        console.warn('[health-integrations] Failed to load provider availability:', error instanceof Error ? error.message : String(error));
         // Set to false so providers show as "Coming Soon" instead of a platform error
         setFitbitAvailable(false);
         setWithingsAvailable(false);

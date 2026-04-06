@@ -133,7 +133,7 @@ class NoraChatService {
       return result.configured;
     } catch (err: unknown) {
       // If the health endpoint doesn't exist yet, assume configured (avoids blocking UI)
-      console.warn('[noraChat] isConfigured health check failed — assuming configured:', err);
+      console.warn('[noraChat] isConfigured health check failed — assuming configured:', err instanceof Error ? err.message : String(err));
       return true;
     }
   }

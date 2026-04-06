@@ -555,7 +555,7 @@ export default function PatientDetailScreen() {
           });
         }
       } catch (err: unknown) {
-        console.warn('[patient-detail] Unexpected error during data load:', err);
+        console.warn('[patient-detail] Unexpected error during data load:', err instanceof Error ? err.message : String(err));
       } finally {
         if (isMountedRef.current) {
           setLoading(false);
@@ -582,7 +582,7 @@ export default function PatientDetailScreen() {
               await taskService.updateStatus(task.id, "completed", user.id);
               setTasks((prev) => prev.filter((t) => t.id !== task.id));
             } catch (err: unknown) {
-              console.warn('[patient-detail] Failed to complete task:', err);
+              console.warn('[patient-detail] Failed to complete task:', err instanceof Error ? err.message : String(err));
               Alert.alert("Error", "Failed to complete task.");
             }
           },

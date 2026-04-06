@@ -101,7 +101,7 @@ export default function HealthSummaryScreen() {
       const data = await api.get<VHISummary>("/api/vhi/me");
       setVhi(data);
     } catch (err: unknown) {
-      console.warn('[health-summary] Failed to load VHI:', err);
+      console.warn('[health-summary] Failed to load VHI:', err instanceof Error ? err.message : String(err));
       setLoadError(true);
     } finally {
       setLoading(false);

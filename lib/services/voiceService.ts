@@ -513,7 +513,7 @@ class VoiceService {
       const hasApiKey = openaiService.isConfigured;
       return hasPermissions && hasApiKey === true && Audio !== null;
     } catch (err: unknown) {
-      console.warn('[voice] isAvailable check failed:', err);
+      console.warn('[voice] isAvailable check failed:', err instanceof Error ? err.message : String(err));
       return false;
     }
   }

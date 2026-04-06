@@ -310,7 +310,7 @@ class AIInsightsService {
       const result = await api.get<{ data?: unknown[] }>("/api/health/vitals?limit=1");
       return Array.isArray(result?.data) ? result.data.length > 0 : false;
     } catch (err: unknown) {
-      console.warn('[aiInsights] hasVitalsData check failed:', err);
+      console.warn('[aiInsights] hasVitalsData check failed:', err instanceof Error ? err.message : String(err));
       return false;
     }
   }
@@ -971,7 +971,7 @@ class AIInsightsService {
     try {
       return await symptomService.getUserSymptoms(userId, SYMPTOM_FETCH_LIMIT);
     } catch (error: unknown) {
-      console.warn('[aiInsights] getRecentSymptoms failed:', error);
+      console.warn('[aiInsights] getRecentSymptoms failed:', error instanceof Error ? error.message : String(error));
       return [];
     }
   }
@@ -980,7 +980,7 @@ class AIInsightsService {
     try {
       return await medicalHistoryService.getUserMedicalHistory(userId);
     } catch (error: unknown) {
-      console.warn('[aiInsights] getMedicalHistory failed:', error);
+      console.warn('[aiInsights] getMedicalHistory failed:', error instanceof Error ? error.message : String(error));
       return [];
     }
   }
@@ -989,7 +989,7 @@ class AIInsightsService {
     try {
       return await medicationService.getUserMedications(userId);
     } catch (error: unknown) {
-      console.warn('[aiInsights] getMedications failed:', error);
+      console.warn('[aiInsights] getMedications failed:', error instanceof Error ? error.message : String(error));
       return [];
     }
   }

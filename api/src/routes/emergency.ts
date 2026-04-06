@@ -39,7 +39,8 @@ async function sendTwilioSms(to: string, body: string): Promise<boolean> {
     );
     return res.ok;
   } catch (err: unknown) {
-    console.error("[emergency] Twilio send failed:", err);
+    // Log only the message — full Twilio error objects may contain account SID or tokens
+    console.error("[emergency] Twilio send failed:", err instanceof Error ? err.message : String(err));
     return false;
   }
 }

@@ -72,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             fcmService
               .initializeFCM(userData.id)
               .catch((error: unknown) => {
-                console.warn('[AuthContext] FCM initialization error:', error);
+                console.warn('[AuthContext] FCM initialization error:', error instanceof Error ? error.message : String(error));
               });
           }
         }, 3000);
@@ -83,7 +83,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           await ensureUserHasFamily(sessionUser.id);
         }
       } catch (error: unknown) {
-        console.error('❌ Session init error:', error);
+        console.error('❌ Session init error:', error instanceof Error ? error.message : String(error));
         if (!cancelled) setUser(null);
       } finally {
         if (!cancelled) setLoading(false);
@@ -167,7 +167,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setUser(userData);
       // signIn succeeded
     } catch (error: unknown) {
-      console.error('Sign in error:', error);
+      console.error('Sign in error:', error instanceof Error ? error.message : String(error));
       // better-auth returns a plain message string; map common messages to user-friendly text.
       // Note: Firebase error codes (auth/user-not-found, etc.) were removed — better-auth
       // never emits them and they were dead code after the Firebase → better-auth migration.
@@ -203,7 +203,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         name
       );
     } catch (error: unknown) {
-      console.error('Sign up error:', error);
+      console.error('Sign up error:', error instanceof Error ? error.message : String(error));
       // better-auth returns plain message strings; map to user-friendly text.
       // Firebase error codes (auth/email-already-in-use etc.) removed — dead code post-migration.
       const raw: string = (error instanceof Error ? error.message : null) || 'Failed to create account. Please try again.';
@@ -227,7 +227,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       await authClient.signOut();
       setUser(null);
     } catch (err: unknown) {
-      console.warn('[AuthContext] signOut failed:', err);
+      console.warn('[AuthContext] signOut failed:', err instanceof Error ? err.message : String(err));
       throw new Error('Failed to sign out. Please try again.');
     }
   };
@@ -238,7 +238,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setUnauthorizedHandler(() => {
       // Fire-and-forget — don't await, since this may be called inside a non-async context
       logout().catch((err: unknown) => {
-        console.warn('[AuthContext] Auto-logout on 401 failed:', err);
+        console.warn('[AuthContext] Auto-logout on 401 failed:', err instanceof Error ? err.message : String(err));
         // Still clear the user from state even if the API call failed
         setUser(null);
       });
@@ -256,7 +256,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       });
       setUser({ ...user, ...userData });
     } catch (error: unknown) {
-      console.error('Update user error:', error);
+      console.error('Update user error:', error instanceof Error ? error.message : String(error));
       throw new Error('Failed to update user. Please try again.');
     }
   };

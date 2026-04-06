@@ -69,10 +69,16 @@ function checkSdkRateLimit(apiKeyId: string): boolean {
   return true;
 }
 
-// API key authentication middleware for SDK routes
+// API key authentication middleware for SDK routes.
+//
+// IMPORTANT: uses `.resolve()`, NOT `.derive()`.
+// `.derive()` merges its return value into context but does NOT short-circuit the
+// request pipeline — returning error() from a `.derive()` hook still lets downstream
+// handlers run. `.resolve()` explicitly terminates the request when an error() is
+// returned, preventing SDK handlers from running with undefined orgId/scopes.
 const requireApiKey = new Elysia({ name: "require-api-key" })
   .decorate("db", dbInstance)
-  .derive(
+  .resolve(
   { as: "global" },
   async ({ request, db }) => {
     const authHeader = request.headers.get("authorization");
@@ -101,7 +107,7 @@ const requireApiKey = new Elysia({ name: "require-api-key" })
 
     // Update last used timestamp (non-blocking — log failures for observability)
     db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, apiKey.id))
-      .catch((err: unknown) => console.error('[sdk] Failed to update lastUsedAt for key', apiKey.id, err));
+      .catch((err: unknown) => console.error('[sdk] Failed to update lastUsedAt for key', apiKey.id, err instanceof Error ? err.message : String(err)));
 
     return { orgId: apiKey.orgId, apiKeyId: apiKey.id, scopes: apiKey.scopes ?? [] };
   }
@@ -156,7 +162,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
       };
     },
     {
-      params: t.Object({ patientId: t.String() }),
+      params: t.Object({ patientId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["sdk"], summary: "[SDK] Get patient's VHI summary" },
     }
   )
@@ -199,7 +205,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
       };
     },
     {
-      params: t.Object({ patientId: t.String() }),
+      params: t.Object({ patientId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["sdk"], summary: "[SDK] Get patient genetic risk profile (condition-level only)" },
     }
   )
@@ -246,7 +252,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
       };
     },
     {
-      params: t.Object({ patientId: t.String() }),
+      params: t.Object({ patientId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["sdk"], summary: "[SDK] Get patient risk scores" },
     }
   )
@@ -301,11 +307,11 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
       return { events, count: events.length };
     },
     {
-      params: t.Object({ patientId: t.String() }),
+      params: t.Object({ patientId: t.String({ minLength: 1, maxLength: 36 }) }),
       query: t.Object({
-        from: t.Optional(t.String()),
-        to: t.Optional(t.String()),
-        domain: t.Optional(t.String()),
+        from: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
+        to: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
+        domain: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
         limit: t.Optional(t.Number({ maximum: 500 })),
       }),
       detail: { tags: ["sdk"], summary: "[SDK] Get patient health timeline" },
@@ -347,7 +353,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
       return { alerts: results, count: results.length };
     },
     {
-      params: t.Object({ patientId: t.String() }),
+      params: t.Object({ patientId: t.String({ minLength: 1, maxLength: 36 }) }),
       query: t.Object({
         activeOnly: t.Optional(t.Boolean()),
         limit: t.Optional(t.Number({ maximum: 200 })),
@@ -405,7 +411,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
       };
     },
     {
-      params: t.Object({ patientId: t.String() }),
+      params: t.Object({ patientId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["sdk"], summary: "[SDK] Get AI-generated patient health insights" },
     }
   )
@@ -494,7 +500,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
       return buildFhirBundle(patient, observations, medRequests, baseUrl);
     },
     {
-      params: t.Object({ patientId: t.String() }),
+      params: t.Object({ patientId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: {
         tags: ["sdk"],
         summary: "[SDK] Export patient data as FHIR R4 Bundle",
@@ -569,7 +575,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
       return { ok: true };
     },
     {
-      params: t.Object({ webhookId: t.String() }),
+      params: t.Object({ webhookId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["sdk"], summary: "[SDK] Remove a webhook endpoint" },
     }
   )
@@ -639,7 +645,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
     {
       body: t.Object({
         name: t.String({ minLength: 1 }),
-        scopes: t.Array(t.String(), { minItems: 1 }),
+        scopes: t.Array(t.String({ maxLength: 100 }), { minItems: 1 }),
       }),
       detail: { tags: ["sdk"], summary: "[SDK] Create a new API key" },
     }
@@ -707,7 +713,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
       return { ok: true };
     },
     {
-      params: t.Object({ keyId: t.String() }),
+      params: t.Object({ keyId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["sdk"], summary: "[SDK] Revoke an API key" },
     }
   )
@@ -802,7 +808,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
       };
     },
     {
-      params: t.Object({ cohortId: t.String() }),
+      params: t.Object({ cohortId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["sdk"], summary: "[SDK] List patients in a cohort" },
     }
   )
@@ -830,7 +836,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
    * @see NurulixClient.subscribe() in the @nuralix/sdk package
    */
   .ws("/patients/:patientId/subscribe", {
-    query: t.Object({ key: t.String() }),
+    query: t.Object({ key: t.String({ minLength: 1, maxLength: 128 }) }),
     async open(ws) {
       const patientId = ws.data.params.patientId;
       const apiKey = ws.data.query.key;

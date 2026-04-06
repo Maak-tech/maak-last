@@ -102,7 +102,7 @@ export default function LabResultsScreen() {
       const data = await api.get<LabResult[]>("/api/health/labs");
       setResults(Array.isArray(data) ? data : []);
     } catch (err: unknown) {
-      console.warn('[lab-results] Failed to load lab results:', err);
+      console.warn('[lab-results] Failed to load lab results:', err instanceof Error ? err.message : String(err));
       setLoadError(isRTL ? 'تعذّر تحميل نتائج الفحوصات. اسحب للأسفل للمحاولة مجدداً.' : 'Failed to load lab results. Pull down to retry.');
     } finally {
       setLoading(false);

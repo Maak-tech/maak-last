@@ -94,7 +94,7 @@ class BackgroundFallDetectionService {
     this.listeners.forEach((fn) => {
       try { fn(event); } catch (err: unknown) {
         // A misbehaving listener must not prevent other listeners from receiving the event.
-        console.warn('[backgroundFallDetection] Listener threw during fall event notification:', err);
+        console.warn('[backgroundFallDetection] Listener threw during fall event notification:', err instanceof Error ? err.message : String(err));
       }
     });
   }

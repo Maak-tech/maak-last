@@ -253,7 +253,7 @@ const initI18n = () => {
       },
     })
     .catch((error) => {
-      console.error('i18n initialization error:', error);
+      console.error('i18n initialization error:', error instanceof Error ? error.message : String(error));
     });
 };
 

@@ -39,7 +39,7 @@ function acquireLock(): boolean {
     fs.writeFileSync(LOCK_FILE, String(process.pid));
     return true;
   } catch (err: unknown) {
-    console.warn("[webhookRetry] Failed to acquire lock — proceeding without guard:", err);
+    console.warn("[webhookRetry] Failed to acquire lock — proceeding without guard:", err instanceof Error ? err.message : String(err));
     return true;
   }
 }
@@ -48,7 +48,7 @@ function releaseLock(): void {
   try {
     if (fs.existsSync(LOCK_FILE)) fs.unlinkSync(LOCK_FILE);
   } catch (err: unknown) {
-    console.warn("[webhookRetry] Failed to release lock:", err);
+    console.warn("[webhookRetry] Failed to release lock:", err instanceof Error ? err.message : String(err));
   }
 }
 
@@ -261,7 +261,7 @@ if (import.meta.main) {
   runWebhookRetryWorker()
     .then(() => process.exit(0))
     .catch((err: unknown) => {
-      console.error("[webhookRetry] Fatal error:", err);
+      console.error("[webhookRetry] Fatal error:", err instanceof Error ? err.message : String(err));
       releaseLock();
       process.exit(1);
     });

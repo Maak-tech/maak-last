@@ -416,7 +416,7 @@ export default function AuditTrailScreen() {
         setHasMore(more.length === PAGE_SIZE);
       }
     } catch (err: unknown) {
-      console.warn('[audit-trail] Pagination load failed:', err);
+      console.warn('[audit-trail] Pagination load failed:', err instanceof Error ? err.message : String(err));
     } finally {
       if (isMountedRef.current) setLoadingMore(false);
     }

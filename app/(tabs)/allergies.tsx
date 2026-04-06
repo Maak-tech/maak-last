@@ -82,7 +82,7 @@ export default function AllergiesScreen() {
       const data = await api.get<Allergy[]>("/api/health/allergies");
       setAllergies(Array.isArray(data) ? data : []);
     } catch (err: unknown) {
-      console.warn('[allergies] Failed to load allergies:', err);
+      console.warn('[allergies] Failed to load allergies:', err instanceof Error ? err.message : String(err));
       setLoadError(isRTL ? 'تعذّر تحميل الحساسيات. اسحب للأسفل للمحاولة مجدداً.' : 'Failed to load allergies. Pull down to retry.');
     } finally {
       setLoading(false);
@@ -141,7 +141,7 @@ export default function AllergiesScreen() {
               await api.delete(`/api/health/allergies/${allergy.id}`);
               setAllergies((prev) => prev.filter((a) => a.id !== allergy.id));
             } catch (err: unknown) {
-              console.warn('[allergies] Failed to delete allergy:', err);
+              console.warn('[allergies] Failed to delete allergy:', err instanceof Error ? err.message : String(err));
               Alert.alert(isRTL ? "خطأ" : "Error", isRTL ? "فشل الحذف" : "Failed to delete");
             }
           },

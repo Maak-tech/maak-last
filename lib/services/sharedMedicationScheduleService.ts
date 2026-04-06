@@ -193,7 +193,7 @@ class SharedMedicationScheduleService {
 
         return scheduleEntries;
       } catch (error: unknown) {
-        console.warn('[sharedMedicationSchedule] Failed to load family schedule:', error);
+        console.warn('[sharedMedicationSchedule] Failed to load family schedule:', error instanceof Error ? error.message : String(error));
         return [];
       } finally {
         this.familyScheduleInFlight.delete(familyId);
@@ -205,7 +205,7 @@ class SharedMedicationScheduleService {
     try {
       return await loadPromise;
     } catch (error: unknown) {
-      console.warn('[sharedMedicationSchedule] Family schedule promise failed:', error);
+      console.warn('[sharedMedicationSchedule] Family schedule promise failed:', error instanceof Error ? error.message : String(error));
       return [];
     }
   }
@@ -242,7 +242,7 @@ class SharedMedicationScheduleService {
         };
       });
     } catch (error: unknown) {
-      console.warn('[sharedMedicationSchedule] getMemberMedicationSchedule failed:', error);
+      console.warn('[sharedMedicationSchedule] getMemberMedicationSchedule failed:', error instanceof Error ? error.message : String(error));
       return [];
     }
   }

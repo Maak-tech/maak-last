@@ -73,16 +73,16 @@ export const calendarRoutes = new Elysia({ prefix: "/api/calendar" })
         allDay: t.Optional(t.Boolean()),
         description: t.Optional(t.String({ maxLength: 5000 })),
         location: t.Optional(t.String({ maxLength: 500 })),
-        familyId: t.Optional(t.String()),
+        familyId: t.Optional(t.String({ maxLength: 36 })),
         recurrencePattern: t.Optional(t.String({ maxLength: 100 })),
         recurrenceEndDate: t.Optional(t.String({ maxLength: 50 })),
         recurrenceCount: t.Optional(t.Number({ minimum: 1, maximum: 1000 })),
-        relatedItemId: t.Optional(t.String()),
+        relatedItemId: t.Optional(t.String({ maxLength: 36 })),
         relatedItemType: t.Optional(t.String({ maxLength: 100 })),
         color: t.Optional(t.String({ maxLength: 20 })),
         reminders: t.Optional(t.Array(t.Object({ minutesBefore: t.Number({ minimum: 0, maximum: 43200 }), sent: t.Boolean() }), { maxItems: 10 })),
         tags: t.Optional(t.Array(t.String({ maxLength: 50 }), { maxItems: 20 })),
-        attendees: t.Optional(t.Array(t.String(), { maxItems: 100 })),
+        attendees: t.Optional(t.Array(t.String({ maxLength: 254 }), { maxItems: 100 })),
       }),
       detail: { tags: ["calendar"], summary: "Add a calendar event" },
     }
@@ -107,8 +107,8 @@ export const calendarRoutes = new Elysia({ prefix: "/api/calendar" })
     },
     {
       query: t.Object({
-        from: t.Optional(t.String()),
-        to: t.Optional(t.String()),
+        from: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
+        to: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
       }),
       detail: { tags: ["calendar"], summary: "Get user calendar events" },
     }
@@ -143,8 +143,8 @@ export const calendarRoutes = new Elysia({ prefix: "/api/calendar" })
       return db.select().from(calendarEvents).where(and(...conditions)).orderBy(calendarEvents.startDate);
     },
     {
-      params: t.Object({ familyId: t.String() }),
-      query: t.Object({ from: t.Optional(t.String()), to: t.Optional(t.String()) }),
+      params: t.Object({ familyId: t.String({ minLength: 1, maxLength: 36 }) }),
+      query: t.Object({ from: t.Optional(t.String({ minLength: 1, maxLength: 36 })), to: t.Optional(t.String({ minLength: 1, maxLength: 36 })) }),
       detail: { tags: ["calendar"], summary: "Get family calendar events (family member)" },
     }
   )
@@ -182,7 +182,7 @@ export const calendarRoutes = new Elysia({ prefix: "/api/calendar" })
       return { error: "Access denied" };
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["calendar"], summary: "Get a calendar event by ID" },
     }
   )
@@ -280,7 +280,7 @@ export const calendarRoutes = new Elysia({ prefix: "/api/calendar" })
       return { ok: true };
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Partial(t.Object({
         title: t.String({ minLength: 1, maxLength: 255 }),
         description: t.String({ maxLength: 5000 }),
@@ -298,7 +298,7 @@ export const calendarRoutes = new Elysia({ prefix: "/api/calendar" })
         color: t.String({ maxLength: 20 }),
         reminders: t.Array(t.Object({ minutesBefore: t.Number({ minimum: 0, maximum: 43200 }), sent: t.Boolean() }), { maxItems: 10 }),
         tags: t.Array(t.String({ maxLength: 50 }), { maxItems: 20 }),
-        attendees: t.Array(t.String(), { maxItems: 100 }),
+        attendees: t.Array(t.String({ minLength: 1, maxLength: 36 }), { maxItems: 100 }),
       })),
       detail: { tags: ["calendar"], summary: "Update a calendar event" },
     }
@@ -330,7 +330,7 @@ export const calendarRoutes = new Elysia({ prefix: "/api/calendar" })
       return { ok: true };
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["calendar"], summary: "Delete a calendar event (owner only)" },
     }
   );

@@ -94,7 +94,7 @@ export const ppgMLService = {
             signalQuality: data.signalQuality,
             confidence: data.confidence,
           }).catch((err) => {
-            console.warn('[ppg] Failed to persist embeddings (non-fatal):', err);
+            console.warn('[ppg] Failed to persist embeddings (non-fatal):', err instanceof Error ? err.message : String(err));
           });
         }
         return {

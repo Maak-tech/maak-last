@@ -66,7 +66,7 @@ export default function GlobalSearch({ visible, onClose }: Props) {
         );
         setResults(Array.isArray(data) ? data : []);
       } catch (err: unknown) {
-        console.warn('[search] Failed to fetch search results:', err);
+        console.warn('[search] Failed to fetch search results:', err instanceof Error ? err.message : String(err));
         setResults([]);
       } finally {
         setLoading(false);

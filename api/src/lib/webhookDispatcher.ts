@@ -96,7 +96,7 @@ export async function dispatchWebhookEvent(
     );
   } catch (err: unknown) {
     // Never propagate — webhook dispatch is always best-effort
-    console.error("[webhookDispatcher] Unexpected error:", err);
+    console.error("[webhookDispatcher] Unexpected error:", err instanceof Error ? err.message : String(err));
   }
 }
 

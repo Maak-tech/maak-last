@@ -22,7 +22,7 @@ export const symptomPatternRecognitionService = {
       );
       return Array.isArray(data) ? data : [];
     } catch (err: unknown) {
-      console.warn('[symptomPatternRecognition] detectPatterns failed:', err);
+      console.warn('[symptomPatternRecognition] detectPatterns failed:', err instanceof Error ? err.message : String(err));
       return [];
     }
   },
@@ -41,7 +41,7 @@ export const symptomPatternRecognitionService = {
       );
       return data ?? { patterns: [] };
     } catch (err: unknown) {
-      console.warn('[symptomPatternRecognition] analyzeSymptomPatterns failed:', err);
+      console.warn('[symptomPatternRecognition] analyzeSymptomPatterns failed:', err instanceof Error ? err.message : String(err));
       return { patterns: [] };
     }
   },

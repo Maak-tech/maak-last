@@ -87,7 +87,7 @@ export default function NotificationSettingsScreen() {
         });
       }
     } catch (error: unknown) {
-      console.error('Error loading notification settings:', error);
+      console.error('Error loading notification settings:', error instanceof Error ? error.message : String(error));
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL ? 'فشل في تحميل إعدادات الإشعارات' : 'Failed to load notification settings'
@@ -121,7 +121,7 @@ export default function NotificationSettingsScreen() {
         [{ text: isRTL ? 'موافق' : 'OK' }]
       );
     } catch (error: unknown) {
-      console.error('Error saving settings:', error);
+      console.error('Error saving settings:', error instanceof Error ? error.message : String(error));
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL

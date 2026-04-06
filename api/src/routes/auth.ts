@@ -21,8 +21,25 @@
 
 import { Elysia } from "elysia";
 import { auth } from "../lib/auth";
+import { authRateLimiter } from "../lib/rateLimiter";
 
 export const authRoutes = new Elysia({ prefix: "/api/auth" })
+  // Rate-limit all auth endpoints by IP address.
+  // Auth requests are pre-authentication (no userId available), so we key by IP.
+  // Limit: 10 requests / IP / minute — prevents brute-force, credential stuffing, OTP enumeration.
+  .onBeforeHandle(({ request, set }) => {
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      request.headers.get("x-real-ip") ??
+      "unknown";
+    const rl = authRateLimiter.check(ip);
+    if (!rl.allowed) {
+      set.status = 429;
+      const retryAfterSecs = Math.ceil((rl.resetAt - Date.now()) / 1000);
+      set.headers = { "Retry-After": String(retryAfterSecs) };
+      return { error: "Too many requests. Please try again later." };
+    }
+  })
   // Wildcard GET — handles session check, OAuth callbacks, and error pages
   .get("/*", async ({ request }) => {
     return auth.handler(request);

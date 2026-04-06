@@ -33,7 +33,7 @@ function acquireLock(): boolean {
     fs.writeFileSync(LOCK_FILE, String(process.pid));
     return true;
   } catch (err: unknown) {
-    console.warn("[outcomeResolver] Failed to acquire lock — proceeding without guard:", err);
+    console.warn("[outcomeResolver] Failed to acquire lock — proceeding without guard:", err instanceof Error ? err.message : String(err));
     return true;
   }
 }
@@ -42,7 +42,7 @@ function releaseLock(): void {
   try {
     if (fs.existsSync(LOCK_FILE)) fs.unlinkSync(LOCK_FILE);
   } catch (err: unknown) {
-    console.warn("[outcomeResolver] Failed to release lock:", err);
+    console.warn("[outcomeResolver] Failed to release lock:", err instanceof Error ? err.message : String(err));
   }
 }
 
@@ -125,8 +125,8 @@ async function runOutcomeResolverCycle() {
       resolved++;
     } catch (err: unknown) {
       console.error(
-        `[outcomeResolver] Error resolving outcome for user ${event.userId}:`,
-        err
+        `[outcomeResolver] Error resolving outcome for user ${event.userId.slice(0, 8)}…:`,
+        err instanceof Error ? err.message : String(err)
       );
     }
   }
@@ -143,7 +143,7 @@ if (import.meta.main) {
   runOutcomeResolverCycle()
     .then(() => process.exit(0))
     .catch((err: unknown) => {
-      console.error("[outcomeResolver] Fatal error:", err);
+      console.error("[outcomeResolver] Fatal error:", err instanceof Error ? err.message : String(err));
       releaseLock();
       process.exit(1);
     });

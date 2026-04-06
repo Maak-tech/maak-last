@@ -47,7 +47,7 @@ export async function broadcastToFamily(
       .where(eq(familyMembers.familyId, familyId));
     memberUserIds = members.map((m) => m.userId);
   } catch (err: unknown) {
-    console.error("[realtime] broadcastToFamily DB lookup failed:", err);
+    console.error("[realtime] broadcastToFamily DB lookup failed:", err instanceof Error ? err.message : String(err));
     return;
   }
 
@@ -117,7 +117,7 @@ export const realtimeRoutes = new Elysia({ prefix: "/ws" })
       try {
         session = await auth.api.getSession({ headers: ws.data.request.headers });
       } catch (err: unknown) {
-        console.error("[realtime/vhi] getSession failed:", err);
+        console.error("[realtime/vhi] getSession failed:", err instanceof Error ? err.message : String(err));
         ws.close(1011, "Internal error");
         return;
       }
@@ -156,7 +156,7 @@ export const realtimeRoutes = new Elysia({ prefix: "/ws" })
       try {
         session = await auth.api.getSession({ headers: ws.data.request.headers });
       } catch (err: unknown) {
-        console.error("[realtime/family] getSession failed:", err);
+        console.error("[realtime/family] getSession failed:", err instanceof Error ? err.message : String(err));
         ws.close(1011, "Internal error");
         return;
       }
@@ -208,7 +208,7 @@ export const realtimeRoutes = new Elysia({ prefix: "/ws" })
       try {
         session = await auth.api.getSession({ headers: ws.data.request.headers });
       } catch (err: unknown) {
-        console.error("[realtime/alerts] getSession failed:", err);
+        console.error("[realtime/alerts] getSession failed:", err instanceof Error ? err.message : String(err));
         ws.close(1011, "Internal error");
         return;
       }

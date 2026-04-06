@@ -373,7 +373,7 @@ class CorrelationDiscoveryService {
           : {}),
       });
     } catch (err: unknown) {
-      console.warn('[correlationDiscovery] saveDiscovery timeline post failed (non-critical):', err);
+      console.warn('[correlationDiscovery] saveDiscovery timeline post failed (non-critical):', err instanceof Error ? err.message : String(err));
     }
   }
 

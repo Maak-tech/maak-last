@@ -13,6 +13,19 @@ import { and, eq } from "drizzle-orm";
 import { requireAuth } from "../middleware/requireAuth";
 import { connectedIntegrations } from "../db/schema";
 
+/** Allowed provider identifiers — prevents arbitrary strings from polluting the table */
+const ALLOWED_PROVIDERS = new Set([
+  "withings",
+  "fitbit",
+  "oura",
+  "garmin",
+  "apple_health",
+  "health_connect",
+  "dexcom",
+  "polar",
+  "suunto",
+]);
+
 // Maps a DB row to the ProviderConnection shape the mobile client expects.
 function rowToProviderConnection(row: {
   provider: string;
@@ -49,7 +62,11 @@ export const integrationRoutes = new Elysia({ prefix: "/api/integrations" })
    */
   .post(
     "/register",
-    async ({ db, userId, body }) => {
+    async ({ db, userId, body, set }) => {
+      if (!ALLOWED_PROVIDERS.has(body.provider)) {
+        set.status = 400;
+        return { error: "Unsupported provider" };
+      }
       await db
         .insert(connectedIntegrations)
         .values({
@@ -127,6 +144,8 @@ export const integrationRoutes = new Elysia({ prefix: "/api/integrations" })
           isActive: connectedIntegrations.isActive,
           connectedAt: connectedIntegrations.connectedAt,
           disconnectedAt: connectedIntegrations.disconnectedAt,
+          // Include metadata so clients can read lastSyncAt, authorizedMetrics, etc.
+          metadata: connectedIntegrations.metadata,
         })
         .from(connectedIntegrations)
         .where(eq(connectedIntegrations.userId, userId));
@@ -200,7 +219,11 @@ export const integrationRoutes = new Elysia({ prefix: "/api/integrations" })
    */
   .post(
     "/provider-connections",
-    async ({ db, userId, body }) => {
+    async ({ db, userId, body, set }) => {
+      if (!ALLOWED_PROVIDERS.has(body.provider)) {
+        set.status = 400;
+        return { error: "Unsupported provider" };
+      }
       await db
         .insert(connectedIntegrations)
         .values({
@@ -234,9 +257,9 @@ export const integrationRoutes = new Elysia({ prefix: "/api/integrations" })
       body: t.Object({
         provider: t.String({ maxLength: 50 }),
         providerUserId: t.Optional(t.String({ maxLength: 255 })),
-        connectedAt: t.Optional(t.String()),
-        authorizedMetrics: t.Optional(t.Array(t.String())),
-        selectedMetrics: t.Optional(t.Array(t.String())),
+        connectedAt: t.Optional(t.String({ maxLength: 50 })),
+        authorizedMetrics: t.Optional(t.Array(t.String({ maxLength: 100 }), { maxItems: 50 })),
+        selectedMetrics: t.Optional(t.Array(t.String({ maxLength: 100 }), { maxItems: 50 })),
         deviceInfo: t.Optional(t.Record(t.String(), t.Unknown())),
       }),
       detail: {

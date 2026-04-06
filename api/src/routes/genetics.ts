@@ -149,7 +149,10 @@ export const geneticsRoutes = new Elysia({ prefix: "/api/genetics" })
       runDnaParsingJob(userId, body.uploadKey).catch(async (err: unknown) => {
         console.error(`[genetics] DNA parsing job failed for user ${userId}:`, err instanceof Error ? err.message : String(err));
         // Mark processing as failed so the status endpoint reflects reality
-        await db.update(genetics).set({ processingStatus: "failed" }).where(eq(genetics.userId, userId)).catch(() => {});
+        await db.update(genetics).set({ processingStatus: "failed" }).where(eq(genetics.userId, userId)).catch((dbErr: unknown) => {
+          // If the DB update fails, processingStatus stays as "processing" — log for visibility
+          console.error(`[genetics] Failed to mark processingStatus=failed for user ${userId.slice(0, 8)}…:`, dbErr instanceof Error ? dbErr.message : String(dbErr));
+        });
       });
       return { ok: true, message: "DNA processing started. Check /me/status for updates." };
     },

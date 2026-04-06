@@ -582,7 +582,7 @@ export default function PPGVitalMonitor({
         },
       };
     } catch (error: unknown) {
-      console.warn('[PPGVitalMonitor] Style computation failed:', error);
+      console.warn('[PPGVitalMonitor] Style computation failed:', error instanceof Error ? error.message : String(error));
       return {} as Record<string, object>;
     }
   }, [theme]);
@@ -1862,7 +1862,7 @@ export default function PPGVitalMonitor({
       </Modal>
     );
   } catch (error: unknown) {
-    console.error('[PPGVitalMonitor] Render error:', error);
+    console.error('[PPGVitalMonitor] Render error:', error instanceof Error ? error.message : String(error));
     return null;
   }
 }

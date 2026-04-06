@@ -195,7 +195,7 @@ export default function OnboardingScreen() {
         router.replace('/(tabs)');
       }, 300);
     } catch (error: unknown) {
-      console.error('Error completing onboarding:', error);
+      console.error('Error completing onboarding:', error instanceof Error ? error.message : String(error));
       setIsCompleting(false);
     }
   };

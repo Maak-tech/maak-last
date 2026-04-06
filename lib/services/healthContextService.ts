@@ -251,7 +251,7 @@ class HealthContextService {
             isArabic
           );
         } catch (err: unknown) {
-          console.warn('[healthContext] Failed to compute baseline deviations:', err);
+          console.warn('[healthContext] Failed to compute baseline deviations:', err instanceof Error ? err.message : String(err));
           return [];
         }
       })(),
@@ -265,7 +265,7 @@ class HealthContextService {
                 const { periodService } = await import("./periodService");
                 return await periodService.getCycleInfo(uid);
               } catch (err: unknown) {
-                console.warn('[healthContext] Failed to load cycle info:', err);
+                console.warn('[healthContext] Failed to load cycle info:', err instanceof Error ? err.message : String(err));
                 return null;
               }
             })(),
@@ -280,7 +280,7 @@ class HealthContextService {
           const allResults = await labResultService.getUserLabResults(uid, 20);
           return allResults.filter((r) => r.testDate >= sixMonthsAgo);
         } catch (err: unknown) {
-          console.warn('[healthContext] Failed to load lab results for context:', err);
+          console.warn('[healthContext] Failed to load lab results for context:', err instanceof Error ? err.message : String(err));
           return [];
         }
       })(),
@@ -292,7 +292,7 @@ class HealthContextService {
           );
           return await symptomPatternRecognitionService.detectPatterns(uid);
         } catch (err: unknown) {
-          console.warn('[healthContext] Failed to detect symptom patterns:', err);
+          console.warn('[healthContext] Failed to detect symptom patterns:', err instanceof Error ? err.message : String(err));
           return null;
         }
       })(),
@@ -307,7 +307,7 @@ class HealthContextService {
             options?.language?.startsWith("ar") ?? false
           );
         } catch (err: unknown) {
-          console.warn('[healthContext] Failed to generate risk assessment:', err);
+          console.warn('[healthContext] Failed to generate risk assessment:', err instanceof Error ? err.message : String(err));
           return null;
         }
       })(),

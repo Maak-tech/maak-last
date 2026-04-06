@@ -51,7 +51,7 @@ export default function DiscoveriesScreen() {
       const all = await discoveryService.getAllDiscoveries(user.id, isRTL);
       setDiscoveries(all);
     } catch (err: unknown) {
-      console.warn('[discoveries] Failed to load discoveries:', err);
+      console.warn('[discoveries] Failed to load discoveries:', err instanceof Error ? err.message : String(err));
       setLoadError(
         isRTL ? "تعذّر تحميل الاكتشافات. اسحب للأسفل للمحاولة مجدداً." : "Failed to load discoveries. Pull down to retry."
       );

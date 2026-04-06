@@ -525,7 +525,7 @@ export default function MembersScreen() {
                 )
               );
             } catch (err: unknown) {
-              console.warn('[members] Failed to update member role (iOS):', err);
+              console.warn('[members] Failed to update member role (iOS):', err instanceof Error ? err.message : String(err));
               Alert.alert("Error", "Failed to update role.");
             }
           }
@@ -546,7 +546,7 @@ export default function MembersScreen() {
                   prev.map((m) => (m.id === member.id ? { ...m, role: r } : m))
                 );
               } catch (err: unknown) {
-                console.warn('[members] Failed to update member role (Android):', err);
+                console.warn('[members] Failed to update member role (Android):', err instanceof Error ? err.message : String(err));
                 Alert.alert("Error", "Failed to update role.");
               }
             },
@@ -576,7 +576,7 @@ export default function MembersScreen() {
                 );
                 setMembers((prev) => prev.filter((m) => m.id !== member.id));
               } catch (err: unknown) {
-                console.warn('[members] Failed to remove member:', err);
+                console.warn('[members] Failed to remove member:', err instanceof Error ? err.message : String(err));
                 Alert.alert("Error", "Failed to remove member.");
               }
             },

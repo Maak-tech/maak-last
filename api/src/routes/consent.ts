@@ -63,7 +63,9 @@ export const consentRoutes = new Elysia({ prefix: "/api/consent" })
           id,
           userId: body.userId,
           orgId: body.orgId,
-          grantedBy: body.grantedBy ?? userId,
+          // Always use the authenticated session userId as grantedBy —
+          // never accept this from the body to prevent identity spoofing.
+          grantedBy: userId,
           grantMethod: body.grantMethod,
           scope: body.scope ?? [],
           version: body.version ?? "1.0",
@@ -78,7 +80,7 @@ export const consentRoutes = new Elysia({ prefix: "/api/consent" })
       body: t.Object({
         userId: t.String({ maxLength: 36 }),
         orgId: t.String({ maxLength: 36 }),
-        grantedBy: t.Optional(t.String({ maxLength: 36 })),
+        // grantedBy is intentionally omitted — always derived from the auth session
         grantMethod: t.String({ maxLength: 100 }),
         scope: t.Optional(t.Array(t.String({ maxLength: 100 }), { maxItems: 50 })),
         version: t.Optional(t.String({ maxLength: 20 })),
@@ -129,7 +131,7 @@ export const consentRoutes = new Elysia({ prefix: "/api/consent" })
       return row;
     },
     {
-      params: t.Object({ targetUserId: t.String(), orgId: t.String() }),
+      params: t.Object({ targetUserId: t.String({ minLength: 1, maxLength: 36 }), orgId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["consent"], summary: "Get active consent for a user/org pair" },
     }
   )
@@ -187,7 +189,7 @@ export const consentRoutes = new Elysia({ prefix: "/api/consent" })
       return { ok: true };
     },
     {
-      params: t.Object({ targetUserId: t.String(), orgId: t.String() }),
+      params: t.Object({ targetUserId: t.String({ minLength: 1, maxLength: 36 }), orgId: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({
         isActive: t.Optional(t.Boolean()),
         // revokedBy intentionally omitted — always derived from the authenticated session
@@ -218,7 +220,7 @@ export const consentRoutes = new Elysia({ prefix: "/api/consent" })
         .orderBy(desc(patientConsents.grantedAt));
     },
     {
-      params: t.Object({ targetUserId: t.String() }),
+      params: t.Object({ targetUserId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["consent"], summary: "Get all consent records for a user (self only)" },
     }
   );

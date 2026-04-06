@@ -36,7 +36,7 @@ export function useMyOrganization(): UseMyOrganizationResult {
       setOrg(data?.org ?? null);
       setMember(data?.member ?? null);
     } catch (err) {
-      console.warn('[useMyOrganization] Failed to load organization:', err);
+      console.warn('[useMyOrganization] Failed to load organization:', err instanceof Error ? err.message : String(err));
       setOrg(null);
       setMember(null);
     } finally {

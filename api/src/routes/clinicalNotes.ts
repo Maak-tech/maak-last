@@ -3,6 +3,7 @@ import { eq, desc, and, gte, lte } from "drizzle-orm";
 import crypto from "node:crypto";
 import { clinicalNotes } from "../db/schema";
 import { requireAuth } from "../middleware/requireAuth";
+import { noteParseRateLimiter } from "../lib/rateLimiter";
 
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL ?? "http://localhost:8000";
 
@@ -73,10 +74,11 @@ export const clinicalNotesRoutes = new Elysia({ prefix: "/api/notes" })
     },
     {
       query: t.Object({
-        from: t.Optional(t.String()),
-        to: t.Optional(t.String()),
-        noteType: t.Optional(t.String()),
-        limit: t.Optional(t.Number({ maximum: 200 })),
+        from: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
+        to: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
+        noteType: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
+        // minimum: 1 prevents LIMIT 0 (returns 0 rows) and LIMIT -5 (Postgres error → 500)
+        limit: t.Optional(t.Number({ minimum: 1, maximum: 200 })),
       }),
       detail: { tags: ["health"], summary: "List clinical notes" },
     }
@@ -96,7 +98,7 @@ export const clinicalNotesRoutes = new Elysia({ prefix: "/api/notes" })
       return sanitizeNote(note);
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["health"], summary: "Get a clinical note" },
     }
   )
@@ -200,7 +202,7 @@ export const clinicalNotesRoutes = new Elysia({ prefix: "/api/notes" })
       return sanitizeNote(updated);
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({
         noteDate: t.Optional(IsoDateString),
         providerName: t.Optional(t.String({ maxLength: 255 })),
@@ -257,7 +259,7 @@ export const clinicalNotesRoutes = new Elysia({ prefix: "/api/notes" })
       return { ok: true };
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["health"], summary: "Delete a clinical note" },
     }
   )
@@ -271,6 +273,16 @@ export const clinicalNotesRoutes = new Elysia({ prefix: "/api/notes" })
   .post(
     "/:id/parse",
     async ({ db, userId, params, set }) => {
+      // Rate limit: 20 parse requests / user / hour — each parse triggers a
+      // 60-second background ML job (MedGemma PDF → SOAP extraction).
+      const rl = noteParseRateLimiter.check(userId);
+      if (!rl.allowed) {
+        set.status = 429;
+        const retryAfterSecs = Math.ceil((rl.resetAt - Date.now()) / 1000);
+        set.headers = { "Retry-After": String(retryAfterSecs) };
+        return { ok: false, error: "Too many parse requests. Please try again later." };
+      }
+
       const [note] = await db
         .select()
         .from(clinicalNotes)
@@ -281,13 +293,13 @@ export const clinicalNotesRoutes = new Elysia({ prefix: "/api/notes" })
 
       // Kick off parsing asynchronously — client polls isProcessed or uses WS
       parseNoteAsync(note).catch((err: unknown) =>
-        console.error(`[clinicalNotes] Async parse failed for ${params.id}:`, err)
+        console.error(`[clinicalNotes] Async parse failed for ${params.id}:`, err instanceof Error ? err.message : String(err))
       );
 
       return { ok: true, message: "Parsing started. Check isProcessed status for completion." };
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["health"], summary: "Trigger ML parsing of a clinical note" },
     }
   )
@@ -323,15 +335,15 @@ export const clinicalNotesRoutes = new Elysia({ prefix: "/api/notes" })
       return { ok: true };
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({
         extractedData: t.Optional(t.Record(t.String(), t.Unknown())),
         soap: t.Optional(
           t.Object({
-            subjective: t.Optional(t.String()),
-            objective: t.Optional(t.String()),
-            assessment: t.Optional(t.String()),
-            plan: t.Optional(t.String()),
+            subjective: t.Optional(t.String({ maxLength: 20000 })),
+            objective: t.Optional(t.String({ maxLength: 20000 })),
+            assessment: t.Optional(t.String({ maxLength: 20000 })),
+            plan: t.Optional(t.String({ maxLength: 20000 })),
           })
         ),
       }),
@@ -367,7 +379,8 @@ async function parseNoteAsync(note: typeof clinicalNotes.$inferSelect) {
         pdfBase64 = buf.toString("base64");
       }
     } catch (err: unknown) {
-      console.error("[clinicalNotes] Tigris PDF download failed:", err);
+      // Log only the message — S3 error objects may contain the object key which encodes userId
+      console.error("[clinicalNotes] Tigris PDF download failed:", err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -420,7 +433,8 @@ async function parseNoteAsync(note: typeof clinicalNotes.$inferSelect) {
     );
   } catch (err: unknown) {
     clearTimeout(timer);
-    console.error(`[clinicalNotes] ML parse failed for note ${note.id}:`, err);
+    // Log only the message — ML error objects may echo back note content from the response body
+    console.error(`[clinicalNotes] ML parse failed for note ${note.id}:`, err instanceof Error ? err.message : String(err));
   }
 }
 

@@ -137,7 +137,7 @@ export default function TrackScreen() {
         setStats(symptomStats);
       }
     } catch (error: unknown) {
-      console.error('Error loading symptoms:', error);
+      console.error('Error loading symptoms:', error instanceof Error ? error.message : String(error));
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL ? 'حدث خطأ في تحميل البيانات' : 'Error loading data'
@@ -254,7 +254,7 @@ export default function TrackScreen() {
           : 'Symptom logged successfully'
       );
     } catch (error: unknown) {
-      console.error('Error saving symptom:', error);
+      console.error('Error saving symptom:', error instanceof Error ? error.message : String(error));
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL ? 'حدث خطأ في حفظ العرض' : 'Error saving symptom'
@@ -339,7 +339,7 @@ export default function TrackScreen() {
                 isRTL ? 'تم حذف العرض بنجاح' : 'Symptom deleted successfully'
               );
             } catch (error: unknown) {
-              console.error('Error deleting symptom:', error);
+              console.error('Error deleting symptom:', error instanceof Error ? error.message : String(error));
               Alert.alert(
                 isRTL ? 'خطأ' : 'Error',
                 isRTL ? 'حدث خطأ في حذف العرض' : 'Error deleting symptom'

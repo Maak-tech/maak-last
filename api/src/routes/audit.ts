@@ -57,7 +57,7 @@ export const auditRoutes = new Elysia({ prefix: "/api/audit" })
         return { ok: true };
       } catch (err: unknown) {
         // Audit logging must never break the caller — swallow and log server-side
-        console.error("[audit] Failed to write audit entry:", err);
+        console.error("[audit] Failed to write audit entry:", err instanceof Error ? err.message : String(err));
         return { ok: false };
       }
     },
@@ -65,14 +65,14 @@ export const auditRoutes = new Elysia({ prefix: "/api/audit" })
       body: t.Object({
         // actorId is accepted for backward compatibility but the server always
         // uses the authenticated session userId instead — it cannot be spoofed.
-        actorId: t.Optional(t.String()),
+        actorId: t.Optional(t.String({ maxLength: 36 })),
         actorType: t.String({ maxLength: 100 }),
-        actorOrgId: t.Optional(t.String()),
+        actorOrgId: t.Optional(t.String({ maxLength: 36 })),
         action: t.String({ maxLength: 200 }),
         resourceType: t.Optional(t.String({ maxLength: 100 })),
         resourceId: t.Optional(t.String({ maxLength: 255 })),
-        patientUserId: t.Optional(t.String()),
-        orgId: t.Optional(t.String()),
+        patientUserId: t.Optional(t.String({ maxLength: 36 })),
+        orgId: t.Optional(t.String({ maxLength: 36 })),
         details: t.Optional(t.Record(t.String({ maxLength: 100 }), t.Unknown())),
         outcome: t.Optional(t.String({ maxLength: 50 })),
         denialReason: t.Optional(t.String({ maxLength: 1000 })),

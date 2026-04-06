@@ -73,7 +73,7 @@ class SubscriptionService {
       return data;
     } catch (err: unknown) {
       // If the endpoint fails (user has no subscription row yet), return free plan
-      console.warn('[subscription] getMyPlan failed — defaulting to free plan:', err);
+      console.warn('[subscription] getMyPlan failed — defaulting to free plan:', err instanceof Error ? err.message : String(err));
       const freePlan: Subscription = {
         plan: "free",
         status: "active",

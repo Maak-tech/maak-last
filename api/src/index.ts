@@ -94,7 +94,7 @@ const app = new Elysia()
       await db.execute(sql`SELECT 1`);
       return { status: "ready" };
     } catch (err: unknown) {
-      console.error("[ready] DB ping failed:", err);
+      console.error("[ready] DB ping failed:", err instanceof Error ? err.message : String(err));
       set.status = 503;
       return { status: "unavailable" };
     }
@@ -135,7 +135,7 @@ const app = new Elysia()
       set.status = 400;
       return { error: "Validation error", details: error.message };
     }
-    console.error("[API Error]", error);
+    console.error("[API Error]", error instanceof Error ? error.message : String(error));
     set.status = 500;
     return { error: "Internal server error" };
   })

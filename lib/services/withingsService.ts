@@ -574,7 +574,7 @@ export const withingsService = {
             providerUserId: withingsUserId,
           });
         } catch (err: unknown) {
-          console.warn("[withingsService] Failed to register integration for webhook routing (non-critical):", err);
+          console.warn("[withingsService] Failed to register integration for webhook routing (non-critical):", err instanceof Error ? err.message : String(err));
         }
       }
 
@@ -685,7 +685,7 @@ export const withingsService = {
 
       return newTokens.access_token;
     } catch (err: unknown) {
-      console.warn('[withings/withingsService] refreshTokenIfNeeded failed:', err);
+      console.warn('[withings/withingsService] refreshTokenIfNeeded failed:', err instanceof Error ? err.message : String(err));
       return null;
     }
   },
@@ -956,7 +956,7 @@ export const withingsService = {
 
       return results;
     } catch (err: unknown) {
-      console.warn('[withings/withingsService] fetchHealthData failed:', err);
+      console.warn('[withings/withingsService] fetchHealthData failed:', err instanceof Error ? err.message : String(err));
       return [];
     }
   },
@@ -1055,7 +1055,7 @@ export const withingsService = {
       await withingsService.disconnect();
       return true;
     } catch (err: unknown) {
-      console.warn('[withings/withingsService] revokeAccess failed:', err);
+      console.warn('[withings/withingsService] revokeAccess failed:', err instanceof Error ? err.message : String(err));
       return false;
     }
   },

@@ -166,7 +166,7 @@ export const dexcomService = {
         }
       } catch (err: unknown) {
         // If user endpoint fails, use "self" as default
-        console.warn('[dexcom] Failed to fetch Dexcom user ID — using "self":', err);
+        console.warn('[dexcom] Failed to fetch Dexcom user ID — using "self":', err instanceof Error ? err.message : String(err));
         userId = tokens.userId || tokens.accountId || "self";
       }
 

@@ -110,7 +110,7 @@ class CalendarService {
     try {
       await api.delete(`/api/calendar/${eventId}`);
     } catch (error: unknown) {
-      console.warn('[calendar] deleteEvent failed:', error);
+      console.warn('[calendar] deleteEvent failed:', error instanceof Error ? error.message : String(error));
       throw new Error("Failed to delete calendar event");
     }
   }
@@ -120,7 +120,7 @@ class CalendarService {
       const raw = await api.get<Record<string, unknown> | null>(`/api/calendar/${eventId}`);
       return raw ? normalizeEvent(raw) : null;
     } catch (error: unknown) {
-      console.warn('[calendar] getEvent failed:', error);
+      console.warn('[calendar] getEvent failed:', error instanceof Error ? error.message : String(error));
       return null;
     }
   }
@@ -139,7 +139,7 @@ class CalendarService {
       );
       return (Array.isArray(raw) ? raw : []).map(normalizeEvent);
     } catch (error: unknown) {
-      console.warn('[calendar] getUserEvents failed:', error);
+      console.warn('[calendar] getUserEvents failed:', error instanceof Error ? error.message : String(error));
       return [];
     }
   }
@@ -158,7 +158,7 @@ class CalendarService {
       );
       return (Array.isArray(raw) ? raw : []).map(normalizeEvent);
     } catch (error: unknown) {
-      console.warn('[calendar] getFamilyEvents failed:', error);
+      console.warn('[calendar] getFamilyEvents failed:', error instanceof Error ? error.message : String(error));
       return [];
     }
   }

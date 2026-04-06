@@ -97,7 +97,7 @@ class OpenAIService {
       this.cachedHealth = { configured, hasAccess: configured, checkedAtMs: now };
       return { configured, hasAccess: configured };
     } catch (err: unknown) {
-      console.warn('[openai] Health check failed:', err);
+      console.warn('[openai] Health check failed:', err instanceof Error ? err.message : String(err));
       this.cachedHealth = { configured: false, hasAccess: false, checkedAtMs: now };
       return { configured: false, hasAccess: false };
     }
@@ -110,7 +110,7 @@ class OpenAIService {
       // credentials and must not be stored in unencrypted device storage.
       await SecureStore.setItemAsync('openai_api_key', key);
     } catch (err: unknown) {
-      console.warn('[openai] Failed to persist API key to secure storage:', err);
+      console.warn('[openai] Failed to persist API key to secure storage:', err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -119,7 +119,7 @@ class OpenAIService {
       try {
         this.apiKey = await SecureStore.getItemAsync('openai_api_key');
       } catch (err: unknown) {
-        console.warn('[openai] Failed to read API key from secure storage:', err);
+        console.warn('[openai] Failed to read API key from secure storage:', err instanceof Error ? err.message : String(err));
       }
     }
     return this.apiKey;
@@ -130,7 +130,7 @@ class OpenAIService {
     try {
       await AsyncStorage.setItem('openai_model', model);
     } catch (err: unknown) {
-      console.warn('[openai] Failed to persist model preference:', err);
+      console.warn('[openai] Failed to persist model preference:', err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -140,7 +140,7 @@ class OpenAIService {
         const savedModel = await AsyncStorage.getItem('openai_model');
         this.model = savedModel || DEFAULT_MODEL;
       } catch (err: unknown) {
-        console.warn('[openai] Failed to read saved model — using default:', err);
+        console.warn('[openai] Failed to read saved model — using default:', err instanceof Error ? err.message : String(err));
         this.model = DEFAULT_MODEL;
       }
     }

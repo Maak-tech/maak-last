@@ -127,7 +127,7 @@ function handleGlobalError(error: Error, isFatal = false) {
 
     // Log to console for debugging
     console.error("=== GLOBAL ERROR HANDLER ===");
-    console.error("Error:", error);
+    console.error("Error:", error instanceof Error ? error.message : String(error));
     console.error("Is Fatal:", isFatal);
     console.error("Stack:", error?.stack);
     console.error("===========================");
@@ -194,7 +194,7 @@ function handleGlobalError(error: Error, isFatal = false) {
   } catch (handlerError: unknown) {
     // If error handler itself fails, log to console as last resort
     console.error("Error handler failed:", handlerError);
-    console.error("Original error:", error);
+    console.error("Original error:", error instanceof Error ? error.message : String(error));
   }
 }
 
@@ -242,7 +242,7 @@ function handleUnhandledRejection(event: PromiseRejectionEvent | any) {
     }
 
     console.error("=== UNHANDLED PROMISE REJECTION ===");
-    console.error("Error:", error);
+    console.error("Error:", error instanceof Error ? error.message : String(error));
     console.error("Event:", event);
     console.error("===================================");
 

@@ -613,7 +613,7 @@ class RiskAssessmentService {
         result.status === "fulfilled" ? result.value : []
       );
     } catch (err: unknown) {
-      console.warn('[riskAssessment] getFamilyMedicalHistory failed:', err);
+      console.warn('[riskAssessment] getFamilyMedicalHistory failed:', err instanceof Error ? err.message : String(err));
       return [];
     }
   }
@@ -869,7 +869,7 @@ class RiskAssessmentService {
         })
         .filter((d) => !isNaN(d.value as number));
     } catch (err: unknown) {
-      console.warn('[riskAssessment] getRecentVitals failed:', err);
+      console.warn('[riskAssessment] getRecentVitals failed:', err instanceof Error ? err.message : String(err));
       return [];
     }
   }
@@ -878,7 +878,7 @@ class RiskAssessmentService {
     try {
       return await moodService.getUserMoods(userId, 60);
     } catch (err: unknown) {
-      console.warn('[riskAssessment] getRecentMoods failed:', err);
+      console.warn('[riskAssessment] getRecentMoods failed:', err instanceof Error ? err.message : String(err));
       return [];
     }
   }

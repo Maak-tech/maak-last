@@ -71,7 +71,7 @@ export default function MedicalHistoryScreen() {
       const history = await medicalHistoryService.getUserMedicalHistory(user.id);
       setMedicalHistory(history);
     } catch (error: unknown) {
-      console.error('Error loading medical history:', error);
+      console.error('Error loading medical history:', error instanceof Error ? error.message : String(error));
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL
@@ -129,7 +129,7 @@ export default function MedicalHistoryScreen() {
         isRTL ? 'تم إضافة السجل الطبي بنجاح' : 'Medical record added successfully'
       );
     } catch (error: unknown) {
-      console.error('Error adding medical history:', error);
+      console.error('Error adding medical history:', error instanceof Error ? error.message : String(error));
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL ? 'حدث خطأ في إضافة السجل الطبي' : 'Failed to add medical record'
@@ -160,7 +160,7 @@ export default function MedicalHistoryScreen() {
                 isRTL ? 'تم حذف السجل الطبي بنجاح' : 'Medical record deleted successfully'
               );
             } catch (error: unknown) {
-              console.error('Error deleting medical history:', error);
+              console.error('Error deleting medical history:', error instanceof Error ? error.message : String(error));
               Alert.alert(
                 isRTL ? 'خطأ' : 'Error',
                 isRTL ? 'حدث خطأ في حذف السجل الطبي' : 'Failed to delete medical record'

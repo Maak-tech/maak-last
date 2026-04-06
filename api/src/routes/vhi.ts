@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { requireAuth } from "../middleware/requireAuth";
 import { familyMembers, vhi } from "../db/schema";
 import { processUser } from "../jobs/vhiCycle";
+import { vhiRecomputeRateLimiter } from "../lib/rateLimiter";
 
 export const vhiRoutes = new Elysia({ prefix: "/api/vhi" })
   .use(requireAuth)
@@ -28,13 +29,12 @@ export const vhiRoutes = new Elysia({ prefix: "/api/vhi" })
         .where(eq(familyMembers.userId, memberId))
         .limit(1);
 
-      if (!memberRow) {
-        set.status = 404;
-        return { error: "Member not found or not in any family" };
-      }
-
-      // 2. Verify the requesting user is an admin of that same family
-      const [adminRow] = await db
+      // 2. Verify the requesting user is an admin of that same family.
+      // Both checks (member exists in a family AND caller is an admin of that family)
+      // return a generic 404 to prevent user-existence probing:
+      // returning 403 for "member found but caller not admin" would allow any
+      // authenticated user to enumerate whether arbitrary userIds belong to any family.
+      const [adminRow] = !memberRow ? [undefined] : await db
         .select({ role: familyMembers.role })
         .from(familyMembers)
         .where(
@@ -46,9 +46,9 @@ export const vhiRoutes = new Elysia({ prefix: "/api/vhi" })
         )
         .limit(1);
 
-      if (!adminRow) {
-        set.status = 403;
-        return { error: "Not authorized to view this member's VHI" };
+      if (!memberRow || !adminRow) {
+        set.status = 404;
+        return { error: "Member not found" };
       }
 
       // 3. Fetch and return the member's VHI
@@ -66,7 +66,7 @@ export const vhiRoutes = new Elysia({ prefix: "/api/vhi" })
       return memberVhi;
     },
     {
-      params: t.Object({ memberId: t.String() }),
+      params: t.Object({ memberId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["vhi"], summary: "Get a family member's VHI (admin only)" },
     }
   )
@@ -97,7 +97,7 @@ export const vhiRoutes = new Elysia({ prefix: "/api/vhi" })
       return { ok: true };
     },
     {
-      params: t.Object({ actionId: t.String() }),
+      params: t.Object({ actionId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["vhi"], summary: "Acknowledge a pending VHI action" },
     }
   )
@@ -106,11 +106,20 @@ export const vhiRoutes = new Elysia({ prefix: "/api/vhi" })
   // and the VHI is updated in the background (typically within 5–30 seconds).
   .post(
     "/me/recompute",
-    async ({ userId }) => {
+    async ({ userId, set }) => {
+      // Rate limit: 3 recomputes per user per 10 minutes — pipeline is compute-intensive
+      const rl = vhiRecomputeRateLimiter.check(userId);
+      if (!rl.allowed) {
+        set.status = 429;
+        const retryAfterSecs = Math.ceil((rl.resetAt - Date.now()) / 1000);
+        set.headers = { "Retry-After": String(retryAfterSecs) };
+        return { error: "Too many recompute requests. Please try again later." };
+      }
+
       // Fire-and-forget: run the full VHI pipeline for just this user.
       // Errors are logged but never propagate to the caller.
       processUser(userId).catch((err: unknown) =>
-        console.error(`[vhiRoutes] Background recompute failed for user ${userId}:`, err)
+        console.error(`[vhiRoutes] Background recompute failed for user ${userId.slice(0, 8)}…:`, err instanceof Error ? err.message : String(err))
       );
       return { ok: true, message: "Recompute started — your VHI will update within 30 seconds" };
     },

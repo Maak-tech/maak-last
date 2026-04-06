@@ -85,7 +85,7 @@ class OfflineService {
     // Use setTimeout to ensure this runs after the current call stack clears
     setTimeout(() => {
       this.initializeLazy().catch((err: unknown) => {
-        console.warn('[offline] Background initialization failed:', err);
+        console.warn('[offline] Background initialization failed:', err instanceof Error ? err.message : String(err));
       });
     }, 0);
   }
@@ -238,7 +238,7 @@ class OfflineService {
   onNetworkStatusChange(listener: (isOnline: boolean) => void): () => void {
     // Trigger lazy initialization when someone subscribes
     this.ensureInitialized().catch((err: unknown) => {
-      console.warn('[offline] ensureInitialized failed on subscribe:', err);
+      console.warn('[offline] ensureInitialized failed on subscribe:', err instanceof Error ? err.message : String(err));
     });
 
     if (!this.syncListeners) {
@@ -276,7 +276,7 @@ class OfflineService {
       // Use setTimeout to avoid blocking the current operation
       setTimeout(() => {
         this.syncOperation(newOperation).catch((err: unknown) => {
-          console.warn('[offline] Immediate sync attempt failed:', err);
+          console.warn('[offline] Immediate sync attempt failed:', err instanceof Error ? err.message : String(err));
         });
       }, 100);
     }
@@ -510,7 +510,7 @@ class OfflineService {
                 actorType: "user",
               });
             } catch (err: unknown) {
-              console.warn('[offline] Timeline event post during sync failed (non-critical):', err);
+              console.warn('[offline] Timeline event post during sync failed (non-critical):', err instanceof Error ? err.message : String(err));
             }
           }
           break;

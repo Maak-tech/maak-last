@@ -38,7 +38,7 @@ export default function VHIContextBanner() {
       .catch((err) => {
         // Silently ignore — banner is optional
         if (!(err instanceof ApiError)) {
-          console.warn("[VHIContextBanner]", err);
+          console.warn("[VHIContextBanner]", err instanceof Error ? err.message : String(err));
         }
       });
   }, []);

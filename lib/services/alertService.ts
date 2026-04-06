@@ -225,12 +225,12 @@ export const alertService = {
             actorType: "user",
           })
           .catch((err: unknown) => {
-            console.warn('[alert] Failed to create resolution timeline event:', err);
+            console.warn('[alert] Failed to create resolution timeline event:', err instanceof Error ? err.message : String(err));
           });
 
         // Escalation resolution (non-critical — expected to fail when no escalation is active)
         escalationService.resolveEscalation(alertId, resolverId).catch((err: unknown) => {
-          console.debug('[alert] resolveEscalation (no-op when no active escalation):', err);
+          console.debug('[alert] resolveEscalation (no-op when no active escalation):', err instanceof Error ? err.message : String(err));
         });
       }
 
@@ -401,7 +401,7 @@ export const alertService = {
         caregiverId
       )
       .catch((err: unknown) => {
-        console.warn('[alert] Failed to send caregiver push notification:', err);
+        console.warn('[alert] Failed to send caregiver push notification:', err instanceof Error ? err.message : String(err));
       });
 
     return alertId;
@@ -429,7 +429,7 @@ export const alertService = {
       _activeAlertsCountCache.set(_userId, { count, timestamp: Date.now() });
       return count;
     } catch (err: unknown) {
-      console.warn('[alert] Failed to fetch active alert count:', err);
+      console.warn('[alert] Failed to fetch active alert count:', err instanceof Error ? err.message : String(err));
       return 0;
     }
   },
@@ -446,7 +446,7 @@ export const alertService = {
       _activeAlertsCache.set(_userId, { alerts, timestamp: Date.now() });
       return alerts;
     } catch (err: unknown) {
-      console.warn('[alert] Failed to fetch active alerts:', err);
+      console.warn('[alert] Failed to fetch active alerts:', err instanceof Error ? err.message : String(err));
       return [];
     }
   },

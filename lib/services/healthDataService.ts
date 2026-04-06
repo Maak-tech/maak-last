@@ -162,7 +162,7 @@ export const healthDataService = {
             return new Promise((resolve, reject) => {
               AppleHealthKit.initHealthKit(HealthKitPermissions, (error: any) => {
                 if (error) {
-                  console.error('HealthKit initialization error:', error);
+                  console.error('HealthKit initialization error:', error instanceof Error ? error.message : String(error));
                   // Fallback to simulated data — fire-and-forget, non-critical
                   this.savePermissionStatus(true).catch((saveErr) =>
                     console.warn('[healthData] savePermissionStatus failed:', saveErr)
@@ -192,7 +192,7 @@ export const healthDataService = {
         return false;
       }
     } catch (error: unknown) {
-      console.error('Error initializing health data:', error);
+      console.error('Error initializing health data:', error instanceof Error ? error.message : String(error));
       // Don't fail completely, provide simulated data
       await this.savePermissionStatus(true);
       return true;
@@ -205,7 +205,7 @@ export const healthDataService = {
       const status = await AsyncStorage.getItem(PERMISSIONS_STORAGE_KEY);
       return status === 'true';
     } catch (error: unknown) {
-      console.error('Error checking health permissions:', error);
+      console.error('Error checking health permissions:', error instanceof Error ? error.message : String(error));
       return false;
     }
   },
@@ -215,7 +215,7 @@ export const healthDataService = {
     try {
       await AsyncStorage.setItem(PERMISSIONS_STORAGE_KEY, granted.toString());
     } catch (error: unknown) {
-      console.error('Error saving permission status:', error);
+      console.error('Error saving permission status:', error instanceof Error ? error.message : String(error));
     }
   },
 
@@ -324,7 +324,7 @@ export const healthDataService = {
       _vitalsFirestoreCache.set(userId, { data: vitals, timestamp: Date.now() });
       return vitals;
     } catch (error: unknown) {
-      console.error('Error getting vitals:', error);
+      console.error('Error getting vitals:', error instanceof Error ? error.message : String(error));
       return null;
     }
   },
@@ -426,7 +426,7 @@ export const healthDataService = {
         return this.getSimulatedVitals();
       }
     } catch (error: unknown) {
-      console.error('Error getting iOS vitals:', error);
+      console.error('Error getting iOS vitals:', error instanceof Error ? error.message : String(error));
       return this.getSimulatedVitals();
     }
   },
@@ -462,7 +462,7 @@ export const healthDataService = {
       
       return await this.getSimulatedVitals();
     } catch (error: unknown) {
-      console.error('Error getting Android vitals:', error);
+      console.error('Error getting Android vitals:', error instanceof Error ? error.message : String(error));
       return await this.getSimulatedVitals();
     }
   },
@@ -501,7 +501,7 @@ export const healthDataService = {
 
       return summary;
     } catch (error: unknown) {
-      console.error('Error getting health summary:', error);
+      console.error('Error getting health summary:', error instanceof Error ? error.message : String(error));
       return null;
     }
   },
@@ -516,7 +516,7 @@ export const healthDataService = {
       await AsyncStorage.setItem(HEALTH_DATA_STORAGE_KEY, JSON.stringify(vitals));
       
     } catch (error: unknown) {
-      console.error('Error syncing health data:', error);
+      console.error('Error syncing health data:', error instanceof Error ? error.message : String(error));
     }
   },
 
@@ -532,7 +532,7 @@ export const healthDataService = {
         timestamp: new Date(parsed.timestamp),
       };
     } catch (error: unknown) {
-      console.error('Error getting stored health data:', error);
+      console.error('Error getting stored health data:', error instanceof Error ? error.message : String(error));
       return null;
     }
   },
@@ -542,7 +542,7 @@ export const healthDataService = {
     try {
       return await this.initializeHealthData();
     } catch (error: unknown) {
-      console.error('Error requesting health permissions:', error);
+      console.error('Error requesting health permissions:', error instanceof Error ? error.message : String(error));
       return false;
     }
   },
@@ -585,7 +585,7 @@ export const healthDataService = {
       }
       return null;
     } catch (err: unknown) {
-      console.warn('[healthData] getNativeVitals failed:', err);
+      console.warn('[healthData] getNativeVitals failed:', err instanceof Error ? err.message : String(err));
       return null;
     }
   },
@@ -634,7 +634,7 @@ export const healthDataService = {
 
       return results;
     } catch (err: unknown) {
-      console.warn('[healthData] getUserVitals failed:', err);
+      console.warn('[healthData] getUserVitals failed:', err instanceof Error ? err.message : String(err));
       return [];
     }
   },

@@ -130,7 +130,7 @@ export default function AnalyticsScreen() {
       );
       setVitals(Array.isArray(data) ? data : []);
     } catch (err: unknown) {
-      console.warn('[analytics] Failed to load vitals:', err);
+      console.warn('[analytics] Failed to load vitals:', err instanceof Error ? err.message : String(err));
       setLoadError(isRTL ? "تعذّر تحميل البيانات. اسحب للأسفل للمحاولة." : "Failed to load data. Pull down to retry.");
     } finally {
       setLoading(false);

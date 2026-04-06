@@ -189,7 +189,7 @@ export const medicationService = {
       await offlineService.storeOfflineData("medications", [...currentMedications, newMedication]);
       return tempId;
     } catch (error: unknown) {
-      console.error('Error adding medication:', error);
+      console.error('Error adding medication:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   },
@@ -303,7 +303,7 @@ export const medicationService = {
         reminderId,
         reminderTime: reminder.time,
       }).catch((err: unknown) => {
-        console.warn('[medication] Failed to dismiss reminder notifications:', err);
+        console.warn('[medication] Failed to dismiss reminder notifications:', err instanceof Error ? err.message : String(err));
       });
     }
   },
@@ -315,7 +315,7 @@ export const medicationService = {
       if (!raw || (raw as { error?: string }).error) return null;
       return normalizeMedicationFromApi(raw);
     } catch (err: unknown) {
-      console.warn('[medication] getMedication failed:', err);
+      console.warn('[medication] getMedication failed:', err instanceof Error ? err.message : String(err));
       return null;
     }
   },
@@ -389,7 +389,7 @@ export const medicationService = {
 
       return reminders.sort((a, b) => a.time.localeCompare(b.time));
     } catch (error: unknown) {
-      console.error('Error getting upcoming reminders:', error);
+      console.error('Error getting upcoming reminders:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   },
@@ -421,7 +421,7 @@ export const medicationService = {
     }
     this.invalidateCache(userId);
   } catch (error: unknown) {
-      console.error('Error resetting daily reminders:', error);
+      console.error('Error resetting daily reminders:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   },
@@ -435,7 +435,7 @@ export const medicationService = {
         (user?.role === "admin" || user?.role === "caregiver")
       );
     } catch (err: unknown) {
-      console.warn('[medication] checkFamilyAccessPermission failed:', err);
+      console.warn('[medication] checkFamilyAccessPermission failed:', err instanceof Error ? err.message : String(err));
       return false;
     }
   },
@@ -529,7 +529,7 @@ export const medicationService = {
         upcomingReminders,
       };
     } catch (err: unknown) {
-      console.warn('[medication] getMemberMedicationStats failed:', err);
+      console.warn('[medication] getMemberMedicationStats failed:', err instanceof Error ? err.message : String(err));
       return {
         totalMedications: 0,
         activeMedications: 0,

@@ -33,7 +33,7 @@ export const patientService = {
         bloodType: profile.bloodType,
       };
     } catch (err: unknown) {
-      console.warn('[patient] getPatientByUserId failed:', err);
+      console.warn('[patient] getPatientByUserId failed:', err instanceof Error ? err.message : String(err));
       return null;
     }
   },

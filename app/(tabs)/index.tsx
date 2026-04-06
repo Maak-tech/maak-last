@@ -716,7 +716,7 @@ export default function DashboardScreen() {
         });
       }
     } catch (error: unknown) {
-      console.error('Error loading dashboard data:', error);
+      console.error('Error loading dashboard data:', error instanceof Error ? error.message : String(error));
       setLoadError(true);
     } finally {
       setLoading(false);
@@ -809,7 +809,7 @@ export default function DashboardScreen() {
                   : 'Emergency notification sent to all family members'
               );
             } catch (err: unknown) {
-              console.warn('[index] Failed to send emergency notification:', err);
+              console.warn('[index] Failed to send emergency notification:', err instanceof Error ? err.message : String(err));
               Alert.alert(
                 isRTL ? 'خطأ' : 'Error',
                 isRTL ? 'فشل إرسال الإشعار. حاول مرة أخرى.' : 'Failed to send notification. Please try again.'

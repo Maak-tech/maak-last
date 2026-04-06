@@ -371,14 +371,14 @@ export default function NoraScreen() {
 
           await AsyncStorage.setItem(lastChatKey, new Date().toISOString());
         } catch (err: unknown) {
-          console.warn('[nora] Proactive message load failed (non-critical):', err);
+          console.warn('[nora] Proactive message load failed (non-critical):', err instanceof Error ? err.message : String(err));
         }
       }).catch((err) => {
         // Outer promise rejection guard — should not reach here given the inner try/catch
-        console.warn('[nora] Proactive message promise rejected unexpectedly:', err);
+        console.warn('[nora] Proactive message promise rejected unexpectedly:', err instanceof Error ? err.message : String(err));
       });
     } catch (error: unknown) {
-      console.warn('[nora] initializeChat failed:', error);
+      console.warn('[nora] initializeChat failed:', error instanceof Error ? error.message : String(error));
       if (isMountedRef.current) {
         setIsLoading(false);
       }

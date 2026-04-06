@@ -274,7 +274,7 @@ class CaregiverDashboardService {
         }
       } catch (err: unknown) {
         // VHI not yet computed or API unavailable — proceed without it
-        console.warn('[caregiverDashboard] VHI data unavailable for member:', err);
+        console.warn('[caregiverDashboard] VHI data unavailable for member:', err instanceof Error ? err.message : String(err));
       }
 
       return {

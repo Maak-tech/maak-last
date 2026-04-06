@@ -648,7 +648,7 @@ export default function ApiKeysScreen() {
                   [{ text: "I've copied it", style: "default" }]
                 );
               } catch (err: unknown) {
-                console.warn('[api-keys] Failed to rotate API key:', err);
+                console.warn('[api-keys] Failed to rotate API key:', err instanceof Error ? err.message : String(err));
                 Alert.alert("Error", "Failed to rotate API key.");
               }
             },

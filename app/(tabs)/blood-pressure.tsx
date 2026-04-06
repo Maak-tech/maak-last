@@ -184,7 +184,7 @@ export default function BloodPressureScreen() {
 
       setReadings(items);
     } catch (error: unknown) {
-      console.error("Failed to load blood pressure readings:", error);
+      console.error("Failed to load blood pressure readings:", error instanceof Error ? error.message : String(error));
       const errorMessage =
         error instanceof Error ? error.message : t("unknownError");
       Alert.alert(
@@ -380,7 +380,7 @@ export default function BloodPressureScreen() {
       setShowAddModal(false);
       await loadReadings();
     } catch (error: unknown) {
-      console.warn('[blood-pressure] Failed to save reading:', error);
+      console.warn('[blood-pressure] Failed to save reading:', error instanceof Error ? error.message : String(error));
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL

@@ -241,17 +241,19 @@ export const userRoutes = new Elysia({ prefix: "/api/user" })
     "/baseline",
     async ({ db, userId, body }) => {
       const { userBaselines } = await import("../db/schema");
+      // structuredClone strips any prototype-polluting keys before storage
+      const safeData = structuredClone(body) as Record<string, unknown>;
       await db
         .insert(userBaselines)
-        .values({ userId, data: body as Record<string, unknown>, computedAt: new Date() })
+        .values({ userId, data: safeData, computedAt: new Date() })
         .onConflictDoUpdate({
           target: userBaselines.userId,
-          set: { data: body as Record<string, unknown>, computedAt: new Date() },
+          set: { data: safeData, computedAt: new Date() },
         });
       return { ok: true };
     },
     {
-      body: t.Any(),
+      body: t.Record(t.String(), t.Unknown()),
       detail: { tags: ["user"], summary: "Persist user health baseline" },
     }
   )
@@ -346,7 +348,7 @@ export const userRoutes = new Elysia({ prefix: "/api/user" })
     },
     {
       body: t.Object({
-        preferences: t.Optional(t.Any()),
+        preferences: t.Optional(t.Record(t.String(), t.Unknown())),
       }),
       detail: { tags: ["user"], summary: "Update notification preferences (merges into preferences.notifications)" },
     }
@@ -475,7 +477,7 @@ export const usersRoutes = new Elysia({ prefix: "/api/users" })
       return buildUserObject(user, memberRow?.role);
     },
     {
-      params: t.Object({ userId: t.String() }),
+      params: t.Object({ userId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["user"], summary: "Get user by ID (own or family admin)" },
     }
   )
@@ -560,7 +562,7 @@ export const usersRoutes = new Elysia({ prefix: "/api/users" })
       return buildUserObject(updated, memberRow?.role);
     },
     {
-      params: t.Object({ userId: t.String() }),
+      params: t.Object({ userId: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({
         name: t.Optional(t.String({ maxLength: 255 })),
         email: t.Optional(t.String({ maxLength: 255 })),
@@ -570,7 +572,7 @@ export const usersRoutes = new Elysia({ prefix: "/api/users" })
         gender: t.Optional(t.String({ maxLength: 30 })),
         dateOfBirth: t.Optional(t.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}" })),
         language: t.Optional(t.String({ maxLength: 10 })),
-        familyId: t.Optional(t.Nullable(t.String())),
+        familyId: t.Optional(t.Nullable(t.String({ minLength: 1, maxLength: 36 }))),
         avatarUrl: t.Optional(t.String({ maxLength: 2000 })),
         avatarType: t.Optional(t.String({ maxLength: 50 })),
         role: t.Optional(t.String({ maxLength: 50 })),
@@ -578,7 +580,7 @@ export const usersRoutes = new Elysia({ prefix: "/api/users" })
         dashboardTourCompleted: t.Optional(t.Boolean()),
         // isPremium is NOT accepted here — it is controlled exclusively by webhook handlers
         notifications: t.Optional(t.Boolean()),
-        emergencyContacts: t.Optional(t.Any()),
+        emergencyContacts: t.Optional(t.Array(t.Record(t.String({ minLength: 1, maxLength: 36 }), t.Unknown()), { maxItems: 20 })),
       }),
       detail: { tags: ["user"], summary: "Update user profile (own or admin)" },
     }
@@ -630,7 +632,7 @@ export const usersRoutes = new Elysia({ prefix: "/api/users" })
       return { ok: true, userId: params.userId, role: body.role };
     },
     {
-      params: t.Object({ userId: t.String() }),
+      params: t.Object({ userId: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({
         role: t.Union([t.Literal("admin"), t.Literal("member"), t.Literal("caregiver")]),
       }),

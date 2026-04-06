@@ -267,7 +267,7 @@ async function fetchMedicationAdherence(
     if (totalReminders === 0) return 100;
     return Math.round((takenReminders / totalReminders) * 100);
   } catch (err: unknown) {
-    console.warn('[userBaseline] fetchMedicationAdherence failed:', err);
+    console.warn('[userBaseline] fetchMedicationAdherence failed:', err instanceof Error ? err.message : String(err));
     return 100;
   }
 }
@@ -285,7 +285,7 @@ async function fetchPeriodBaseline(
       pmsSymptoms: [],
     };
   } catch (err: unknown) {
-    console.warn('[userBaseline] fetchPeriodBaseline failed:', err);
+    console.warn('[userBaseline] fetchPeriodBaseline failed:', err instanceof Error ? err.message : String(err));
     return null;
   }
 }
@@ -456,7 +456,7 @@ export const userBaselineService = {
         computedAt: baseline.computedAt.toISOString(),
       });
     } catch (err: unknown) {
-      console.warn('[userBaseline] Failed to persist baseline:', err);
+      console.warn('[userBaseline] Failed to persist baseline:', err instanceof Error ? err.message : String(err));
       // Non-critical — proceed with in-memory baseline
     }
 
@@ -479,7 +479,7 @@ export const userBaselineService = {
       if (ageHours > BASELINE_CACHE_HOURS) return null;
       return { ...data, computedAt } as UserHealthBaseline;
     } catch (err: unknown) {
-      console.warn('[userBaseline] getCachedBaseline failed:', err);
+      console.warn('[userBaseline] getCachedBaseline failed:', err instanceof Error ? err.message : String(err));
       return null;
     }
   },
@@ -764,7 +764,7 @@ export const userBaselineService = {
         }
       }
     } catch (err: unknown) {
-      console.warn('[userBaseline] detectDeviations partial failure (returning partial results):', err);
+      console.warn('[userBaseline] detectDeviations partial failure (returning partial results):', err instanceof Error ? err.message : String(err));
     }
 
     // Sort by severity (significant first)
@@ -822,7 +822,7 @@ export const userBaselineService = {
       // Record notification time
       await api.post("/api/user/baseline/last-notification", {}).catch((err: unknown) => { console.debug('[userBaseline] Failed to record notification time (non-critical):', err instanceof Error ? err.message : String(err)); });
     } catch (err: unknown) {
-      console.warn('[userBaseline] checkAndNotifySignificantDeviations failed:', err);
+      console.warn('[userBaseline] checkAndNotifySignificantDeviations failed:', err instanceof Error ? err.message : String(err));
     }
   },
 
@@ -854,7 +854,7 @@ export const userBaselineService = {
         baseline: 0,
       }));
     } catch (err: unknown) {
-      console.warn('[userBaseline] getZScoreVitalAnomalies failed:', err);
+      console.warn('[userBaseline] getZScoreVitalAnomalies failed:', err instanceof Error ? err.message : String(err));
       return [];
     }
   },

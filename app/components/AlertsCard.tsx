@@ -55,7 +55,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
       const familyAlerts = await alertService.getFamilyAlerts(userIds, 10);
       setAlerts(familyAlerts);
     } catch (error: unknown) {
-      console.error('Error loading alerts:', error);
+      console.error('Error loading alerts:', error instanceof Error ? error.message : String(error));
       setErrorMessage(isRTL ? 'فشل تحميل التنبيهات' : 'Failed to load alerts');
     } finally {
       setLoading(false);
@@ -83,7 +83,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
       // Reload alerts
       await loadAlerts();
     } catch (error: unknown) {
-      console.error('Error responding to alert:', error);
+      console.error('Error responding to alert:', error instanceof Error ? error.message : String(error));
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL ? 'فشل في تسجيل الاستجابة' : 'Failed to record response'
@@ -110,7 +110,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
               await alertService.resolveAlert(alertId, user.id);
               await loadAlerts();
             } catch (error: unknown) {
-              console.error('Error resolving alert:', error);
+              console.error('Error resolving alert:', error instanceof Error ? error.message : String(error));
               Alert.alert(
                 isRTL ? 'خطأ' : 'Error',
                 isRTL ? 'فشل في حل التنبيه' : 'Failed to resolve alert'

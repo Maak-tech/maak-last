@@ -27,7 +27,7 @@ export const useFallDetection = (
         onFallDetected('demo-alert');
       }
     } catch (error) {
-      console.error('Error creating fall alert:', error);
+      console.error('Error creating fall alert:', error instanceof Error ? error.message : String(error));
       onFallDetected('error-alert');
     }
   }, [userId, onFallDetected]);
@@ -135,11 +135,11 @@ export const useFallDetection = (
         };
 
         initializeSensors().catch((err) => {
-          console.warn('[useFallDetection] initializeSensors rejected:', err);
+          console.warn('[useFallDetection] initializeSensors rejected:', err instanceof Error ? err.message : String(err));
           if (isSubscriptionActive) setIsInitialized(false);
         });
       } catch (error) {
-        console.warn('DeviceMotion initialization error:', error);
+        console.warn('DeviceMotion initialization error:', error instanceof Error ? error.message : String(error));
         setIsInitialized(false);
         if (initializationTimeout) {
           clearTimeout(initializationTimeout);

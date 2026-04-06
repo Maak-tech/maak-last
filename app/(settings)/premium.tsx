@@ -279,7 +279,7 @@ export default function PremiumScreen() {
     try {
       await refreshCustomerInfo();
     } catch (err: unknown) {
-      console.warn('[premium] refreshCustomerInfo after purchase failed (non-critical):', err);
+      console.warn('[premium] refreshCustomerInfo after purchase failed (non-critical):', err instanceof Error ? err.message : String(err));
     }
   }, [closePaywall, refreshCustomerInfo]);
 

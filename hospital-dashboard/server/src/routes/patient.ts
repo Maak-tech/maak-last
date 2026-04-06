@@ -170,7 +170,8 @@ patientRoutes.get(
     const queryNames = ['patient', 'twin', 'alerts', 'vitals', 'medications']
     results.forEach((res, i) => {
       if (res.status === 'rejected') {
-        console.error(`[patient/by-session] Failed to fetch ${queryNames[i]}:`, res.reason)
+        const reason = res.reason instanceof Error ? res.reason.message : String(res.reason)
+        console.error(`[patient/by-session] Failed to fetch ${queryNames[i]}:`, reason)
       }
     })
 
@@ -261,7 +262,8 @@ patientRoutes.get(
     const queryNamesById = ['patient', 'twin', 'alerts', 'vitals', 'medications']
     results.forEach((res, i) => {
       if (res.status === 'rejected') {
-        console.error(`[patient/twin] Failed to fetch ${queryNamesById[i]}:`, res.reason)
+        const reason = res.reason instanceof Error ? res.reason.message : String(res.reason)
+        console.error(`[patient/twin] Failed to fetch ${queryNamesById[i]}:`, reason)
       }
     })
 

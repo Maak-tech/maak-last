@@ -106,16 +106,16 @@ export default function FamilyScreen() {
             `/api/alerts/family?userIds=${userIds}`
           );
           setFamilyAlertCount((Array.isArray(familyAlerts) ? familyAlerts : []).filter((a) => !a.isAcknowledged).length);
-        } catch (err: unknown) { console.warn('[family] Failed to load family alert count:', err); }
+        } catch (err: unknown) { console.warn('[family] Failed to load family alert count:', err instanceof Error ? err.message : String(err)); }
       }
 
       // Fetch current user's VHI score via the typed vhiService
       try {
         const vhi = await vhiService.getMyVHI();
         setMyVhiScore(vhi?.data?.currentState?.overallScore ?? null);
-      } catch (err: unknown) { console.warn('[family] Failed to load VHI score:', err); }
+      } catch (err: unknown) { console.warn('[family] Failed to load VHI score:', err instanceof Error ? err.message : String(err)); }
     } catch (error: unknown) {
-      console.error('Error loading family members:', error);
+      console.error('Error loading family members:', error instanceof Error ? error.message : String(error));
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL ? 'فشل في تحميل أعضاء العائلة' : 'Failed to load family members'
@@ -130,7 +130,7 @@ export default function FamilyScreen() {
   useFocusEffect(
     useCallback(() => {
       loadFamilyMembers();
-    }, [user])
+    }, [user, isRTL])
   );
 
   const getHealthStatusColor = (status: string) => {
@@ -212,7 +212,7 @@ export default function FamilyScreen() {
                     : "Invitation to join Nuralix",
                 });
               } catch (error: unknown) {
-                console.error('Error sharing:', error);
+                console.error('Error sharing:', error instanceof Error ? error.message : String(error));
                 // Fallback to copying to clipboard
                 await Clipboard.setStringAsync(shareMessage);
                 Alert.alert(
@@ -243,7 +243,7 @@ export default function FamilyScreen() {
         ]
       );
     } catch (error: unknown) {
-      console.error('Error generating invite:', error);
+      console.error('Error generating invite:', error instanceof Error ? error.message : String(error));
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL ? 'فشل في إنشاء رمز الدعوة' : 'Failed to generate invite code'
@@ -322,7 +322,7 @@ export default function FamilyScreen() {
         isRTL ? 'تم تحديث بيانات العضو بنجاح' : 'Member updated successfully'
       );
     } catch (error: unknown) {
-      console.error('Error updating member:', error);
+      console.error('Error updating member:', error instanceof Error ? error.message : String(error));
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL ? 'فشل في تحديث بيانات العضو' : 'Failed to update member'
@@ -388,7 +388,7 @@ export default function FamilyScreen() {
                   : 'Member removed from family successfully'
               );
             } catch (error: unknown) {
-              console.error('Error removing member:', error);
+              console.error('Error removing member:', error instanceof Error ? error.message : String(error));
               Alert.alert(
                 isRTL ? 'خطأ' : 'Error',
                 isRTL ? 'فشل في إزالة العضو' : 'Failed to remove member'
@@ -504,7 +504,7 @@ export default function FamilyScreen() {
                     : "Invitation to join Nuralix",
                 });
               } catch (error: unknown) {
-                console.error('Error sharing:', error);
+                console.error('Error sharing:', error instanceof Error ? error.message : String(error));
                 // Fallback to copying to clipboard
                 await Clipboard.setStringAsync(shareMessage);
                 Alert.alert(
@@ -547,7 +547,7 @@ export default function FamilyScreen() {
         ]
       );
     } catch (error: unknown) {
-      console.error('Error generating invitation code:', error);
+      console.error('Error generating invitation code:', error instanceof Error ? error.message : String(error));
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL ? 'فشل في إنشاء رمز الدعوة' : 'Failed to generate invitation code'
@@ -601,7 +601,7 @@ export default function FamilyScreen() {
         Alert.alert(isRTL ? 'رمز غير صحيح' : 'Invalid Code', result.message);
       }
     } catch (error: unknown) {
-      console.error('Error joining family:', error);
+      console.error('Error joining family:', error instanceof Error ? error.message : String(error));
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL ? 'فشل في الانضمام للعائلة' : 'Failed to join family'

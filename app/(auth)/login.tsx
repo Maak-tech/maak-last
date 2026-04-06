@@ -54,7 +54,7 @@ export default function LoginScreen() {
             familyCode.trim()
           );
         } catch (error: unknown) {
-          console.error('[Login] Error storing family code:', error);
+          console.error('[Login] Error storing family code:', error instanceof Error ? error.message : String(error));
           Alert.alert(
             'Notice',
             'There was an issue storing your family code. Please use the family code in the Family tab after login.'
@@ -75,7 +75,7 @@ export default function LoginScreen() {
       // Navigate back to index so it can handle the authenticated user
       router.replace('/');
     } catch (error: unknown) {
-      console.error('Login error:', error);
+      console.error('Login error:', error instanceof Error ? error.message : String(error));
       const message = error instanceof Error ? error.message : 'Login failed. Please try again.';
       setErrors({ general: message });
       Alert.alert('Login Failed', message || 'Please check your credentials and try again.');

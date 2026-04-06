@@ -483,7 +483,7 @@ export class NotificationResponseHandler {
               confirmationType: "notification_response",
             });
           } catch (err: unknown) {
-            console.warn('[notificationResponseHandler] recordMedicationTaken failed:', err);
+            console.warn('[notificationResponseHandler] recordMedicationTaken failed:', err instanceof Error ? err.message : String(err));
           }
         }
       }

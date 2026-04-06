@@ -142,7 +142,7 @@ async function fetchCorrelationDiscoveries(
       .filter((d) => d.status !== "dismissed")
       .map((d) => ({ ...d, discoveryType: "correlation" as DiscoveryType }));
   } catch (err: unknown) {
-    console.warn('[discovery] fetchCorrelationDiscoveries failed:', err);
+    console.warn('[discovery] fetchCorrelationDiscoveries failed:', err instanceof Error ? err.message : String(err));
     return [];
   }
 }
@@ -195,7 +195,7 @@ async function fetchSymptomPatternDiscoveries(
         })
       );
   } catch (err: unknown) {
-    console.warn('[discovery] fetchSymptomPatternDiscoveries failed:', err);
+    console.warn('[discovery] fetchSymptomPatternDiscoveries failed:', err instanceof Error ? err.message : String(err));
     return [];
   }
 }
@@ -216,7 +216,7 @@ async function fetchVitalTrendDiscoveries(
         patternInsightToDiscovery(insight, "vital_trend", userId, idx)
       );
   } catch (err: unknown) {
-    console.warn('[discovery] fetchVitalTrendDiscoveries failed:', err);
+    console.warn('[discovery] fetchVitalTrendDiscoveries failed:', err instanceof Error ? err.message : String(err));
     return [];
   }
 }
@@ -271,7 +271,7 @@ async function fetchMedicationEffectivenessDiscoveries(
         })
       );
   } catch (err: unknown) {
-    console.warn('[discovery] fetchMedicationEffectivenessDiscoveries failed:', err);
+    console.warn('[discovery] fetchMedicationEffectivenessDiscoveries failed:', err instanceof Error ? err.message : String(err));
     return [];
   }
 }
@@ -294,7 +294,7 @@ async function fetchTemporalPatternDiscoveries(
         patternInsightToDiscovery(insight, "temporal_pattern", userId, idx)
       );
   } catch (err: unknown) {
-    console.warn('[discovery] fetchTemporalPatternDiscoveries failed:', err);
+    console.warn('[discovery] fetchTemporalPatternDiscoveries failed:', err instanceof Error ? err.message : String(err));
     return [];
   }
 }
@@ -321,7 +321,7 @@ async function fetchMedicationPatternDiscoveries(
         patternInsightToDiscovery(insight, "medication_pattern", userId, idx)
       );
   } catch (err: unknown) {
-    console.warn('[discovery] fetchMedicationPatternDiscoveries failed:', err);
+    console.warn('[discovery] fetchMedicationPatternDiscoveries failed:', err instanceof Error ? err.message : String(err));
     return [];
   }
 }
@@ -341,7 +341,7 @@ async function fetchIntegrationInsightDiscoveries(
         patternInsightToDiscovery(insight, "integration_insight", userId, idx)
       );
   } catch (err: unknown) {
-    console.warn('[discovery] fetchIntegrationInsightDiscoveries failed:', err);
+    console.warn('[discovery] fetchIntegrationInsightDiscoveries failed:', err instanceof Error ? err.message : String(err));
     return [];
   }
 }
@@ -375,7 +375,7 @@ export async function dismissDiscovery(
       timestamp: new Date().toISOString(),
     });
   } catch (err: unknown) {
-    console.warn('[discoveryService] dismissDiscovery timeline post failed (non-critical):', err);
+    console.warn('[discoveryService] dismissDiscovery timeline post failed (non-critical):', err instanceof Error ? err.message : String(err));
   }
 }
 

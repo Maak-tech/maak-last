@@ -444,7 +444,7 @@ export const ouraService = {
           userId = userData.id || userData.user_id || "unknown";
         }
       } catch (err: unknown) {
-        console.warn('[oura] Failed to fetch personal info for userId:', err);
+        console.warn('[oura] Failed to fetch personal info for userId:', err instanceof Error ? err.message : String(err));
         userId = tokens.userId || tokens.user_id || "unknown";
       }
 
@@ -542,7 +542,7 @@ export const ouraService = {
 
       return newTokens.access_token;
     } catch (err: unknown) {
-      console.warn('[oura] Failed to refresh access token:', err);
+      console.warn('[oura] Failed to refresh access token:', err instanceof Error ? err.message : String(err));
       return null;
     }
   },
@@ -700,7 +700,7 @@ export const ouraService = {
             allSamples[metricKey].push(...samples);
           }
         } catch (err: unknown) {
-          console.warn('[oura] Failed to fetch data from endpoint', endpoint + ':', err);
+          console.warn('[oura] Failed to fetch data from endpoint', endpoint + ':', err instanceof Error ? err.message : String(err));
         }
       }
 
@@ -726,7 +726,7 @@ export const ouraService = {
 
       return results;
     } catch (err: unknown) {
-      console.warn('[oura] Failed to fetch health data:', err);
+      console.warn('[oura] Failed to fetch health data:', err instanceof Error ? err.message : String(err));
       return [];
     }
   },
@@ -809,7 +809,7 @@ export const ouraService = {
       await ouraService.disconnect();
       return true;
     } catch (err: unknown) {
-      console.warn('[oura] Failed to revoke access tokens:', err);
+      console.warn('[oura] Failed to revoke access tokens:', err instanceof Error ? err.message : String(err));
       return false;
     }
   },

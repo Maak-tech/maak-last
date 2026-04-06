@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import { requireAuth } from "../middleware/requireAuth";
 import { vitals, symptoms, medications, medicationReminders, moods, labResults, allergies, medicalHistory, familyMembers, periodCycles, cycleDailyEntries, healthTimeline, ppgEmbeddings, escalations, anomalies, medicationAdherence } from "../db/schema";
 import type { Database } from "../db";
+import { ppgAnalyzeRateLimiter } from "../lib/rateLimiter";
 
 // Reusable ISO 8601 date-string type.
 // Elysia/TypeBox validates this at the schema layer (before the handler runs),
@@ -116,7 +117,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
         unit: t.Optional(t.String({ maxLength: 20 })),
         source: t.Optional(t.String({ maxLength: 50 })),
         recordedAt: IsoDateString,
-        metadata: t.Optional(t.Any()),
+        metadata: t.Optional(t.Record(t.String(), t.Unknown())),
       }),
       detail: { tags: ["health"], summary: "Log a vital reading" },
     }
@@ -153,7 +154,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
             unit: t.Optional(t.String({ maxLength: 20 })),
             source: t.Optional(t.String({ maxLength: 50 })),
             recordedAt: IsoDateString,
-            metadata: t.Optional(t.Any()),
+            metadata: t.Optional(t.Record(t.String(), t.Unknown())),
           }),
           { maxItems: 1000 }
         ),
@@ -209,7 +210,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     {
       body: t.Object({
         type: t.String({ maxLength: 100 }),
-        userId: t.Optional(t.String()),
+        userId: t.Optional(t.String({ maxLength: 36 })),
         severity: t.Optional(t.Number({ minimum: 1, maximum: 10 })),
         location: t.Optional(t.String({ maxLength: 200 })),
         duration: t.Optional(t.Number({ minimum: 0, maximum: 43200 })), // max 30 days in minutes
@@ -264,13 +265,13 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     {
       body: t.Object({
         name: t.String({ maxLength: 255 }),
-        userId: t.Optional(t.String()),
+        userId: t.Optional(t.String({ maxLength: 36 })),
         dosage: t.Optional(t.String({ maxLength: 100 })),
         frequency: t.Optional(t.String({ maxLength: 100 })),
         instructions: t.Optional(t.String({ maxLength: 2000 })),
         startDate: t.Optional(IsoDateString),
         endDate: t.Optional(IsoDateString),
-        reminders: t.Optional(t.Any()),
+        reminders: t.Optional(t.Array(t.Record(t.String(), t.Unknown()), { maxItems: 50 })),
         tags: t.Optional(t.Array(t.String({ maxLength: 50 }), { maxItems: 50 })),
         quantity: t.Optional(t.Number({ minimum: 0, maximum: 10000 })),
         notes: t.Optional(t.String({ maxLength: 2000 })),
@@ -320,7 +321,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       return updated;
     },
     {
-      params: t.Object({ reminderId: t.String() }),
+      params: t.Object({ reminderId: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({ status: t.Union([t.Literal("taken"), t.Literal("missed"), t.Literal("snoozed")]) }),
       detail: { tags: ["health"], summary: "Update a reminder status (taken/missed/snoozed)" },
     }
@@ -368,7 +369,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     {
       body: t.Object({
         type: t.String({ maxLength: 100 }),
-        userId: t.Optional(t.String()),
+        userId: t.Optional(t.String({ maxLength: 36 })),
         intensity: t.Optional(t.Number({ minimum: 1, maximum: 10 })),
         notes: t.Optional(t.String({ maxLength: 2000 })),
         activities: t.Optional(t.Array(t.String({ maxLength: 100 }), { maxItems: 50 })),
@@ -400,7 +401,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     },
     {
       query: t.Object({
-        userId: t.Optional(t.String()),
+        userId: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
         from: t.Optional(IsoDateString),
         to: t.Optional(IsoDateString),
         limit: t.Optional(t.Numeric()),
@@ -449,7 +450,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       return updated;
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({
         type: t.Optional(t.String({ maxLength: 100 })),
         severity: t.Optional(t.Number({ minimum: 1, maximum: 10 })),
@@ -470,7 +471,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       return { ok: true };
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["health"], summary: "Delete a symptom" },
     }
   )
@@ -486,7 +487,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       return db.select().from(symptoms).where(and(...filters)).orderBy(desc(symptoms.recordedAt)).limit(query.limit ?? 50);
     },
     {
-      params: t.Object({ userId: t.String() }),
+      params: t.Object({ userId: t.String({ minLength: 1, maxLength: 36 }) }),
       query: DateRangeQuery,
       detail: { tags: ["health"], summary: "Get symptoms for a specific user (admin/caregiver)" },
     }
@@ -516,7 +517,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       return db.select().from(symptoms).where(and(...filters)).orderBy(desc(symptoms.recordedAt)).limit(query.limit ?? 100);
     },
     {
-      params: t.Object({ familyId: t.String() }),
+      params: t.Object({ familyId: t.String({ minLength: 1, maxLength: 36 }) }),
       query: DateRangeQuery,
       detail: { tags: ["health"], summary: "Get symptoms for all family members (admin)" },
     }
@@ -534,7 +535,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       return med;
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["health"], summary: "Get medication by ID" },
     }
   )
@@ -568,7 +569,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       return updated;
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({
         name: t.Optional(t.String({ maxLength: 255 })),
         dosage: t.Optional(t.String({ maxLength: 100 })),
@@ -577,7 +578,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
         isActive: t.Optional(t.Boolean()),
         startDate: t.Optional(IsoDateString),
         endDate: t.Optional(t.Nullable(IsoDateString)),
-        reminders: t.Optional(t.Any()),
+        reminders: t.Optional(t.Array(t.Record(t.String(), t.Unknown()), { maxItems: 50 })),
         tags: t.Optional(t.Array(t.String({ maxLength: 50 }), { maxItems: 50 })),
         quantity: t.Optional(t.Number({ minimum: 0 })),
         notes: t.Optional(t.String({ maxLength: 2000 })),
@@ -594,7 +595,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       return db.select().from(medications).where(and(eq(medications.userId, params.userId), eq(medications.isActive, true)));
     },
     {
-      params: t.Object({ userId: t.String() }),
+      params: t.Object({ userId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["health"], summary: "Get medications for a specific user (admin/caregiver)" },
     }
   )
@@ -617,7 +618,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       return db.select().from(medications).where(and(inArray(medications.userId, memberIds), eq(medications.isActive, true)));
     },
     {
-      params: t.Object({ familyId: t.String() }),
+      params: t.Object({ familyId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["health"], summary: "Get all active medications for a family" },
     }
   )
@@ -691,9 +692,9 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       return { ok: true, reminderId: id };
     },
     {
-      params: t.Object({ medicationId: t.String() }),
+      params: t.Object({ medicationId: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Optional(
-        t.Object({ caregiverId: t.Optional(t.String()) })
+        t.Object({ caregiverId: t.Optional(t.String({ maxLength: 36 })) })
       ),
       detail: {
         tags: ["health"],
@@ -723,7 +724,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       return updated;
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({
         type: t.Optional(t.String({ maxLength: 100 })),
         intensity: t.Optional(t.Number({ minimum: 1, maximum: 10 })),
@@ -742,7 +743,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       return { ok: true };
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["health"], summary: "Delete a mood entry" },
     }
   )
@@ -757,7 +758,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       return db.select().from(moods).where(and(...filters)).orderBy(desc(moods.recordedAt)).limit(query.limit ?? 50);
     },
     {
-      params: t.Object({ userId: t.String() }),
+      params: t.Object({ userId: t.String({ minLength: 1, maxLength: 36 }) }),
       query: DateRangeQuery,
       detail: { tags: ["health"], summary: "Get moods for a specific user (admin/caregiver)" },
     }
@@ -783,7 +784,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       return db.select().from(moods).where(and(...filters)).orderBy(desc(moods.recordedAt)).limit(query.limit ?? 100);
     },
     {
-      params: t.Object({ familyId: t.String() }),
+      params: t.Object({ familyId: t.String({ minLength: 1, maxLength: 36 }) }),
       query: DateRangeQuery,
       detail: { tags: ["health"], summary: "Get moods for all family members (admin)" },
     }
@@ -816,7 +817,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     {
       body: t.Object({
         name: t.String({ maxLength: 255 }),
-        userId: t.Optional(t.String()),
+        userId: t.Optional(t.String({ maxLength: 36 })),
         severity: t.Optional(t.String({ maxLength: 50 })),
         reaction: t.Optional(t.String({ maxLength: 1000 })),
         discoveredDate: t.Optional(IsoDateString),
@@ -844,7 +845,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       return updated;
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({
         name: t.Optional(t.String({ maxLength: 255 })),
         reaction: t.Optional(t.String({ maxLength: 1000 })),
@@ -864,7 +865,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       return { ok: true };
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["health"], summary: "Delete an allergy" },
     }
   )
@@ -898,9 +899,9 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
         testDate: IsoDateString,
         orderedBy: t.Optional(t.String({ maxLength: 255 })),
         facility: t.Optional(t.String({ maxLength: 255 })),
-        results: t.Optional(t.Any()),
+        results: t.Optional(t.Record(t.String(), t.Unknown())),
         notes: t.Optional(t.String({ maxLength: 5000 })),
-        tags: t.Optional(t.Array(t.String())),
+        tags: t.Optional(t.Array(t.String({ maxLength: 50 }), { maxItems: 30 })),
       }),
       detail: { tags: ["health"], summary: "Add a lab result" },
     }
@@ -915,7 +916,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       return lab;
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["health"], summary: "Get a lab result by ID" },
     }
   )
@@ -941,14 +942,14 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       return updated;
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({
         testName: t.Optional(t.String({ maxLength: 255 })),
         testType: t.Optional(t.String({ maxLength: 100 })),
         testDate: t.Optional(IsoDateString),
         orderedBy: t.Optional(t.String({ maxLength: 255 })),
         facility: t.Optional(t.String({ maxLength: 255 })),
-        results: t.Optional(t.Any()),
+        results: t.Optional(t.Record(t.String(), t.Unknown())),
         notes: t.Optional(t.String({ maxLength: 5000 })),
         tags: t.Optional(t.Array(t.String({ maxLength: 50 }), { maxItems: 50 })),
       }),
@@ -964,7 +965,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       return { ok: true };
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["health"], summary: "Delete a lab result" },
     }
   )
@@ -1017,7 +1018,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       return entry;
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["health"], summary: "Get a medical history entry by ID" },
     }
   )
@@ -1044,7 +1045,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       return updated;
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({
         condition: t.Optional(t.String({ maxLength: 255 })),
         severity: t.Optional(t.String({ maxLength: 50 })),
@@ -1068,7 +1069,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       return { ok: true };
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["health"], summary: "Delete a medical history entry" },
     }
   )
@@ -1114,12 +1115,12 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     },
     {
       body: t.Object({
-        userId: t.Optional(t.String()),
+        userId: t.Optional(t.String({ maxLength: 36 })),
         startDate: IsoDateString,
         endDate: t.Optional(IsoDateString),
-        flowIntensity: t.Optional(t.String()),
-        symptoms: t.Optional(t.Array(t.String())),
-        notes: t.Optional(t.String()),
+        flowIntensity: t.Optional(t.String({ maxLength: 20 })),
+        symptoms: t.Optional(t.Array(t.String({ maxLength: 100 }), { maxItems: 50 })),
+        notes: t.Optional(t.String({ maxLength: 5000 })),
       }),
       detail: { tags: ["health"], summary: "Add a period entry" },
     }
@@ -1143,7 +1144,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       return updated;
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({
         startDate: t.Optional(IsoDateString),
         endDate: t.Optional(t.Nullable(IsoDateString)),
@@ -1163,7 +1164,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       return { ok: true };
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["health"], summary: "Delete a period entry" },
     }
   )
@@ -1262,7 +1263,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       return { ok: true };
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["health"], summary: "Delete a cycle daily entry" },
     }
   )
@@ -1326,19 +1327,19 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     },
     {
       body: t.Object({
-        userId: t.Optional(t.String()),
-        familyId: t.Optional(t.String()),
+        userId: t.Optional(t.String({ maxLength: 36 })),
+        familyId: t.Optional(t.String({ maxLength: 36 })),
         eventType: t.String({ maxLength: 100 }),
         title: t.String({ maxLength: 500 }),
         description: t.Optional(t.String({ maxLength: 2000 })),
         timestamp: IsoDateString,
         severity: t.String({ maxLength: 50 }),
         icon: t.Optional(t.String({ maxLength: 100 })),
-        metadata: t.Optional(t.Any()),
-        relatedEntityId: t.Optional(t.String()),
-        relatedEntityType: t.Optional(t.String()),
-        actorId: t.Optional(t.String()),
-        actorType: t.Optional(t.String()),
+        metadata: t.Optional(t.Record(t.String(), t.Unknown())),
+        relatedEntityId: t.Optional(t.String({ maxLength: 36 })),
+        relatedEntityType: t.Optional(t.String({ maxLength: 50 })),
+        actorId: t.Optional(t.String({ maxLength: 36 })),
+        actorType: t.Optional(t.String({ maxLength: 50 })),
       }),
       detail: { tags: ["health"], summary: "Record a health timeline event" },
     }
@@ -1392,7 +1393,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
         from: t.Optional(IsoDateString),
         to: t.Optional(IsoDateString),
         limit: t.Optional(t.Numeric()),
-        types: t.Optional(t.String()),
+        types: t.Optional(t.String({ minLength: 1, maxLength: 512 })),
       }),
       detail: { tags: ["health"], summary: "Get health timeline events for the current user" },
     }
@@ -1445,7 +1446,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       return { ok: true };
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       body: t.Object({
         status:          t.Optional(t.String({ maxLength: 50 })),
         acknowledgedAt:  t.Optional(IsoDateString),
@@ -1454,7 +1455,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
         resolvedBy:      t.Optional(t.String({ maxLength: 36 })),
         escalatedAt:     t.Optional(IsoDateString),
         escalatedBy:     t.Optional(t.String({ maxLength: 36 })),
-        metadata:        t.Optional(t.Any()),
+        metadata:        t.Optional(t.Record(t.String(), t.Unknown())),
       }),
       detail: { tags: ["health"], summary: "Update a health timeline event status" },
     }
@@ -1531,7 +1532,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     },
     {
       query: t.Object({
-        userIds: t.Optional(t.String()),
+        userIds: t.Optional(t.String({ minLength: 1, maxLength: 512 })),
         from: t.Optional(IsoDateString),
         to: t.Optional(IsoDateString),
         limit: t.Optional(t.Numeric()),
@@ -1573,7 +1574,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     },
     {
       body: t.Object({
-        selectedMetrics: t.Optional(t.Array(t.String())),
+        selectedMetrics: t.Optional(t.Array(t.String({ maxLength: 100 }), { maxItems: 50 })),
       }),
       detail: { tags: ["health"], summary: "Generate Garmin OAuth authorization URL" },
     }
@@ -1704,6 +1705,16 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
   .post(
     "/ppg/analyze",
     async ({ userId, body, set }) => {
+      // Rate limit: 10 requests / user / minute — each call holds a connection
+      // open for up to 30 s while the ML service runs PPG inference.
+      const rl = ppgAnalyzeRateLimiter.check(userId);
+      if (!rl.allowed) {
+        set.status = 429;
+        const retryAfterSecs = Math.ceil((rl.resetAt - Date.now()) / 1000);
+        set.headers = { "Retry-After": String(retryAfterSecs) };
+        return { success: false, error: "Too many PPG analysis requests. Please try again shortly.", signalQuality: 0, warnings: [] };
+      }
+
       const ML_SERVICE_URL = process.env.ML_SERVICE_URL ?? "http://localhost:8000";
       let mlRes: Response;
       try {
@@ -1715,7 +1726,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
         });
       } catch (fetchErr: unknown) {
         const isTimeout = fetchErr instanceof Error && fetchErr.name === "TimeoutError";
-        console.error("[ppg/analyze] ML service fetch failed:", fetchErr);
+        console.error("[ppg/analyze] ML service fetch failed:", fetchErr instanceof Error ? fetchErr.message : String(fetchErr));
         set.status = 504;
         return {
           success: false,
@@ -1854,7 +1865,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
         familyId: t.Optional(t.String({ maxLength: 36 })),
         type: t.String({ maxLength: 100 }),
         severity: t.String({ maxLength: 50 }),
-        metadata: t.Optional(t.Any()),
+        metadata: t.Optional(t.Record(t.String(), t.Unknown())),
       }),
       detail: { tags: ["health"], summary: "Start a new escalation" },
     }
@@ -1879,8 +1890,8 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     },
     {
       query: t.Object({
-        familyId: t.Optional(t.String()),
-        status: t.Optional(t.String()),
+        familyId: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
+        status: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
       }),
       detail: { tags: ["health"], summary: "Query escalations" },
     }
@@ -2021,7 +2032,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     },
     {
       query: t.Object({
-        userId: t.Optional(t.String()),
+        userId: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
         from: t.Optional(IsoDateString),
         limit: t.Optional(t.Numeric()),
       }),
@@ -2059,8 +2070,8 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       return { success: true };
     },
     {
-      params: t.Object({ anomalyId: t.String() }),
-      body: t.Object({ userId: t.Optional(t.String()) }),
+      params: t.Object({ anomalyId: t.String({ minLength: 1, maxLength: 36 }) }),
+      body: t.Object({ userId: t.Optional(t.String({ maxLength: 36 })) }),
       detail: { tags: ["health"], summary: "Acknowledge an anomaly" },
     }
   )
@@ -2094,7 +2105,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     },
     {
       query: t.Object({
-        userId: t.Optional(t.String()),
+        userId: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
         limit: t.Optional(t.Numeric()),
       }),
       detail: { tags: ["health"], summary: "Get health score history events from the timeline" },
@@ -2117,12 +2128,12 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
         occurredAt: new Date(),
         source: "lab_insights_cache",
         domain: "clinical",
-        metadata: body,
+        metadata: structuredClone(body) as Record<string, unknown>,
       });
       return { ok: true };
     },
     {
-      body: t.Any(),
+      body: t.Record(t.String(), t.Unknown()),
       detail: { tags: ["health"], summary: "Cache lab insight results (best-effort)" },
     }
   )
@@ -2184,7 +2195,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     },
     {
       query: t.Object({
-        medicationId: t.Optional(t.String()),
+        medicationId: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
         from: t.Optional(IsoDateString),
         limit: t.Optional(t.Numeric()),
       }),

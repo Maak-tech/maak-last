@@ -22,7 +22,7 @@ export default function Index() {
         router.replace('/(tabs)');
       }
     } catch (error: unknown) {
-      console.error('[Index] Navigation error:', error);
+      console.error('[Index] Navigation error:', error instanceof Error ? error.message : String(error));
     }
   }, [loading, user?.id, user?.onboardingCompleted, router]);
 

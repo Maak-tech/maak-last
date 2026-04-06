@@ -93,7 +93,7 @@ export default function HealthInsightsScreen() {
       const data = await api.get<VHIResponse>("/api/vhi/me");
       setVhi(data);
     } catch (err: unknown) {
-      console.warn('[health-insights] Failed to load VHI:', err);
+      console.warn('[health-insights] Failed to load VHI:', err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -119,7 +119,7 @@ export default function HealthInsightsScreen() {
         };
       });
     } catch (err: unknown) {
-      console.warn('[health-insights] Failed to acknowledge VHI action:', err);
+      console.warn('[health-insights] Failed to acknowledge VHI action:', err instanceof Error ? err.message : String(err));
     } finally {
       setAcknowledging(null);
     }

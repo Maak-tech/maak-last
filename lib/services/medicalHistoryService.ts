@@ -116,7 +116,7 @@ export const medicalHistoryService = {
       if (!raw || (raw as { error?: string }).error) return null;
       return normalizeMedicalHistory(raw);
     } catch (err: unknown) {
-      console.warn('[medicalHistory] getMedicalHistoryById failed:', err);
+      console.warn('[medicalHistory] getMedicalHistoryById failed:', err instanceof Error ? err.message : String(err));
       return null;
     }
   },

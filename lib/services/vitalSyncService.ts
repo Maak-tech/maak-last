@@ -130,11 +130,11 @@ async function saveVitalSample(
   import("./trendAlertService")
     .then(({ checkTrendsForNewVital }) => {
       checkTrendsForNewVital(userId, vitalType, unit).catch((err) => {
-        console.warn('[vitalSync] checkTrendsForNewVital failed:', err);
+        console.warn('[vitalSync] checkTrendsForNewVital failed:', err instanceof Error ? err.message : String(err));
       });
     })
     .catch((err) => {
-      console.warn('[vitalSync] Failed to import trendAlertService:', err);
+      console.warn('[vitalSync] Failed to import trendAlertService:', err instanceof Error ? err.message : String(err));
     });
 
   // Run personalized anomaly detection (non-blocking)
@@ -151,11 +151,11 @@ async function saveVitalSample(
             userId,
           })
           .catch((err) => {
-            console.warn('[vitalSync] anomalyDetection.checkAndPersistAnomaly failed:', err);
+            console.warn('[vitalSync] anomalyDetection.checkAndPersistAnomaly failed:', err instanceof Error ? err.message : String(err));
           });
       })
       .catch((err) => {
-        console.warn('[vitalSync] Failed to import anomalyDetectionService:', err);
+        console.warn('[vitalSync] Failed to import anomalyDetectionService:', err instanceof Error ? err.message : String(err));
       });
   }
 
@@ -166,11 +166,11 @@ async function saveVitalSample(
       userBaselineService
         .checkAndNotifySignificantDeviations(userId)
         .catch((err) => {
-          console.warn('[vitalSync] checkAndNotifySignificantDeviations failed:', err);
+          console.warn('[vitalSync] checkAndNotifySignificantDeviations failed:', err instanceof Error ? err.message : String(err));
         });
     })
     .catch((err) => {
-      console.warn('[vitalSync] Failed to import userBaselineService:', err);
+      console.warn('[vitalSync] Failed to import userBaselineService:', err instanceof Error ? err.message : String(err));
     });
 }
 
@@ -321,7 +321,7 @@ async function evaluateAndCreateHealthEventIfNeeded(
           },
         });
       } catch (err: unknown) {
-        console.warn('[vitalSyncService] health event creation failed (non-blocking):', err);
+        console.warn('[vitalSyncService] health event creation failed (non-blocking):', err instanceof Error ? err.message : String(err));
       }
 
       const user = await userService.getUser(userId);
@@ -777,7 +777,7 @@ export async function getLatestGlucoseReading(userId: string): Promise<{
 
     return null;
   } catch (err: unknown) {
-    console.warn('[vitalSync] getLatestGlucoseReading failed:', err);
+    console.warn('[vitalSync] getLatestGlucoseReading failed:', err instanceof Error ? err.message : String(err));
     return null;
   }
 }

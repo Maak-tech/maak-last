@@ -97,7 +97,7 @@ class ClinicalNotesService {
       const rows = await api.get<NoteApiRecord[]>(`/api/notes${qs ? `?${qs}` : ""}`);
       return (Array.isArray(rows) ? rows : []).map(mapNote);
     } catch (err: unknown) {
-      console.warn('[clinicalNotes] listNotes failed:', err);
+      console.warn('[clinicalNotes] listNotes failed:', err instanceof Error ? err.message : String(err));
       return [];
     }
   }
@@ -108,7 +108,7 @@ class ClinicalNotesService {
       const raw = await api.get<NoteApiRecord>(`/api/notes/${noteId}`);
       return raw ? mapNote(raw) : null;
     } catch (err: unknown) {
-      console.warn('[clinicalNotes] getNote failed:', err);
+      console.warn('[clinicalNotes] getNote failed:', err instanceof Error ? err.message : String(err));
       return null;
     }
   }
@@ -216,7 +216,7 @@ class ClinicalNotesService {
         signal: AbortSignal.timeout(60_000),
       });
     } catch (err: unknown) {
-      console.warn("[clinicalNotesService] PDF upload failed:", err);
+      console.warn("[clinicalNotesService] PDF upload failed:", err instanceof Error ? err.message : String(err));
       return note;
     }
 

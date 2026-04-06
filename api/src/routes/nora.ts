@@ -129,7 +129,7 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
         })
         .catch((err: unknown) => {
           // Log with context so errors are actionable in Railway logs
-          console.error(`[nora] Failed to persist conversation ${conversationId} for user ${userId}:`, err)
+          console.error(`[nora] Failed to persist conversation ${conversationId}:`, err instanceof Error ? err.message : String(err));
         });
 
       return { reply, conversationId };
@@ -138,7 +138,7 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
       body: t.Object({
         // Cap message length to prevent runaway token costs (≈ 500 words)
         message: t.String({ minLength: 1, maxLength: 2000 }),
-        conversationId: t.Optional(t.String()),
+        conversationId: t.Optional(t.String({ maxLength: 36 })),
         // Cap history depth — older turns are less useful and inflate token usage
         history: t.Optional(
           t.Array(
@@ -201,7 +201,7 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
       return conv;
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["nora"], summary: "Get a specific Nora conversation" },
     }
   )
@@ -227,7 +227,7 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
       return { ok: true };
     },
     {
-      params: t.Object({ id: t.String() }),
+      params: t.Object({ id: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["nora"], summary: "Delete a Nora conversation" },
     }
   )
@@ -564,7 +564,8 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
           set.status = 429;
           return { error: "AI quota exceeded. Please try again in a moment." };
         }
-        console.error("[nora/realtime-session] OpenAI error:", response.status, err);
+        // Truncate OpenAI error response — may echo back request context
+        console.error("[nora/realtime-session] OpenAI error:", response.status, String(err).slice(0, 200));
         set.status = 502;
         return { error: "Realtime service temporarily unavailable. Please try again." };
       }

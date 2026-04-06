@@ -36,7 +36,7 @@ export default function DebugNotificationsScreen() {
       setLastTest('Direct local notification sent');
       console.log('✅ Direct local notification sent');
     } catch (error: unknown) {
-      console.error('❌ Local notification failed:', error);
+      console.error('❌ Local notification failed:', error instanceof Error ? error.message : String(error));
       setLastTest(`Error: ${error}`);
     }
   };
@@ -53,7 +53,7 @@ export default function DebugNotificationsScreen() {
       setLastTest('Service notification sent');
       console.log('✅ Service notification sent');
     } catch (error: unknown) {
-      console.error('❌ Service notification failed:', error);
+      console.error('❌ Service notification failed:', error instanceof Error ? error.message : String(error));
       setLastTest(`Error: ${error}`);
     }
   };
@@ -70,7 +70,7 @@ export default function DebugNotificationsScreen() {
       setLastTest(`Fall alert created: ${alertId}`);
       console.log('✅ Fall alert created:', alertId);
     } catch (error: unknown) {
-      console.error('❌ Fall alert failed:', error);
+      console.error('❌ Fall alert failed:', error instanceof Error ? error.message : String(error));
       setLastTest(`Error: ${error}`);
     }
   };
@@ -82,7 +82,7 @@ export default function DebugNotificationsScreen() {
       setLastTest(`FCM Available: ${isAvailable}`);
       console.log('📱 FCM Available:', isAvailable);
     } catch (error: unknown) {
-      console.error('❌ FCM availability check failed:', error);
+      console.error('❌ FCM availability check failed:', error instanceof Error ? error.message : String(error));
       setLastTest(`Error: ${error}`);
     }
   };
@@ -96,10 +96,13 @@ export default function DebugNotificationsScreen() {
     try {
       console.log('📱 Testing FCM token...');
       const tokenResult = await fcmService.getFCMToken();
-      setLastTest(`FCM Token: ${JSON.stringify(tokenResult, null, 2)}`);
+      // Truncate the token to avoid storing the full device identifier in UI state
+      // (crash reporters may capture state snapshots).
+      const tokenStr = JSON.stringify(tokenResult, null, 2);
+      setLastTest(`FCM Token: ${tokenStr.slice(0, 80)}${tokenStr.length > 80 ? '…(truncated)' : ''}`);
       if (__DEV__) console.log('📱 FCM Token result:', tokenResult);
     } catch (error: unknown) {
-      console.error('❌ FCM token failed:', error);
+      console.error('❌ FCM token failed:', error instanceof Error ? error.message : String(error));
       setLastTest(`Error: ${error}`);
     }
   };
@@ -116,7 +119,7 @@ export default function DebugNotificationsScreen() {
       setLastTest(`FCM Initialized: ${success}`);
       console.log('📱 FCM Initialized:', success);
     } catch (error: unknown) {
-      console.error('❌ FCM initialization failed:', error);
+      console.error('❌ FCM initialization failed:', error instanceof Error ? error.message : String(error));
       setLastTest(`Error: ${error}`);
     }
   };
@@ -137,7 +140,7 @@ export default function DebugNotificationsScreen() {
         );
       }
     } catch (error: unknown) {
-      console.error('❌ Permission check failed:', error);
+      console.error('❌ Permission check failed:', error instanceof Error ? error.message : String(error));
       setLastTest(`Error: ${error}`);
     }
   };

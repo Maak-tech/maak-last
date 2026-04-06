@@ -284,7 +284,7 @@ class SmartNotificationService {
       const user = await userService.getUser(userId);
       return user?.preferences?.notifications ?? null;
     } catch (err: unknown) {
-      console.warn('[smartNotification] getUserNotificationSettings failed:', err);
+      console.warn('[smartNotification] getUserNotificationSettings failed:', err instanceof Error ? err.message : String(err));
       return null;
     }
   }
@@ -937,11 +937,11 @@ class SmartNotificationService {
         try {
           await Notifications.cancelScheduledNotificationAsync(id);
         } catch (err: unknown) {
-          console.warn('[smartNotification] cancelScheduledNotificationAsync failed for id', id, err);
+          console.warn('[smartNotification] cancelScheduledNotificationAsync failed for id', id, err instanceof Error ? err.message : String(err));
         }
       }
     } catch (err: unknown) {
-      console.warn('[smartNotification] clearScheduledNotifications failed:', err);
+      console.warn('[smartNotification] clearScheduledNotifications failed:', err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -3183,7 +3183,7 @@ class SmartNotificationService {
       // Limit to prevent notification overload (max 5 per day)
       return notifications.slice(0, 5);
     } catch (err: unknown) {
-      console.warn('[smartNotification] generateDailyInteractiveNotifications failed:', err);
+      console.warn('[smartNotification] generateDailyInteractiveNotifications failed:', err instanceof Error ? err.message : String(err));
       return [];
     }
   }
@@ -3231,7 +3231,7 @@ class SmartNotificationService {
         achievements,
       };
     } catch (err: unknown) {
-      console.warn('[smartNotification] getUserStats failed:', err);
+      console.warn('[smartNotification] getUserStats failed:', err instanceof Error ? err.message : String(err));
       // Return default stats for new users (0 days inactive, no activity yet)
       return {
         currentStreak: 0,
@@ -3657,7 +3657,7 @@ class SmartNotificationService {
       const user = await userService.getUser(userId);
       return user?.role || "member";
     } catch (err: unknown) {
-      console.warn('[smartNotification] getUserRole failed:', err);
+      console.warn('[smartNotification] getUserRole failed:', err instanceof Error ? err.message : String(err));
       return "member";
     }
   }
@@ -3772,7 +3772,7 @@ class SmartNotificationService {
         limitCount: 300,
       });
     } catch (err: unknown) {
-      console.warn('[smartNotification] getRecentMedicationEvents failed:', err);
+      console.warn('[smartNotification] getRecentMedicationEvents failed:', err instanceof Error ? err.message : String(err));
       return [];
     }
   }
@@ -3785,7 +3785,7 @@ class SmartNotificationService {
       const { symptomService } = await import("./symptomService");
       return await symptomService.getUserSymptoms(userId, 30) as unknown as Record<string, unknown>[]; // Last 30 days
     } catch (err: unknown) {
-      console.warn('[smartNotification] getUserSymptoms failed:', err);
+      console.warn('[smartNotification] getUserSymptoms failed:', err instanceof Error ? err.message : String(err));
       return [];
     }
   }
@@ -3796,7 +3796,7 @@ class SmartNotificationService {
       const { medicationService } = await import("./medicationService");
       return await medicationService.getUserMedications(userId);
     } catch (err: unknown) {
-      console.warn('[smartNotification] getUserMedications failed:', err);
+      console.warn('[smartNotification] getUserMedications failed:', err instanceof Error ? err.message : String(err));
       return [];
     }
   }
@@ -3809,7 +3809,7 @@ class SmartNotificationService {
       const { moodService } = await import("./moodService");
       return await moodService.getUserMoods(userId, 30) as unknown as Record<string, unknown>[]; // Last 30 days
     } catch (err: unknown) {
-      console.warn('[smartNotification] getUserMoods failed:', err);
+      console.warn('[smartNotification] getUserMoods failed:', err instanceof Error ? err.message : String(err));
       return [];
     }
   }
@@ -4322,7 +4322,7 @@ class SmartNotificationService {
         });
       });
     } catch (err: unknown) {
-      console.warn('[smartNotification] generateFamilyHealthUpdates failed:', err);
+      console.warn('[smartNotification] generateFamilyHealthUpdates failed:', err instanceof Error ? err.message : String(err));
     }
 
     return notifications;
@@ -4445,7 +4445,7 @@ class SmartNotificationService {
         });
       }
     } catch (err: unknown) {
-      console.warn('[smartNotification] generateCaregiverCoordinationAlerts failed:', err);
+      console.warn('[smartNotification] generateCaregiverCoordinationAlerts failed:', err instanceof Error ? err.message : String(err));
     }
 
     return notifications;

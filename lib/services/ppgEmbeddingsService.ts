@@ -93,7 +93,7 @@ export const ppgEmbeddingsService = {
         capturedAt: new Date().toISOString(),
       })
       .catch((err: unknown) => {
-        console.warn('[ppgEmbeddings] Failed to persist embedding:', err);
+        console.warn('[ppgEmbeddings] Failed to persist embedding:', err instanceof Error ? err.message : String(err));
       });
   },
 
@@ -162,7 +162,7 @@ export const ppgEmbeddingsService = {
         baselineCount: baselineVectors.length,
       };
     } catch (err: unknown) {
-      console.warn('[ppgEmbeddings] compareWithBaseline failed:', err);
+      console.warn('[ppgEmbeddings] compareWithBaseline failed:', err instanceof Error ? err.message : String(err));
       return null;
     }
   },

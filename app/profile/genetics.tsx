@@ -103,7 +103,7 @@ export default function GeneticsScreen() {
       }
       return false;
     } catch (err: unknown) {
-      logger.error("[genetics] Failed to load profile:", err);
+      logger.error("[genetics] Failed to load profile:", err instanceof Error ? err.message : String(err));
       return false;
     }
   }, []);
@@ -127,7 +127,7 @@ export default function GeneticsScreen() {
                   }
                 })
                 .catch((err) => {
-                  console.warn('[genetics] Polling loadProfile failed:', err);
+                  console.warn('[genetics] Polling loadProfile failed:', err instanceof Error ? err.message : String(err));
                   if (intervalId) {
                     clearInterval(intervalId);
                     intervalId = null;
@@ -139,7 +139,7 @@ export default function GeneticsScreen() {
       } catch (err: unknown) {
         // loadProfile() catches internally and returns false — this guard handles any
         // unexpected throw (e.g. from setGeneticsProfile itself).
-        console.warn('[genetics] Initial load threw unexpectedly:', err);
+        console.warn('[genetics] Initial load threw unexpectedly:', err instanceof Error ? err.message : String(err));
       } finally {
         if (mounted) setLoading(false);
       }
@@ -180,7 +180,7 @@ export default function GeneticsScreen() {
               await geneticsService.updateConsent(next);
               setProfile((p) => p ? { ...p, familySharingConsent: next } : p);
             } catch (err: unknown) {
-              console.warn('[genetics] Failed to update consent:', err);
+              console.warn('[genetics] Failed to update consent:', err instanceof Error ? err.message : String(err));
               Alert.alert(isRTL ? "خطأ" : "Error", isRTL ? "تعذّر تحديث الإعداد" : "Failed to update preference");
             }
           },

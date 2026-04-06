@@ -28,7 +28,7 @@ export function useSubscription(): UseSubscriptionResult {
       const active = revenueCatService.isSubscribed(info);
       setSubscriptionState(active ? "active" : "none");
     } catch (err) {
-      console.warn('[useSubscription] Failed to load subscription status:', err);
+      console.warn('[useSubscription] Failed to load subscription status:', err instanceof Error ? err.message : String(err));
       setSubscriptionState("none");
       setSubscriptionStatus(null);
     } finally {

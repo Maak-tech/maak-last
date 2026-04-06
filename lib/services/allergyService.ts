@@ -114,7 +114,7 @@ export const allergyService = {
         })
         .slice(0, limitCount);
     } catch (err: unknown) {
-      console.warn('[allergy] getUserAllergies API failed, falling back to offline cache:', err);
+      console.warn('[allergy] getUserAllergies API failed, falling back to offline cache:', err instanceof Error ? err.message : String(err));
       if (isOnline) {
         const cachedAllergies = await offlineService.getOfflineCollection<Allergy>("allergies");
         return cachedAllergies

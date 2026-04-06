@@ -64,7 +64,7 @@ function acquireLock(): boolean {
     fs.writeFileSync(LOCK_FILE, String(process.pid));
     return true;
   } catch (err: unknown) {
-    console.warn("[vhiCycle] Failed to acquire lock file — proceeding without guard:", err);
+    console.warn("[vhiCycle] Failed to acquire lock file — proceeding without guard:", err instanceof Error ? err.message : String(err));
     return true; // Non-fatal: proceed if file I/O fails
   }
 }
@@ -73,7 +73,7 @@ function releaseLock(): void {
   try {
     if (fs.existsSync(LOCK_FILE)) fs.unlinkSync(LOCK_FILE);
   } catch (err: unknown) {
-    console.warn("[vhiCycle] Failed to release lock file:", err);
+    console.warn("[vhiCycle] Failed to release lock file:", err instanceof Error ? err.message : String(err));
   }
 }
 
@@ -195,7 +195,7 @@ export async function processUser(userId: string) {
     geneticsData != null;
 
   if (!hasSomeData) {
-    console.log(`[vhiCycle] Skipping user ${userId} — no health data yet`);
+    console.log(`[vhiCycle] Skipping user ${userId.slice(0, 8)}… — no health data yet`);
     return;
   }
 
@@ -434,8 +434,8 @@ export async function processUser(userId: string) {
 
   // Trigger forecast cycle asynchronously when risk is elevated
   if (compositeRisk >= 60) {
-    runForecastCycle(userId).catch((err) =>
-      console.error(`[vhiCycle] forecastCycle failed for ${userId}:`, err)
+    runForecastCycle(userId).catch((err: unknown) =>
+      console.error(`[vhiCycle] forecastCycle failed for ${userId}:`, err instanceof Error ? err.message : String(err))
     );
   }
 
@@ -459,10 +459,10 @@ export async function processUser(userId: string) {
       riskLevel:
         compositeRisk >= RISK_HIGH ? "high" : compositeRisk >= RISK_MODERATE ? "moderate" : "low",
       trajectory: vhiData.currentState.riskScores.trajectory,
-    }).catch((err) => console.error(`[vhiCycle] Webhook dispatch failed for ${userId}:`, err)),
+    }).catch((err: unknown) => console.error(`[vhiCycle] Webhook dispatch failed for ${userId}:`, err instanceof Error ? err.message : String(err))),
 
     dispatchPushAlerts(userId, compositeRisk, vhiData.decliningFactors[0]?.factor ?? null).catch(
-      (err) => console.error(`[vhiCycle] Push alert dispatch failed for ${userId}:`, err)
+      (err: unknown) => console.error(`[vhiCycle] Push alert dispatch failed for ${userId}:`, err instanceof Error ? err.message : String(err))
     ),
   ];
 
@@ -473,8 +473,8 @@ export async function processUser(userId: string) {
         compositeRisk,
         riskLevel: "high",
         topDecliningFactor: vhiData.decliningFactors[0]?.factor ?? null,
-      }).catch((err) =>
-        console.error(`[vhiCycle] Risk-elevated webhook failed for ${userId}:`, err)
+      }).catch((err: unknown) =>
+        console.error(`[vhiCycle] Risk-elevated webhook failed for ${userId}:`, err instanceof Error ? err.message : String(err))
       )
     );
   }
@@ -485,8 +485,8 @@ export async function processUser(userId: string) {
       dispatchWebhookEvent("medication.missed", userId, {
         consecutiveMissed,
         adherenceRate: Math.round(adherenceRate * 100),
-      }).catch((err) =>
-        console.error(`[vhiCycle] medication.missed webhook failed for ${userId}:`, err)
+      }).catch((err: unknown) =>
+        console.error(`[vhiCycle] medication.missed webhook failed for ${userId}:`, err instanceof Error ? err.message : String(err))
       )
     );
   }
@@ -888,7 +888,7 @@ if (import.meta.main) {
   runVhiCycle()
     .then(() => process.exit(0))
     .catch((err) => {
-      console.error("[vhiCycle] Fatal error:", err);
+      console.error("[vhiCycle] Fatal error:", err instanceof Error ? err.message : String(err));
       releaseLock();
       process.exit(1);
     });
