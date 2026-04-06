@@ -27,6 +27,27 @@ import { consentRoutes } from "./routes/consent";
 import { integrationRoutes } from "./routes/integrations";
 import { searchRoutes } from "./routes/search";
 import { medicationRoutes } from "./routes/medications";
+import { featureFlagRoutes } from "./routes/featureFlags";
+
+// ── Startup environment validation ─────────────────────────────────────────────
+// Fail fast at boot rather than serving requests that silently fail because a
+// secret or connection string is missing. Required vars are the minimal set
+// whose absence guarantees a broken API — optional integrations (Tigris, Twilio,
+// ML service) are allowed to be absent and gracefully degraded by their callers.
+const REQUIRED_ENV_VARS = [
+  "DATABASE_URL",     // Neon Postgres connection string
+  "BETTER_AUTH_SECRET", // better-auth session signing key
+  "JWT_SECRET",       // hospital staff JWT signing key
+] as const;
+
+const missingEnvVars = REQUIRED_ENV_VARS.filter((key) => !process.env[key]);
+if (missingEnvVars.length > 0) {
+  console.error(
+    `[startup] Missing required environment variables: ${missingEnvVars.join(", ")}\n` +
+    `         Copy .env.example to .env and fill in the values before starting the server.`
+  );
+  process.exit(1);
+}
 
 // parseInt with radix 10; fall back to 3000 if PORT is unset or non-numeric.
 // Number(process.env.PORT) would silently produce NaN for strings like "auto".
@@ -86,7 +107,35 @@ const app = new Elysia()
   // Inject db into context for all routes
   .decorate("db", db)
   // Liveness probe — returns ok even if DB is down (keeps the process running)
-  .get("/health", () => ({ status: "ok", timestamp: new Date().toISOString() }))
+  .get("/health", async ({ db, query }) => {
+    const result: Record<string, unknown> = {
+      status: "ok",
+      timestamp: new Date().toISOString(),
+    };
+    // ?jobs=true — include cron job heartbeat status for monitoring dashboards
+    if (query.jobs === "true") {
+      try {
+        const { jobHeartbeats } = await import("./db/schema");
+        const rows = await db.select().from(jobHeartbeats);
+        const now = Date.now();
+        result.jobs = rows.map((r) => {
+          const msSinceRun = now - r.lastRunAt.getTime();
+          const expectedMs = r.expectedIntervalSeconds * 1000;
+          return {
+            name: r.jobName,
+            status: r.status,
+            lastRunAt: r.lastRunAt.toISOString(),
+            minutesAgo: Math.round(msSinceRun / 60_000),
+            healthy: msSinceRun < expectedMs * 2,
+            runCount: r.runCount,
+          };
+        });
+      } catch {
+        result.jobs = "unavailable";
+      }
+    }
+    return result;
+  })
   // Readiness probe — verifies DB connectivity before Railway routes traffic here.
   // Returns 503 if the database is unreachable so the load balancer can failover.
   .get("/ready", async ({ db, set }) => {
@@ -125,6 +174,7 @@ const app = new Elysia()
   .use(integrationRoutes)
   .use(searchRoutes)
   .use(medicationRoutes)
+  .use(featureFlagRoutes)
   // Global error handler
   .onError(({ code, error, set }) => {
     if (code === "NOT_FOUND") {
@@ -143,5 +193,25 @@ const app = new Elysia()
 
 console.info(`Nuralix API running on http://localhost:${PORT}`);
 if (!IS_PROD) console.info(`Docs: http://localhost:${PORT}/swagger`);
+
+// ── Graceful shutdown ──────────────────────────────────────────────────────────
+// Railway sends SIGTERM before forcibly killing the process.
+// Elysia's .stop() closes the HTTP server so in-flight requests can drain
+// before the process exits.  Without this, Railway's rolling deployments would
+// drop active connections instantly on every deploy.
+function shutdown(signal: string) {
+  console.info(`[shutdown] Received ${signal} — stopping server…`);
+  app.stop();
+  // Give in-flight requests up to 10 s to complete, then exit.
+  // Bun does not yet expose a "drain completed" callback on the HTTP server,
+  // so a fixed timeout is the current best practice.
+  setTimeout(() => {
+    console.info("[shutdown] Graceful timeout reached — exiting.");
+    process.exit(0);
+  }, 10_000).unref();
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT",  () => shutdown("SIGINT"));
 
 export type App = typeof app;

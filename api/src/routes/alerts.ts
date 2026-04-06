@@ -17,7 +17,7 @@
  */
 
 import { Elysia, t } from "elysia";
-import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import crypto from "node:crypto";
 import { requireAuth } from "../middleware/requireAuth";
 import { alerts, familyMembers } from "../db/schema";
@@ -117,7 +117,10 @@ export const alertsRoutes = new Elysia({ prefix: "/api/alerts" })
             isNull(alerts.resolvedAt)
           )
         )
-        .orderBy(desc(alerts.createdAt));
+        .orderBy(desc(alerts.createdAt))
+        // Cap at 200 — an unbounded query would return every unresolved alert
+        // ever written for a user if the resolved_at column was never set.
+        .limit(200);
       return rows.map(toEmergencyAlert);
     },
     { detail: { tags: ["alerts"], summary: "Get active (unresolved) alerts for current user" } }
@@ -127,8 +130,10 @@ export const alertsRoutes = new Elysia({ prefix: "/api/alerts" })
   .get(
     "/active/count",
     async ({ db, userId }) => {
-      const rows = await db
-        .select({ id: alerts.id })
+      // Use SQL COUNT(*) — avoids fetching all rows to count them client-side,
+      // which would be O(n) in data transfer for users with many alerts.
+      const [{ value }] = await db
+        .select({ value: count() })
         .from(alerts)
         .where(
           and(
@@ -137,7 +142,7 @@ export const alertsRoutes = new Elysia({ prefix: "/api/alerts" })
             isNull(alerts.resolvedAt)
           )
         );
-      return { count: rows.length };
+      return { count: value };
     },
     { detail: { tags: ["alerts"], summary: "Count of active alerts for current user" } }
   )

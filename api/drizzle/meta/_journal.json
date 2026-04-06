@@ -36,6 +36,13 @@
       "when": 1773856276738,
       "tag": "0004_cohort_members",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1743897600000,
+      "tag": "0005_security_hardening",
+      "breakpoints": true
     }
   ]
 }

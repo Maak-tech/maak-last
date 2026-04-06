@@ -1,41 +1,94 @@
 version: "3.9"
+
+# ── Network topology ───────────────────────────────────────────────────────────
+# Two isolated networks prevent lateral movement between the public-facing tier
+# and the internal data tier:
+#
+#   public    — web (Next.js) + server (Hono): only these two containers can
+#               receive inbound connections from outside Docker.
+#
+#   internal  — server + postgres + compreface: the database and face-recognition
+#               engine are reachable ONLY from the server container.  The web app
+#               and the host machine have no direct path to these services.
+#
+# Host-port bindings for postgres (5432) and compreface (8000) are intentionally
+# removed: binding them to the host would allow any process on the machine (or
+# any network peer that reaches the host) to query the DB or inference engine
+# directly, bypassing all application-layer authentication.
+#
+# To connect to postgres during development without exposing a port, use:
+#   docker compose exec postgres psql -U hospital hospital_db
+# ─────────────────────────────────────────────────────────────────────────────
+
+networks:
+  public:
+    driver: bridge
+  internal:
+    driver: bridge
+    internal: true   # blocks all traffic that originates outside Docker
+
 services:
   compreface:
     image: exadel/compreface:1.2.0
     environment:
-      POSTGRES_USER: compreface
-      POSTGRES_PASSWORD: compreface
+      # Use env vars — never hardcode DB credentials in source control.
+      # Copy .env.example to .env and fill in values before running.
+      POSTGRES_USER: ${COMPREFACE_DB_USER:-compreface}
+      POSTGRES_PASSWORD: ${COMPREFACE_DB_PASSWORD:?COMPREFACE_DB_PASSWORD is required}
       POSTGRES_DB: frs
-      SAVE_IMAGES_TO_DB: "false"
-    ports: ["8000:8000"]
+      SAVE_IMAGES_TO_DB: "false"   # HIPAA: embeddings only, no raw face images
+    # No host-port binding — compreface is only reachable from server via
+    # the internal network.  Expose port 8000 to the internal network only.
+    expose: ["8000"]
+    networks: [internal]
     volumes: ["compreface_data:/var/lib/postgresql/data"]
 
   postgres:
     image: postgres:16
     environment:
-      POSTGRES_USER: hospital
-      POSTGRES_PASSWORD: hospital
+      POSTGRES_USER: ${HOSPITAL_DB_USER:-hospital}
+      POSTGRES_PASSWORD: ${HOSPITAL_DB_PASSWORD:?HOSPITAL_DB_PASSWORD is required}
       POSTGRES_DB: hospital_db
-    ports: ["5432:5432"]
+    # No host-port binding — postgres is only reachable from server via
+    # the internal network.  Use `docker compose exec postgres psql` for admin.
+    expose: ["5432"]
+    networks: [internal]
     volumes: ["hospital_db_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${HOSPITAL_DB_USER:-hospital} -d hospital_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   server:
     build: ./server
     environment:
-      DATABASE_URL: postgres://hospital:hospital@postgres:5432/hospital_db
+      # DATABASE_URL embeds credentials via env vars — no literals in this file.
+      DATABASE_URL: postgres://${HOSPITAL_DB_USER:-hospital}:${HOSPITAL_DB_PASSWORD}@postgres:5432/hospital_db
       COMPREFACE_URL: http://compreface:8000
       COMPREFACE_API_KEY: ${COMPREFACE_API_KEY}
       JWT_SECRET: ${JWT_SECRET}
       DB_ENCRYPTION_KEY: ${DB_ENCRYPTION_KEY}
       PORT: 3001
     ports: ["3001:3001"]
-    depends_on: [compreface, postgres]
+    # Server sits on both networks: public (to receive requests from web/host)
+    # and internal (to reach postgres and compreface).
+    networks: [public, internal]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      compreface:
+        condition: service_started
 
   web:
     build: ./web
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:3001
     ports: ["3000:3000"]
+    # Web is public-only — it calls the server API over the public network.
+    # It has no route to postgres or compreface.
+    networks: [public]
     depends_on: [server]
 
 volumes:

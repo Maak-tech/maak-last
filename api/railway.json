@@ -31,6 +31,36 @@
       "schedule": "*/5 * * * *",
       "command": "bun run src/jobs/webhookRetryWorker.ts",
       "name": "Webhook retry worker (every 5 minutes)"
+    },
+    {
+      "schedule": "*/5 * * * *",
+      "command": "bun run src/jobs/escalationTimeoutJob.ts",
+      "name": "Escalation timeout checker (every 5 minutes)"
+    },
+    {
+      "schedule": "* * * * *",
+      "command": "bun run src/jobs/medicationReminderJob.ts",
+      "name": "Medication reminder delivery (every minute)"
+    },
+    {
+      "schedule": "0 7 * * *",
+      "command": "bun run src/jobs/caregiverDigestJob.ts",
+      "name": "Caregiver daily digest (daily 07:00 UTC)"
+    },
+    {
+      "schedule": "0 */4 * * *",
+      "command": "bun run src/jobs/wearableStalenessJob.ts",
+      "name": "Wearable staleness detection (every 4 hours)"
+    },
+    {
+      "schedule": "*/5 * * * *",
+      "command": "bun run src/jobs/jobHeartbeatJob.ts",
+      "name": "Job heartbeat monitor (every 5 minutes)"
+    },
+    {
+      "schedule": "0 3 * * 0",
+      "command": "bun run src/jobs/pushTokenCleanupJob.ts",
+      "name": "Push token cleanup (weekly Sunday 03:00 UTC)"
     }
   ]
 }

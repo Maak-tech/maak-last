@@ -1,9 +1,27 @@
 import { Elysia, t } from "elysia";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import crypto from "node:crypto";
 import { requireAuth } from "../middleware/requireAuth";
-import { vhi, noraConversations } from "../db/schema";
+import { vhi, noraConversations, vitals, symptoms, moods, medications } from "../db/schema";
 import { chatRateLimiter, completionRateLimiter, realtimeSessionRateLimiter, transcribeRateLimiter } from "../lib/rateLimiter";
+import type { Database } from "../db";
+
+/**
+ * Returns true when the user has at least one health data point in any of the
+ * core tables (vitals, symptoms, moods, medications).  Used to gate Nora from
+ * giving health-specific advice before the user has connected any data source.
+ *
+ * Checks four tables in parallel — we only need at least one row in any table.
+ */
+async function userHasHealthData(db: Database, userId: string): Promise<boolean> {
+  const [v, s, m, med] = await Promise.all([
+    db.select({ id: vitals.id }).from(vitals).where(eq(vitals.userId, userId)).limit(1),
+    db.select({ id: symptoms.id }).from(symptoms).where(eq(symptoms.userId, userId)).limit(1),
+    db.select({ id: moods.id }).from(moods).where(eq(moods.userId, userId)).limit(1),
+    db.select({ id: medications.id }).from(medications).where(eq(medications.userId, userId)).limit(1),
+  ]);
+  return v.length > 0 || s.length > 0 || m.length > 0 || med.length > 0;
+}
 
 export const noraRoutes = new Elysia({ prefix: "/api/nora" })
   .use(requireAuth)
@@ -33,20 +51,51 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
         return { error: "Too many requests. Please wait before sending another message.", retryAfter: retryAfterSecs };
       }
 
-      // Fetch current VHI context
-      const [userVhi] = await db.select().from(vhi).where(eq(vhi.userId, userId)).limit(1);
+      // Fetch current VHI context and check whether the user has any health data
+      const [[userVhi], hasData] = await Promise.all([
+        db.select().from(vhi).where(eq(vhi.userId, userId)).limit(1),
+        userHasHealthData(db, userId),
+      ]);
       const vhiContext = userVhi?.data?.noraContextBlock ?? "";
 
-      // Build system prompt with VHI context
+      // Build system prompt with VHI context.
+      // If the user has not yet logged any health data, Nora switches to an
+      // onboarding-guide mode: she can answer general health questions but
+      // MUST NOT reference the user's personal health numbers, trends, or risks
+      // (since there are none yet — any attempt would hallucinate data).
+      const noDataPreamble = !hasData
+        ? [
+            "",
+            "## IMPORTANT: No health data connected yet",
+            "This user has not yet logged any health data (no vitals, symptoms, moods, or medications).",
+            "Do NOT make up or infer any personal health numbers, trends, risk scores, or baselines.",
+            "Instead, warmly welcome them and guide them to connect their first data source:",
+            "  1. Log a vital (blood pressure, heart rate, weight) using the '+' button",
+            "  2. Connect Apple Health or Google Health Connect in Settings → Integrations",
+            "  3. Add a medication or symptom to get started",
+            "You MAY answer general health education questions. You MUST NOT give personalised health advice without data.",
+          ].join("\n")
+        : "";
+
       const systemPrompt = [
         "You are Nora, Nuralix's AI health assistant.",
         "You help users understand their Virtual Health Identity — what's helping their health and what's hurting it.",
         "You explain health signals in plain language, connect patterns to their personal baseline, and guide them to the right next step.",
         "You do not diagnose. You explain, support, and guide.",
         "",
+        "## Safety Rules — NEVER violate these",
+        "1. NEVER tell a user to stop, skip, reduce, or change the dose of any medication — always say 'please speak with your doctor or pharmacist before making any changes to your medication.'",
+        "2. NEVER recommend a specific medication, supplement, or treatment to a user.",
+        "3. NEVER interpret a lab result, vital, or symptom as a definitive diagnosis — you can describe what is above/below their baseline, but you must NOT say 'this means you have [condition]'.",
+        "4. If a user asks whether they should stop or change a medication, respond with: 'I can't advise on medication changes — please contact your doctor or pharmacist directly. If this is urgent, call emergency services.'",
+        "5. If a user expresses thoughts of self-harm or suicide, respond immediately with: 'I'm concerned about what you've shared. Please reach out to a crisis helpline right now — in the US call or text 988, or go to your nearest emergency room. I'm here with you.'",
+        "6. NEVER provide specific dosage information or suggest that a dose is safe or unsafe.",
+        "7. If you are unsure whether something is safe to say, default to: 'I'd recommend discussing this with your healthcare provider to make sure you get the right guidance for your situation.'",
+        "8. You may explain what a lab value or vital trend means in general terms (e.g. 'your heart rate has been trending above your personal baseline'), but always add that a clinician should interpret any significant change.",
+        noDataPreamble,
         vhiContext
           ? `## Virtual Health Identity\n${vhiContext}`
-          : "No VHI data available yet. Ask the user to log some health data first.",
+          : (!hasData ? "" : "No VHI data available yet. Ask the user to log some health data first."),
       ].join("\n");
 
       // Call OpenAI
@@ -104,7 +153,7 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
       const conversationId = body.conversationId ?? crypto.randomUUID();
       const now = new Date().toISOString();
 
-      const fullMessages = [
+      const rawMessages = [
         ...(body.history ?? []).map((m: { role: string; content: string }) => ({
           role: m.role as "user" | "assistant" | "system",
           content: m.content,
@@ -113,6 +162,14 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
         { role: "user" as const, content: body.message, timestamp: now },
         { role: "assistant" as const, content: reply, timestamp: now },
       ];
+
+      // Truncate to the last 100 messages before persisting.
+      // A conversation of 5000+ messages would write megabytes to Neon on every turn.
+      // 100 messages ≈ 50 back-and-forth exchanges — more than enough context for Nora.
+      const MAX_STORED_MESSAGES = 100;
+      const fullMessages = rawMessages.length > MAX_STORED_MESSAGES
+        ? rawMessages.slice(rawMessages.length - MAX_STORED_MESSAGES)
+        : rawMessages;
 
       // Persist conversation non-blocking — the reply is already returned to the
       // client; a persistence failure should not degrade the chat experience.
@@ -155,30 +212,34 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
     }
   )
 
-  // Get conversation history (returns id, title, createdAt, updatedAt, messageCount, preview)
+  // Get conversation history (returns id, title, createdAt, updatedAt, messageCount)
+  // Selects only metadata columns — never loads the full messages JSONB blob.
+  // For conversations with hundreds of messages, loading the full blob on a list
+  // endpoint would transfer megabytes of data just to render a sidebar.
   .get(
     "/conversations",
     async ({ db, userId }) => {
       const rows = await db
-        .select()
+        .select({
+          id: noraConversations.id,
+          title: noraConversations.title,
+          createdAt: noraConversations.createdAt,
+          updatedAt: noraConversations.updatedAt,
+          // SQL array length avoids deserializing the full JSONB to JS
+          messageCount: sql<number>`coalesce(jsonb_array_length(${noraConversations.messages}), 0)`,
+        })
         .from(noraConversations)
         .where(eq(noraConversations.userId, userId))
         .orderBy(desc(noraConversations.updatedAt))
         .limit(20);
 
-      return rows.map((row) => {
-        const msgs = Array.isArray(row.messages) ? row.messages : [];
-        const userMessages = msgs.filter((m) => m.role === "user");
-        const firstUserContent = userMessages[0]?.content ?? "";
-        return {
-          id: row.id,
-          title: row.title ?? firstUserContent.slice(0, 40) || "New Chat",
-          createdAt: row.createdAt,
-          updatedAt: row.updatedAt,
-          messageCount: msgs.length,
-          preview: firstUserContent.slice(0, 100),
-        };
-      });
+      return rows.map((row) => ({
+        id: row.id,
+        title: row.title ?? "New Chat",
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        messageCount: row.messageCount,
+      }));
     },
     { detail: { tags: ["nora"], summary: "Get Nora conversation history" } }
   )

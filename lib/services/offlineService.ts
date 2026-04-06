@@ -555,33 +555,16 @@ class OfflineService {
       await this.removeOperationFromQueue(operation.id);
       return true;
     } catch (error: unknown) {
-      const errorDetails: {
-        operationId: string;
-        retries: number;
-        operationType: "create" | "update" | "delete";
-        collection: string;
-        errorMessage: string;
-        errorStack?: string;
-        operationDataPreview?: unknown;
-        operationDataError?: string;
-      } = {
+      // Log only non-PHI operation metadata — never log body or data fields.
+      const errorDetails = {
         operationId: operation.id,
-        retries: operation.retries,
-        operationType: operation.type,
         collection: operation.collection,
+        operationType: operation.type,
+        retries: operation.retries,
         errorMessage: error instanceof Error ? error.message : String(error),
-        errorStack: error instanceof Error ? error.stack : undefined,
       };
 
-      try {
-        const dataPreview = { ...operation.data };
-        if (dataPreview.description) {
-          dataPreview.description = (dataPreview.description as string).substring(0, 50);
-        }
-        errorDetails.operationDataPreview = dataPreview;
-      } catch {
-        errorDetails.operationDataError = "Could not serialize operation data";
-      }
+      console.warn('[offline] syncOperation failed:', errorDetails);
 
       operation.retries += 1;
       if (operation.retries < 5) {

@@ -28,6 +28,51 @@ export interface PushMessage {
   priority?: "default" | "normal" | "high";
 }
 
+// ── Quiet hours ───────────────────────────────────────────────────────────────
+
+/**
+ * Returns true if now falls within the user's configured quiet hours.
+ * Quiet hours are stored in the user's preferences.notifications.quietHours:
+ *   { enabled: boolean, startHour: number (0-23), endHour: number (0-23), timezone: string }
+ *
+ * During quiet hours, low-priority pushes are suppressed.
+ * Critical and high-priority pushes bypass quiet hours entirely.
+ */
+async function isInQuietHours(userId: string, priority?: string): Promise<boolean> {
+  // Critical alerts always go through — never suppress emergency notifications
+  if (priority === 'high' || priority === 'critical') return false;
+
+  try {
+    // Import db lazily to avoid circular dependency
+    const { db } = await import('../db');
+    const { users } = await import('../db/schema');
+    const { eq } = await import('drizzle-orm');
+
+    const [user] = await db.select({ preferences: users.preferences }).from(users).where(eq(users.id, userId)).limit(1);
+    const quietHours = (user?.preferences as Record<string, unknown> | null)?.notifications as Record<string, unknown> | null;
+    const qh = quietHours?.quietHours as { enabled?: boolean; startHour?: number; endHour?: number; timezone?: string } | null;
+
+    if (!qh?.enabled) return false;
+
+    const tz = qh.timezone ?? 'UTC';
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: tz });
+    const currentHour = parseInt(formatter.format(now), 10);
+
+    const start = qh.startHour ?? 22;
+    const end = qh.endHour ?? 7;
+
+    if (start <= end) {
+      return currentHour >= start && currentHour < end;
+    } else {
+      // Overnight window (e.g. 22:00 → 07:00)
+      return currentHour >= start || currentHour < end;
+    }
+  } catch {
+    return false; // On error, never suppress
+  }
+}
+
 // ── Core delivery ─────────────────────────────────────────────────────────────
 
 /**
@@ -36,6 +81,11 @@ export interface PushMessage {
  * (the same user may have multiple devices).
  */
 export async function pushToUser(userId: string, msg: PushMessage): Promise<void> {
+  if (await isInQuietHours(userId, msg.priority)) {
+    console.info(`[push] Suppressed notification for user ${userId} — quiet hours active`);
+    return;
+  }
+
   const tokens = await db
     .select({ token: pushTokens.token })
     .from(pushTokens)

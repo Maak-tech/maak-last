@@ -98,4 +98,14 @@ export const revenueCatService = {
   async restorePurchases(): Promise<CustomerInfo> {
     return await Purchases.restorePurchases();
   },
+
+  logout(): void {
+    try {
+      Purchases.logOut().catch((err: unknown) => {
+        console.warn('[revenueCat] logOut failed:', err instanceof Error ? err.message : String(err));
+      });
+    } catch {
+      // RevenueCat SDK not available in this build
+    }
+  },
 };

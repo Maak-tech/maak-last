@@ -1,9 +1,15 @@
 import { Elysia, t } from "elysia";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, lt } from "drizzle-orm";
 import crypto from "node:crypto";
 import { requireAuth } from "../middleware/requireAuth";
 import { pushTokens, notificationTemplates, familyMembers, orgMembers } from "../db/schema";
 import { pushSendRateLimiter, emailRateLimiter } from "../lib/rateLimiter";
+
+// Maximum active push tokens per user across all devices.
+// Protects against runaway token growth when users reinstall the app repeatedly.
+// If exceeded, the oldest tokens (by updatedAt) are deactivated — they likely
+// belong to devices where the app was uninstalled.
+const MAX_ACTIVE_TOKENS_PER_USER = 5;
 
 export const notificationRoutes = new Elysia({ prefix: "/api/notifications" })
   .use(requireAuth)
@@ -39,6 +45,25 @@ export const notificationRoutes = new Elysia({ prefix: "/api/notifications" })
           set: { userId, platform: body.platform, deviceId: body.deviceId, isActive: true, updatedAt: new Date() },
         })
         .returning();
+
+      // Enforce per-user token cap: deactivate oldest tokens if over the limit.
+      // Fetch all active token IDs sorted oldest-first; deactivate any beyond MAX.
+      const activeTokens = await db
+        .select({ id: pushTokens.id })
+        .from(pushTokens)
+        .where(and(eq(pushTokens.userId, userId), eq(pushTokens.isActive, true)))
+        .orderBy(asc(pushTokens.updatedAt))
+        .limit(MAX_ACTIVE_TOKENS_PER_USER + 10); // +10 buffer to deactivate all excess in one pass
+
+      if (activeTokens.length > MAX_ACTIVE_TOKENS_PER_USER) {
+        const toDeactivate = activeTokens
+          .slice(0, activeTokens.length - MAX_ACTIVE_TOKENS_PER_USER)
+          .map((r) => r.id);
+        await db
+          .update(pushTokens)
+          .set({ isActive: false })
+          .where(inArray(pushTokens.id, toDeactivate));
+      }
 
       return { ok: true, tokenId: created.id };
     },

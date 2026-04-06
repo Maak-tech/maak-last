@@ -32,6 +32,7 @@ export type WebhookEventName =
   | "genetics.processed"
   | "alert.triggered"
   | "alert.resolved"
+  | "alert.escalation_timeout"
   | "medication.missed"
   | "*";
 
@@ -151,12 +152,15 @@ async function deliverToEndpoint(
     lastError = err instanceof Error ? err.message : String(err);
   }
 
-  // Write delivery record to audit table (best-effort).
+  // Write delivery record to audit table.
   // On failure set nextRetryAt = now + 1 min so the retry worker picks it up.
+  // This MUST be awaited — without await the process could exit (or the caller
+  // could short-circuit) before the Promise resolves, silently dropping the
+  // delivery record and making the delivery permanently unretryable.
   const nextRetryAt = status === "failed" ? new Date(Date.now() + 60_000) : null;
 
-  db.insert(webhookDeliveries)
-    .values({
+  try {
+    await db.insert(webhookDeliveries).values({
       id: deliveryId,
       endpointId: hook.id,
       event,
@@ -170,10 +174,15 @@ async function deliverToEndpoint(
       lastError,
       nextRetryAt: nextRetryAt ?? undefined,
       deliveredAt: deliveredAt ?? undefined,
-    })
-    .catch((dbErr) =>
-      console.error("[webhookDispatcher] Failed to write delivery record:", dbErr)
+    });
+  } catch (dbErr: unknown) {
+    console.error(
+      "[webhookDispatcher] Failed to write delivery record for",
+      deliveryId,
+      "—",
+      dbErr instanceof Error ? dbErr.message : String(dbErr)
     );
+  }
 
   if (status === "failed") {
     console.warn(

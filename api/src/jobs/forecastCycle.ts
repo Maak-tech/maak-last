@@ -20,7 +20,7 @@ import {
   healthTimeline,
   type VirtualHealthIdentityData,
 } from "../db/schema";
-import { eq, gte, desc, and } from "drizzle-orm";
+import { eq, gte, desc, and, sql } from "drizzle-orm";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -98,20 +98,20 @@ async function runForecastCycle(targetUserId?: string) {
 
   try {
     // Select users who need forecasting.
-    // When a specific userId is provided (triggered from vhiCycle) filter at the DB level
-    // to avoid a full table scan that loads every user's VHI JSONB into memory.
-    const vhiQuery = db
-      .select({ userId: vhi.userId, data: vhi.data, computedAt: vhi.computedAt })
-      .from(vhi);
-
-    const allVhi = targetUserId
-      ? await vhiQuery.where(eq(vhi.userId, targetUserId))
-      : await vhiQuery;
-
-    const eligibleUsers = allVhi.filter((row) => {
-      const compositeRisk = row.data?.currentState?.riskScores?.compositeRisk ?? 0;
-      return compositeRisk >= COMPOSITE_RISK_THRESHOLD;
-    });
+    // Both branches filter at the DB level — no in-memory filtering of the full VHI JSONB.
+    // The SQL path uses a JSONB path expression cast to numeric; NULL values (no VHI yet)
+    // produce a NULL comparison result which PostgreSQL excludes, so they're safely skipped.
+    const eligibleUsers = targetUserId
+      ? await db
+          .select({ userId: vhi.userId, data: vhi.data, computedAt: vhi.computedAt })
+          .from(vhi)
+          .where(eq(vhi.userId, targetUserId))
+      : await db
+          .select({ userId: vhi.userId, data: vhi.data, computedAt: vhi.computedAt })
+          .from(vhi)
+          .where(
+            sql`(${vhi.data}->'currentState'->'riskScores'->>'compositeRisk')::numeric >= ${COMPOSITE_RISK_THRESHOLD}`
+          );
 
     console.log(
       `[forecastCycle] ${eligibleUsers.length} users above risk threshold (${COMPOSITE_RISK_THRESHOLD})`

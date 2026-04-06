@@ -27,6 +27,10 @@ function isInternalHost(url: string): boolean {
   } catch {
     return true; // unparseable → reject
   }
+  // Reject non-HTTP schemes (file://, data:, ftp://, javascript:, etc.).
+  // Only https: and http: are valid delivery targets. Any other scheme would
+  // either fail at the fetch layer or, worse, read local files (SSRF via file://).
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return true;
   const h = parsed.hostname.toLowerCase();
   // IPv4 loopback, private ranges, link-local (AWS metadata), and localhost
   return (
@@ -155,9 +159,13 @@ export const orgRoutes = new Elysia({ prefix: "/api/org" })
         .orderBy(desc(auditTrail.createdAt))
         .limit(Math.min(query.limit ?? 50, 500));
 
-      // Optional server-side action filter (comma-separated list)
+      // Optional server-side action filter (comma-separated list).
+      // slice(0, 100) caps the number of tokens regardless of the maxLength(256)
+      // schema constraint — defense-in-depth against large Set construction.
       if (query.actions) {
-        const actionSet = new Set(query.actions.split(",").map((s: string) => s.trim()));
+        const actionSet = new Set(
+          query.actions.split(",").slice(0, 100).map((s: string) => s.trim()).filter(Boolean)
+        );
         return rows.filter((r: { action: string }) => actionSet.has(r.action));
       }
 

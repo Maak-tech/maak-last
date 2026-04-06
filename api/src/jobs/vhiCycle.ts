@@ -87,23 +87,33 @@ export async function runVhiCycle() {
     const allUsers = await db.select({ id: users.id }).from(users);
     console.log(`[vhiCycle] Processing ${allUsers.length} users`);
 
-    const results = await Promise.allSettled(
-      allUsers.map(({ id }) => processUser(id))
-    );
-
-    const failed = results.filter((r) => r.status === "rejected");
-    if (failed.length > 0) {
-      console.error(`[vhiCycle] ${failed.length} users failed:`);
-      failed.forEach((r) => {
-        if (r.status === "rejected") {
+    // Process users in batches to avoid saturating the DB connection pool.
+    // Processing all users concurrently would open O(users) simultaneous Neon
+    // connections; 50 at a time keeps pool pressure predictable.
+    const BATCH_SIZE = 50;
+    let successCount = 0;
+    let failCount = 0;
+    for (let i = 0; i < allUsers.length; i += BATCH_SIZE) {
+      const batch = allUsers.slice(i, i + BATCH_SIZE);
+      const batchResults = await Promise.allSettled(
+        batch.map(({ id }) => processUser(id))
+      );
+      for (const r of batchResults) {
+        if (r.status === "fulfilled") {
+          successCount++;
+        } else {
+          failCount++;
           const reason: unknown = r.reason;
-          console.error("  ", reason instanceof Error ? reason.message : String(reason));
+          console.error(
+            `[vhiCycle] User failed:`,
+            reason instanceof Error ? reason.message : String(reason)
+          );
         }
-      });
+      }
     }
 
     console.log(
-      `[vhiCycle] Done. Success: ${results.length - failed.length}, Failed: ${failed.length}`
+      `[vhiCycle] Done. Success: ${successCount}, Failed: ${failCount}`
     );
   } finally {
     // Always release the lock — even if the DB query or Promise.allSettled throws.
@@ -161,8 +171,8 @@ export async function processUser(userId: string) {
           gte(medicationReminders.scheduledAt, windowStart)
         )
       ),
-    db.select().from(medicalHistory).where(eq(medicalHistory.userId, userId)),
-    db.select().from(allergies).where(eq(allergies.userId, userId)),
+    db.select().from(medicalHistory).where(eq(medicalHistory.userId, userId)).limit(100),
+    db.select().from(allergies).where(eq(allergies.userId, userId)).limit(100),
     db
       .select()
       .from(labResults)
@@ -355,6 +365,25 @@ export async function processUser(userId: string) {
 
   // ── WRITE phase ───────────────────────────────────────────────────────────────
 
+  // Read the previous VHI to compute trajectory direction.
+  // A change of ≥ 5 points is treated as meaningful — below that threshold
+  // normal measurement noise would produce spurious worsening/improving signals.
+  const [prevVhiRow] = await db
+    .select({ data: vhi.data })
+    .from(vhi)
+    .where(eq(vhi.userId, userId))
+    .limit(1);
+  const prevCompositeRisk =
+    prevVhiRow?.data?.currentState?.riskScores?.compositeRisk ?? null;
+  const trajectory: "worsening" | "stable" | "improving" =
+    prevCompositeRisk == null
+      ? "stable"
+      : compositeRisk > prevCompositeRisk + 5
+      ? "worsening"
+      : compositeRisk < prevCompositeRisk - 5
+      ? "improving"
+      : "stable";
+
   const baselineConfidence = Math.min(1, recentVitals.length / 42); // matures over 42 readings
   const vhiData = {
     baselineConfidence,
@@ -369,7 +398,7 @@ export async function processUser(userId: string) {
         deteriorationRisk: { score: deteriorationRisk, drivers: ["symptoms"], confidence: 0.6 },
         geneticRiskLoad: { score: geneticRiskLoad, drivers: ["genetics"], confidence: geneticsData ? 0.9 : 0 },
         compositeRisk,
-        trajectory: "stable" as const,
+        trajectory,
       },
     },
     careContext: {
@@ -406,6 +435,9 @@ export async function processUser(userId: string) {
     pendingActions: buildPendingActions({ compositeRisk, consecutiveMissed, fallCount }),
     recentActions: [],
     noraContextBlock,
+    // Carry forward lastNotificationAt so the cooldown check survives across VHI rewrites.
+    // It is updated below if a push is actually dispatched this cycle.
+    lastNotificationAt: (prevVhiRow?.data as Record<string, unknown> | null)?.lastNotificationAt ?? null,
   };
 
   // Wrap VHI upsert + timeline insert in a single transaction so both succeed or fail together.
@@ -461,9 +493,23 @@ export async function processUser(userId: string) {
       trajectory: vhiData.currentState.riskScores.trajectory,
     }).catch((err: unknown) => console.error(`[vhiCycle] Webhook dispatch failed for ${userId}:`, err instanceof Error ? err.message : String(err))),
 
-    dispatchPushAlerts(userId, compositeRisk, vhiData.decliningFactors[0]?.factor ?? null).catch(
-      (err: unknown) => console.error(`[vhiCycle] Push alert dispatch failed for ${userId}:`, err instanceof Error ? err.message : String(err))
-    ),
+    // Push notification cooldown: skip if a notification was sent within the last 4 hours.
+    // Without this guard, an elevated-risk user would receive a push every 15 minutes (each cron cycle).
+    // 4 hours = 14400000 ms.
+    (() => {
+      const PUSH_COOLDOWN_MS = 4 * 60 * 60 * 1000;
+      const lastAt = (vhiData as Record<string, unknown>).lastNotificationAt;
+      const lastMs = typeof lastAt === 'string' ? new Date(lastAt).getTime() : 0;
+      if (compositeRisk >= 60 && Date.now() - lastMs < PUSH_COOLDOWN_MS) {
+        return Promise.resolve(); // within cooldown window — skip
+      }
+      return dispatchPushAlerts(userId, compositeRisk, vhiData.decliningFactors[0]?.factor ?? null)
+        .then(() => {
+          // Update the stored timestamp so the next cycle sees the cooldown
+          (vhiData as Record<string, unknown>).lastNotificationAt = new Date().toISOString();
+        })
+        .catch((err: unknown) => console.error(`[vhiCycle] Push alert dispatch failed for ${userId}:`, err instanceof Error ? err.message : String(err)));
+    })(),
   ];
 
   // Fire a secondary, higher-priority event when risk crosses the high threshold
@@ -633,6 +679,19 @@ function buildPendingActions({
   return actions;
 }
 
+/**
+ * Sanitize a user-supplied string before embedding it in a GPT-4o prompt.
+ * Strips control characters and newlines (which could inject new prompt lines),
+ * and truncates to a maximum length to prevent unbounded context growth.
+ */
+function sanitizeForPrompt(value: string, maxLength = 120): string {
+  return value
+    .replace(/[\r\n\t\x00-\x1F\x7F]/g, ' ') // replace control chars with space
+    .replace(/\s{2,}/g, ' ')                  // collapse consecutive spaces
+    .trim()
+    .slice(0, maxLength);
+}
+
 function buildNoraContext({
   overallScore,
   compositeRisk,
@@ -693,10 +752,11 @@ function buildNoraContext({
   }
 
   if (activeMeds.length)
-    lines.push("", `Active Medications: ${activeMeds.map((m) => m.name).join(", ")}`);
+    // sanitizeForPrompt prevents a crafted medication name from injecting new prompt lines.
+    lines.push("", `Active Medications: ${activeMeds.map((m) => sanitizeForPrompt(m.name)).join(", ")}`);
 
   if (abnormalLabs.length)
-    lines.push("", `Abnormal Labs: ${abnormalLabs.map((l) => l.testName).join(", ")}`);
+    lines.push("", `Abnormal Labs: ${abnormalLabs.map((l) => sanitizeForPrompt(l.testName)).join(", ")}`);
 
   // NOTE: Do NOT append Nora persona instructions here — each consumer (nora.ts,
   // healthContextService.ts) already has its own Nora system prompt preamble.
@@ -886,10 +946,18 @@ type DecliningFactor = {
 
 if (import.meta.main) {
   runVhiCycle()
-    .then(() => process.exit(0))
-    .catch((err) => {
+    .then(async () => {
+      const { recordHeartbeat } = await import("../lib/heartbeat");
+      await recordHeartbeat("vhi-cycle", 15 * 60);
+      process.exit(0);
+    })
+    .catch(async (err) => {
       console.error("[vhiCycle] Fatal error:", err instanceof Error ? err.message : String(err));
       releaseLock();
+      try {
+        const { recordHeartbeatError } = await import("../lib/heartbeat");
+        await recordHeartbeatError("vhi-cycle", 15 * 60, err instanceof Error ? err.message : String(err));
+      } catch { /* ignore */ }
       process.exit(1);
     });
 }

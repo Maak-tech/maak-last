@@ -14,6 +14,24 @@ export interface StaffPayload {
   jti: string
 }
 
+/**
+ * Runtime shape guard for JWT payloads.
+ * jwt.verify() only validates the signature and expiry — it does NOT validate
+ * that the payload contains the fields our middleware requires. Without this
+ * guard, a token from a different service (or a manually crafted one) with a
+ * valid signature but missing staffId/role/jti would silently pass as StaffPayload.
+ */
+function isStaffPayload(p: unknown): p is StaffPayload {
+  if (typeof p !== 'object' || p === null) return false
+  const o = p as Record<string, unknown>
+  return (
+    typeof o.staffId === 'string' && o.staffId.length > 0 &&
+    typeof o.role === 'string' &&
+    ['doctor', 'nurse', 'admin', 'viewer'].includes(o.role as string) &&
+    typeof o.jti === 'string' && o.jti.length > 0
+  )
+}
+
 declare module 'hono' {
   interface ContextVariableMap {
     staff: StaffPayload
@@ -30,7 +48,12 @@ export async function jwtAuth(c: Context, next: Next) {
   try {
     // Specify the algorithm explicitly to prevent algorithm confusion attacks
     // (e.g. an attacker switching the header to 'none' or 'RS256').
-    const payload = jwt.verify(token, process.env.JWT_SECRET!, { algorithms: ['HS256'] }) as StaffPayload
+    const rawPayload = jwt.verify(token, process.env.JWT_SECRET!, { algorithms: ['HS256'] })
+
+    if (!isStaffPayload(rawPayload)) {
+      return c.json({ error: 'Invalid token format' }, 401)
+    }
+    const payload = rawPayload
 
     // Check token revocation list
     const revoked = await queryOne(

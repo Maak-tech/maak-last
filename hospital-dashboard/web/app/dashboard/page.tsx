@@ -36,7 +36,7 @@ export default function DashboardPage() {
       try {
         setStaff(JSON.parse(stored) as StaffInfo)
       } catch (err: unknown) {
-        console.warn('[Dashboard] Failed to parse stored staff info — clearing session:', err)
+        console.warn('[Dashboard] Failed to parse stored staff info — clearing session:', err instanceof Error ? err.message : String(err))
         sessionStorage.removeItem('hospital_staff')
         router.push('/login')
       }
@@ -116,7 +116,7 @@ export default function DashboardPage() {
       await api.logout()
     } catch (err: unknown) {
       // Logout API failure should not block the local session from being cleared
-      console.warn('[Dashboard] Logout API call failed (clearing local session anyway):', err)
+      console.warn('[Dashboard] Logout API call failed (clearing local session anyway):', err instanceof Error ? err.message : String(err))
     }
     clearToken()
     sessionStorage.removeItem('hospital_staff')

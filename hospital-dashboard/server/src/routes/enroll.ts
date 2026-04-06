@@ -127,10 +127,39 @@ enrollRoutes.delete('/enroll/:patientId', jwtAuth, requireRole('doctor', 'admin'
     console.error('[enroll] CompreFace deleteSubject failed (DB enrollment will still be deactivated):', err instanceof Error ? err.message : String(err))
   }
 
-  await query(
-    'UPDATE biometric_enrollments SET is_active = false, deactivated_at = now() WHERE id = $1',
-    [enrollment.id]
-  )
+  await withTransaction(async (txQuery) => {
+    // 1. Deactivate the enrollment record
+    await txQuery(
+      'UPDATE biometric_enrollments SET is_active = false, deactivated_at = now() WHERE id = $1',
+      [enrollment.id]
+    )
+
+    // 2. Revoke the biometric consent so future enrollment checks fail fast
+    //    without needing to query biometric_enrollments
+    await txQuery(
+      `UPDATE consents
+       SET given = false, revoked_at = now()
+       WHERE patient_id = $1 AND consent_type = 'biometric' AND given = true`,
+      [patientId]
+    )
+
+    // 3. Expire all active recognition sessions for this patient immediately.
+    //    Without this, a staff member who already identified the patient could
+    //    still access the full twin for up to 30 minutes after the consent was revoked.
+    await txQuery(
+      `UPDATE recognition_sessions
+       SET expires_at = now(), access_level = 'revoked'
+       WHERE patient_id = $1 AND expires_at > now()`,
+      [patientId]
+    )
+
+    // 4. Invalidate any pending QR tokens for this patient
+    await txQuery(
+      `UPDATE qr_tokens SET expires_at = now()
+       WHERE patient_id = $1 AND expires_at > now() AND used_at IS NULL`,
+      [patientId]
+    )
+  })
 
   await writeAudit({ staffId: staff.staffId, patientId, action: 'revocation', success: true })
 

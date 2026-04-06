@@ -95,6 +95,23 @@ recognizeRoutes.post('/recognize', jwtAuth, async (c) => {
     return c.json({ matched: false, fallback: 'Use QR code or manual search' }, 404)
   }
 
+  // Near-miss: confidence was in the 0.60–0.84 range — interesting for QA
+  // but NOT sufficient to identify a patient.  Log it and return no-match.
+  // The audit record includes the confidence score for safety review; it does
+  // NOT include any patient ID because we cannot reliably determine one at
+  // this confidence level.
+  if (result.isNearMiss) {
+    await writeAudit({
+      staffId: staff.staffId,
+      action: 'near_miss_recognition',
+      method: 'face',
+      success: false,
+      confidence: result.confidence,
+      ipAddress: ip,
+    })
+    return c.json({ matched: false, fallback: 'Use QR code or manual search' }, 404)
+  }
+
   // Fast O(1) HMAC-based lookup: compute HMAC of the returned subjectId and
   // find the matching enrollment directly, instead of decrypting every row.
   // Falls back to full-table decrypt scan for older rows that pre-date the HMAC column.
@@ -109,8 +126,10 @@ recognizeRoutes.post('/recognize', jwtAuth, async (c) => {
   // Legacy fallback: for enrollments created before the subject_id_hmac column was added,
   // subject_id_hmac will be NULL — scan only those rows.
   if (!patientId) {
+    // LIMIT 100: scanning thousands of legacy rows would stall the recognition
+    // response. Migrate legacy enrollments to HMAC-indexed rows to stay under this cap.
     const legacyEnrollments = await query<{ patient_id: string; compreface_subject_id: string }>(
-      'SELECT patient_id, compreface_subject_id FROM biometric_enrollments WHERE is_active = true AND subject_id_hmac IS NULL'
+      'SELECT patient_id, compreface_subject_id FROM biometric_enrollments WHERE is_active = true AND subject_id_hmac IS NULL LIMIT 100'
     )
     for (const e of legacyEnrollments) {
       try {

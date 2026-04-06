@@ -47,9 +47,13 @@ const SDK_RATE_WINDOW_MS = 60_000;
 const SDK_RATE_LIMIT = 100;
 const sdkRateMap = new Map<string, { count: number; windowStart: number }>();
 
-// Evict stale rate-limit entries every 5 minutes to prevent unbounded Map growth
+// Evict stale rate-limit entries every 5 minutes to prevent unbounded Map growth.
+// Cutoff is 1× the window (not 2×) — entries older than one full window can
+// never be within the current rate window, so there's no reason to retain them.
+// Using 2× was unnecessarily generous and meant entries lingered for up to 7 minutes
+// (5-min interval + 2-min lag) before being collected.
 const _sdkRateMapCleanup = setInterval(() => {
-  const cutoff = Date.now() - SDK_RATE_WINDOW_MS * 2;
+  const cutoff = Date.now() - SDK_RATE_WINDOW_MS;
   for (const [key, entry] of sdkRateMap) {
     if (entry.windowStart < cutoff) sdkRateMap.delete(key);
   }

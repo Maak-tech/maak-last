@@ -103,12 +103,14 @@ export const calendarRoutes = new Elysia({ prefix: "/api/calendar" })
       const conditions = [eq(calendarEvents.userId, userId)];
       if (query.from) conditions.push(gte(calendarEvents.startDate, new Date(query.from)));
       if (query.to) conditions.push(lte(calendarEvents.startDate, new Date(query.to)));
-      return db.select().from(calendarEvents).where(and(...conditions)).orderBy(calendarEvents.startDate);
+      // Cap at 500 — a user with years of events could otherwise dump the entire table.
+      return db.select().from(calendarEvents).where(and(...conditions)).orderBy(calendarEvents.startDate).limit(query.limit ?? 500);
     },
     {
       query: t.Object({
         from: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
         to: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
+        limit: t.Optional(t.Numeric({ minimum: 1, maximum: 500 })),
       }),
       detail: { tags: ["calendar"], summary: "Get user calendar events" },
     }
@@ -140,11 +142,16 @@ export const calendarRoutes = new Elysia({ prefix: "/api/calendar" })
       const conditions = [eq(calendarEvents.familyId, params.familyId)];
       if (query.from) conditions.push(gte(calendarEvents.startDate, new Date(query.from)));
       if (query.to) conditions.push(lte(calendarEvents.startDate, new Date(query.to)));
-      return db.select().from(calendarEvents).where(and(...conditions)).orderBy(calendarEvents.startDate);
+      // Cap at 500 — large families with shared event histories could otherwise stall the dashboard.
+      return db.select().from(calendarEvents).where(and(...conditions)).orderBy(calendarEvents.startDate).limit(query.limit ?? 500);
     },
     {
       params: t.Object({ familyId: t.String({ minLength: 1, maxLength: 36 }) }),
-      query: t.Object({ from: t.Optional(t.String({ minLength: 1, maxLength: 36 })), to: t.Optional(t.String({ minLength: 1, maxLength: 36 })) }),
+      query: t.Object({
+        from: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
+        to: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
+        limit: t.Optional(t.Numeric({ minimum: 1, maximum: 500 })),
+      }),
       detail: { tags: ["calendar"], summary: "Get family calendar events (family member)" },
     }
   )

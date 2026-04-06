@@ -33,6 +33,8 @@ export interface PushNotificationData {
     // must NOT be included in push payloads transmitted via Apple/Google servers.
     severity?: 'low' | 'medium' | 'high' | 'critical';
     clickAction?: string;
+    // location is PHI — only carried as in-app data, never shown on lock screen
+    location?: string;
   };
   sound?: 'default' | 'alarm' | 'reminder' | 'emergency';
   priority?: 'normal' | 'high';
@@ -180,13 +182,16 @@ export const pushNotificationService = {
   ): Promise<void> {
     const notification: PushNotificationData = {
       title: '🚨 Emergency: Fall Detected',
-      body: `${userName} may have fallen and needs immediate help!${location ? ` Location: ${location}` : ''}`,
+      // Location is PHI — must NOT appear in the push body which travels through
+      // Apple/Google servers. It is passed as in-app data only (see data below).
+      body: `${userName} may have fallen and needs immediate help!`,
       data: {
         type: 'fall_alert',
         alertId,
         userId,
         severity: 'critical',
         clickAction: 'OPEN_ALERT_DETAILS',
+        ...(location ? { location } : {}),
       },
       sound: 'alarm',
       priority: 'high',

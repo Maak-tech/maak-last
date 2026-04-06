@@ -121,7 +121,9 @@ CREATE TABLE IF NOT EXISTS recognition_sessions (
   access_level TEXT DEFAULT 'preview' CHECK (access_level IN ('preview','confirmed','full')),
   method       TEXT NOT NULL CHECK (method IN ('face','qr','manual','camera')),
   confirmed    BOOLEAN DEFAULT false,
-  created_at   TIMESTAMPTZ DEFAULT now(),
+  -- NOT NULL ensures session ordering is deterministic; DEFAULT now() so callers
+  -- don't need to supply it explicitly.
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
   confirmed_at TIMESTAMPTZ,
   expires_at   TIMESTAMPTZ NOT NULL
 );
@@ -135,7 +137,8 @@ CREATE TABLE IF NOT EXISTS access_audit_logs (
   success     BOOLEAN,
   confidence  NUMERIC,
   ip_address  TEXT,
-  created_at  TIMESTAMPTZ DEFAULT now()
+  -- NOT NULL prevents NULL sort ordering surprises in DESC queries.
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS camera_feeds (
@@ -145,13 +148,24 @@ CREATE TABLE IF NOT EXISTS camera_feeds (
   location   TEXT,
   is_active  BOOLEAN DEFAULT true,
   added_by   TEXT REFERENCES hospital_staff(id),
-  created_at TIMESTAMPTZ DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Core indexes (present from initial schema)
 CREATE INDEX IF NOT EXISTS idx_sessions_patient ON recognition_sessions(patient_id);
 CREATE INDEX IF NOT EXISTS idx_audit_patient ON access_audit_logs(patient_id);
 CREATE INDEX IF NOT EXISTS idx_audit_staff ON access_audit_logs(staff_id);
 CREATE INDEX IF NOT EXISTS idx_vitals_patient_time ON twin_vitals_summary(patient_id, recorded_at);
+
+-- Additional indexes for hot query paths identified during review
+-- biometric_enrollments: patient.ts and recognize.ts both filter (patient_id, is_active)
+CREATE INDEX IF NOT EXISTS idx_enrollments_patient_active ON biometric_enrollments(patient_id, is_active);
+-- recognition_sessions: session expiry checks filter (staff_id, expires_at)
+CREATE INDEX IF NOT EXISTS idx_sessions_staff_expires ON recognition_sessions(staff_id, expires_at);
+-- access_audit_logs: audit.ts paginates by created_at DESC; BRIN is inefficient for DESC queries
+CREATE INDEX IF NOT EXISTS idx_audit_created_desc ON access_audit_logs(created_at DESC);
+-- consents: HIPAA compliance queries fetch consent history by patient + time
+CREATE INDEX IF NOT EXISTS idx_consents_patient_time ON consents(patient_id, given_at DESC);
 `
 
 async function migrate() {

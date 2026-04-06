@@ -23,7 +23,7 @@ export default function AuditPage() {
       const s = staffJson ? JSON.parse(staffJson) as { role: string } : null
       if (!s || s.role !== 'admin') { router.push('/dashboard'); return }
     } catch (err: unknown) {
-      console.warn('[audit] Failed to parse staff info for role check — denying access:', err)
+      console.warn('[audit] Failed to parse staff info for role check — denying access:', err instanceof Error ? err.message : String(err))
       router.push('/dashboard')
     }
   }, [router])

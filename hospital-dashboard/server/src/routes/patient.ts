@@ -24,10 +24,13 @@ type Patient = {
 export const patientRoutes = new Hono()
 
 async function getValidSession(sessionToken: string): Promise<Session | null> {
-  return queryOne<Session>(
+  const session = await queryOne<Session>(
     'SELECT * FROM recognition_sessions WHERE id = $1 AND expires_at > now()',
     [sessionToken]
   )
+  // Treat 'revoked' access_level as expired — consent was withdrawn after session was created
+  if (session?.access_level === 'revoked') return null
+  return session
 }
 
 // GET /patient/preview/:sessionToken — limited preview (no full PHI)
@@ -100,11 +103,13 @@ patientRoutes.post('/patient/confirm/:sessionToken', jwtAuth, async (c) => {
     return c.json({ error: 'Forbidden' }, 403)
   }
 
-  // Include staff_id in the WHERE clause to close the TOCTOU window between the
-  // ownership SELECT above and this UPDATE — prevents a race where another request
-  // could modify the session between the two DB calls.
+  // Include staff_id AND confirmed = false in the WHERE clause:
+  // - staff_id closes the TOCTOU window between ownership SELECT and this UPDATE.
+  // - confirmed = false makes this UPDATE idempotent — if the client retries a
+  //   confirm request before the first response arrives, the second UPDATE is a
+  //   no-op rather than overwriting confirmed_at with a later timestamp.
   await query(
-    "UPDATE recognition_sessions SET confirmed = true, access_level = 'confirmed', confirmed_at = now() WHERE id = $1 AND staff_id = $2",
+    "UPDATE recognition_sessions SET confirmed = true, access_level = 'confirmed', confirmed_at = now() WHERE id = $1 AND staff_id = $2 AND confirmed = false",
     [sessionToken, staff.staffId]
   )
 
@@ -158,10 +163,10 @@ patientRoutes.get(
         [patientId]
       ),
       query(
-        "SELECT * FROM twin_vitals_summary WHERE patient_id = $1 AND recorded_at > now() - interval '7 days' ORDER BY recorded_at ASC",
+        "SELECT * FROM twin_vitals_summary WHERE patient_id = $1 AND recorded_at > now() - interval '7 days' ORDER BY recorded_at ASC LIMIT 100",
         [patientId]
       ),
-      query('SELECT * FROM medications WHERE patient_id = $1 AND is_active = true', [patientId]),
+      query('SELECT * FROM medications WHERE patient_id = $1 AND is_active = true LIMIT 50', [patientId]),
     ])
 
     const [patientRes, twinRes, alertsRes, vitalsRes, medsRes] = results
@@ -247,11 +252,11 @@ patientRoutes.get(
         [patientId]
       ),
       query(
-        "SELECT * FROM twin_vitals_summary WHERE patient_id = $1 AND recorded_at > now() - interval '7 days' ORDER BY recorded_at ASC",
+        "SELECT * FROM twin_vitals_summary WHERE patient_id = $1 AND recorded_at > now() - interval '7 days' ORDER BY recorded_at ASC LIMIT 100",
         [patientId]
       ),
       query(
-        'SELECT * FROM medications WHERE patient_id = $1 AND is_active = true',
+        'SELECT * FROM medications WHERE patient_id = $1 AND is_active = true LIMIT 50',
         [patientId]
       ),
     ])

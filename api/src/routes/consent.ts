@@ -17,7 +17,7 @@ import { Elysia, t } from "elysia";
 import { and, desc, eq } from "drizzle-orm";
 import crypto from "node:crypto";
 import { requireAuth } from "../middleware/requireAuth";
-import { patientConsents, orgMembers } from "../db/schema";
+import { patientConsents, orgMembers, consentPolicies } from "../db/schema";
 
 export const consentRoutes = new Elysia({ prefix: "/api/consent" })
   .use(requireAuth)
@@ -222,5 +222,75 @@ export const consentRoutes = new Elysia({ prefix: "/api/consent" })
     {
       params: t.Object({ targetUserId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["consent"], summary: "Get all consent records for a user (self only)" },
+    }
+  )
+
+  /**
+   * GET /api/consent/check
+   * Returns which policy types require re-consent from the current user.
+   * The mobile app calls this on every launch to decide whether to show a
+   * consent re-prompt before allowing access to gated features.
+   *
+   * Response:
+   *   {
+   *     needsConsent: boolean,
+   *     policies: [
+   *       { policyType, requiredVersion, acceptedVersion, documentUrl }
+   *     ]
+   *   }
+   *
+   * needsConsent is true when at least one policy has a newer version than
+   * the user's most recently accepted version for that policy type.
+   */
+  .get(
+    "/check",
+    async ({ db, userId }) => {
+      // 1. Fetch all current policy versions
+      const policies = await db.select().from(consentPolicies);
+
+      // 2. For each policy type, find the user's most recent active consent
+      const result: Array<{
+        policyType: string;
+        requiredVersion: string;
+        acceptedVersion: string | null;
+        documentUrl: string | null;
+        needsConsent: boolean;
+      }> = [];
+
+      for (const policy of policies) {
+        const [latest] = await db
+          .select({ version: patientConsents.version })
+          .from(patientConsents)
+          .where(
+            and(
+              eq(patientConsents.userId, userId),
+              eq(patientConsents.policyType, policy.policyType),
+              eq(patientConsents.isActive, true)
+            )
+          )
+          .orderBy(desc(patientConsents.grantedAt))
+          .limit(1);
+
+        // Version comparison: string equality — increment the policy
+        // currentVersion whenever re-consent is needed.
+        const acceptedVersion = latest?.version ?? null;
+        const needsConsent = acceptedVersion !== policy.currentVersion;
+
+        result.push({
+          policyType: policy.policyType,
+          requiredVersion: policy.currentVersion,
+          acceptedVersion,
+          documentUrl: policy.documentUrl ?? null,
+          needsConsent,
+        });
+      }
+
+      return {
+        needsConsent: result.some((r) => r.needsConsent),
+        policies: result,
+      };
+    },
+    {
+      detail: { tags: ["consent"], summary: "Check if any policies require re-consent from the current user" },
     }
   );

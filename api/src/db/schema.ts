@@ -26,8 +26,16 @@ export const users = pgTable("users", {
   language: text("language").default("en"),
   familyId: text("family_id"),
   avatarUrl: text("avatar_url"),
+  // Legacy single-contact fields — kept for backward compatibility.
+  // New code should use emergencyContacts (JSONB array) instead.
+  // These will be dropped in migration 0008 after full deploy.
   emergencyContactName: text("emergency_contact_name"),
   emergencyContactPhone: text("emergency_contact_phone"),
+  // Ordered list of emergency contacts.  Primary contact first.
+  // Shape: [{ name, phone, relation, isPrimary }]
+  emergencyContacts: jsonb("emergency_contacts")
+    .$type<Array<{ name: string; phone: string; relation: string; isPrimary: boolean }>>()
+    .default([]),
   // User preferences (dashboard widget layout, notification prefs, UI settings)
   preferences: jsonb("preferences").$type<Record<string, unknown>>(),
   createdAt: timestamp("created_at").defaultNow(),
@@ -597,23 +605,27 @@ export const webhookEndpoints = pgTable("webhook_endpoints", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const webhookDeliveries = pgTable("webhook_deliveries", {
-  id: text("id").primaryKey(),
-  endpointId: text("endpoint_id").notNull(),
-  event: text("event").notNull(),
-  payload: jsonb("payload"),
-  // Canonical body string used to compute HMAC signature.
-  // Storing the exact JSON string used for the original delivery ensures that
-  // retries sign the same bytes — re-serializing from JSONB can produce a
-  // different key order which would invalidate the signature.
-  canonicalBody: text("canonical_body"),
-  status: text("status").default("pending"), // 'pending' | 'delivered' | 'failed'
-  attempts: integer("attempts").default(0),
-  lastError: text("last_error"),
-  nextRetryAt: timestamp("next_retry_at"),
-  deliveredAt: timestamp("delivered_at"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
+export const webhookDeliveries = pgTable(
+  "webhook_deliveries",
+  {
+    id: text("id").primaryKey(),
+    endpointId: text("endpoint_id").notNull(),
+    event: text("event").notNull(),
+    payload: jsonb("payload"),
+    // Canonical body string used to compute HMAC signature.
+    // Storing the exact JSON string used for the original delivery ensures that
+    // retries sign the same bytes — re-serializing from JSONB can produce a
+    // different key order which would invalidate the signature.
+    canonicalBody: text("canonical_body"),
+    status: text("status").default("pending"), // 'pending' | 'delivered' | 'failed'
+    attempts: integer("attempts").default(0),
+    lastError: text("last_error"),
+    nextRetryAt: timestamp("next_retry_at"),
+    deliveredAt: timestamp("delivered_at"),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (t) => [index("webhook_deliveries_endpoint_idx").on(t.endpointId)]
+);
 
 // ── Nora Conversations ─────────────────────────────────────────────────────────
 
@@ -634,7 +646,10 @@ export const noraConversations = pgTable(
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
   },
-  (t) => [index("nora_conversations_user_idx").on(t.userId)]
+  (t) => [
+    index("nora_conversations_user_idx").on(t.userId),
+    index("nora_conversations_user_updated_at_idx").on(t.userId, t.updatedAt),
+  ]
 );
 
 // ── Subscriptions ──────────────────────────────────────────────────────────────
@@ -671,6 +686,7 @@ export const auditTrail = pgTable(
   (t) => [
     index("audit_user_idx").on(t.userId),
     index("audit_actor_idx").on(t.actorId),
+    index("audit_user_created_at_idx").on(t.userId, t.createdAt),
   ]
 );
 
@@ -924,6 +940,35 @@ export const pathwayEnrollments = pgTable(
   ]
 );
 
+// ── Consent Policies ─────────────────────────────────────────────────────────
+// Defines the current required version for each policy type.
+// When CURRENT_VERSION changes, users who accepted an older version are
+// flagged as needing to re-consent before accessing gated features.
+//
+// Policy types:
+//   'terms_of_service'   — general app terms
+//   'privacy_policy'     — data handling and HIPAA authorization
+//   'genetic_data'       — consent to process and store DNA data
+//   'caregiver_sharing'  — consent to share health data with family admins
+//   'research_opt_in'    — optional consent to contribute de-identified data to research
+//
+// Gated consent: routes can call `isConsentCurrent(userId, policyType)` before
+// returning sensitive data, and return 451 (Unavailable For Legal Reasons) if
+// the user needs to re-consent.
+export const consentPolicies = pgTable("consent_policies", {
+  // e.g. 'privacy_policy', 'terms_of_service', 'genetic_data'
+  policyType: text("policy_type").primaryKey(),
+  // Semantic version string, e.g. '2.1' — increment MINOR for non-material changes,
+  // MAJOR for changes that require explicit re-consent.
+  currentVersion: text("current_version").notNull(),
+  // Human-readable summary of what changed in this version
+  changesSummary: text("changes_summary"),
+  // URL to the full policy document
+  documentUrl: text("document_url"),
+  effectiveAt: timestamp("effective_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // ── Patient Consents ──────────────────────────────────────────────────────────
 // Append-only audit trail for HIPAA compliance.
 // Revocations set isActive = false — records are never deleted.
@@ -938,6 +983,8 @@ export const patientConsents = pgTable(
     grantedBy: text("granted_by").notNull(),
     grantMethod: text("grant_method").notNull(), // 'in_app' | 'provider_initiated' | 'sms_link' | 'admin_granted'
     scope: text("scope").array().default([]),     // ConsentScope[]
+    // Which policy this consent covers (links to consentPolicies.policyType)
+    policyType: text("policy_type").default("privacy_policy"),
     version: text("version").notNull().default("1.0"),
     isActive: boolean("is_active").notNull().default(true),
     revokedAt: timestamp("revoked_at"),
@@ -993,6 +1040,57 @@ export const connectedIntegrations = pgTable(
     unique("connected_integrations_unique_provider").on(t.userId, t.provider),
   ]
 );
+
+// ── Feature Flags ──────────────────────────────────────────────────────────────
+//
+// Simple server-side feature flags for gradual rollout of new capabilities.
+//
+// A flag can be:
+//   - globally on/off (enabledForAll)
+//   - on for a % of users (rolloutPercent, 0–100)
+//   - on for specific user IDs (enabledUserIds JSONB array)
+//   - on for specific org IDs (enabledOrgIds JSONB array)
+//
+// Evaluation order (first matching rule wins):
+//   1. If enabledUserIds contains the userId → ON
+//   2. If enabledOrgIds contains the orgId → ON
+//   3. If enabledForAll → ON
+//   4. If rolloutPercent > 0 → ON for deterministic % based on hash(userId + flagName)
+//   5. Otherwise → OFF
+export const featureFlags = pgTable("feature_flags", {
+  // Stable kebab-case identifier, e.g. 'ddi-warnings', 'vhi-genetics-tab'
+  name: text("name").primaryKey(),
+  description: text("description"),
+  enabledForAll: boolean("enabled_for_all").notNull().default(false),
+  // 0 = off, 100 = on for everyone in rollout
+  rolloutPercent: integer("rollout_percent").notNull().default(0),
+  // JSONB arrays of user IDs / org IDs to enable individually
+  enabledUserIds: jsonb("enabled_user_ids").$type<string[]>().default([]),
+  enabledOrgIds: jsonb("enabled_org_ids").$type<string[]>().default([]),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// ── Job Heartbeats ─────────────────────────────────────────────────────────────
+//
+// Each cron job upserts a row here on every successful run.
+// The /health endpoint (and external monitors like Better Uptime) can query
+// this table to detect jobs that have stopped firing.
+//
+// Expected interval is stored so a monitoring tool can compute "last seen X
+// minutes ago vs expected every Y minutes" without hardcoding schedules.
+export const jobHeartbeats = pgTable("job_heartbeats", {
+  // Stable job identifier — matches the name in railway.json
+  jobName: text("job_name").primaryKey(),
+  lastRunAt: timestamp("last_run_at").notNull(),
+  // How often the job is expected to run (seconds). Allows automated staleness checks.
+  expectedIntervalSeconds: integer("expected_interval_seconds").notNull(),
+  // Optional: last known exit status ('ok' | 'error') and error message
+  status: text("status").notNull().default("ok"), // 'ok' | 'error'
+  errorMessage: text("error_message"),
+  // Total successful runs since the row was first inserted
+  runCount: integer("run_count").notNull().default(1),
+});
 
 // Join table: which patients belong to which cohort.
 // One patient can belong to multiple cohorts within the same org.

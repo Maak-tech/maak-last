@@ -38,9 +38,15 @@ _openai_client = None
 def _get_openai():
     global _openai_client
     if _openai_client is None:
+        api_key = os.environ.get("OPENAI_API_KEY", "")
+        if not api_key:
+            raise RuntimeError(
+                "OPENAI_API_KEY environment variable is not set or is empty. "
+                "Set a valid OpenAI API key to use GPT-4o note parsing."
+            )
         try:
             from openai import OpenAI
-            _openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY", ""))
+            _openai_client = OpenAI(api_key=api_key)
         except ImportError:
             raise RuntimeError("openai package not installed. Run: pip install openai")
     return _openai_client

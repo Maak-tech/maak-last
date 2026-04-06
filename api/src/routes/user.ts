@@ -18,7 +18,43 @@ import { Elysia, t } from "elysia";
 import { eq, inArray } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { requireAuth } from "../middleware/requireAuth";
-import { users, familyMembers, orgMembers, organizations } from "../db/schema";
+import {
+  users,
+  familyMembers,
+  orgMembers,
+  organizations,
+  vitals,
+  symptoms,
+  moods,
+  medications,
+  medicationReminders,
+  medicalHistory,
+  allergies,
+  labResults,
+  clinicalNotes,
+  periodCycles,
+  cycleDailyEntries,
+  genetics,
+  vhi,
+  healthTimeline,
+  alerts,
+  pushTokens,
+  noraConversations,
+  subscriptions,
+  calendarEvents,
+  ppgEmbeddings,
+  escalations,
+  anomalies,
+  patientAgentState,
+  medicationAdherence,
+  userBaselines,
+  patientRosters,
+  patientConsents,
+  cohortMembers,
+  connectedIntegrations,
+  auditTrail,
+} from "../db/schema";
+import crypto from "node:crypto";
 
 export const userRoutes = new Elysia({ prefix: "/api/user" })
   .use(requireAuth)
@@ -67,6 +103,8 @@ export const userRoutes = new Elysia({ prefix: "/api/user" })
           avatarUrl: users.avatarUrl,
           emergencyContactName: users.emergencyContactName,
           emergencyContactPhone: users.emergencyContactPhone,
+          emergencyContacts: users.emergencyContacts,
+          emergencyContacts: users.emergencyContacts,
         })
         .from(users)
         .where(eq(users.id, userId))
@@ -109,6 +147,8 @@ export const userRoutes = new Elysia({ prefix: "/api/user" })
         updateData.emergencyContactName = body.emergencyContactName;
       if (body.emergencyContactPhone !== undefined)
         updateData.emergencyContactPhone = body.emergencyContactPhone;
+      if (body.emergencyContacts !== undefined)
+        updateData.emergencyContacts = body.emergencyContacts;
 
       updateData.updatedAt = new Date();
 
@@ -139,6 +179,17 @@ export const userRoutes = new Elysia({ prefix: "/api/user" })
         avatarUrl: t.Optional(t.String({ maxLength: 2000 })),
         emergencyContactName: t.Optional(t.String({ maxLength: 255 })),
         emergencyContactPhone: t.Optional(t.String({ maxLength: 20 })),
+        emergencyContacts: t.Optional(
+          t.Array(
+            t.Object({
+              name: t.String({ maxLength: 255 }),
+              phone: t.String({ maxLength: 30 }),
+              relation: t.String({ maxLength: 100 }),
+              isPrimary: t.Boolean(),
+            }),
+            { maxItems: 10 }
+          )
+        ),
       }),
       detail: { tags: ["user"], summary: "Update current user profile" },
     }
@@ -293,21 +344,56 @@ export const userRoutes = new Elysia({ prefix: "/api/user" })
   .delete(
     "/me",
     async ({ db, userId, set }) => {
-      // Remove family memberships first (FK-safe)
-      await db.delete(familyMembers).where(eq(familyMembers.userId, userId));
-
-      // Remove the user row — cascade removes child rows via DB constraints
-      // where configured; remaining orphaned rows (vitals, symptoms, etc.)
-      // are handled by the userId FK on each table.
-      const deleted = await db
-        .delete(users)
+      // Verify the user exists before attempting deletion.
+      const [existing] = await db
+        .select({ id: users.id })
+        .from(users)
         .where(eq(users.id, userId))
-        .returning({ id: users.id });
-
-      if (!deleted.length) {
+        .limit(1);
+      if (!existing) {
         set.status = 404;
         return { error: "User not found" };
       }
+
+      // Explicitly delete all PHI tables in parallel — no DB-level FK cascades
+      // exist on this schema, so each table must be cleaned up manually.
+      // auditTrail rows are intentionally retained for HIPAA 6-year retention.
+      await Promise.all([
+        db.delete(vitals).where(eq(vitals.userId, userId)),
+        db.delete(symptoms).where(eq(symptoms.userId, userId)),
+        db.delete(moods).where(eq(moods.userId, userId)),
+        db.delete(medications).where(eq(medications.userId, userId)),
+        db.delete(medicationReminders).where(eq(medicationReminders.userId, userId)),
+        db.delete(medicalHistory).where(eq(medicalHistory.userId, userId)),
+        db.delete(allergies).where(eq(allergies.userId, userId)),
+        db.delete(labResults).where(eq(labResults.userId, userId)),
+        db.delete(clinicalNotes).where(eq(clinicalNotes.userId, userId)),
+        db.delete(periodCycles).where(eq(periodCycles.userId, userId)),
+        db.delete(cycleDailyEntries).where(eq(cycleDailyEntries.userId, userId)),
+        db.delete(genetics).where(eq(genetics.userId, userId)),
+        db.delete(vhi).where(eq(vhi.userId, userId)),
+        db.delete(healthTimeline).where(eq(healthTimeline.userId, userId)),
+        db.delete(alerts).where(eq(alerts.userId, userId)),
+        db.delete(pushTokens).where(eq(pushTokens.userId, userId)),
+        db.delete(noraConversations).where(eq(noraConversations.userId, userId)),
+        db.delete(subscriptions).where(eq(subscriptions.userId, userId)),
+        db.delete(calendarEvents).where(eq(calendarEvents.userId, userId)),
+        db.delete(ppgEmbeddings).where(eq(ppgEmbeddings.userId, userId)),
+        db.delete(escalations).where(eq(escalations.userId, userId)),
+        db.delete(anomalies).where(eq(anomalies.userId, userId)),
+        db.delete(patientAgentState).where(eq(patientAgentState.userId, userId)),
+        db.delete(medicationAdherence).where(eq(medicationAdherence.userId, userId)),
+        db.delete(userBaselines).where(eq(userBaselines.userId, userId)),
+        db.delete(familyMembers).where(eq(familyMembers.userId, userId)),
+        db.delete(orgMembers).where(eq(orgMembers.userId, userId)),
+        db.delete(patientRosters).where(eq(patientRosters.userId, userId)),
+        db.delete(patientConsents).where(eq(patientConsents.userId, userId)),
+        db.delete(cohortMembers).where(eq(cohortMembers.userId, userId)),
+        db.delete(connectedIntegrations).where(eq(connectedIntegrations.userId, userId)),
+      ]);
+
+      // Delete the user row last — all PHI has already been purged above.
+      await db.delete(users).where(eq(users.id, userId));
 
       set.status = 200;
       return { ok: true };
@@ -331,11 +417,23 @@ export const userRoutes = new Elysia({ prefix: "/api/user" })
         .where(eq(users.id, userId))
         .limit(1);
 
+      const existingPrefs = (current?.preferences as Record<string, unknown> ?? {});
+      const existingNotif = (existingPrefs.notifications as Record<string, unknown> ?? {});
+      const incomingNotif: Record<string, unknown> = {
+        ...(body.preferences as Record<string, unknown> ?? {}),
+      };
+      // Merge quietHours as a nested key inside preferences.notifications
+      if (body.quietHours !== undefined) {
+        incomingNotif.quietHours = {
+          ...(existingNotif.quietHours as Record<string, unknown> ?? {}),
+          ...body.quietHours,
+        };
+      }
       const merged = {
-        ...(current?.preferences as Record<string, unknown> ?? {}),
+        ...existingPrefs,
         notifications: {
-          ...((current?.preferences as Record<string, unknown>)?.notifications as Record<string, unknown> ?? {}),
-          ...(body.preferences as Record<string, unknown> ?? body),
+          ...existingNotif,
+          ...incomingNotif,
         },
       };
 
@@ -349,9 +447,119 @@ export const userRoutes = new Elysia({ prefix: "/api/user" })
     {
       body: t.Object({
         preferences: t.Optional(t.Record(t.String(), t.Unknown())),
+        quietHours: t.Optional(
+          t.Object({
+            enabled: t.Optional(t.Boolean()),
+            startHour: t.Optional(t.Number({ minimum: 0, maximum: 23 })),
+            endHour: t.Optional(t.Number({ minimum: 0, maximum: 23 })),
+            timezone: t.Optional(t.String({ maxLength: 100 })),
+          })
+        ),
       }),
       detail: { tags: ["user"], summary: "Update notification preferences (merges into preferences.notifications)" },
     }
+  )
+
+  // ── Data Export ──────────────────────────────────────────────────────────────
+
+  /**
+   * GET /api/user/export
+   * Export all personal health data as a single JSON file.
+   * Each PHI table is capped at 10,000 rows to prevent memory exhaustion.
+   */
+  .get(
+    "/export",
+    async ({ db, userId, set }) => {
+      const LIMIT = 10_000;
+
+      // Fetch the user profile (minus password — there is no password column in
+      // this schema, so we simply exclude internal fields we don't want exported)
+      const [profile] = await db
+        .select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          phone: users.phone,
+          dateOfBirth: users.dateOfBirth,
+          gender: users.gender,
+          bloodType: users.bloodType,
+          heightCm: users.heightCm,
+          weightKg: users.weightKg,
+          language: users.language,
+          familyId: users.familyId,
+          avatarUrl: users.avatarUrl,
+          emergencyContactName: users.emergencyContactName,
+          emergencyContactPhone: users.emergencyContactPhone,
+          emergencyContacts: users.emergencyContacts,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!profile) {
+        set.status = 404;
+        return { error: "User not found" };
+      }
+
+      // Query all PHI tables in parallel, each capped at LIMIT rows
+      const [
+        vitalsRows,
+        symptomsRows,
+        medicationsRows,
+        moodsRows,
+        labResultsRows,
+        allergiesRows,
+        medicalHistoryRows,
+        clinicalNotesRows,
+        timelineRows,
+      ] = await Promise.all([
+        db.select().from(vitals).where(eq(vitals.userId, userId)).limit(LIMIT),
+        db.select().from(symptoms).where(eq(symptoms.userId, userId)).limit(LIMIT),
+        db.select().from(medications).where(eq(medications.userId, userId)).limit(LIMIT),
+        db.select().from(moods).where(eq(moods.userId, userId)).limit(LIMIT),
+        db.select().from(labResults).where(eq(labResults.userId, userId)).limit(LIMIT),
+        db.select().from(allergies).where(eq(allergies.userId, userId)).limit(LIMIT),
+        db.select().from(medicalHistory).where(eq(medicalHistory.userId, userId)).limit(LIMIT),
+        db.select().from(clinicalNotes).where(eq(clinicalNotes.userId, userId)).limit(LIMIT),
+        db.select().from(healthTimeline).where(eq(healthTimeline.userId, userId)).limit(LIMIT),
+      ]);
+
+      // Append audit log entry (fire-and-forget — never block the response)
+      db.insert(auditTrail).values({
+        id: crypto.randomUUID(),
+        userId,
+        actorId: userId,
+        actorType: "user",
+        action: "data_export",
+        resourceType: "personal_health_record",
+      }).catch((err: unknown) => {
+        console.error("[export] Failed to write audit log:", err instanceof Error ? err.message : String(err));
+      });
+
+      const exportedAt = new Date().toISOString();
+      const dateStr = exportedAt.slice(0, 10); // YYYY-MM-DD
+
+      set.headers["Content-Disposition"] = `attachment; filename="nuralix-health-export-${dateStr}.json"`;
+      set.headers["Content-Type"] = "application/json";
+
+      return {
+        exportedAt,
+        userId,
+        profile,
+        vitals: vitalsRows,
+        symptoms: symptomsRows,
+        medications: medicationsRows,
+        moods: moodsRows,
+        labResults: labResultsRows,
+        allergies: allergiesRows,
+        medicalHistory: medicalHistoryRows,
+        clinicalNotes: clinicalNotesRows,
+        timeline: timelineRows,
+      };
+    },
+    { detail: { tags: ["user"], summary: "Export all personal health data as JSON" } }
   )
 
   // ── Organisations ─────────────────────────────────────────────────────────────

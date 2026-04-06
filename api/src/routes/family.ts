@@ -56,75 +56,92 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
         .from(familyMembers)
         .where(eq(familyMembers.familyId, params.familyId));
 
-      // Fetch VHI for each member to build caregiver dashboard.
-      // Each member fetch is isolated so one failure does not block the others.
-      const memberData = await Promise.all(
-        members.map(async (member) => {
-          try {
-          const [memberVhi] = await db
-            .select()
-            .from(vhi)
-            .where(eq(vhi.userId, member.userId))
-            .limit(1);
+      if (members.length === 0) return [];
 
-          const recentAlerts = await db
-            .select()
-            .from(alerts)
-            .where(and(eq(alerts.userId, member.userId), eq(alerts.isAcknowledged, false)))
-            .limit(5);
+      // Collect all member user IDs once so we can issue 3 bulk queries instead
+      // of 3 per-member queries (O(1) round trips vs O(N) — avoids N+1 pattern).
+      const memberUserIds = members.map((m) => m.userId);
 
-          // Genetics — only return if familySharingConsent is true
-          const [memberGenetics] = await db
-            .select({
-              prsScores: genetics.prsScores,
-              pharmacogenomics: genetics.pharmacogenomics,
-              twinRelevantConditions: genetics.twinRelevantConditions,
-              familySharingConsent: genetics.familySharingConsent,
-            })
-            .from(genetics)
-            .where(eq(genetics.userId, member.userId))
-            .limit(1);
+      // Fetch VHI, alerts, and genetics for ALL members in 3 parallel queries.
+      // Promise.allSettled is used so that a failure in one data source (e.g.
+      // genetics table down) still returns VHI and alerts rather than failing
+      // the whole endpoint — the same fault-isolation goal as the old per-member
+      // try/catch, but now with just 3 round trips instead of 3N.
+      const [vhiResult, alertsResult, geneticsResult] = await Promise.allSettled([
+        db.select().from(vhi).where(inArray(vhi.userId, memberUserIds)),
 
-          return {
-            memberId: member.userId,
-            role: member.role,
-            vhiScore: memberVhi?.data?.currentState?.overallScore ?? null,
-            vhiTrajectory: memberVhi?.data?.currentState?.riskScores?.trajectory ?? null,
-            compositeRisk: memberVhi?.data?.currentState?.riskScores?.compositeRisk ?? null,
-            topDecliningFactors: memberVhi?.data?.decliningFactors?.slice(0, 3) ?? [],
-            pendingActions: memberVhi?.data?.pendingActions ?? [],
-            recentAlerts,
-            // Genetic summary (masked: no rsids, only condition-level summary)
-            geneticRiskSummary:
-              memberGenetics?.familySharingConsent
-                ? {
-                    conditions: (Array.isArray(memberGenetics.prsScores) ? memberGenetics.prsScores as Array<{condition: string; percentile: number; level: string}> : []).map(({ condition, percentile, level }) => ({
-                      condition,
-                      percentile,
-                      level,
-                    })),
-                    pharmacogenomicsAlerts: (Array.isArray(memberGenetics.pharmacogenomics) ? memberGenetics.pharmacogenomics as Array<{drug: string; interaction: string}> : []),
-                  }
-                : null,
-          };
-          } catch (err: unknown) {
-            console.error(`[family] Failed to load data for member ${member.userId.slice(0, 8)}…:`, err instanceof Error ? err.message : String(err));
-            // Return a minimal stub so the rest of the dashboard still renders
-            return {
-              memberId: member.userId,
-              role: member.role,
-              vhiScore: null,
-              vhiTrajectory: null,
-              compositeRisk: null,
-              topDecliningFactors: [],
-              pendingActions: [],
-              recentAlerts: [],
-              geneticRiskSummary: null,
-              error: 'Failed to load member data',
-            };
-          }
-        })
-      );
+        // Cap at 10 unacknowledged alerts per member to bound result set size
+        // (memberUserIds.length × 10). Sliced to 5 per member in the map below.
+        db
+          .select()
+          .from(alerts)
+          .where(and(inArray(alerts.userId, memberUserIds), eq(alerts.isAcknowledged, false)))
+          .limit(memberUserIds.length * 10),
+
+        db
+          .select({
+            userId: genetics.userId,
+            prsScores: genetics.prsScores,
+            pharmacogenomics: genetics.pharmacogenomics,
+            twinRelevantConditions: genetics.twinRelevantConditions,
+            familySharingConsent: genetics.familySharingConsent,
+          })
+          .from(genetics)
+          .where(inArray(genetics.userId, memberUserIds)),
+      ]);
+
+      if (vhiResult.status === 'rejected') {
+        console.error('[family/members] VHI batch query failed:', vhiResult.reason instanceof Error ? vhiResult.reason.message : String(vhiResult.reason));
+      }
+      if (alertsResult.status === 'rejected') {
+        console.error('[family/members] Alerts batch query failed:', alertsResult.reason instanceof Error ? alertsResult.reason.message : String(alertsResult.reason));
+      }
+      if (geneticsResult.status === 'rejected') {
+        console.error('[family/members] Genetics batch query failed:', geneticsResult.reason instanceof Error ? geneticsResult.reason.message : String(geneticsResult.reason));
+      }
+
+      const allVhi      = vhiResult.status      === 'fulfilled' ? vhiResult.value      : [];
+      const allAlerts   = alertsResult.status   === 'fulfilled' ? alertsResult.value   : [];
+      const allGenetics = geneticsResult.status === 'fulfilled' ? geneticsResult.value : [];
+
+      // Build O(1) lookup maps to avoid repeated linear scans during the map below.
+      const vhiByUserId = new Map(allVhi.map((v) => [v.userId, v]));
+      const alertsByUserId = new Map<string, typeof allAlerts>();
+      for (const alert of allAlerts) {
+        if (!alertsByUserId.has(alert.userId)) alertsByUserId.set(alert.userId, []);
+        alertsByUserId.get(alert.userId)!.push(alert);
+      }
+      const geneticsByUserId = new Map(allGenetics.map((g) => [g.userId, g]));
+
+      // Assemble per-member dashboard objects from the pre-fetched data.
+      const memberData = members.map((member) => {
+        const memberVhi = vhiByUserId.get(member.userId);
+        const recentAlerts = (alertsByUserId.get(member.userId) ?? []).slice(0, 5);
+        const memberGenetics = geneticsByUserId.get(member.userId);
+
+        return {
+          memberId: member.userId,
+          role: member.role,
+          vhiScore: memberVhi?.data?.currentState?.overallScore ?? null,
+          vhiTrajectory: memberVhi?.data?.currentState?.riskScores?.trajectory ?? null,
+          compositeRisk: memberVhi?.data?.currentState?.riskScores?.compositeRisk ?? null,
+          topDecliningFactors: memberVhi?.data?.decliningFactors?.slice(0, 3) ?? [],
+          pendingActions: memberVhi?.data?.pendingActions ?? [],
+          recentAlerts,
+          // Genetic summary (masked: no rsids, only condition-level summary)
+          geneticRiskSummary:
+            memberGenetics?.familySharingConsent
+              ? {
+                  conditions: (Array.isArray(memberGenetics.prsScores) ? memberGenetics.prsScores as Array<{condition: string; percentile: number; level: string}> : []).map(({ condition, percentile, level }) => ({
+                    condition,
+                    percentile,
+                    level,
+                  })),
+                  pharmacogenomicsAlerts: (Array.isArray(memberGenetics.pharmacogenomics) ? memberGenetics.pharmacogenomics as Array<{drug: string; interaction: string}> : []),
+                }
+              : null,
+        };
+      });
 
       return memberData;
     },
@@ -214,14 +231,26 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
             : eq(familyMembers.familyId, params.familyId)
         );
 
-      // Join with users table for full profile
-      const userRows = await Promise.all(
-        members.map(async (member) => {
-          const [user] = await db
-            .select()
-            .from(users)
-            .where(eq(users.id, member.userId))
-            .limit(1);
+      if (members.length === 0) return [];
+
+      // Fetch all user profiles in a single query instead of one query per member
+      // (avoids N+1 pattern; inArray generates a single WHERE id IN (...) clause).
+      const memberUserIds = members.map((m) => m.userId);
+      const userRows = await db
+        .select()
+        .from(users)
+        .where(inArray(users.id, memberUserIds));
+
+      // Build an O(1) lookup map keyed by user id for the join below.
+      const userById = new Map(userRows.map((u) => [u.id, u]));
+
+      // Build a lookup map for member roles (needed when a user belongs to
+      // multiple families — the role is scoped to the current family).
+      const roleByUserId = new Map(members.map((m) => [m.userId, m.role]));
+
+      const result = memberUserIds
+        .map((uid) => {
+          const user = userById.get(uid);
           if (!user) return null;
 
           const prefs = (user.preferences ?? {}) as Record<string, unknown>;
@@ -239,7 +268,7 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
             familyId: user.familyId,
             avatarUrl: user.avatarUrl,
             avatarType: prefs.avatarType,
-            role: member.role ?? (prefs.role as string | undefined) ?? "member",
+            role: roleByUserId.get(uid) ?? (prefs.role as string | undefined) ?? "member",
             createdAt: user.createdAt,
             onboardingCompleted: (prefs.onboardingCompleted as boolean | undefined) ?? false,
             dashboardTourCompleted: (prefs.dashboardTourCompleted as boolean | undefined) ?? false,
@@ -252,9 +281,9 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
             },
           };
         })
-      );
+        .filter(Boolean);
 
-      return userRows.filter(Boolean);
+      return result;
     },
     {
       params: t.Object({ familyId: t.String({ minLength: 1, maxLength: 36 }) }),
@@ -454,6 +483,12 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
         return { error: "You are not a member of this family" };
       }
 
+      // Fetch inviter name and family name for the email (parallel, non-blocking on failure)
+      const [[inviterUser], [family]] = await Promise.all([
+        db.select({ name: users.name }).from(users).where(eq(users.id, userId)).limit(1),
+        db.select({ name: families.name }).from(families).where(eq(families.id, body.familyId)).limit(1),
+      ]);
+
       // Generate a unique 6-digit code (retry on collision)
       let code = "";
       for (let attempt = 0; attempt < 5; attempt++) {
@@ -477,17 +512,63 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
         familyId: body.familyId,
         invitedBy: userId,
         inviteCode: code,
+        email: body.email ?? null,
         invitedUserName: body.invitedUserName,
         invitedUserRelation: body.invitedUserRelation,
         status: "pending",
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
       });
 
+      // Send email to invitee — fire-and-forget so a SendGrid failure never
+      // blocks the caller from receiving the invite code.
+      if (body.email) {
+        const inviterName = inviterUser?.name ?? "A Nuralix user";
+        const familyName = family?.name ? `the ${family.name} family` : "a family";
+        const appUrl = process.env.APP_URL ?? "https://app.nuralix.ai";
+
+        const subject = `${inviterName} has invited you to join ${familyName} on Nuralix`;
+        const bodyHtml = `
+          <p>Hi ${body.invitedUserName},</p>
+          <p><strong>${inviterName}</strong> has invited you to join ${familyName} on Nuralix as their <strong>${body.invitedUserRelation}</strong>.</p>
+          <p>Nuralix is a family health platform that helps caregivers and family members stay informed and support each other's health.</p>
+          <p>To accept this invitation, open the Nuralix app and enter the following code:</p>
+          <h2 style="letter-spacing: 4px; font-size: 36px;">${code}</h2>
+          <p>Or tap this link: <a href="${appUrl}/join?code=${code}">${appUrl}/join?code=${code}</a></p>
+          <p><em>This invitation expires in 7 days. If you did not expect this email, you can safely ignore it.</em></p>
+          <p>— The Nuralix team</p>
+        `.trim();
+
+        const sendgridApiKey = process.env.SENDGRID_API_KEY ?? "";
+        const fromEmail = process.env.FROM_EMAIL ?? "noreply@nuralix.ai";
+
+        if (sendgridApiKey) {
+          fetch("https://api.sendgrid.com/v3/mail/send", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${sendgridApiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              personalizations: [{ to: [{ email: body.email }] }],
+              from: { email: fromEmail, name: "Nuralix" },
+              subject,
+              content: [{ type: "text/html", value: bodyHtml }],
+            }),
+            signal: AbortSignal.timeout(10_000),
+          }).catch((err) =>
+            console.error("[family/invite] SendGrid failed:", err instanceof Error ? err.message : String(err))
+          );
+        } else {
+          console.warn("[family/invite] SENDGRID_API_KEY not set — invitation email skipped for:", body.email);
+        }
+      }
+
       return { code };
     },
     {
       body: t.Object({
         familyId: t.String({ maxLength: 36 }),
+        email: t.Optional(t.String({ format: "email", maxLength: 254 })),
         invitedUserName: t.String({ maxLength: 255 }),
         invitedUserRelation: t.String({ maxLength: 100 }),
       }),

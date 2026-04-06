@@ -2,9 +2,10 @@ import { Elysia, t } from "elysia";
 import { and, desc, eq, gte, inArray, isNull, lte } from "drizzle-orm";
 import crypto from "node:crypto";
 import { requireAuth } from "../middleware/requireAuth";
-import { vitals, symptoms, medications, medicationReminders, moods, labResults, allergies, medicalHistory, familyMembers, periodCycles, cycleDailyEntries, healthTimeline, ppgEmbeddings, escalations, anomalies, medicationAdherence } from "../db/schema";
+import { vitals, symptoms, medications, medicationReminders, moods, labResults, allergies, medicalHistory, familyMembers, periodCycles, cycleDailyEntries, healthTimeline, ppgEmbeddings, escalations, anomalies, medicationAdherence, alerts } from "../db/schema";
 import type { Database } from "../db";
 import { ppgAnalyzeRateLimiter } from "../lib/rateLimiter";
+import { pushToUserAndFamilyAdmins } from "../lib/push";
 
 // Reusable ISO 8601 date-string type.
 // Elysia/TypeBox validates this at the schema layer (before the handler runs),
@@ -14,7 +15,10 @@ const IsoDateString = t.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}" });
 const DateRangeQuery = t.Object({
   from: t.Optional(IsoDateString),
   to: t.Optional(IsoDateString),
-  limit: t.Optional(t.Numeric()),
+  // maximum: 1000 prevents a caller from dumping the entire table in one request.
+  // Handlers that don't forward the limit to Drizzle are unaffected; Elysia still
+  // rejects any value > 1000 before the handler runs.
+  limit: t.Optional(t.Numeric({ maximum: 1000 })),
   type: t.Optional(t.String({ maxLength: 64 })),
 });
 
@@ -27,6 +31,9 @@ const DateRangeQuery = t.Object({
  *
  * Returns null when authorized, or an error object `{ error: string }` when not.
  * Pattern: `const authErr = await assertFamilyAccess(db, userId, targetUserId); if (authErr) { set.status = 403; return authErr; }`
+ */
+/**
+ * assertFamilyAccess — READ access: admin OR caregiver may read another member's data.
  */
 async function assertFamilyAccess(db: Database, callerId: string, targetUserId: string): Promise<{ error: string } | null> {
   if (callerId === targetUserId) return null;
@@ -47,6 +54,38 @@ async function assertFamilyAccess(db: Database, callerId: string, targetUserId: 
 
   if (!callerMembership || (callerMembership.role !== "admin" && callerMembership.role !== "caregiver")) {
     return { error: "Only family admins and caregivers can access health data for other users" };
+  }
+
+  return null;
+}
+
+/**
+ * assertFamilyWriteAccess — WRITE access: admin-only.
+ *
+ * Caregivers have read access to family member health data but must NOT be able
+ * to create or modify health records on behalf of another person. Allowing
+ * caregivers to write would let a malicious caregiver forge symptoms, medications,
+ * or vitals entries that feed directly into VHI scoring and Nora's clinical context.
+ */
+async function assertFamilyWriteAccess(db: Database, callerId: string, targetUserId: string): Promise<{ error: string } | null> {
+  if (callerId === targetUserId) return null;
+
+  const [targetMembership] = await db
+    .select({ familyId: familyMembers.familyId })
+    .from(familyMembers)
+    .where(eq(familyMembers.userId, targetUserId))
+    .limit(1);
+
+  if (!targetMembership) return { error: "Target user is not in any family" };
+
+  const [callerMembership] = await db
+    .select({ role: familyMembers.role })
+    .from(familyMembers)
+    .where(and(eq(familyMembers.userId, callerId), eq(familyMembers.familyId, targetMembership.familyId)))
+    .limit(1);
+
+  if (!callerMembership || callerMembership.role !== "admin") {
+    return { error: "Only family admins can create or modify health records for other family members" };
   }
 
   return null;
@@ -186,7 +225,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     async ({ db, userId, body, set }) => {
       const targetUserId = body.userId ?? userId;
       if (targetUserId !== userId) {
-        const authErr = await assertFamilyAccess(db, userId, targetUserId);
+        const authErr = await assertFamilyWriteAccess(db, userId, targetUserId);
         if (authErr) { set.status = 403; return authErr; }
       }
       const id = crypto.randomUUID();
@@ -239,7 +278,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     async ({ db, userId, body, set }) => {
       const targetUserId = body.userId ?? userId;
       if (targetUserId !== userId) {
-        const authErr = await assertFamilyAccess(db, userId, targetUserId);
+        const authErr = await assertFamilyWriteAccess(db, userId, targetUserId);
         if (authErr) { set.status = 403; return authErr; }
       }
       const id = crypto.randomUUID();
@@ -260,6 +299,61 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
           notes: body.notes,
         })
         .returning();
+
+      // Allergy cross-check — warn immediately if the new medication name matches an active allergy.
+      // This check IS synchronous because a medication-allergy conflict is high-urgency and the
+      // response should include the warning so the client can show a blocking modal.
+      const activeAllergies = await db
+        .select({ substance: allergies.substance, severity: allergies.severity })
+        .from(allergies)
+        .where(and(eq(allergies.userId, targetUserId), eq(allergies.isActive, true)))
+        .limit(100);
+      const allergyMatch = activeAllergies.find((a) =>
+        a.substance && body.name.toLowerCase().includes(a.substance.toLowerCase())
+      );
+      if (allergyMatch) {
+        // Create an alert AND include a warning in the response so the client can block/confirm
+        await db.insert(alerts).values({
+          id: crypto.randomUUID(),
+          userId: targetUserId,
+          type: "medication_allergy_conflict",
+          severity: "critical",
+          title: "Allergy Conflict Detected",
+          body: `${body.name} may conflict with a recorded allergy (${allergyMatch.substance}). Contact your doctor before taking this medication.`,
+          isAcknowledged: false,
+          metadata: { medicationName: body.name, allergySubstance: allergyMatch.substance, allergySeverity: allergyMatch.severity },
+        });
+      }
+
+      // Non-blocking DDI check — never delays the response
+      (async () => {
+        try {
+          const { checkDrugInteractions } = await import('../services/drugInteractionService');
+          // Get user's other active medications
+          const activeMeds = await db.select({ name: medications.name })
+            .from(medications)
+            .where(and(eq(medications.userId, targetUserId), eq(medications.isActive, true)))
+            .limit(50);
+          const existingNames = activeMeds.map(m => m.name).filter(n => n !== body.name);
+          const interactions = await checkDrugInteractions(body.name, existingNames);
+          if (interactions.length > 0) {
+            // Store as a warning alert — not critical, clinicians decide
+            await db.insert(alerts).values({
+              id: crypto.randomUUID(),
+              userId: targetUserId,
+              type: 'drug_interaction_warning',
+              severity: 'high',
+              title: 'Potential Drug Interaction',
+              body: `${body.name} may interact with ${interactions.map(i => i.drug).join(', ')}. Review with your doctor.`,
+              isAcknowledged: false,
+              metadata: { newDrug: body.name, interactions },
+            });
+          }
+        } catch (err: unknown) {
+          console.warn('[medications] DDI check failed:', err instanceof Error ? err.message : String(err));
+        }
+      })();
+
       return created;
     },
     {
@@ -348,7 +442,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     async ({ db, userId, body, set }) => {
       const targetUserId = body.userId ?? userId;
       if (targetUserId !== userId) {
-        const authErr = await assertFamilyAccess(db, userId, targetUserId);
+        const authErr = await assertFamilyWriteAccess(db, userId, targetUserId);
         if (authErr) { set.status = 403; return authErr; }
       }
       const id = crypto.randomUUID();
@@ -404,7 +498,8 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
         userId: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
         from: t.Optional(IsoDateString),
         to: t.Optional(IsoDateString),
-        limit: t.Optional(t.Numeric()),
+        // Cap at 500 to prevent a caller passing limit=9999999 to dump the full table.
+        limit: t.Optional(t.Numeric({ minimum: 1, maximum: 500 })),
       }),
       detail: { tags: ["health"], summary: "Get lab results (own or family member's with admin access)" },
     }
@@ -414,7 +509,9 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
   .get(
     "/allergies",
     async ({ db, userId }) => {
-      return db.select().from(allergies).where(eq(allergies.userId, userId));
+      // Cap at 200 — patients rarely have more than a handful of documented allergies,
+      // and an unbounded SELECT would serialize every row on a large migrated dataset.
+      return db.select().from(allergies).where(eq(allergies.userId, userId)).limit(200);
     },
     { detail: { tags: ["health"], summary: "Get allergies" } }
   )
@@ -423,7 +520,9 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
   .get(
     "/medical-history",
     async ({ db, userId }) => {
-      return db.select().from(medicalHistory).where(eq(medicalHistory.userId, userId));
+      // Cap at 200 — unbounded SELECT on users migrated from legacy systems could
+      // return thousands of historical condition rows in one serialisation.
+      return db.select().from(medicalHistory).where(eq(medicalHistory.userId, userId)).limit(200);
     },
     { detail: { tags: ["health"], summary: "Get medical history" } }
   )
@@ -544,8 +643,8 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     async ({ db, userId, params, body, set }) => {
       const [existing] = await db.select({ id: medications.id, userId: medications.userId }).from(medications).where(eq(medications.id, params.id)).limit(1);
       if (!existing) { set.status = 404; return { error: "Medication not found" }; }
-      // Only the owner (or family admin/caregiver) may modify a medication
-      const authErr = await assertFamilyAccess(db, userId, existing.userId);
+      // Only the owner or a family admin may modify a medication (caregivers read-only)
+      const authErr = await assertFamilyWriteAccess(db, userId, existing.userId);
       if (authErr) { set.status = 403; return authErr; }
 
       const [updated] = await db
@@ -592,7 +691,8 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     async ({ db, userId, params, set }) => {
       const authErr = await assertFamilyAccess(db, userId, params.userId);
       if (authErr) { set.status = 403; return authErr; }
-      return db.select().from(medications).where(and(eq(medications.userId, params.userId), eq(medications.isActive, true)));
+      // Cap at 500 — a long-term patient could have hundreds of historical medications.
+      return db.select().from(medications).where(and(eq(medications.userId, params.userId), eq(medications.isActive, true))).limit(500);
     },
     {
       params: t.Object({ userId: t.String({ minLength: 1, maxLength: 36 }) }),
@@ -615,7 +715,9 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       const memberRows = await db.select({ userId: familyMembers.userId }).from(familyMembers).where(eq(familyMembers.familyId, params.familyId));
       if (memberRows.length === 0) return [];
       const memberIds = memberRows.map((m) => m.userId);
-      return db.select().from(medications).where(and(inArray(medications.userId, memberIds), eq(medications.isActive, true)));
+      // Cap at 500 rows — a family is unlikely to have more active medications than
+      // this, and an unbounded query on a large family would dump the entire table.
+      return db.select().from(medications).where(and(inArray(medications.userId, memberIds), eq(medications.isActive, true))).limit(500);
     },
     {
       params: t.Object({ familyId: t.String({ minLength: 1, maxLength: 36 }) }),
@@ -642,9 +744,9 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
         return { error: "Medication not found" };
       }
 
-      // Caller must be the owner OR a family member with access.
+      // Caller must be the owner OR a family admin (caregivers may not mark-taken on behalf of others).
       // "Family auth is enforced client-side" is never acceptable — enforce server-side.
-      const authErr = await assertFamilyAccess(db, userId, med.userId);
+      const authErr = await assertFamilyWriteAccess(db, userId, med.userId);
       if (authErr) { set.status = 403; return authErr; }
 
       // Record who administered the medication. Always derive from the authenticated
@@ -796,7 +898,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     async ({ db, userId, body, set }) => {
       const targetUserId = body.userId ?? userId;
       if (targetUserId !== userId) {
-        const authErr = await assertFamilyAccess(db, userId, targetUserId);
+        const authErr = await assertFamilyWriteAccess(db, userId, targetUserId);
         if (authErr) { set.status = 403; return authErr; }
       }
       const id = crypto.randomUUID();
@@ -890,6 +992,31 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
           tags: body.tags,
         })
         .returning();
+
+      // After insert, check for critical flags and fire an immediate alert
+      const results = body.results ?? [];
+      const criticalResult = (Array.isArray(results) ? results : Object.values(results)).find((r: unknown) => (r as { flag?: string })?.flag === 'critical');
+      if (criticalResult) {
+        // Fire an alert immediately for critical lab values — don't wait for VHI cycle
+        const alertId = crypto.randomUUID();
+        await db.insert(alerts).values({
+          id: alertId,
+          userId: created.userId,
+          type: 'critical_lab_value',
+          severity: 'critical',
+          title: 'Critical Lab Result',
+          body: `A critical lab result has been recorded. Open Nuralix to review.`,
+          isAcknowledged: false,
+          metadata: { labResultId: created.id, testName: body.testName },
+        });
+        // Push to patient and family admins without awaiting (non-blocking)
+        pushToUserAndFamilyAdmins(
+          created.userId,
+          { title: '🔴 Critical Lab Result', body: 'A critical lab result requires your attention.', data: { screen: 'health', tab: 'labs' }, priority: 'high' },
+          { title: `🔴 Critical Lab — ${created.userId}`, body: 'A critical lab result was recorded for a family member.', data: { screen: 'family', userId: created.userId }, priority: 'high' }
+        ).catch((err: unknown) => console.error('[labs] Critical alert push failed:', err instanceof Error ? err.message : String(err)));
+      }
+
       return created;
     },
     {
@@ -1095,7 +1222,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     async ({ db, userId, body, set }) => {
       const targetUserId = body.userId ?? userId;
       if (targetUserId !== userId) {
-        const authErr = await assertFamilyAccess(db, userId, targetUserId);
+        const authErr = await assertFamilyWriteAccess(db, userId, targetUserId);
         if (authErr) { set.status = 403; return authErr; }
       }
       const id = crypto.randomUUID();
@@ -1190,7 +1317,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     async ({ db, userId, body, set }) => {
       const targetUserId = body.userId ?? userId;
       if (targetUserId !== userId) {
-        const authErr = await assertFamilyAccess(db, userId, targetUserId);
+        const authErr = await assertFamilyWriteAccess(db, userId, targetUserId);
         if (authErr) { set.status = 403; return authErr; }
       }
       // Normalise to midnight so the deterministic id is stable within a day
@@ -1283,7 +1410,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     async ({ db, userId, body, set }) => {
       const timelineTargetUserId = body.userId ?? userId;
       if (timelineTargetUserId !== userId) {
-        const authErr = await assertFamilyAccess(db, userId, timelineTargetUserId);
+        const authErr = await assertFamilyWriteAccess(db, userId, timelineTargetUserId);
         if (authErr) { set.status = 403; return authErr; }
       }
       const domainMap: Record<string, string> = {
@@ -1923,7 +2050,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
         if (!current) { set.status = 404; return { error: "Not found" }; }
         // Only the escalation owner or a family admin may update it
         if (current.userId !== userId) {
-          const authErr = await assertFamilyAccess(db, userId, current.userId);
+          const authErr = await assertFamilyWriteAccess(db, userId, current.userId);
           if (authErr) { set.status = 403; return authErr; }
         }
         const existing = (current?.notificationsSent as string[] | null) ?? [];
@@ -1935,7 +2062,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
           .from(escalations).where(eq(escalations.id, params.id)).limit(1);
         if (!existing) { set.status = 404; return { error: "Not found" }; }
         if (existing.userId !== userId) {
-          const authErr = await assertFamilyAccess(db, userId, existing.userId);
+          const authErr = await assertFamilyWriteAccess(db, userId, existing.userId);
           if (authErr) { set.status = 403; return authErr; }
         }
       }
@@ -1974,13 +2101,16 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
         .limit(1);
       if (!sample) return { ok: true }; // nothing to resolve
       if (sample.escalUserId !== userId) {
-        const authErr = await assertFamilyAccess(db, userId, sample.escalUserId);
+        const authErr = await assertFamilyWriteAccess(db, userId, sample.escalUserId);
         if (authErr) { set.status = 403; return authErr; }
       }
       await db.update(escalations)
         .set({
           status: "resolved",
-          resolvedBy: body.resolvedBy,
+          // Use the authenticated userId — never trust the body for this field.
+          // Accepting resolvedBy from the body would let any caller forge the
+          // identity of whoever resolved the escalation in the audit trail.
+          resolvedBy: userId,
           resolvedAt: new Date(),
           resolutionNotes: body.notes ?? null,
         } as never)
@@ -1990,7 +2120,6 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     {
       body: t.Object({
         alertId: t.String({ maxLength: 36 }),
-        resolvedBy: t.String({ maxLength: 36 }),
         notes: t.Optional(t.String({ maxLength: 2000 })),
       }),
       detail: { tags: ["health"], summary: "Bulk-resolve escalations by alertId" },
@@ -2056,9 +2185,9 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
       if (!row.length) { set.status = 404; return { error: "Anomaly not found" }; }
 
       const anomaly = row[0];
-      // Allow the owner or a family admin to acknowledge
+      // Allow the owner or a family admin to acknowledge (caregivers may not acknowledge anomalies)
       if (anomaly.userId !== userId) {
-        const authErr = await assertFamilyAccess(db, userId, anomaly.userId);
+        const authErr = await assertFamilyWriteAccess(db, userId, anomaly.userId);
         if (authErr) { set.status = 403; return authErr; }
       }
 
@@ -2106,7 +2235,9 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
     {
       query: t.Object({
         userId: t.Optional(t.String({ minLength: 1, maxLength: 36 })),
-        limit: t.Optional(t.Numeric()),
+        // Cap at 500 to prevent a client from dumping the full health timeline
+        // by passing an arbitrarily large limit value.
+        limit: t.Optional(t.Numeric({ minimum: 1, maximum: 500 })),
       }),
       detail: { tags: ["health"], summary: "Get health score history events from the timeline" },
     }

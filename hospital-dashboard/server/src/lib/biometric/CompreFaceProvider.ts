@@ -1,4 +1,4 @@
-import { BiometricProvider, RecognitionResult } from './BiometricProvider.js'
+import { BiometricProvider, RecognitionResult, CONFIDENCE_MATCH, CONFIDENCE_NEAR_MISS_MIN } from './BiometricProvider.js'
 
 // Default timeouts for CompreFace API calls.
 // Enroll/recognize involve image upload + ML inference, so they get more time.
@@ -106,9 +106,17 @@ export class CompreFaceProvider extends BiometricProvider {
       return null
     }
 
-    if (best.similarity < 0.85) return null
+    // Below near-miss floor → no usable signal at all
+    if (best.similarity < CONFIDENCE_NEAR_MISS_MIN) return null
 
-    return { subjectId: best.subject, confidence: best.similarity }
+    // Near-miss: confidence is interesting enough to log, but NOT enough to
+    // create a recognition session.  The caller checks isNearMiss and writes
+    // a separate audit entry for QA without surfacing any patient identity.
+    if (best.similarity < CONFIDENCE_MATCH) {
+      return { subjectId: best.subject, confidence: best.similarity, isNearMiss: true }
+    }
+
+    return { subjectId: best.subject, confidence: best.similarity, isNearMiss: false }
   }
 
   async deleteSubject(subjectId: string): Promise<void> {

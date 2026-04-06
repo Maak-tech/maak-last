@@ -20,9 +20,17 @@ auditRoutes.get('/audit', jwtAuth, requireRole('admin'), async (c) => {
 
   const staffId   = c.req.query('staffId')   ?? null
   const patientId = c.req.query('patientId') ?? null
-  const action    = c.req.query('action')    ?? null
+  const actionRaw = c.req.query('action')    ?? null
   const fromRaw   = c.req.query('from')      ?? null
   const toRaw     = c.req.query('to')        ?? null
+
+  // Reject suspiciously long action strings before they reach the query builder.
+  // Action values are enum-like strings (e.g. "recognition_attempt"); anything
+  // longer than 100 chars is either malformed input or an injection attempt.
+  if (actionRaw && actionRaw.length > 100) {
+    return c.json({ error: 'Invalid action filter' }, 400)
+  }
+  const action = actionRaw
 
   // Validate date strings before passing to Postgres — invalid dates produce 500
   if (fromRaw && isNaN(new Date(fromRaw).getTime())) {

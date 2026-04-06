@@ -26,7 +26,7 @@ export default function CameraCapture({ onCapture, loading }: Props) {
           setError(null)
         }
       } catch (err: unknown) {
-        console.error('[CameraCapture] getUserMedia failed:', err)
+        console.error('[CameraCapture] getUserMedia failed:', err instanceof Error ? err.message : String(err))
         setError('Camera access denied or not available.')
       }
     }
@@ -58,7 +58,7 @@ export default function CameraCapture({ onCapture, loading }: Props) {
         fd.append('image', blob, 'capture.jpg')
         await onCapture(fd)
       } catch (err: unknown) {
-        console.error('[CameraCapture] onCapture threw:', err)
+        console.error('[CameraCapture] onCapture threw:', err instanceof Error ? err.message : String(err))
         setError('Failed to process captured image. Please try again.')
       }
     }, 'image/jpeg', 0.9)

@@ -31,7 +31,7 @@ export default function EnrollPage() {
   useEffect(() => {
     const stored = sessionStorage.getItem('hospital_staff')
     if (stored) {
-      try { setStaff(JSON.parse(stored) as StaffInfo) } catch (err: unknown) { console.warn('[enroll] Failed to parse staff info:', err) }
+      try { setStaff(JSON.parse(stored) as StaffInfo) } catch (err: unknown) { console.warn('[enroll] Failed to parse staff info:', err instanceof Error ? err.message : String(err)) }
     }
     if (!getToken()) router.push('/login')
   }, [router])

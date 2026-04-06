@@ -36,6 +36,18 @@ qrRoutes.get('/patient/qr/:patientId', jwtAuth, async (c) => {
     return { token: newToken, expiresAt: exp }
   })
 
+  // Audit: record that a staff member generated a QR token for a patient.
+  // This is an access-adjacent event — the QR code grants temporary identity
+  // access, so its creation must appear in the HIPAA audit trail alongside
+  // recognition attempts and session confirmations.
+  await writeAudit({
+    staffId: staff.staffId,
+    patientId,
+    action: 'qr_generated',
+    method: 'qr',
+    success: true,
+  })
+
   return c.json({ token, expiresAt: expiresAt.toISOString() })
 })
 
@@ -88,6 +100,16 @@ qrRoutes.post('/patient/qr/generate', async (c) => {
     return { token: newToken, expiresAt: exp }
   })
 
+  // Audit: record patient-initiated QR generation.  No staffId because the
+  // actor is the patient themselves (no hospital_staff row).  The patientId
+  // is sufficient to correlate with subsequent recognition_attempt events.
+  await writeAudit({
+    patientId,
+    action: 'qr_generated',
+    method: 'qr',
+    success: true,
+  })
+
   return c.json({ token, expiresAt: expiresAt.toISOString() })
 })
 
@@ -103,6 +125,13 @@ qrRoutes.post('/qr/resolve', jwtAuth, async (c) => {
     token = body.token.trim()
   } catch {
     return c.json({ error: 'Invalid JSON body' }, 400)
+  }
+
+  // Validate UUID format before hitting the DB — QR tokens are always UUIDs;
+  // a non-UUID value can never match and lets us skip a DB round-trip.
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!UUID_RE.test(token)) {
+    return c.json({ error: 'Invalid or expired QR code' }, 404)
   }
 
   // Atomic claim: mark used_at in the same statement that finds the valid token.

@@ -10,6 +10,7 @@ The module-level _papagei_model reference is populated by main.py's lifespan
 hook after the model has loaded — same pattern used by twin_forecast.py and
 medgemma_explain.py.
 """
+import math
 from typing import Optional
 
 import numpy as np  # pyright: ignore[reportMissingImports]
@@ -36,7 +37,7 @@ def set_papagei_model(model) -> None:
 class EmbeddingRequest(BaseModel):
     """Request for embedding extraction"""
 
-    signal: list[float] = Field(..., description="Raw PPG signal values")
+    signal: list[float] = Field(..., description="Raw PPG signal values", max_items=100000)
     frameRate: float = Field(..., description="Sampling rate of the signal (Hz)")
     returnSegments: bool = Field(
         False,
@@ -99,6 +100,14 @@ async def extract_embeddings(request: EmbeddingRequest) -> EmbeddingResponse:
             status_code=422,
             detail="frameRate must be a positive number.",
         )
+
+    # Check the first 1000 samples for NaN or Infinity values (performance guard)
+    for val in request.signal[:1000]:
+        if math.isnan(val) or math.isinf(val):
+            raise HTTPException(
+                status_code=422,
+                detail="Signal contains NaN or Infinity values, which are not allowed.",
+            )
 
     try:
         signal_array = np.array(request.signal, dtype=np.float32)
