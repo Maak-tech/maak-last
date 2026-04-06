@@ -16,9 +16,16 @@ const PHI_ROUTES: Record<string, string> = {
   '/api/health/moods': 'moods',
   '/api/health/escalations': 'escalations',
   '/api/user/export': 'full_export',
-  '/api/user/profile': 'profile',
+  '/api/user/profile': 'user_profile',
   '/api/genetics': 'genetics',
   '/api/clinical-notes': 'clinical_notes',
+  '/api/health/device-readings': 'device_readings',
+  '/api/health/fall-events':     'fall_events',
+  '/api/health/trends':          'health_trends',
+  '/api/vhi':                    'vhi',
+  '/api/family':                 'family_data',
+  '/api/nora/chat':              'ai_interaction',
+  '/api/nora/complete':          'ai_interaction',
 }
 
 function getPhiCategory(pathname: string): string | null {
@@ -62,6 +69,14 @@ export function phiAuditLogger({
   // Don't log failed requests — no PHI was disclosed
   if (statusCode >= 400) return
 
+  // Extract the target user from route params (may differ from actor in family/admin scenarios)
+  const params = (store as Record<string, unknown>).params as Record<string, string> | undefined
+  const targetUserId =
+    params?.['userId'] ??
+    params?.['memberId'] ??
+    params?.['familyId'] ??
+    userId
+
   const action =
     method === 'GET'
       ? 'read'
@@ -83,6 +98,7 @@ export function phiAuditLogger({
     metadata: {
       requestId: requestId ?? null,
       statusCode,
+      targetUserId: targetUserId ?? null,
     } as Record<string, unknown>,
     ipAddress:
       request.headers.get('x-forwarded-for') ??

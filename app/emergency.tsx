@@ -156,8 +156,10 @@ function ContactRow({
         style={styles.callButton}
         onPress={handleCall}
         activeOpacity={0.75}
-        accessibilityLabel={`Call ${name}`}
+        accessible={true}
         accessibilityRole="button"
+        accessibilityLabel={`Call ${name}`}
+        accessibilityHint="Double tap to open the phone dialer"
       >
         <Phone size={16} color={C.white} />
         <Text style={styles.callButtonText}>CALL</Text>
@@ -263,14 +265,19 @@ export default function EmergencyScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* ── Stale-data warning banner ── */}
-        {isStale && (
-          <View style={styles.staleBanner}>
-            <AlertTriangle size={18} color={C.amber} />
-            <Text style={styles.staleBannerText}>
-              Data may be outdated — open Nuralix to refresh
-            </Text>
-          </View>
-        )}
+        <View
+          accessibilityLiveRegion="polite"
+          accessibilityLabel={isStale ? 'Warning: Health data may be outdated' : undefined}
+        >
+          {isStale && (
+            <View style={styles.staleBanner}>
+              <AlertTriangle size={18} color={C.amber} />
+              <Text style={styles.staleBannerText}>
+                Data may be outdated — open Nuralix to refresh
+              </Text>
+            </View>
+          )}
+        </View>
 
         {/* ── Header card ── */}
         <View style={styles.headerCard}>
@@ -300,8 +307,10 @@ export default function EmergencyScreen() {
               style={styles.refreshButton}
               onPress={handleRefresh}
               disabled={syncing}
-              accessibilityLabel="Refresh emergency data"
+              accessible={true}
               accessibilityRole="button"
+              accessibilityLabel="Refresh emergency data"
+              accessibilityHint="Double tap to sync the latest health data from the server"
             >
               {syncing ? (
                 <ActivityIndicator size="small" color={C.red} />

@@ -21,6 +21,7 @@ import { dispatchWebhookEvent } from "../lib/webhookDispatcher";
 import { processUser } from "./vhiCycle";
 import { recordHeartbeat } from "../lib/heartbeat.js";
 import { logger } from "../lib/logger.js";
+import { encryptFile } from "../lib/fileEncryption.js";
 
 const MAX_ATTEMPTS = 3;
 
@@ -181,6 +182,12 @@ async function processDnaRow(
 ): Promise<void> {
   const { id: queueId, userId, fileKey } = row;
 
+  // Validate FILE_ENCRYPTION_KEY before attempting any DNA file operations
+  if (!process.env.FILE_ENCRYPTION_KEY) {
+    logger.error('[dnaParsingJob] FILE_ENCRYPTION_KEY not set — refusing to process DNA file')
+    throw new Error('FILE_ENCRYPTION_KEY required for DNA file processing')
+  }
+
   // Log only an opaque prefix of the userId and never the S3 key (which encodes
   // the user's upload path) — both are linkable PHI in cloud log streams.
   logger.info({ queueId, userPrefix: userId.slice(0, 8) }, "[dnaParsingJob] Processing queue row");
@@ -200,6 +207,12 @@ async function processDnaRow(
     // 2. Download raw file from Tigris
     const fileBuffer = await downloadFromTigris(fileKey);
     logger.info({ bytes: fileBuffer.length }, "[dnaParsingJob] Downloaded file from Tigris");
+
+    // Note: file is encrypted with AES-256-GCM before upload.
+    // Decryption key is FILE_ENCRYPTION_KEY env var.
+    // IV and auth tag are prepended to the ciphertext — see lib/fileEncryption.ts
+    const { data: encryptedData } = encryptFile(fileBuffer);
+    logger.info({ encryptedBytes: encryptedData.length }, "[dnaParsingJob] File encrypted for transit");
 
     // 3. Send to ML service
     const mlResult = await callMLParser(fileBuffer, provider);

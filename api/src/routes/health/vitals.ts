@@ -3,8 +3,9 @@ import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import crypto from "node:crypto";
 import { requireAuth } from "../../middleware/requireAuth.js";
 import { logger } from "../../lib/logger.js";
-import { vitals, users } from "../../db/schema.js";
+import { vitals, users, familyHealthSummary } from "../../db/schema.js";
 import { batchVitalsRateLimiter } from "../../lib/rateLimiter.js";
+import { detectAndRecordAnomaly } from "../../lib/anomalyDetector.js";
 
 // Reusable ISO 8601 date-string type.
 const IsoDateString = t.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}" });
@@ -87,6 +88,38 @@ export const vitalsRoutes = new Elysia()
         // Also set dirty flag so the 15-min cron picks this user up as a fallback.
         db.update(users).set({ vhiDirty: true }).where(eq(users.id, userId))
           .catch((err: unknown) => logger.warn({ err }, 'vhi_dirty update failed — non-fatal'));
+        // Update family health summary — fire-and-forget (non-blocking).
+        // Requires the user to have a familyId; skip silently if they don't.
+        db.select({ familyId: users.familyId }).from(users).where(eq(users.id, userId)).limit(1)
+          .then(([u]) => {
+            if (!u?.familyId) return;
+            return db.insert(familyHealthSummary)
+              .values({
+                id: crypto.randomUUID(),
+                familyId: u.familyId,
+                userId,
+                lastVitalAt: new Date(),
+                updatedAt: new Date(),
+              })
+              .onConflictDoUpdate({
+                target: [familyHealthSummary.familyId, familyHealthSummary.userId],
+                set: { lastVitalAt: new Date(), updatedAt: new Date() },
+              });
+          })
+          .catch((err: unknown) => logger.warn({ err }, 'family health summary update failed — non-fatal'));
+        // Non-blocking anomaly detection — fire-and-forget
+        if (body.value != null) {
+          setImmediate(() => {
+            detectAndRecordAnomaly({
+              userId,
+              metricType: body.type,
+              value: Number(body.value),
+              readingId: created.id,
+            }).catch((err: unknown) =>
+              logger.warn({ err }, '[vitals] Anomaly detection failed — non-fatal'),
+            )
+          })
+        }
         // Parse numeric strings back to numbers for consistent client-side arithmetic.
         return {
           ...created,

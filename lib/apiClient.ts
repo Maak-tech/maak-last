@@ -16,6 +16,10 @@ export function setUnauthorizedHandler(handler: () => void) {
   _onUnauthorized = handler;
 }
 
+// Dedup flag — prevents multiple concurrent 401 responses from each firing
+// their own logout (e.g. when several in-flight requests all expire at once).
+let _handlingUnauthorized = false;
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -64,8 +68,18 @@ async function request<T>(
 
     // Trigger global logout handler on 401 so the app navigates to the login
     // screen instead of silently failing with a broken UI.
-    if (res.status === 401 && _onUnauthorized) {
-      _onUnauthorized();
+    // The _handlingUnauthorized flag deduplicates concurrent 401 responses so
+    // only one logout fires when multiple in-flight requests all expire at once.
+    if (res.status === 401 && _onUnauthorized && !_handlingUnauthorized) {
+      _handlingUnauthorized = true;
+      // Small delay to let any in-flight requests see the flag before we clear it
+      setTimeout(() => {
+        try {
+          _onUnauthorized?.();
+        } finally {
+          _handlingUnauthorized = false;
+        }
+      }, 50);
     }
 
     throw new ApiError(message, res.status, errorBody);

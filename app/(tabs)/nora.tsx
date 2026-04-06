@@ -15,6 +15,8 @@ import {
   Send,
   Settings,
   Sparkles,
+  ThumbsDown,
+  ThumbsUp,
   Volume2,
   VolumeX,
 } from "lucide-react-native";
@@ -49,11 +51,14 @@ const AI_MODELS: Record<string, string> = {
   "gpt-4o": "GPT-4o",
   "gpt-4o-mini": "GPT-4o mini",
 };
+
+const MAX_RENDERED_MESSAGES = 100;
 import { voiceService } from "../../lib/services/voiceService";
 import { autoLogHealthSignalsFromText } from "../../lib/services/noraChatAutoLogService";
 import CoachMark from "../components/CoachMark";
 import VHIPanel from "@/components/VHIPanel";
 import { useVHI } from "@/hooks/useVHI";
+import { ScreenErrorBoundary } from "@/components/ScreenErrorBoundary";
 
 /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Screen orchestrates chat, voice IO, onboarding tips, and settings in one component. */
 export default function NoraScreen() {
@@ -70,6 +75,8 @@ export default function NoraScreen() {
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
+  // Track which message IDs have received feedback so buttons are disabled after voting.
+  const [feedbackGiven, setFeedbackGiven] = useState<Record<string, 'up' | 'down'>>({});
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [showSettings, setShowSettings] = useState(false);
   // selectedModel is cosmetic only — backend always uses GPT-4o regardless of selection
@@ -101,6 +108,16 @@ export default function NoraScreen() {
   // Keep a ref so async functions (initializeChat) can read the latest value
   // without being added to useEffect dependency arrays.
   const vhiRef = useRef<VHI | null>(null);
+
+  // Append a message and keep the in-memory list capped at MAX_RENDERED_MESSAGES
+  const appendMessage = (newMessage: AIMessage) => {
+    setMessages((prev) => {
+      const updated = [...prev, newMessage];
+      return updated.length > MAX_RENDERED_MESSAGES
+        ? updated.slice(updated.length - MAX_RENDERED_MESSAGES)
+        : updated;
+    });
+  };
 
   const quickActions = isRTL
     ? [
@@ -322,6 +339,7 @@ export default function NoraScreen() {
           "Hello! I'm Nora, your personal health AI assistant. I have access to your health profile, medications, symptoms, and family information. How can I help you today?"
         ),
         timestamp: new Date(),
+        noFeedback: true,
       };
       const systemMessage: AIMessage = {
         id: systemId,
@@ -365,8 +383,9 @@ export default function NoraScreen() {
               content: proactiveText,
               label: isRTL ? "رؤية صحية" : "Health insight",
               timestamp: new Date(),
+              noFeedback: true,
             };
-            setMessages((prev) => [...prev, proactiveMessage]);
+            appendMessage(proactiveMessage);
           }
 
           await AsyncStorage.setItem(lastChatKey, new Date().toISOString());
@@ -427,7 +446,7 @@ export default function NoraScreen() {
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    appendMessage(userMessage);
     setInputText("");
     setIsStreaming(true);
 
@@ -442,7 +461,7 @@ export default function NoraScreen() {
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, assistantMessage]);
+    appendMessage(assistantMessage);
 
     let fullResponse = "";
     let streamFinalized = false;
@@ -566,6 +585,16 @@ export default function NoraScreen() {
     );
   };
 
+  const handleFeedback = async (messageId: string, direction: 'up' | 'down') => {
+    if (feedbackGiven[messageId]) return; // already voted
+    setFeedbackGiven(prev => ({ ...prev, [messageId]: direction }));
+    const rating = direction === 'up' ? 5 : 1;
+    const flag = direction === 'down' ? 'unhelpful' : undefined;
+    noraChatService.submitFeedback(rating, conversationId, messageId, flag).catch((err: unknown) => {
+      console.debug('[nora] feedback submit failed (non-blocking):', err instanceof Error ? err.message : String(err));
+    });
+  };
+
   const _handleNewChat = async () => {
     await initializeChat();
   };
@@ -583,6 +612,7 @@ export default function NoraScreen() {
   };
 
   return (
+    <ScreenErrorBoundary screenName="Nora AI">
     <GradientScreen edges={["top"]} style={styles.container}>
       <View style={styles.figmaOrbTop} />
       <View style={styles.figmaOrbBottom} />
@@ -671,6 +701,11 @@ export default function NoraScreen() {
             </View>
           ) : (
             <>
+              {messages.length >= MAX_RENDERED_MESSAGES && (
+                <Text style={styles.historyCapNote}>
+                  {isRTL ? 'تعرض آخر 100 رسالة' : 'Showing last 100 messages'}
+                </Text>
+              )}
               {messages
                 .filter((m) => m.role !== "system")
                 .map((message) => {
@@ -745,6 +780,36 @@ export default function NoraScreen() {
                         >
                           {formatMessageTime(message.timestamp)}
                         </Text>
+                        {!isUser && !isStreaming && !message.noFeedback && message.content.trim().length > 0 && (
+                          <View style={{ flexDirection: 'row', gap: 12, marginTop: 8, alignItems: 'center' }}>
+                            <TouchableOpacity
+                              onPress={() => handleFeedback(message.id ?? '', 'up')}
+                              disabled={!!feedbackGiven[message.id ?? '']}
+                              style={{ opacity: feedbackGiven[message.id ?? ''] && feedbackGiven[message.id ?? ''] !== 'up' ? 0.3 : 1 }}
+                              accessibilityLabel="Helpful"
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                              <ThumbsUp
+                                size={16}
+                                color="#6B7280"
+                                fill={feedbackGiven[message.id ?? ''] === 'up' ? '#6B7280' : 'none'}
+                              />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() => handleFeedback(message.id ?? '', 'down')}
+                              disabled={!!feedbackGiven[message.id ?? '']}
+                              style={{ opacity: feedbackGiven[message.id ?? ''] && feedbackGiven[message.id ?? ''] !== 'down' ? 0.3 : 1 }}
+                              accessibilityLabel="Not helpful"
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                              <ThumbsDown
+                                size={16}
+                                color="#6B7280"
+                                fill={feedbackGiven[message.id ?? ''] === 'down' ? '#6B7280' : 'none'}
+                              />
+                            </TouchableOpacity>
+                          </View>
+                        )}
                       </View>
                     </View>
                   );
@@ -1052,6 +1117,7 @@ export default function NoraScreen() {
         </View>
       </Modal>
     </GradientScreen>
+    </ScreenErrorBoundary>
   );
 }
 
@@ -1519,5 +1585,12 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 14,
     fontWeight: "600",
+  },
+  historyCapNote: {
+    fontSize: 11,
+    color: "#9ca3af",
+    textAlign: "center",
+    marginVertical: 8,
+    paddingHorizontal: 16,
   },
 });

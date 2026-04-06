@@ -5,6 +5,7 @@ import {
   View,
   Text,
   ScrollView,
+  FlatList,
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
@@ -14,8 +15,11 @@ import {
   ActivityIndicator,
   Share,
   RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
+import { FamilyMemberSkeleton } from '@/components/SkeletonLoader';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFocusEffect } from 'expo-router';
@@ -26,6 +30,8 @@ import { familyInviteService } from '@/lib/services/familyInviteService';
 import { api } from '@/lib/apiClient';
 import { vhiService } from '@/lib/services/vhiService';
 import { User } from '@/types';
+import { useFamilyMembers } from '@/hooks/useFamilyMembers';
+import { useFamilyInvite } from '@/hooks/useFamilyInvite';
 import {
   Plus,
   Users,
@@ -40,6 +46,7 @@ import {
 } from 'lucide-react-native';
 import AlertsCard from '@/app/components/AlertsCard';
 import Avatar from '@/components/Avatar';
+import { ScreenErrorBoundary } from '@/components/ScreenErrorBoundary';
 
 const RELATIONS = [
   { key: 'father', labelEn: 'Father', labelAr: 'الأب' },
@@ -54,85 +61,55 @@ const RELATIONS = [
 export default function FamilyScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
+
+  // Custom hooks for family data and invite state
+  const { members: familyMembers, setMembers: setFamilyMembers, loading, refreshing, error: membersError, load: loadMembers, refresh } = useFamilyMembers(user?.familyId);
+  const invite = useFamilyInvite(user?.familyId);
+
+  // Screen-specific state
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
   const [showJoinFamilyModal, setShowJoinFamilyModal] = useState(false);
   const [showEditMemberModal, setShowEditMemberModal] = useState(false);
-  const [familyMembers, setFamilyMembers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [inviteLoading, setInviteLoading] = useState(false);
-  const [joinLoading, setJoinLoading] = useState(false);
+  const [editMemberForm, setEditMemberForm] = useState({ id: '', name: '', email: '', role: 'member' as 'admin' | 'member' });
   const [editLoading, setEditLoading] = useState(false);
-  const [inviteForm, setInviteForm] = useState({
-    name: '',
-    relation: '',
-  });
-  const [editMemberForm, setEditMemberForm] = useState({
-    id: '',
-    name: '',
-    email: '',
-    role: 'member' as 'admin' | 'member',
-  });
   const [joinFamilyCode, setJoinFamilyCode] = useState('');
-  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
-  const [emergencyContacts, setEmergencyContacts] = useState<{id: string, name: string, phone: string}[]>([]);
+  const [joinLoading, setJoinLoading] = useState(false);
+  const [emergencyContacts, setEmergencyContacts] = useState<{id: string; name: string; phone: string}[]>([]);
   const [newContact, setNewContact] = useState({ name: '', phone: '' });
   const [familyAlertCount, setFamilyAlertCount] = useState(0);
   const [myVhiScore, setMyVhiScore] = useState<number | null>(null);
 
   const isRTL = i18n.language === 'ar';
 
-  const loadFamilyMembers = async (isRefresh = false) => {
-    if (!user?.familyId) {
-      setLoading(false);
-      setRefreshing(false);
-      return;
-    }
+  const loadFamilyMembers = useCallback(async () => {
+    await loadMembers();
 
-    try {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-      
-      const members = await userService.getFamilyMembers(user.familyId);
-      setFamilyMembers(members);
+    if (!user?.familyId) return;
 
-      // Fetch real alert count for family members
-      if (members.length > 0) {
-        try {
-          const userIds = members.map((m: User) => m.id).join(',');
-          const familyAlerts = await api.get<{ isAcknowledged: boolean }[]>(
-            `/api/alerts/family?userIds=${userIds}`
-          );
-          setFamilyAlertCount((Array.isArray(familyAlerts) ? familyAlerts : []).filter((a) => !a.isAcknowledged).length);
-        } catch (err: unknown) { console.warn('[family] Failed to load family alert count:', err instanceof Error ? err.message : String(err)); }
-      }
-
-      // Fetch current user's VHI score via the typed vhiService
+    // Fetch real alert count for family members
+    if (familyMembers.length > 0) {
       try {
-        const vhi = await vhiService.getMyVHI();
-        setMyVhiScore(vhi?.data?.currentState?.overallScore ?? null);
-      } catch (err: unknown) { console.warn('[family] Failed to load VHI score:', err instanceof Error ? err.message : String(err)); }
-    } catch (error: unknown) {
-      console.error('Error loading family members:', error instanceof Error ? error.message : String(error));
-      Alert.alert(
-        isRTL ? 'خطأ' : 'Error',
-        isRTL ? 'فشل في تحميل أعضاء العائلة' : 'Failed to load family members'
-      );
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+        const userIds = familyMembers.map((m) => m.id).join(',');
+        const familyAlerts = await api.get<{ isAcknowledged: boolean }[]>(
+          `/api/alerts/family?userIds=${userIds}`
+        );
+        setFamilyAlertCount((Array.isArray(familyAlerts) ? familyAlerts : []).filter((a) => !a.isAcknowledged).length);
+      } catch (err: unknown) { console.warn('[family] Failed to load family alert count:', err instanceof Error ? err.message : String(err)); }
     }
-  };
+
+    // Fetch current user's VHI score via the typed vhiService
+    try {
+      const vhi = await vhiService.getMyVHI();
+      setMyVhiScore(vhi?.data?.currentState?.overallScore ?? null);
+    } catch (err: unknown) { console.warn('[family] Failed to load VHI score:', err instanceof Error ? err.message : String(err)); }
+  }, [loadMembers, user?.familyId, familyMembers]);
 
   // Refresh data when tab is focused
   useFocusEffect(
     useCallback(() => {
-      loadFamilyMembers();
-    }, [user, isRTL])
+      loadMembers();
+    }, [loadMembers])
   );
 
   const getHealthStatusColor = (status: string) => {
@@ -161,7 +138,7 @@ export default function FamilyScreen() {
   };
 
   const handleInviteMember = async () => {
-    if (!inviteForm.name || !inviteForm.relation) {
+    if (!invite.form.name || !invite.form.relation) {
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL ? 'يرجى ملء الحقول المطلوبة' : 'Please fill in required fields'
@@ -177,19 +154,19 @@ export default function FamilyScreen() {
       return;
     }
 
-    setInviteLoading(true);
+    invite.setLoading(true);
 
     try {
       const code = await familyInviteService.createInvitationCode(
         user.familyId,
         user.id,
-        inviteForm.name,
-        inviteForm.relation
+        invite.form.name,
+        invite.form.relation
       );
 
-      setGeneratedCode(code);
-      const memberName = inviteForm.name;
-      setInviteForm({ name: '', relation: '' });
+      invite.setGeneratedCode(code);
+      const memberName = invite.form.name;
+      invite.setForm({ name: '', relation: '' });
 
       // Prepare sharing message
       const shareMessage = isRTL
@@ -251,7 +228,7 @@ export default function FamilyScreen() {
         isRTL ? 'فشل في إنشاء رمز الدعوة' : 'Failed to generate invite code'
       );
     } finally {
-      setInviteLoading(false);
+      invite.setLoading(false);
     }
   };
 
@@ -372,8 +349,6 @@ export default function FamilyScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              setLoading(true);
-
               // Remove user from family
               await userService.updateUser(member.id, {
                 familyId: undefined,
@@ -395,8 +370,6 @@ export default function FamilyScreen() {
                 isRTL ? 'خطأ' : 'Error',
                 isRTL ? 'فشل في إزالة العضو' : 'Failed to remove member'
               );
-            } finally {
-              setLoading(false);
             }
           },
         },
@@ -633,17 +606,112 @@ export default function FamilyScreen() {
             {t('family')}
           </Text>
         </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#2563EB" />
-          <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
-            {isRTL ? 'جاري التحميل...' : 'Loading...'}
-          </Text>
+        <View style={{ padding: 16 }}>
+          <FamilyMemberSkeleton />
+          <FamilyMemberSkeleton />
+          <FamilyMemberSkeleton />
+          <FamilyMemberSkeleton />
         </View>
       </SafeAreaView>
     );
   }
 
+  // No-family empty state
+  if (!user?.familyId && !loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={[styles.title, isRTL && styles.rtlText]}>
+            {t('family')}
+          </Text>
+        </View>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+          <Text style={{ fontSize: 64, marginBottom: 20 }}>👨‍👩‍👧</Text>
+          <Text style={{ fontSize: 22, fontWeight: '700', color: '#111827', marginBottom: 10, textAlign: 'center' }}>
+            {isRTL ? 'لا توجد عائلة بعد' : 'No family yet'}
+          </Text>
+          <Text style={{ fontSize: 15, color: '#6B7280', textAlign: 'center', lineHeight: 22, marginBottom: 32 }}>
+            {isRTL
+              ? 'أنشئ عائلتك أو انضم إلى عائلة موجودة برمز الدعوة'
+              : 'Create your family or join an existing one with an invite code'}
+          </Text>
+          <TouchableOpacity
+            style={{ backgroundColor: '#2563EB', paddingHorizontal: 28, paddingVertical: 14, borderRadius: 12, width: '100%', alignItems: 'center', marginBottom: 12 }}
+            onPress={() => setShowJoinFamilyModal(true)}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'إنشاء أو الانضمام إلى عائلة' : 'Create or join a family'}
+          >
+            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>
+              {isRTL ? 'إنشاء / الانضمام' : 'Create / Join Family'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        {/* Join Family Modal — must remain mounted to accept input */}
+        <Modal
+          visible={showJoinFamilyModal}
+          animationType="slide"
+          presentationStyle="pageSheet"
+        >
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
+                {isRTL ? 'الانضمام إلى عائلة' : 'Join a Family'}
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowJoinFamilyModal(false);
+                  setJoinFamilyCode('');
+                }}
+                style={styles.closeButton}
+              >
+                <X size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalContent}>
+              <View style={styles.fieldContainer}>
+                <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
+                  {isRTL ? 'رمز الدعوة' : 'Invitation Code'}
+                </Text>
+                <TextInput
+                  style={[styles.textInput, isRTL && styles.rtlInput]}
+                  value={joinFamilyCode}
+                  onChangeText={setJoinFamilyCode}
+                  placeholder={isRTL ? 'أدخل رمز الدعوة (6 أرقام)' : 'Enter invitation code (6 digits)'}
+                  textAlign={isRTL ? 'right' : 'left'}
+                  maxLength={6}
+                  keyboardType="numeric"
+                />
+                <Text style={[styles.emergencyDescription, isRTL && styles.rtlText]}>
+                  {isRTL
+                    ? 'أدخل رمز الدعوة المرسل إليك من أحد أفراد العائلة للانضمام إلى مجموعتهم الصحية'
+                    : 'Enter the invitation code sent to you by a family member to join their health group'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.inviteButton, joinLoading && styles.inviteButtonDisabled]}
+                onPress={handleJoinFamily}
+                disabled={joinLoading}
+              >
+                <Text style={styles.inviteButtonText}>
+                  {joinLoading
+                    ? isRTL ? 'جاري الانضمام...' : 'Joining...'
+                    : isRTL ? 'انضم للعائلة' : 'Join Family'}
+                </Text>
+              </TouchableOpacity>
+              {joinLoading && (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="#2563EB" />
+                </View>
+              )}
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
+      </SafeAreaView>
+    );
+  }
+
   return (
+    <ScreenErrorBoundary screenName="Family">
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={[styles.title, isRTL && styles.rtlText]}>
@@ -657,182 +725,199 @@ export default function FamilyScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView 
-        style={styles.content} 
-        showsVerticalScrollIndicator={false}
+      <FlatList
+        data={familyMembers}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item: member }) => (
+          <View style={styles.memberItem}>
+            <View style={styles.memberLeft}>
+              <View style={styles.avatarContainer}>
+                <Avatar
+                  source={member.avatar ? { uri: member.avatar } : undefined}
+                  name={member.name}
+                  size="md"
+                  showBadge={member.id === user?.id}
+                  badgeColor="#10B981"
+                />
+              </View>
+
+              <View style={styles.memberInfo}>
+                <Text style={[styles.memberName, isRTL && styles.rtlText]}>
+                  {member.name}
+                </Text>
+                <Text
+                  style={[styles.memberRelation, isRTL && styles.rtlText]}
+                >
+                  {member.role === 'admin'
+                    ? isRTL
+                      ? 'مدير'
+                      : 'Admin'
+                    : isRTL
+                    ? 'عضو'
+                    : 'Member'}
+                </Text>
+                <Text
+                  style={[styles.memberLastActive, isRTL && styles.rtlText]}
+                >
+                  {member.email}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.memberRight}>
+              <View style={styles.memberStats}>
+                <View
+                  style={[
+                    styles.statusIndicator,
+                    {
+                      backgroundColor: '#10B981',
+                    },
+                  ]}
+                >
+                  <Text style={styles.statusText}>
+                    {isRTL ? 'نشط' : 'Active'}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.memberActions}>
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={() => handleEditMember(member)}
+                >
+                  <Edit size={16} color="#64748B" />
+                </TouchableOpacity>
+                {member.id !== user?.id && (
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.deleteButton]}
+                    onPress={() => handleDeleteMember(member)}
+                  >
+                    <Trash2 size={16} color="#EF4444" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </View>
+        )}
+        ListHeaderComponent={
+          <>
+            {/* Family Overview */}
+            <View style={styles.overviewCard}>
+              <Text style={[styles.overviewTitle, isRTL && styles.rtlText]}>
+                {isRTL ? 'نظرة عامة على العائلة' : 'Family Overview'}
+              </Text>
+
+              <View style={styles.statsGrid}>
+                <View style={styles.statItem}>
+                  <Users size={20} color="#2563EB" />
+                  <Text style={[styles.statValue, isRTL && styles.rtlText]}>
+                    {totalMembers}
+                  </Text>
+                  <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
+                    {isRTL ? 'أفراد' : 'Members'}
+                  </Text>
+                </View>
+
+                <View style={styles.statItem}>
+                  <Heart size={20} color="#10B981" />
+                  <Text style={[styles.statValue, isRTL && styles.rtlText]}>
+                    {avgHealthScore || 0}
+                  </Text>
+                  <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
+                    {isRTL ? 'نقاط الصحة' : 'Health Score'}
+                  </Text>
+                </View>
+
+                <View style={styles.statItem}>
+                  <AlertTriangle size={20} color="#F59E0B" />
+                  <Text style={[styles.statValue, isRTL && styles.rtlText]}>
+                    {totalAlerts}
+                  </Text>
+                  <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
+                    {isRTL ? 'تنبيهات' : 'Alerts'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Active Alerts */}
+            <AlertsCard />
+
+            {/* Family Members section title */}
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+                {t('familyMembers')}
+              </Text>
+            </View>
+          </>
+        }
+        ListEmptyComponent={
+          <View style={{ alignItems: 'center', padding: 48 }}>
+            <Text style={{ fontSize: 40 }}>👨‍👩‍👧‍👦</Text>
+            <Text style={{ fontSize: 18, fontWeight: '600', marginTop: 12, marginBottom: 8 }}>
+              {isRTL ? 'لا يوجد أعضاء' : 'No family members yet'}
+            </Text>
+            <Text style={{ fontSize: 14, color: '#6B7280', textAlign: 'center' }}>
+              {isRTL ? 'ادع أفراد عائلتك للانضمام' : 'Invite your family members to join'}
+            </Text>
+          </View>
+        }
+        ListFooterComponent={
+          /* Quick Actions */
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+              {isRTL ? 'إجراءات سريعة' : 'Quick Actions'}
+            </Text>
+
+            <View style={styles.quickActions}>
+              <TouchableOpacity
+                style={styles.quickActionButton}
+                onPress={copyInviteCode}
+              >
+                <Share2 size={24} color="#2563EB" />
+                <Text style={[styles.quickActionText, isRTL && styles.rtlText]}>
+                  {isRTL ? 'مشاركة رمز الدعوة' : 'Share Invite Code'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.quickActionButton}
+                onPress={handleEmergencySettings}
+              >
+                <Settings size={24} color="#F59E0B" />
+                <Text style={[styles.quickActionText, isRTL && styles.rtlText]}>
+                  {isRTL ? 'إعدادات الطوارئ' : 'Emergency Settings'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {!user?.familyId && (
+              <TouchableOpacity
+                style={styles.joinFamilyButton}
+                onPress={() => setShowJoinFamilyModal(true)}
+              >
+                <Users size={24} color="#FFFFFF" />
+                <Text
+                  style={[styles.joinFamilyButtonText, isRTL && styles.rtlText]}
+                >
+                  {isRTL ? 'الانضمام إلى عائلة' : 'Join a Family'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        }
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => loadFamilyMembers(true)}
+            onRefresh={refresh}
             tintColor="#2563EB"
           />
-        }>
-        {/* Family Overview */}
-        <View style={styles.overviewCard}>
-          <Text style={[styles.overviewTitle, isRTL && styles.rtlText]}>
-            {isRTL ? 'نظرة عامة على العائلة' : 'Family Overview'}
-          </Text>
-
-          <View style={styles.statsGrid}>
-            <View style={styles.statItem}>
-              <Users size={20} color="#2563EB" />
-              <Text style={[styles.statValue, isRTL && styles.rtlText]}>
-                {totalMembers}
-              </Text>
-              <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
-                {isRTL ? 'أفراد' : 'Members'}
-              </Text>
-            </View>
-
-            <View style={styles.statItem}>
-              <Heart size={20} color="#10B981" />
-              <Text style={[styles.statValue, isRTL && styles.rtlText]}>
-                {avgHealthScore || 0}
-              </Text>
-              <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
-                {isRTL ? 'نقاط الصحة' : 'Health Score'}
-              </Text>
-            </View>
-
-            <View style={styles.statItem}>
-              <AlertTriangle size={20} color="#F59E0B" />
-              <Text style={[styles.statValue, isRTL && styles.rtlText]}>
-                {totalAlerts}
-              </Text>
-              <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
-                {isRTL ? 'تنبيهات' : 'Alerts'}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Active Alerts */}
-        <AlertsCard />
-
-        {/* Family Members */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-            {t('familyMembers')}
-          </Text>
-
-          <View style={styles.membersList}>
-            {familyMembers.map((member) => (
-              <View key={member.id} style={styles.memberItem}>
-                <View style={styles.memberLeft}>
-                  <View style={styles.avatarContainer}>
-                    <Avatar
-                      source={member.avatar ? { uri: member.avatar } : undefined}
-                      name={member.name}
-                      size="md"
-                      showBadge={member.id === user?.id}
-                      badgeColor="#10B981"
-                    />
-                  </View>
-
-                  <View style={styles.memberInfo}>
-                    <Text style={[styles.memberName, isRTL && styles.rtlText]}>
-                      {member.name}
-                    </Text>
-                    <Text
-                      style={[styles.memberRelation, isRTL && styles.rtlText]}
-                    >
-                      {member.role === 'admin'
-                        ? isRTL
-                          ? 'مدير'
-                          : 'Admin'
-                        : isRTL
-                        ? 'عضو'
-                        : 'Member'}
-                    </Text>
-                    <Text
-                      style={[styles.memberLastActive, isRTL && styles.rtlText]}
-                    >
-                      {member.email}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.memberRight}>
-                  <View style={styles.memberStats}>
-                    <View
-                      style={[
-                        styles.statusIndicator,
-                        {
-                          backgroundColor: '#10B981',
-                        },
-                      ]}
-                    >
-                      <Text style={styles.statusText}>
-                        {isRTL ? 'نشط' : 'Active'}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.memberActions}>
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      onPress={() => handleEditMember(member)}
-                    >
-                      <Edit size={16} color="#64748B" />
-                    </TouchableOpacity>
-                    {member.id !== user?.id && (
-                      <TouchableOpacity
-                        style={[styles.actionButton, styles.deleteButton]}
-                        onPress={() => handleDeleteMember(member)}
-                      >
-                        <Trash2 size={16} color="#EF4444" />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-            {isRTL ? 'إجراءات سريعة' : 'Quick Actions'}
-          </Text>
-
-          <View style={styles.quickActions}>
-            <TouchableOpacity
-              style={styles.quickActionButton}
-              onPress={copyInviteCode}
-            >
-              <Share2 size={24} color="#2563EB" />
-              <Text style={[styles.quickActionText, isRTL && styles.rtlText]}>
-                {isRTL ? 'مشاركة رمز الدعوة' : 'Share Invite Code'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.quickActionButton}
-              onPress={handleEmergencySettings}
-            >
-              <Settings size={24} color="#F59E0B" />
-              <Text style={[styles.quickActionText, isRTL && styles.rtlText]}>
-                {isRTL ? 'إعدادات الطوارئ' : 'Emergency Settings'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {!user?.familyId && (
-            <TouchableOpacity
-              style={styles.joinFamilyButton}
-              onPress={() => setShowJoinFamilyModal(true)}
-            >
-              <Users size={24} color="#FFFFFF" />
-              <Text
-                style={[styles.joinFamilyButtonText, isRTL && styles.rtlText]}
-              >
-                {isRTL ? 'الانضمام إلى عائلة' : 'Join a Family'}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </ScrollView>
+        }
+        showsVerticalScrollIndicator={false}
+        removeClippedSubviews
+        maxToRenderPerBatch={10}
+        contentContainerStyle={{ paddingBottom: 80 }}
+      />
 
       {/* Invite Member Modal */}
       <Modal
@@ -840,6 +925,10 @@ export default function FamilyScreen() {
         animationType="slide"
         presentationStyle="pageSheet"
       >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
@@ -848,8 +937,8 @@ export default function FamilyScreen() {
             <TouchableOpacity
               onPress={() => {
                 setShowInviteModal(false);
-                setGeneratedCode(null);
-                setInviteForm({
+                invite.setGeneratedCode(null);
+                invite.setForm({
                   name: '',
                   relation: '',
                 });
@@ -860,7 +949,7 @@ export default function FamilyScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.modalContent}>
+          <ScrollView style={styles.modalContent} keyboardShouldPersistTaps="handled">
             {/* Name */}
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
@@ -868,9 +957,9 @@ export default function FamilyScreen() {
               </Text>
               <TextInput
                 style={[styles.textInput, isRTL && styles.rtlInput]}
-                value={inviteForm.name}
+                value={invite.form.name}
                 onChangeText={(text) =>
-                  setInviteForm({ ...inviteForm, name: text })
+                  invite.setForm({ ...invite.form, name: text })
                 }
                 placeholder={isRTL ? 'ادخل الاسم الكامل' : 'Enter full name'}
                 textAlign={isRTL ? 'right' : 'left'}
@@ -888,13 +977,13 @@ export default function FamilyScreen() {
                     key={relation.key}
                     style={[
                       styles.relationOption,
-                      inviteForm.relation ===
+                      invite.form.relation ===
                         (isRTL ? relation.labelAr : relation.labelEn) &&
                         styles.relationOptionSelected,
                     ]}
                     onPress={() =>
-                      setInviteForm({
-                        ...inviteForm,
+                      invite.setForm({
+                        ...invite.form,
                         relation: isRTL ? relation.labelAr : relation.labelEn,
                       })
                     }
@@ -902,7 +991,7 @@ export default function FamilyScreen() {
                     <Text
                       style={[
                         styles.relationOptionText,
-                        inviteForm.relation ===
+                        invite.form.relation ===
                           (isRTL ? relation.labelAr : relation.labelEn) &&
                           styles.relationOptionTextSelected,
                         isRTL && styles.rtlText,
@@ -924,24 +1013,25 @@ export default function FamilyScreen() {
               </Text>
             </TouchableOpacity>
 
-            {generatedCode && (
+            {invite.generatedCode && (
               <View style={styles.codeContainer}>
                 <Text style={[styles.codeLabel, isRTL && styles.rtlText]}>
                   {isRTL ? 'رمز الدعوة' : 'Invite Code'}
                 </Text>
                 <Text style={[styles.codeValue, isRTL && styles.rtlText]}>
-                  {generatedCode}
+                  {invite.generatedCode}
                 </Text>
               </View>
             )}
 
-            {inviteLoading && (
+            {invite.loading && (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#2563EB" />
               </View>
             )}
           </ScrollView>
         </SafeAreaView>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Emergency Settings Modal */}
@@ -950,6 +1040,10 @@ export default function FamilyScreen() {
         animationType="slide"
         presentationStyle="pageSheet"
       >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
@@ -963,7 +1057,7 @@ export default function FamilyScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.modalContent}>
+          <ScrollView style={styles.modalContent} keyboardShouldPersistTaps="handled">
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
                 {isRTL ? 'جهات الاتصال في حالات الطوارئ' : 'Emergency Contacts'}
@@ -1064,6 +1158,7 @@ export default function FamilyScreen() {
             </View>
           </ScrollView>
         </SafeAreaView>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Join Family Modal */}
@@ -1072,6 +1167,10 @@ export default function FamilyScreen() {
         animationType="slide"
         presentationStyle="pageSheet"
       >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
@@ -1088,7 +1187,7 @@ export default function FamilyScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.modalContent}>
+          <ScrollView style={styles.modalContent} keyboardShouldPersistTaps="handled">
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
                 {isRTL ? 'رمز الدعوة' : 'Invitation Code'}
@@ -1141,6 +1240,7 @@ export default function FamilyScreen() {
             )}
           </ScrollView>
         </SafeAreaView>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Edit Member Modal */}
@@ -1149,6 +1249,10 @@ export default function FamilyScreen() {
         animationType="slide"
         presentationStyle="pageSheet"
       >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
@@ -1170,7 +1274,7 @@ export default function FamilyScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.modalContent}>
+          <ScrollView style={styles.modalContent} keyboardShouldPersistTaps="handled">
             {/* Name */}
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
@@ -1265,8 +1369,10 @@ export default function FamilyScreen() {
             )}
           </ScrollView>
         </SafeAreaView>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
+    </ScreenErrorBoundary>
   );
 }
 

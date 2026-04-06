@@ -5,9 +5,109 @@ import { requireAuth } from "../middleware/requireAuth";
 import { requirePremium } from "../middleware/requirePremium.js";
 import { logger } from "../lib/logger.js";
 import { openAICircuitBreaker } from "../lib/circuitBreaker.js";
-import { vhi, noraConversations, vitals, symptoms, moods, medications } from "../db/schema";
+import { OPENAI_CONFIGURED } from "../lib/openai.js";
+import { applyNoraGuardrails } from "../lib/noraGuardrails.js";
+import { vhi, noraConversations, noraMessageFeedback, vitals, symptoms, moods, medications } from "../db/schema";
 import { chatRateLimiter, completionRateLimiter, realtimeSessionRateLimiter, transcribeRateLimiter } from "../lib/rateLimiter";
 import type { Database } from "../db";
+
+const NORA_SYSTEM_CONSTRAINTS = `
+
+CRITICAL RULES — follow without exception:
+1. NEVER diagnose. Never state a user has, may have, or is at risk for a specific medical condition.
+2. NEVER recommend medication changes, dosage adjustments, or stopping medications.
+3. ALWAYS suggest consulting a doctor for symptoms, medications, or abnormal readings.
+4. NEVER express certainty about health outcomes.
+5. If the user describes emergency symptoms (chest pain, difficulty breathing, sudden weakness, fainting, seizure), respond ONLY with the emergency services message.
+6. Your role: help users understand their tracked data and encourage healthy habits — not to interpret clinical significance.`
+
+/**
+ * Builds the Nora system prompt from VHI context and health-data availability.
+ * Extracted so both /chat and /chat/stream share identical prompt logic.
+ */
+function buildNoraSystemPrompt(vhiContext: string, hasData: boolean): string {
+  const noDataPreamble = !hasData
+    ? [
+        "",
+        "## IMPORTANT: No health data connected yet",
+        "This user has not yet logged any health data (no vitals, symptoms, moods, or medications).",
+        "Do NOT make up or infer any personal health numbers, trends, risk scores, or baselines.",
+        "Instead, warmly welcome them and guide them to connect their first data source:",
+        "  1. Log a vital (blood pressure, heart rate, weight) using the '+' button",
+        "  2. Connect Apple Health or Google Health Connect in Settings → Integrations",
+        "  3. Add a medication or symptom to get started",
+        "You MAY answer general health education questions. You MUST NOT give personalised health advice without data.",
+      ].join("\n")
+    : "";
+
+  return [
+    "You are Nora, Nuralix's AI health assistant.",
+    "You help users understand their Virtual Health Identity — what's helping their health and what's hurting it.",
+    "You explain health signals in plain language, connect patterns to their personal baseline, and guide them to the right next step.",
+    "You do not diagnose. You explain, support, and guide.",
+    "",
+    "## Safety Rules — NEVER violate these",
+    "1. NEVER tell a user to stop, skip, reduce, or change the dose of any medication — always say 'please speak with your doctor or pharmacist before making any changes to your medication.'",
+    "2. NEVER recommend a specific medication, supplement, or treatment to a user.",
+    "3. NEVER interpret a lab result, vital, or symptom as a definitive diagnosis — you can describe what is above/below their baseline, but you must NOT say 'this means you have [condition]'.",
+    "4. If a user asks whether they should stop or change a medication, respond with: 'I can't advise on medication changes — please contact your doctor or pharmacist directly. If this is urgent, call emergency services.'",
+    "5. If a user expresses thoughts of self-harm or suicide, respond immediately with: 'I'm concerned about what you've shared. Please reach out to a crisis helpline right now — in the US call or text 988, or go to your nearest emergency room. I'm here with you.'",
+    "6. NEVER provide specific dosage information or suggest that a dose is safe or unsafe.",
+    "7. If you are unsure whether something is safe to say, default to: 'I'd recommend discussing this with your healthcare provider to make sure you get the right guidance for your situation.'",
+    "8. You may explain what a lab value or vital trend means in general terms (e.g. 'your heart rate has been trending above your personal baseline'), but always add that a clinician should interpret any significant change.",
+    noDataPreamble,
+    vhiContext
+      ? `## Virtual Health Identity\n${vhiContext}`
+      : (!hasData ? "" : "No VHI data available yet. Ask the user to log some health data first."),
+    NORA_SYSTEM_CONSTRAINTS,
+  ].join("\n");
+}
+
+/**
+ * Persists a completed Nora conversation to Postgres (upsert by conversationId).
+ * Always called non-blocking (fire-and-forget) — a failure must never degrade chat UX.
+ */
+function persistNoraConversation(
+  db: Database,
+  userId: string,
+  conversationId: string,
+  message: string,
+  history: Array<{ role: string; content: string }>,
+  reply: string,
+  userVhi: { version?: number | null } | undefined
+): void {
+  const now = new Date().toISOString();
+  const rawMessages = [
+    ...history.map((m) => ({
+      role: m.role as "user" | "assistant" | "system",
+      content: m.content,
+      timestamp: now,
+    })),
+    { role: "user" as const, content: message, timestamp: now },
+    { role: "assistant" as const, content: reply, timestamp: now },
+  ];
+
+  const MAX_STORED_MESSAGES = 100;
+  const fullMessages =
+    rawMessages.length > MAX_STORED_MESSAGES
+      ? rawMessages.slice(rawMessages.length - MAX_STORED_MESSAGES)
+      : rawMessages;
+
+  db.insert(noraConversations)
+    .values({
+      id: conversationId,
+      userId,
+      messages: fullMessages,
+      vhiVersionAtStart: userVhi?.version ?? null,
+    })
+    .onConflictDoUpdate({
+      target: [noraConversations.id],
+      set: { messages: fullMessages, updatedAt: new Date() },
+    })
+    .catch((err: unknown) => {
+      logger.error({ conversationId, err }, "[nora] Failed to persist conversation");
+    });
+}
 
 /**
  * Returns true when the user has at least one health data point in any of the
@@ -35,9 +135,9 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
     "/chat",
     async ({ db, userId, body, set }) => {
       // Guard: fail fast if key is missing so the client gets a meaningful error
-      if (!process.env.OPENAI_API_KEY?.startsWith("sk-")) {
+      if (!OPENAI_CONFIGURED) {
         set.status = 503;
-        return { error: "AI service is not configured. Contact support." };
+        return { error: "AI service not configured" };
       }
 
       // Per-user rate limiting — 20 GPT-4o calls / user / minute
@@ -60,46 +160,7 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
         userHasHealthData(db, userId),
       ]);
       const vhiContext = userVhi?.data?.noraContextBlock ?? "";
-
-      // Build system prompt with VHI context.
-      // If the user has not yet logged any health data, Nora switches to an
-      // onboarding-guide mode: she can answer general health questions but
-      // MUST NOT reference the user's personal health numbers, trends, or risks
-      // (since there are none yet — any attempt would hallucinate data).
-      const noDataPreamble = !hasData
-        ? [
-            "",
-            "## IMPORTANT: No health data connected yet",
-            "This user has not yet logged any health data (no vitals, symptoms, moods, or medications).",
-            "Do NOT make up or infer any personal health numbers, trends, risk scores, or baselines.",
-            "Instead, warmly welcome them and guide them to connect their first data source:",
-            "  1. Log a vital (blood pressure, heart rate, weight) using the '+' button",
-            "  2. Connect Apple Health or Google Health Connect in Settings → Integrations",
-            "  3. Add a medication or symptom to get started",
-            "You MAY answer general health education questions. You MUST NOT give personalised health advice without data.",
-          ].join("\n")
-        : "";
-
-      const systemPrompt = [
-        "You are Nora, Nuralix's AI health assistant.",
-        "You help users understand their Virtual Health Identity — what's helping their health and what's hurting it.",
-        "You explain health signals in plain language, connect patterns to their personal baseline, and guide them to the right next step.",
-        "You do not diagnose. You explain, support, and guide.",
-        "",
-        "## Safety Rules — NEVER violate these",
-        "1. NEVER tell a user to stop, skip, reduce, or change the dose of any medication — always say 'please speak with your doctor or pharmacist before making any changes to your medication.'",
-        "2. NEVER recommend a specific medication, supplement, or treatment to a user.",
-        "3. NEVER interpret a lab result, vital, or symptom as a definitive diagnosis — you can describe what is above/below their baseline, but you must NOT say 'this means you have [condition]'.",
-        "4. If a user asks whether they should stop or change a medication, respond with: 'I can't advise on medication changes — please contact your doctor or pharmacist directly. If this is urgent, call emergency services.'",
-        "5. If a user expresses thoughts of self-harm or suicide, respond immediately with: 'I'm concerned about what you've shared. Please reach out to a crisis helpline right now — in the US call or text 988, or go to your nearest emergency room. I'm here with you.'",
-        "6. NEVER provide specific dosage information or suggest that a dose is safe or unsafe.",
-        "7. If you are unsure whether something is safe to say, default to: 'I'd recommend discussing this with your healthcare provider to make sure you get the right guidance for your situation.'",
-        "8. You may explain what a lab value or vital trend means in general terms (e.g. 'your heart rate has been trending above your personal baseline'), but always add that a clinician should interpret any significant change.",
-        noDataPreamble,
-        vhiContext
-          ? `## Virtual Health Identity\n${vhiContext}`
-          : (!hasData ? "" : "No VHI data available yet. Ask the user to log some health data first."),
-      ].join("\n");
+      const systemPrompt = buildNoraSystemPrompt(vhiContext, hasData);
 
       // Call OpenAI — wrapped in a graceful fallback so network/service errors
       // return a chat-shaped 200 instead of a 5xx crash visible to the mobile client.
@@ -146,10 +207,16 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
             const data = (await openaiRes.json()) as {
               choices: Array<{ message: { content: string } }>;
             };
-            reply =
+            const rawContent =
               data.choices[0]?.message?.content ??
               "I'm unable to respond right now. Please try again.";
             openAICircuitBreaker.recordSuccess()
+            const userLocale = (body as { locale?: string }).locale ?? 'en'
+            const guardrailResult = applyNoraGuardrails(rawContent, body.message, userLocale)
+            if (guardrailResult.isEmergency) {
+              return { reply: guardrailResult.output, conversationId: conversationIdEarly }
+            }
+            reply = guardrailResult.output
           }
         } catch (err: unknown) {
           const isServiceUnavailable =
@@ -173,43 +240,7 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
 
       // Persist conversation (async, non-blocking)
       const conversationId = conversationIdEarly;
-      const now = new Date().toISOString();
-
-      const rawMessages = [
-        ...(body.history ?? []).map((m: { role: string; content: string }) => ({
-          role: m.role as "user" | "assistant" | "system",
-          content: m.content,
-          timestamp: now,
-        })),
-        { role: "user" as const, content: body.message, timestamp: now },
-        { role: "assistant" as const, content: reply, timestamp: now },
-      ];
-
-      // Truncate to the last 100 messages before persisting.
-      // A conversation of 5000+ messages would write megabytes to Neon on every turn.
-      // 100 messages ≈ 50 back-and-forth exchanges — more than enough context for Nora.
-      const MAX_STORED_MESSAGES = 100;
-      const fullMessages = rawMessages.length > MAX_STORED_MESSAGES
-        ? rawMessages.slice(rawMessages.length - MAX_STORED_MESSAGES)
-        : rawMessages;
-
-      // Persist conversation non-blocking — the reply is already returned to the
-      // client; a persistence failure should not degrade the chat experience.
-      db.insert(noraConversations)
-        .values({
-          id: conversationId,
-          userId,
-          messages: fullMessages,
-          vhiVersionAtStart: userVhi?.version ?? null,
-        })
-        .onConflictDoUpdate({
-          target: [noraConversations.id],
-          set: { messages: fullMessages, updatedAt: new Date() },
-        })
-        .catch((err: unknown) => {
-          // Log with context so errors are actionable in Railway logs
-          logger.error({ conversationId, err }, "[nora] Failed to persist conversation");
-        });
+      persistNoraConversation(db, userId, conversationId, body.message, body.history ?? [], reply, userVhi);
 
       return { reply, conversationId };
     },
@@ -231,6 +262,223 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
         ),
       }),
       detail: { tags: ["nora"], summary: "Chat with Nora (VHI-aware)" },
+    }
+  )
+
+  // SSE streaming chat endpoint — streams OpenAI tokens in real-time.
+  // The client connects, receives token-by-token `chunk` events, then a `done`
+  // event with the final conversationId, then the connection closes.
+  .post(
+    "/chat/stream",
+    async ({ db, userId, body, set }) => {
+      // Guard: fail fast if OpenAI key is missing
+      if (!OPENAI_CONFIGURED) {
+        set.status = 503;
+        return { error: "AI service not configured" };
+      }
+
+      // Per-user rate limiting — shared with /chat (20 GPT-4o calls / user / minute)
+      const rl = await chatRateLimiter.check(userId);
+      if (!rl.allowed) {
+        const retryAfterSecs = Math.ceil(rl.resetIn / 1000);
+        set.status = 429;
+        set.headers = {
+          "Retry-After": String(retryAfterSecs),
+          "X-RateLimit-Limit": "20",
+          "X-RateLimit-Remaining": "0",
+          "X-RateLimit-Reset": String(Math.ceil((Date.now() + rl.resetIn) / 1000)),
+        };
+        return { error: "Too many requests. Please wait before sending another message.", retryAfter: retryAfterSecs };
+      }
+
+      // Fetch VHI context and health-data availability (identical to /chat)
+      const [[userVhi], hasData] = await Promise.all([
+        db.select().from(vhi).where(eq(vhi.userId, userId)).limit(1),
+        userHasHealthData(db, userId),
+      ]);
+      const vhiContext = userVhi?.data?.noraContextBlock ?? "";
+      const systemPrompt = buildNoraSystemPrompt(vhiContext, hasData);
+
+      const conversationId = body.conversationId ?? crypto.randomUUID();
+      const userLocale = (body as { locale?: string }).locale ?? "en";
+
+      // SSE headers — must be set before returning the ReadableStream
+      set.headers["Content-Type"] = "text/event-stream";
+      set.headers["Cache-Control"] = "no-cache";
+      set.headers["Connection"] = "keep-alive";
+      set.headers["X-Accel-Buffering"] = "no"; // Disable nginx buffering
+
+      // Helper: encode an SSE event as bytes
+      const enc = new TextEncoder();
+      const sseEvent = (payload: Record<string, unknown>): Uint8Array =>
+        enc.encode(`data: ${JSON.stringify(payload)}\n\n`);
+
+      // Circuit breaker: return a graceful error SSE when the circuit is open
+      if (openAICircuitBreaker.isOpen) {
+        logger.warn({ conversationId }, "[Nora/stream] OpenAI circuit open — sending error event");
+        return new ReadableStream({
+          start(controller) {
+            controller.enqueue(sseEvent({ type: "error", message: "I'm temporarily unavailable due to a service disruption. Please try again in a few minutes." }));
+            controller.close();
+          },
+        });
+      }
+
+      // Open a streaming request to OpenAI
+      let openaiRes: Response;
+      try {
+        openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "gpt-4o",
+            messages: [
+              { role: "system", content: systemPrompt },
+              ...(body.history ?? []),
+              { role: "user", content: body.message },
+            ],
+            max_tokens: 600,
+            temperature: 0.7,
+            stream: true,
+          }),
+          // No AbortSignal — streaming can take up to 60 s for long responses
+        });
+      } catch (fetchErr: unknown) {
+        logger.error({ err: fetchErr, conversationId }, "[nora/chat/stream] OpenAI fetch failed");
+        openAICircuitBreaker.recordFailure();
+        return new ReadableStream({
+          start(controller) {
+            controller.enqueue(sseEvent({ type: "error", message: "I'm having a bit of trouble connecting right now. Please try again in a moment." }));
+            controller.close();
+          },
+        });
+      }
+
+      if (!openaiRes.ok) {
+        const errText = await openaiRes.text().catch(() => "(unreadable)");
+        const isRateLimit = openaiRes.status === 429;
+        const isServiceError = openaiRes.status === 503 || openaiRes.status === 502 || openaiRes.status === 401;
+        logger.error({ status: openaiRes.status, body: errText.slice(0, 300) }, "[nora/chat/stream] OpenAI error");
+        if (isRateLimit || isServiceError) openAICircuitBreaker.recordFailure();
+        const errMsg = isRateLimit || isServiceError
+          ? "I'm having a bit of trouble connecting right now. Your health data is safe — please try asking me again in a moment."
+          : "Something went wrong on my end. Please try again.";
+        return new ReadableStream({
+          start(controller) {
+            controller.enqueue(sseEvent({ type: "error", message: errMsg }));
+            controller.close();
+          },
+        });
+      }
+
+      // openaiRes.body is a ReadableStream of raw SSE bytes from OpenAI.
+      // We consume it, parse tokens, apply guardrails at the end, then
+      // forward everything to the client as our own SSE stream.
+      const upstreamBody = openaiRes.body;
+      if (!upstreamBody) {
+        return new ReadableStream({
+          start(controller) {
+            controller.enqueue(sseEvent({ type: "error", message: "Streaming not supported by the upstream service." }));
+            controller.close();
+          },
+        });
+      }
+
+      const stream = new ReadableStream({
+        async start(controller) {
+          const reader = upstreamBody.getReader();
+          const decoder = new TextDecoder();
+          let lineBuffer = "";
+          let fullResponse = "";
+
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              // Decode the chunk; { stream: true } handles multi-byte chars split across reads
+              lineBuffer += decoder.decode(value, { stream: true });
+
+              // Process complete lines — OpenAI sends `data: ...\n\n` per token
+              const lines = lineBuffer.split("\n");
+              // Keep the last (potentially incomplete) line in the buffer
+              lineBuffer = lines.pop() ?? "";
+
+              for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed.startsWith("data: ")) continue;
+                const payload = trimmed.slice("data: ".length);
+
+                // End-of-stream sentinel
+                if (payload === "[DONE]") continue;
+
+                let parsed: { choices?: Array<{ delta?: { content?: string } }> };
+                try {
+                  parsed = JSON.parse(payload);
+                } catch {
+                  continue; // Skip malformed lines
+                }
+
+                const token = parsed.choices?.[0]?.delta?.content;
+                if (token) {
+                  fullResponse += token;
+                  controller.enqueue(sseEvent({ type: "chunk", token }));
+                }
+              }
+            }
+          } catch (readErr: unknown) {
+            logger.error({ err: readErr, conversationId }, "[nora/chat/stream] Error reading OpenAI stream");
+            openAICircuitBreaker.recordFailure();
+            controller.enqueue(sseEvent({ type: "error", message: "Stream interrupted. Please try again." }));
+            controller.close();
+            return;
+          }
+
+          // Stream finished — apply guardrails to the full collected response
+          openAICircuitBreaker.recordSuccess();
+          const guardrailResult = applyNoraGuardrails(
+            fullResponse || "I'm unable to respond right now. Please try again.",
+            body.message,
+            userLocale
+          );
+
+          const finalReply = guardrailResult.output;
+
+          // If guardrails changed or replaced the output, emit a replace event so
+          // the client swaps out whatever partial text it showed during streaming
+          if (guardrailResult.output !== fullResponse || guardrailResult.isEmergency) {
+            controller.enqueue(sseEvent({ type: "replace", content: finalReply }));
+          }
+
+          controller.enqueue(sseEvent({ type: "done", conversationId }));
+          controller.close();
+
+          // Persist conversation non-blocking — after stream is closed so the
+          // client already has the done event before we hit the DB.
+          persistNoraConversation(db, userId, conversationId, body.message, body.history ?? [], finalReply, userVhi);
+        },
+      });
+
+      return stream;
+    },
+    {
+      body: t.Object({
+        message: t.String({ minLength: 1, maxLength: 2000 }),
+        conversationId: t.Optional(t.String({ maxLength: 36 })),
+        history: t.Optional(
+          t.Array(
+            t.Object({
+              role: t.Union([t.Literal("user"), t.Literal("assistant")]),
+              content: t.String({ maxLength: 4000 }),
+            }),
+            { maxItems: 50 }
+          )
+        ),
+      }),
+      detail: { tags: ["nora"], summary: "Chat with Nora — real-time SSE token streaming" },
     }
   )
 
@@ -717,5 +965,49 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
         usePremiumKey: t.Optional(t.Boolean()),
       }),
       detail: { tags: ["nora"], summary: "Generate OpenAI Realtime ephemeral client secret" },
+    }
+  )
+
+  // ── Nora Feedback ──────────────────────────────────────────────────────────
+
+  /**
+   * POST /api/nora/feedback
+   * Submit a rating and optional flag for a Nora message.
+   */
+  .post(
+    "/feedback",
+    async ({ db, userId, body, set }) => {
+      if (!body?.rating || body.rating < 1 || body.rating > 5) {
+        set.status = 400;
+        return { error: "rating must be 1–5" };
+      }
+
+      const validFlags = ["wrong", "harmful", "unhelpful", "helpful"];
+      if (body.flag && !validFlags.includes(body.flag)) {
+        set.status = 400;
+        return { error: `flag must be one of: ${validFlags.join(", ")}` };
+      }
+
+      await db.insert(noraMessageFeedback).values({
+        id: crypto.randomUUID(),
+        userId,
+        conversationId: body.conversationId ?? "unknown",
+        messageId: body.messageId ?? "unknown",
+        rating: body.rating,
+        flag: body.flag ?? null,
+        reviewedByTeam: false,
+        createdAt: new Date(),
+      });
+
+      return { ok: true };
+    },
+    {
+      body: t.Object({
+        conversationId: t.Optional(t.String({ maxLength: 36 })),
+        messageId: t.Optional(t.String({ maxLength: 36 })),
+        rating: t.Number({ minimum: 1, maximum: 5 }),
+        flag: t.Optional(t.String({ maxLength: 20 })),
+      }),
+      detail: { tags: ["nora"], summary: "Submit feedback for a Nora message" },
     }
   );

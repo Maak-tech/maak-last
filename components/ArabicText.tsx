@@ -2,11 +2,14 @@ import { Text, type TextProps } from "react-native";
 
 interface ArabicTextProps extends TextProps {}
 
-export function ArabicText({ style, ...props }: ArabicTextProps) {
+export function ArabicText({ style, children, ...props }: ArabicTextProps) {
   return (
     <Text
-      style={[{ fontFamily: "NotoSansArabic-Regular", textAlign: "right", writingDirection: "rtl" }, style]}
       {...props}
-    />
+      accessibilityLanguage="ar"
+      style={[{ fontFamily: "NotoSansArabic-Regular", textAlign: "right", writingDirection: "rtl" }, style]}
+    >
+      {children}
+    </Text>
   );
 }

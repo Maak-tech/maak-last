@@ -16,15 +16,15 @@ import {
   NotoSansArabic_700Bold,
 } from "@expo-google-fonts/noto-sans-arabic";
 import * as Sentry from "@sentry/react-native";
-import * as Notifications from "expo-notifications";
 import { Stack, useNavigationContainerRef } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
 import { I18nextProvider } from "react-i18next";
-import { AppState, LogBox, Platform, Text as RNText } from "react-native";
+import { AppState, LogBox, Platform, Text as RNText, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import MedicationAlarmModal from "@/components/MedicationAlarmModal";
 import { NotificationListenerSetup } from "@/components/NotificationListenerSetup";
 import WebNoticeBar from "@/app/components/WebNoticeBar";
@@ -35,9 +35,11 @@ import { RealtimeHealthProvider } from "@/contexts/RealtimeHealthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import i18n from "@/lib/i18n";
 import { routingInstrumentation } from "@/lib/sentry";
+import { offlineService } from "@/lib/services/offlineService";
 import { revenueCatService } from "@/lib/services/revenueCatService";
-import { initializeTrackingTransparency } from "@/lib/services/trackingTransparencyService";
+import { requestATTPermission } from "@/lib/utils/attGate";
 import { initializeErrorHandlers } from "@/lib/utils/errorHandler";
+import { initDeepLinks } from "@/lib/utils/deepLinkHandler";
 import { logger } from "@/lib/utils/logger";
 
 const ENABLE_NOTIFICATIONS_BOOTSTRAP =
@@ -104,15 +106,50 @@ function RootLayout() {
   const notificationHandlerConfiguredRef = useRef(false);
 
   useEffect(() => {
-    // Request notification permissions on app start
-    const requestPermissions = async () => {
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status !== 'granted') {
-        console.warn('[App] Notification permissions not granted');
-      }
+    // ATT must be requested before any tracking/analytics SDK (RevenueCat, FCM).
+    // Notification permission is intentionally NOT requested here — it is
+    // requested in onboarding after the user understands the value proposition,
+    // per Apple's contextual permission guidelines.
+    const initSDKs = async () => {
+      await requestATTPermission();
+      // RevenueCat and other analytics SDKs that require ATT clearance should
+      // be initialized here, after the ATT gate has resolved.
     };
-    
-    requestPermissions();
+
+    initSDKs();
+  }, []);
+
+  useEffect(() => {
+    // Initialize deep link listeners for maak:// and universal links
+    const cleanupDeepLinks = initDeepLinks();
+    return cleanupDeepLinks;
+  }, []);
+
+  useEffect(() => {
+    // If app starts in background, listen for when it comes to foreground
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        setIsAppActive(true);
+        setHasBeenActive(true);
+        // Resume offline sync polling when app returns to foreground
+        offlineService.resumeIntervals();
+      } else if (nextState === 'background') {
+        setIsAppActive(false);
+        // Pause polling intervals to save battery while backgrounded.
+        // The queue is preserved in AsyncStorage; resumeIntervals() restarts
+        // polling when the app comes back to the foreground.
+        offlineService.pauseIntervals();
+      } else {
+        setIsAppActive(false);
+      }
+    });
+
+    // If app is already active on mount, set immediately
+    if (AppState.currentState === 'active') {
+      setHasBeenActive(true);
+    }
+
+    return () => subscription.remove();
   }, []);
 
   // Keep Text defaults neutral. Arabic font handling is patched globally at runtime.
@@ -158,8 +195,9 @@ function RootLayout() {
     }
   }, [fontsLoaded, fontError]);
 
-  // If the app launches in background, skip mounting UI until it becomes active.
-  if (!(hasBeenActive && (fontsLoaded || fontError))) {
+  // Block render only until fonts are ready.
+  // hasBeenActive / isAppActive are used downstream for refresh logic (not for blocking render).
+  if (!(fontsLoaded || fontError)) {
     return null;
   }
 
@@ -175,46 +213,52 @@ function RootLayout() {
                   <FallDetectionProvider>
                     <MedicationAlarmModal />
                     <WebNoticeBar />
-                    <StatusBar style="auto" />
-                    <Stack screenOptions={{ headerShown: false }}>
-                      <Stack.Screen
-                        name="index"
-                        options={{ headerShown: false }}
-                      />
-                      <Stack.Screen
-                        name="(tabs)"
-                        options={{ headerShown: false }}
-                      />
-                      <Stack.Screen
-                        name="profile"
-                        options={{ headerShown: false }}
-                      />
-                      <Stack.Screen
-                        name="onboarding"
-                        options={{ headerShown: false }}
-                      />
-                      <Stack.Screen
-                        name="(auth)"
-                        options={{ headerShown: false }}
-                      />
-                      <Stack.Screen
-                        name="family"
-                        options={{ headerShown: false }}
-                      />
-                      <Stack.Screen
-                        name="hospital"
-                        options={{ headerShown: false }}
-                      />
-                      <Stack.Screen
-                        name="emergency"
-                        options={{ headerShown: false }}
-                      />
-                      <Stack.Screen
-                        name="join"
-                        options={{ title: 'Join Family', headerShown: true }}
-                      />
-                      <Stack.Screen name="+not-found" />
-                    </Stack>
+                    <StatusBar
+                      style="auto"
+                      translucent={false}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <OfflineBanner />
+                      <Stack screenOptions={{ headerShown: false }}>
+                        <Stack.Screen
+                          name="index"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                          name="(tabs)"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                          name="profile"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                          name="onboarding"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                          name="(auth)"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                          name="family"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                          name="hospital"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                          name="emergency"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                          name="join"
+                          options={{ title: 'Join Family', headerShown: true }}
+                        />
+                        <Stack.Screen name="+not-found" />
+                      </Stack>
+                    </View>
                   </FallDetectionProvider>
                 </RealtimeHealthProvider>
               </MedicationAlarmProvider>

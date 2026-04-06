@@ -10,6 +10,35 @@ import { assertFamilyAccess } from "../../services/familyAccessService.js";
 // Reusable ISO 8601 date-string type.
 const IsoDateString = t.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}" });
 
+const LabResultItem = t.Object({
+  test:  t.String({ minLength: 1, maxLength: 100 }),
+  value: t.Number(),
+  unit:  t.Optional(t.String({ maxLength: 20 })),
+  flag:  t.Optional(t.Union([
+    t.Literal('H'),
+    t.Literal('L'),
+    t.Literal('HH'),
+    t.Literal('LL'),
+    t.Literal('N'),
+    t.Literal('A'),
+  ])),
+  referenceRange: t.Optional(t.Object({
+    low:  t.Number(),
+    high: t.Number(),
+  })),
+})
+
+function safeLabResults(raw: unknown): Array<{ test: string; value: number; unit?: string; flag?: string }> {
+  if (!Array.isArray(raw)) return []
+  return raw.filter(
+    (item): item is { test: string; value: number; unit?: string; flag?: string } =>
+      typeof item === 'object' &&
+      item !== null &&
+      typeof (item as Record<string, unknown>).test === 'string' &&
+      typeof (item as Record<string, unknown>).value === 'number',
+  )
+}
+
 export const labsRoutes = new Elysia()
   .use(requireAuth)
 
@@ -67,8 +96,8 @@ export const labsRoutes = new Elysia()
         .returning();
 
       // After insert, check for critical flags and fire an immediate alert
-      const results = body.results ?? [];
-      const criticalResult = (Array.isArray(results) ? results : Object.values(results)).find((r: unknown) => (r as { flag?: string })?.flag === 'critical');
+      const results = safeLabResults(body.results ?? []);
+      const criticalResult = results.find((r) => r.flag === 'critical');
       if (criticalResult) {
         // Fire an alert immediately for critical lab values — don't wait for VHI cycle
         const alertId = crypto.randomUUID();
@@ -99,7 +128,7 @@ export const labsRoutes = new Elysia()
         testDate: IsoDateString,
         orderedBy: t.Optional(t.String({ maxLength: 255 })),
         facility: t.Optional(t.String({ maxLength: 255 })),
-        results: t.Optional(t.Record(t.String(), t.Unknown())),
+        results: t.Optional(t.Array(LabResultItem, { minItems: 1, maxItems: 100 })),
         notes: t.Optional(t.String({ maxLength: 5000 })),
         tags: t.Optional(t.Array(t.String({ maxLength: 50 }), { maxItems: 30 })),
       }),
@@ -153,7 +182,7 @@ export const labsRoutes = new Elysia()
         testDate: t.Optional(IsoDateString),
         orderedBy: t.Optional(t.String({ maxLength: 255 })),
         facility: t.Optional(t.String({ maxLength: 255 })),
-        results: t.Optional(t.Record(t.String(), t.Unknown())),
+        results: t.Optional(t.Array(LabResultItem, { minItems: 1, maxItems: 100 })),
         notes: t.Optional(t.String({ maxLength: 5000 })),
         tags: t.Optional(t.Array(t.String({ maxLength: 50 }), { maxItems: 50 })),
       }),

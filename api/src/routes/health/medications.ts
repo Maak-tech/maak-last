@@ -1,10 +1,16 @@
 import { Elysia, t } from "elysia";
 import { and, desc, eq, gte, inArray, isNull, lte } from "drizzle-orm";
-import crypto from "node:crypto";
+import crypto, { createHash } from "node:crypto";
 import { requireAuth } from "../../middleware/requireAuth.js";
 import { logger } from "../../lib/logger.js";
-import { medications, medicationReminders, medicationAdherence, allergies, familyMembers, alerts } from "../../db/schema.js";
+import { medications, medicationReminders, medicationAdherence, allergies, familyMembers } from "../../db/schema.js";
 import { assertFamilyAccess, assertFamilyWriteAccess } from "../../services/familyAccessService.js";
+import { runDdiCheck } from "../../jobs/ddiCheckJob.js";
+
+// reminders field is deprecated — use medication_reminders table.
+// All select queries should omit medications.reminders; callers wanting reminder
+// schedules must query medicationReminders rows instead.
+const { reminders: _deprecated, ...medicationColumns } = medications;
 
 // Reusable ISO 8601 date-string type.
 const IsoDateString = t.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}" });
@@ -16,8 +22,9 @@ export const medicationsRoutes = new Elysia()
   .get(
     "/medications",
     async ({ db, userId }) => {
+      // Select without the deprecated reminders JSONB; use medication_reminders table for reminder data.
       return db
-        .select()
+        .select(medicationColumns)
         .from(medications)
         .where(and(eq(medications.userId, userId), eq(medications.isActive, true), isNull(medications.deletedAt)));
     },
@@ -34,6 +41,7 @@ export const medicationsRoutes = new Elysia()
         if (authErr) { set.status = 403; return authErr; }
       }
       const id = crypto.randomUUID();
+      // reminders field is deprecated — use medication_reminders table
       const [created] = await db
         .insert(medications)
         .values({
@@ -45,7 +53,8 @@ export const medicationsRoutes = new Elysia()
           instructions: body.instructions,
           startDate: body.startDate ? new Date(body.startDate) : undefined,
           endDate: body.endDate ? new Date(body.endDate) : undefined,
-          reminders: body.reminders,
+          // NOTE: do NOT write body.reminders here — reminders field is deprecated.
+          // Use POST /medications/schedule-reminders to create rows in medication_reminders.
           tags: body.tags,
           quantity: body.quantity,
           notes: body.notes,
@@ -84,34 +93,16 @@ export const medicationsRoutes = new Elysia()
         logger.error({ err: allergyCheckErr }, '[medications] Allergy check failed');
       }
 
-      // Non-blocking DDI check — never delays the response
-      (async () => {
-        try {
-          const { checkDrugInteractions } = await import('../../services/drugInteractionService.js');
-          // Get user's other active medications
-          const activeMeds = await db.select({ name: medications.name })
-            .from(medications)
-            .where(and(eq(medications.userId, targetUserId), eq(medications.isActive, true), isNull(medications.deletedAt)))
-            .limit(50);
-          const existingNames = activeMeds.map(m => m.name).filter(n => n !== body.name);
-          const interactions = await checkDrugInteractions(body.name, existingNames);
-          if (interactions.length > 0) {
-            // Store as a warning alert — not critical, clinicians decide
-            await db.insert(alerts).values({
-              id: crypto.randomUUID(),
-              userId: targetUserId,
-              type: 'drug_interaction_warning',
-              severity: 'high',
-              title: 'Potential Drug Interaction',
-              body: `${body.name} may interact with ${interactions.map(i => i.drug).join(', ')}. Review with your doctor.`,
-              isAcknowledged: false,
-              metadata: { newDrug: body.name, interactions },
-            });
-          }
-        } catch (err: unknown) {
-          logger.warn({ err }, '[medications] DDI check failed');
-        }
-      })();
+      // Queue DDI check — non-blocking, user notified async if interaction found
+      setImmediate(() => {
+        runDdiCheck({
+          medicationId: created.id,
+          userId: targetUserId,
+          medicationName: body.name,
+        }).catch((err: unknown) =>
+          logger.error({ err, medicationId: created.id }, '[medications] DDI check job failed'),
+        )
+      });
 
       return { ...created, allergyWarning };
     },
@@ -124,7 +115,7 @@ export const medicationsRoutes = new Elysia()
         instructions: t.Optional(t.String({ maxLength: 2000 })),
         startDate: t.Optional(IsoDateString),
         endDate: t.Optional(IsoDateString),
-        reminders: t.Optional(t.Array(t.Record(t.String(), t.Unknown()), { maxItems: 50 })),
+        // reminders field is deprecated — use POST /medications/schedule-reminders instead
         tags: t.Optional(t.Array(t.String({ maxLength: 50 }), { maxItems: 50 })),
         quantity: t.Optional(t.Number({ minimum: 0, maximum: 10000 })),
         notes: t.Optional(t.String({ maxLength: 2000 })),
@@ -137,7 +128,8 @@ export const medicationsRoutes = new Elysia()
   .get(
     "/medications/:id",
     async ({ db, userId, params, set }) => {
-      const [med] = await db.select().from(medications).where(and(eq(medications.id, params.id), isNull(medications.deletedAt))).limit(1);
+      // Select without deprecated reminders JSONB; reminder data lives in medication_reminders.
+      const [med] = await db.select(medicationColumns).from(medications).where(and(eq(medications.id, params.id), isNull(medications.deletedAt))).limit(1);
       if (!med) { set.status = 404; return { error: "Medication not found" }; }
       // Ensure the caller owns this medication (or has family access)
       const authErr = await assertFamilyAccess(db, userId, med.userId, "medications");
@@ -170,7 +162,7 @@ export const medicationsRoutes = new Elysia()
           ...(body.isActive !== undefined && { isActive: body.isActive }),
           ...(body.startDate !== undefined && { startDate: new Date(body.startDate) }),
           ...(body.endDate !== undefined && { endDate: body.endDate ? new Date(body.endDate) : null }),
-          ...(body.reminders !== undefined && { reminders: body.reminders }),
+          // reminders field is deprecated — use medication_reminders table; do NOT write here
           ...(body.tags !== undefined && { tags: body.tags }),
           ...(body.quantity !== undefined && { quantity: body.quantity }),
           ...(body.notes !== undefined && { notes: body.notes }),
@@ -190,7 +182,7 @@ export const medicationsRoutes = new Elysia()
         isActive: t.Optional(t.Boolean()),
         startDate: t.Optional(IsoDateString),
         endDate: t.Optional(t.Nullable(IsoDateString)),
-        reminders: t.Optional(t.Array(t.Record(t.String(), t.Unknown()), { maxItems: 50 })),
+        // reminders field is deprecated — use POST /medications/schedule-reminders instead
         tags: t.Optional(t.Array(t.String({ maxLength: 50 }), { maxItems: 50 })),
         quantity: t.Optional(t.Number({ minimum: 0 })),
         notes: t.Optional(t.String({ maxLength: 2000 })),
@@ -206,7 +198,8 @@ export const medicationsRoutes = new Elysia()
       const authErr = await assertFamilyAccess(db, userId, params.userId, "medications");
       if (authErr) { set.status = 403; return authErr; }
       // Cap at 500 — a long-term patient could have hundreds of historical medications.
-      return db.select().from(medications).where(and(eq(medications.userId, params.userId), eq(medications.isActive, true), isNull(medications.deletedAt))).limit(500);
+      // Select without deprecated reminders JSONB; reminder data lives in medication_reminders.
+      return db.select(medicationColumns).from(medications).where(and(eq(medications.userId, params.userId), eq(medications.isActive, true), isNull(medications.deletedAt))).limit(500);
     },
     {
       params: t.Object({ userId: t.String({ minLength: 1, maxLength: 36 }) }),
@@ -232,7 +225,8 @@ export const medicationsRoutes = new Elysia()
       const memberIds = memberRows.map((m) => m.userId);
       // Cap at 500 rows — a family is unlikely to have more active medications than
       // this, and an unbounded query on a large family would dump the entire table.
-      return db.select().from(medications).where(and(inArray(medications.userId, memberIds), eq(medications.isActive, true), isNull(medications.deletedAt))).limit(500);
+      // Select without deprecated reminders JSONB; reminder data lives in medication_reminders.
+      return db.select(medicationColumns).from(medications).where(and(inArray(medications.userId, memberIds), eq(medications.isActive, true), isNull(medications.deletedAt))).limit(500);
     },
     {
       params: t.Object({ familyId: t.String({ minLength: 1, maxLength: 36 }) }),
@@ -334,49 +328,92 @@ export const medicationsRoutes = new Elysia()
       const authErr = await assertFamilyWriteAccess(db, userId, med.userId);
       if (authErr) { set.status = 403; return authErr; }
 
-      const now = new Date();
+      const medicationId = body.medicationId;
+      const targetUserId = med.userId;
+      const startDate = new Date();
 
-      // Delete all existing future pending reminders for this medication
-      await db
-        .delete(medicationReminders)
+      // ── Idempotency check ───────────────────────────────────────────────────
+      // Hash medicationId + sorted times to detect a re-schedule with identical params.
+      // If the same hash is already stored as the notes sentinel on any future pending
+      // reminder, the schedule already exists — skip the re-insert.
+      const scheduleHash = createHash('sha256')
+        .update(`${medicationId}:${[...body.reminderTimes].sort().join(',')}`)
+        .digest('hex')
+        .slice(0, 32);
+
+      const [existingIdempotent] = await db
+        .select({ id: medicationReminders.id })
+        .from(medicationReminders)
         .where(
           and(
-            eq(medicationReminders.medicationId, body.medicationId),
-            eq(medicationReminders.status, "pending"),
-            gte(medicationReminders.scheduledAt, now)
+            eq(medicationReminders.medicationId, medicationId),
+            eq(medicationReminders.userId, targetUserId),
+            eq(medicationReminders.status, 'pending'),
+            gte(medicationReminders.scheduledAt, startDate),
+            eq(medicationReminders.notes, `idempotency:${scheduleHash}`)
           )
-        );
+        )
+        .limit(1);
 
-      // Build 30 days of reminder rows for each supplied time
-      const rows: {
+      if (existingIdempotent) {
+        // Identical schedule already exists — return idempotent success
+        return { scheduled: 0, idempotent: true };
+      }
+
+      // ── Compute all reminder rows upfront ───────────────────────────────────
+      // Generate all rows before touching the DB so we know the full count first.
+      const reminderRows: {
         id: string;
         medicationId: string;
         userId: string;
         scheduledAt: Date;
         status: "pending";
-      }[] = [];
-
-      for (let day = 0; day < 30; day++) {
-        for (const timeStr of body.reminderTimes) {
+        notes: string;
+      }[] = body.reminderTimes.flatMap((timeStr) =>
+        Array.from({ length: 30 }, (_, day) => {
           const [hh, mm] = timeStr.split(":").map(Number);
-          const scheduledAt = new Date();
+          const scheduledAt = new Date(startDate);
           scheduledAt.setDate(scheduledAt.getDate() + day);
           scheduledAt.setHours(hh, mm, 0, 0);
-          rows.push({
+          return {
             id: crypto.randomUUID(),
-            medicationId: body.medicationId,
-            userId: med.userId,
+            medicationId,
+            userId: targetUserId,
             scheduledAt,
-            status: "pending",
-          });
-        }
+            status: "pending" as const,
+            // Embed the schedule hash as a sentinel in the notes field so we can
+            // detect idempotent re-submissions without a separate DB column.
+            notes: `idempotency:${scheduleHash}`,
+          };
+        })
+      );
+
+      if (reminderRows.length > 1000) {
+        set.status = 400;
+        return { error: "Too many reminders (max 1000 per schedule)" };
       }
 
-      if (rows.length > 0) {
-        await db.insert(medicationReminders).values(rows);
+      // ── DELETE then INSERT (two awaited calls — no transaction support on Neon HTTP) ──
+      // Note: there is no transaction support via the Neon HTTP driver. If the INSERT
+      // fails after DELETE, we end up with no future reminders for this medication.
+      // The idempotency check above ensures a safe retry: resubmitting the same
+      // params will re-create the reminders correctly after a partial failure.
+      await db
+        .delete(medicationReminders)
+        .where(
+          and(
+            eq(medicationReminders.medicationId, medicationId),
+            eq(medicationReminders.userId, targetUserId),
+            eq(medicationReminders.status, "pending"),
+            gte(medicationReminders.scheduledAt, startDate)
+          )
+        );
+
+      if (reminderRows.length > 0) {
+        await db.insert(medicationReminders).values(reminderRows);
       }
 
-      return { scheduled: rows.length };
+      return { scheduled: reminderRows.length, idempotent: false };
     },
     {
       body: t.Object({

@@ -2,6 +2,7 @@
 /* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Offline sync orchestration intentionally handles many operation-specific branches in one module. */
 /* biome-ignore-all lint/style/noNestedTernary: Existing severity mapping logic in offline sync uses compact conditional expressions pending refactor. */
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import NetInfo from "@react-native-community/netinfo";
 import { api } from "@/lib/apiClient";
 import { healthTimelineService } from "@/lib/observability";
 import type {
@@ -19,6 +20,26 @@ const OFFLINE_DATA_KEY = "@nuralix_offline_data";
 const _SYNC_STATUS_KEY = "@nuralix_sync_status";
 const NETWORK_CHECK_INTERVAL_MS = 30_000;
 const AUTO_SYNC_INTERVAL_MS = 60_000;
+
+const MAX_QUEUE_ITEMS = 500;
+const MAX_QUEUE_BYTES = 4 * 1024 * 1024; // 4 MB
+
+type QueueFullListener = (item: unknown) => void;
+const _queueFullListeners: QueueFullListener[] = [];
+
+function _emitQueueFull(item: unknown) {
+  for (const listener of _queueFullListeners) {
+    try { listener(item); } catch { /* ignore listener errors */ }
+  }
+}
+
+export function onQueueFull(listener: QueueFullListener): () => void {
+  _queueFullListeners.push(listener);
+  return () => {
+    const idx = _queueFullListeners.indexOf(listener);
+    if (idx >= 0) _queueFullListeners.splice(idx, 1);
+  };
+}
 
 type OfflineOperationData = {
   id?: string;
@@ -91,21 +112,18 @@ class OfflineService {
   }
 
   /**
-   * Check network connectivity
+   * Check network connectivity using @react-native-community/netinfo.
+   *
+   * NetInfo is preferred over fetching a remote URL because it:
+   * - does not depend on any particular server being reachable
+   * - works in all regions (no geo-blocking concerns)
+   * - does not waste battery on unnecessary HTTP requests
+   * - avoids App Store privacy-review flags from pinging third-party URLs
    */
   private async checkNetworkStatus(): Promise<boolean> {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
-
-      const response = await fetch("https://www.google.com", {
-        method: "HEAD",
-        cache: "no-store",
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-      return response.ok;
+      const state = await NetInfo.fetch();
+      return state.isConnected === true && state.isInternetReachable !== false;
     } catch {
       return false;
     }
@@ -226,6 +244,63 @@ class OfflineService {
   }
 
   /**
+   * Pause both polling intervals (e.g. when app goes to background) to save battery.
+   * State and queue are preserved; call resumeIntervals() to restart polling.
+   */
+  pauseIntervals(): void {
+    if (this.networkCheckInterval) {
+      clearInterval(this.networkCheckInterval);
+      this.networkCheckInterval = null;
+    }
+    if (this.autoSyncInterval) {
+      clearInterval(this.autoSyncInterval);
+      this.autoSyncInterval = null;
+    }
+  }
+
+  /**
+   * Resume both polling intervals after a pause.
+   * No-op if the service has not been initialised yet or intervals are already running.
+   */
+  resumeIntervals(): void {
+    if (!this.isInitialized) return;
+
+    if (!this.networkCheckInterval) {
+      this.networkCheckInterval = setInterval(async () => {
+        const wasOnline = this.isOnline;
+        this.isOnline = await this.checkNetworkStatus();
+
+        if (!wasOnline && this.isOnline) {
+          this.syncAll().catch((err: unknown) => {
+            console.warn('[offline] syncAll on reconnect failed:', err instanceof Error ? err.message : String(err));
+          });
+        }
+
+        if (wasOnline !== this.isOnline && this.syncListeners && Array.isArray(this.syncListeners)) {
+          this.syncListeners.forEach((listener) => {
+            try {
+              listener(this.isOnline);
+            } catch (err: unknown) {
+              console.debug('[offlineService] Error in sync listener:', err instanceof Error ? err.message : String(err));
+            }
+          });
+        }
+      }, NETWORK_CHECK_INTERVAL_MS);
+    }
+
+    if (!this.autoSyncInterval) {
+      this.autoSyncInterval = setInterval(async () => {
+        if (this.isOnline && !this.isSyncing) {
+          const queue = await this.getOfflineQueue();
+          if (queue.length > 0) {
+            this.syncAll();
+          }
+        }
+      }, AUTO_SYNC_INTERVAL_MS);
+    }
+  }
+
+  /**
    * Check if device is online
    */
   isDeviceOnline(): boolean {
@@ -257,16 +332,30 @@ class OfflineService {
    */
   async queueOperation(
     operation: Omit<OfflineOperation, "id" | "timestamp" | "retries">
-  ): Promise<string> {
+  ): Promise<string | 'queue_full'> {
     // Ensure initialization is complete before using the service
     await this.ensureInitialized();
     const queue = await this.getOfflineQueue();
+
+    if (queue.length >= MAX_QUEUE_ITEMS) {
+      console.warn(`[offline] Queue full (${MAX_QUEUE_ITEMS} items) — dropping request to ${operation.collection ?? 'unknown'}`);
+      _emitQueueFull(operation);
+      return 'queue_full' as const;
+    }
+
     const newOperation: OfflineOperation = {
       ...operation,
       id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       timestamp: new Date(),
       retries: 0,
     };
+
+    const serialized = JSON.stringify([...queue, newOperation]);
+    if (new TextEncoder().encode(serialized).length > MAX_QUEUE_BYTES) {
+      console.warn(`[offline] Queue size limit (${MAX_QUEUE_BYTES} bytes) exceeded — dropping item`);
+      _emitQueueFull(newOperation);
+      return 'queue_full' as const;
+    }
 
     queue.push(newOperation);
     await AsyncStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));

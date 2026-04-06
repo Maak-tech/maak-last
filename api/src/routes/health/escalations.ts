@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia";
-import { and, desc, eq, gte } from "drizzle-orm";
+import { and, desc, eq, gte, sql } from "drizzle-orm";
 import crypto from "node:crypto";
 import { requireAuth } from "../../middleware/requireAuth.js";
 import { escalations, anomalies } from "../../db/schema.js";
@@ -80,8 +80,8 @@ export const escalationsRoutes = new Elysia()
       if (body.resolutionNotes) updates.resolutionNotes = body.resolutionNotes;
       if (body.currentLevel != null) updates.currentLevel = body.currentLevel;
       if (body.notificationsSentAppend) {
-        // Fetch current array and merge
-        const [current] = await db.select({ notificationsSent: escalations.notificationsSent, userId: escalations.userId })
+        // Authorization check
+        const [current] = await db.select({ userId: escalations.userId })
           .from(escalations).where(eq(escalations.id, params.id)).limit(1);
         if (!current) { set.status = 404; return { error: "Not found" }; }
         // Only the escalation owner or a family admin may update it
@@ -89,9 +89,18 @@ export const escalationsRoutes = new Elysia()
           const authErr = await assertFamilyWriteAccess(db, userId, current.userId);
           if (authErr) { set.status = 403; return authErr; }
         }
-        const existing = (current?.notificationsSent as string[] | null) ?? [];
-        const merged = [...new Set([...existing, ...body.notificationsSentAppend])];
-        updates.notificationsSent = merged;
+        // Atomic jsonb append — avoids fetch-merge-write race condition
+        if (body.notificationsSentAppend.length > 0) {
+          await db.execute(sql`
+            UPDATE escalations
+            SET metadata = jsonb_set(
+              COALESCE(metadata, '{}'::jsonb),
+              '{notificationsSent}',
+              COALESCE(metadata->'notificationsSent', '[]'::jsonb) || ${JSON.stringify(body.notificationsSentAppend)}::jsonb
+            )
+            WHERE id = ${params.id}
+          `)
+        }
       } else {
         // Authorization check when notificationsSentAppend is not set
         const [existing] = await db.select({ userId: escalations.userId })

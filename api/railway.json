@@ -66,6 +66,31 @@
       "schedule": "0 2 * * *",
       "command": "bun run src/jobs/phiRetentionJob.ts",
       "name": "PHI data retention enforcement (daily 02:00 UTC)"
+    },
+    {
+      "name": "trendCalculationJob",
+      "command": "bun run src/jobs/trendCalculationJob.ts",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "name": "notificationRulesJob",
+      "command": "bun run src/jobs/notificationRulesJob.ts",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "name": "notificationWorker",
+      "command": "bun run src/jobs/notificationWorker.ts",
+      "schedule": "* * * * *"
+    },
+    {
+      "name": "fallEventAlertJob",
+      "command": "bun run src/jobs/fallEventAlertJob.ts",
+      "schedule": "*/2 * * * *"
+    },
+    {
+      "name": "baselineRecomputeJob",
+      "schedule": "0 3 * * *",
+      "command": "bun run src/jobs/baselineRecomputeJob.ts"
     }
   ]
 }

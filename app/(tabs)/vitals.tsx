@@ -37,6 +37,13 @@ import type { LucideIcon } from 'lucide-react-native';
 import { api } from '@/lib/apiClient';
 import { healthDataService, VitalSigns, HealthDataSummary } from '@/lib/services/healthDataService';
 
+function formatVitalValue(value: number | null | undefined, decimals = 0): string {
+  if (value === null || value === undefined) return '—';
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return '—';
+  return decimals > 0 ? n.toFixed(decimals) : String(Math.round(n));
+}
+
 function formatRelativeTime(isoString: string): string {
   const diff = Date.now() - new Date(isoString).getTime();
   const hours = Math.floor(diff / (1000 * 60 * 60));
@@ -391,7 +398,7 @@ export default function VitalsScreen() {
         titleAr: 'معدل ضربات القلب',
         icon: Heart,
         color: theme.colors.accent.error,
-        value: vitals.heartRate?.toString() || '0',
+        value: formatVitalValue(vitals.heartRate),
         unit: 'BPM',
         trend: summary.heartRate?.trend ?? 'stable',
         status: vitals.heartRate == null ? undefined : vitals.heartRate > 100 ? 'warning' : 'normal',
@@ -402,7 +409,9 @@ export default function VitalsScreen() {
         titleAr: 'خطوات اليوم',
         icon: Activity,
         color: theme.colors.primary.main,
-        value: vitals.steps?.toLocaleString() || '0',
+        value: vitals.steps != null && Number.isFinite(vitals.steps) && vitals.steps >= 0
+          ? vitals.steps.toLocaleString()
+          : '—',
         unit: 'steps',
         trend: 'stable',
         status: vitals.steps && vitals.steps >= summary.steps.goal ? 'normal' : 'warning',
@@ -413,7 +422,7 @@ export default function VitalsScreen() {
         titleAr: 'النوم الليلة الماضية',
         icon: Moon,
         color: theme.colors.accent.info,
-        value: vitals.sleepHours?.toFixed(1) || '0',
+        value: formatVitalValue(vitals.sleepHours, 1),
         unit: 'hours',
         trend: 'stable',
         status: vitals.sleepHours && vitals.sleepHours >= 7 ? 'normal' : 'warning',
@@ -424,7 +433,7 @@ export default function VitalsScreen() {
         titleAr: 'الوزن',
         icon: Scale,
         color: theme.colors.accent.success,
-        value: vitals.weight?.toFixed(1) || '0',
+        value: formatVitalValue(vitals.weight, 1),
         unit: 'kg',
         trend: summary.weight.trend,
         status: 'normal',

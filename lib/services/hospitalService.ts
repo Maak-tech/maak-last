@@ -72,9 +72,12 @@ export const hospitalService = {
       method: 'DELETE',
     }),
 
-  getEnrollmentStatus: (patientId: string) =>
+  // Patient self-service: checks own enrollment status using the patient session token.
+  // Uses /enroll/self/status — the staff-only /enroll/:id/status requires a hospital JWT
+  // and is therefore not callable from the patient app.
+  getEnrollmentStatus: (_patientId: string) =>
     hospitalFetch<{ enrolled: boolean; enrolledAt: string | null }>(
-      `/enroll/${patientId}/status`
+      '/enroll/self/status'
     ),
 
   generateQR: async (_patientId: string): Promise<{ token: string; expiresAt: string }> => {

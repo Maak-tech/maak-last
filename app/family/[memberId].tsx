@@ -89,6 +89,7 @@ import type {
 } from "@/types";
 import { coerceToDate } from "@/utils/dateCoercion";
 import { safeFormatDate, safeFormatTime } from "@/utils/dateFormat";
+import { ScreenErrorBoundary } from "@/components/ScreenErrorBoundary";
 
 const WHITESPACE_REGEX = /\s+/;
 
@@ -899,6 +900,7 @@ export default function FamilyMemberHealthView() {
   }
 
   return (
+    <ScreenErrorBoundary screenName="Family Member">
     <GradientScreen
       edges={["top"]}
       pointerEvents="box-none"
@@ -2011,6 +2013,7 @@ export default function FamilyMemberHealthView() {
         )}
       </ScrollView>
     </GradientScreen>
+    </ScreenErrorBoundary>
   );
 }
 

@@ -8,7 +8,11 @@ import {
   integer,
   index,
   unique,
+  uniqueIndex,
+  uuid,
 } from "drizzle-orm/pg-core";
+import { users } from "./users.js";
+import { sql } from "drizzle-orm";
 
 // ── Vitals ─────────────────────────────────────────────────────────────────────
 
@@ -367,6 +371,8 @@ export const vhiSnapshots = pgTable(
     computedAt: timestamp("computed_at").notNull(),
     data: jsonb("data").$type<Record<string, unknown>>().notNull(),
     triggeredBy: text("triggered_by"), // 'vhiCycle' | 'manual' | 'wearable_sync' etc.
+    formulaVersion: text("formula_version").notNull().default("1.0.0"),
+    inputManifest:  jsonb("input_manifest"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (t) => [
@@ -557,15 +563,139 @@ export const calendarEvents = pgTable("calendar_events", {
 
 // ── Caregiver Notes ────────────────────────────────────────────────────────────
 
-export const caregiverNotes = pgTable("caregiver_notes", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-  memberId: text("member_id").notNull(),
-  caregiverId: text("caregiver_id").notNull(),
-  caregiverName: text("caregiver_name"),
-  note: text("note").notNull(),
-  tags: text("tags").array().default([]),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const caregiverNotes = pgTable(
+  "caregiver_notes",
+  {
+    id: text("id").primaryKey(),
+    authorId: text("author_id").notNull(),             // caregiver userId
+    subjectId: text("subject_id").notNull(),           // patient userId they're writing about
+    familyId: text("family_id").notNull(),
+    content: text("content").notNull(),
+    category: text("category"),                        // 'observation' | 'concern' | 'improvement' | 'medication' | 'appointment'
+    visibility: text("visibility").notNull().default("care_team"), // 'private' | 'care_team' | 'family_admin'
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => [
+    index("caregiver_notes_subject_time_idx").on(t.subjectId, t.createdAt.desc()),
+    index("caregiver_notes_author_idx").on(t.authorId),
+  ]
+);
+
+// ── Device Readings ────────────────────────────────────────────────────────────
+// Normalized wearable/device reading rows — replaces JSONB blobs in vitals metadata.
+
+export const deviceReadings = pgTable(
+  "device_readings",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    deviceId: text("device_id").notNull(),           // FK to connectedIntegrations.id
+    deviceType: text("device_type").notNull(),        // 'garmin' | 'apple_health' | 'fitbit' | 'withings' | 'manual'
+    readingType: text("reading_type").notNull(),      // 'heart_rate' | 'spo2' | 'steps' | 'sleep' | 'hrv' | 'skin_temp' | 'ecg' | 'blood_glucose'
+    value: numeric("value"),                          // numeric value for simple readings
+    valueJson: jsonb("value_json"),                   // structured value for complex readings (sleep stages, ECG waveform)
+    unit: text("unit"),                               // 'bpm' | '%' | 'steps' | 'min' | 'ms' | '°C' | 'mg/dL'
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+    syncedAt: timestamp("synced_at", { withTimezone: true }).defaultNow(),
+    sourceActivityId: text("source_activity_id"),     // external ID from device provider (for dedup)
+    quality: text("quality"),                         // 'good' | 'fair' | 'poor' — signal quality flag
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => [
+    index("device_readings_user_device_time_idx").on(t.userId, t.deviceType, t.recordedAt),
+    index("device_readings_user_type_time_idx").on(t.userId, t.readingType, t.recordedAt),
+    // Deduplication: same device, same reading type, same timestamp = duplicate
+    uniqueIndex("device_readings_source_dedup").on(t.deviceId, t.readingType, t.recordedAt).where(sql`source_activity_id IS NOT NULL`),
+  ]
+);
+
+// ── Fall Events ────────────────────────────────────────────────────────────────
+// Dedicated table for fall detection — a critical patient-safety signal.
+
+export const fallEvents = pgTable(
+  "fall_events",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    detectedAt: timestamp("detected_at", { withTimezone: true }).notNull(),
+    detectionSource: text("detection_source").notNull().default("wearable"), // 'wearable' | 'manual' | 'caregiver_reported' | 'algorithm'
+    severity: text("severity"),                       // 'minor' | 'moderate' | 'severe' | 'unknown'
+    locationContext: text("location_context"),         // 'home' | 'outdoor' | 'healthcare_facility' | 'unknown'
+    injuryReported: boolean("injury_reported").default(false),
+    consciousnessLost: boolean("consciousness_lost").default(false),
+    respondedAt: timestamp("responded_at", { withTimezone: true }),
+    respondedBy: text("responded_by"),                // userId who acknowledged
+    alertSent: boolean("alert_sent").default(false),
+    alertSentAt: timestamp("alert_sent_at", { withTimezone: true }),
+    accelerometerData: jsonb("accelerometer_data"),   // raw sensor snapshot at time of fall
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => [
+    index("fall_events_user_time_idx").on(t.userId, t.detectedAt.desc()),
+    index("fall_events_unresponded_idx").on(t.userId).where(sql`responded_at IS NULL`),
+  ]
+);
+
+// ── Health Trends ──────────────────────────────────────────────────────────────
+// Precomputed trend cache — avoids on-the-fly aggregation on every request.
+
+export const healthTrends = pgTable(
+  "health_trends",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    metricType: text("metric_type").notNull(),         // 'heart_rate' | 'blood_pressure' | 'weight' | 'steps' | 'sleep' | 'mood_avg'
+    periodType: text("period_type").notNull(),         // 'daily' | 'weekly' | 'monthly' | '90day'
+    periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
+    periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
+    avgValue: numeric("avg_value"),
+    minValue: numeric("min_value"),
+    maxValue: numeric("max_value"),
+    stdDev: numeric("std_dev"),
+    sampleCount: integer("sample_count").notNull().default(0),
+    trend: text("trend"),                             // 'increasing' | 'decreasing' | 'stable'
+    clinicalDirection: text("clinical_direction"),    // 'improving' | 'worsening' | 'stable' | 'ambiguous'
+    isClinicallySignificant: boolean("is_clinically_significant").notNull().default(false),
+    trendSlope: numeric("trend_slope"),               // linear regression slope
+    trendConfidence: numeric("trend_confidence"),     // 0–1
+    computedAt: timestamp("computed_at", { withTimezone: true }).defaultNow(),
+    validUntil: timestamp("valid_until", { withTimezone: true }),  // cache expiry
+  },
+  (t) => [
+    uniqueIndex("health_trends_user_metric_period_idx").on(t.userId, t.metricType, t.periodType, t.periodStart),
+    index("health_trends_stale_idx").on(t.validUntil),
+  ]
+);
+
+// ── Health Goals ───────────────────────────────────────────────────────────────
+
+export const healthGoals = pgTable(
+  "health_goals",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    metricType: text("metric_type").notNull(),          // 'daily_steps' | 'weight' | 'blood_pressure' | 'sleep_hours' | 'medication_adherence'
+    goalType: text("goal_type").notNull(),              // 'target' | 'range' | 'minimum' | 'maximum'
+    targetValue: numeric("target_value"),
+    targetMin: numeric("target_min"),
+    targetMax: numeric("target_max"),
+    unit: text("unit"),
+    deadline: timestamp("deadline", { withTimezone: true }),
+    status: text("status").notNull().default("active"), // 'active' | 'achieved' | 'abandoned' | 'expired'
+    achievedAt: timestamp("achieved_at", { withTimezone: true }),
+    progressJson: jsonb("progress_json"),               // latest progress snapshot
+    setByUserId: text("set_by_user_id"),                // self or caregiver
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => [
+    index("health_goals_user_active_idx").on(t.userId, t.status),
+  ]
+);
 
 // ── Connected Integrations ─────────────────────────────────────────────────────
 // Stores provider user IDs for third-party health integrations (Withings, Fitbit, Oura, etc.)
@@ -587,5 +717,28 @@ export const connectedIntegrations = pgTable(
     index("connected_integrations_user_idx").on(t.userId),
     index("connected_integrations_provider_idx").on(t.provider, t.providerUserId),
     unique("connected_integrations_unique_provider").on(t.userId, t.provider),
+  ]
+);
+
+// ── Medication Dose Log ────────────────────────────────────────────────────────
+// Granular per-dose log — more structured than medicationAdherence, supports
+// computed delay and per-reminder scheduling.
+
+export const medicationDoseLog = pgTable(
+  'medication_dose_log',
+  {
+    id:             uuid('id').primaryKey().defaultRandom(),
+    userId:         uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    medicationId:   uuid('medication_id').notNull(),
+    reminderId:     uuid('reminder_id'),
+    scheduledFor:   timestamp('scheduled_for', { withTimezone: true }).notNull(),
+    status:         text('status').notNull(),
+    // 'taken', 'skipped', 'late', 'missed'
+    takenAt:        timestamp('taken_at', { withTimezone: true }),
+    delayMinutes:   integer('delay_minutes'),
+    createdAt:      timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('idx_dose_log_user_med').on(t.userId, t.medicationId, t.scheduledFor),
   ]
 );

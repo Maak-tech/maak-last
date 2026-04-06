@@ -3,7 +3,7 @@ import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import crypto from "node:crypto";
 import { requireAuth } from "../../middleware/requireAuth.js";
 import { logger } from "../../lib/logger.js";
-import { symptoms, familyMembers, users } from "../../db/schema.js";
+import { symptoms, familyMembers, users, familyHealthSummary } from "../../db/schema.js";
 import { assertFamilyAccess, assertFamilyWriteAccess } from "../../services/familyAccessService.js";
 
 // Reusable ISO 8601 date-string type.
@@ -83,6 +83,24 @@ export const symptomsRoutes = new Elysia()
       // Also set dirty flag so the 15-min cron picks this user up as a fallback.
       db.update(users).set({ vhiDirty: true }).where(eq(users.id, targetUserId))
         .catch((err: unknown) => logger.warn({ err }, 'vhi_dirty update failed — non-fatal'));
+      // Update family health summary — fire-and-forget (non-blocking).
+      db.select({ familyId: users.familyId }).from(users).where(eq(users.id, targetUserId)).limit(1)
+        .then(([u]) => {
+          if (!u?.familyId) return;
+          return db.insert(familyHealthSummary)
+            .values({
+              id: crypto.randomUUID(),
+              familyId: u.familyId,
+              userId: targetUserId,
+              lastSymptomAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .onConflictDoUpdate({
+              target: [familyHealthSummary.familyId, familyHealthSummary.userId],
+              set: { lastSymptomAt: new Date(), updatedAt: new Date() },
+            });
+        })
+        .catch((err: unknown) => logger.warn({ err }, 'family health summary update failed — non-fatal'));
       return created;
     },
     {

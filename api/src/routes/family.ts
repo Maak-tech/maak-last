@@ -1,10 +1,10 @@
 import { Elysia, t } from "elysia";
-import { and, eq, inArray, lt, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
 import crypto from "node:crypto";
 import { requireAuth } from "../middleware/requireAuth";
 import { logger } from "../lib/logger.js";
 import { buildUserObject } from "../services/userBuilder.js";
-import { families, familyMembers, familyInvitations, vhi, genetics, alerts, users, caregiverNotes, patientConsents } from "../db/schema";
+import { families, familyMembers, familyInvitations, familyHealthSummary, vhi, genetics, alerts, users, caregiverNotes, patientConsents } from "../db/schema";
 
 export const familyRoutes = new Elysia({ prefix: "/api/family" })
   .use(requireAuth)
@@ -190,6 +190,37 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
     {
       params: t.Object({ familyId: t.String({ minLength: 1, maxLength: 36 }) }),
       detail: { tags: ["family"], summary: "Caregiver dashboard — all family members with VHI" },
+    }
+  )
+
+  // Get family health summary — one query for all members' latest health status.
+  // Replaces N×8 per-member queries that happen on the caregiver dashboard.
+  .get(
+    "/:familyId/health-summary",
+    async ({ db, userId, params, set }) => {
+      // Verify the caller is a member of this family
+      const [membership] = await db
+        .select({ role: familyMembers.role })
+        .from(familyMembers)
+        .where(and(eq(familyMembers.familyId, params.familyId), eq(familyMembers.userId, userId)))
+        .limit(1);
+
+      if (!membership) {
+        set.status = 403;
+        return { error: "Not a member of this family" };
+      }
+
+      const summaries = await db
+        .select()
+        .from(familyHealthSummary)
+        .where(eq(familyHealthSummary.familyId, params.familyId))
+        .orderBy(desc(familyHealthSummary.updatedAt));
+
+      return { summaries };
+    },
+    {
+      params: t.Object({ familyId: t.String({ minLength: 1, maxLength: 36 }) }),
+      detail: { tags: ["family"], summary: "Get family health summary — all members in one query" },
     }
   )
 

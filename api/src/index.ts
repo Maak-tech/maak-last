@@ -33,6 +33,8 @@ import { integrationRoutes } from "./routes/integrations";
 import { searchRoutes } from "./routes/search";
 import { medicationRoutes } from "./routes/medications";
 import { featureFlagRoutes } from "./routes/featureFlags";
+import { notificationRulesRoutes } from "./routes/notifications/rules.js";
+import { i18nRoutes } from "./routes/i18n.js";
 import { phiAuditLogger } from "./middleware/auditLogger.js";
 
 // ── Startup environment validation ─────────────────────────────────────────────
@@ -230,6 +232,8 @@ const app = new Elysia({
       .use(searchRoutes)
       .use(medicationRoutes)
       .use(featureFlagRoutes)
+      .use(notificationRulesRoutes)
+      .use(i18nRoutes)
   )
   // Legacy routes: /api/<resource> — kept for backwards compatibility with older
   // mobile app versions that have not yet migrated to /api/v1/.  These will be
@@ -268,6 +272,7 @@ const app = new Elysia({
       .use(searchRoutes)
       .use(medicationRoutes)
       .use(featureFlagRoutes)
+      .use(notificationRulesRoutes)
   )
   // Global error handler
   .onError(({ code, error, set, requestId }) => {

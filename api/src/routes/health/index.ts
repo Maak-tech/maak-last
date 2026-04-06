@@ -7,6 +7,9 @@ import { labsRoutes } from "./labs.js";
 import { allergiesRoutes } from "./allergies.js";
 import { escalationsRoutes } from "./escalations.js";
 import { miscHealthRoutes } from "./misc.js";
+import { deviceReadingsRoutes } from "./deviceReadings.js";
+import { fallEventsRoutes } from "./fallEvents.js";
+import { healthGoalsRoutes } from "./healthGoals.js";
 
 export const healthRoutes = new Elysia({ prefix: "/api/health" })
   .use(vitalsRoutes)
@@ -16,4 +19,7 @@ export const healthRoutes = new Elysia({ prefix: "/api/health" })
   .use(labsRoutes)
   .use(allergiesRoutes)
   .use(escalationsRoutes)
-  .use(miscHealthRoutes);
+  .use(miscHealthRoutes)
+  .use(deviceReadingsRoutes)
+  .use(fallEventsRoutes)
+  .use(healthGoalsRoutes);

@@ -5,6 +5,7 @@ import {
   View,
   Text,
   ScrollView,
+  FlatList,
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
@@ -14,6 +15,7 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
+import { SymptomCardSkeleton } from '@/components/SkeletonLoader';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -65,7 +67,7 @@ export default function TrackScreen() {
   const [customSymptom, setCustomSymptom] = useState('');
   const [severity, setSeverity] = useState(1);
   const [description, setDescription] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Start true — no data yet on first render
   const [refreshing, setRefreshing] = useState(false);
   const [symptoms, setSymptoms] = useState<Symptom[]>([]);
   const [stats, setStats] = useState({
@@ -459,6 +461,100 @@ export default function TrackScreen() {
     );
   }
 
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={[styles.title, isRTL && styles.rtlText]}>
+            {t('symptoms')}
+          </Text>
+        </View>
+        <View style={{ padding: 16 }}>
+          <SymptomCardSkeleton />
+          <SymptomCardSkeleton />
+          <SymptomCardSkeleton />
+          <SymptomCardSkeleton />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const SymptomsListHeader = (
+    <>
+      {isStale && (
+        <View style={styles.staleBanner}>
+          <Text style={styles.staleBannerText}>
+            {'⚠️ Health data hasn\'t synced in 48+ hours'}
+            {lastRecordedAt ? ` — last update ${formatRelativeTime(lastRecordedAt)}` : ''}
+            {'. Check your device connection.'}
+          </Text>
+        </View>
+      )}
+
+      {/* Enhanced Data Filter */}
+      <FamilyDataFilter
+        familyMembers={familyMembers}
+        currentUserId={user.id}
+        selectedFilter={selectedFilter}
+        onFilterChange={handleFilterChange}
+        isAdmin={isAdmin}
+        hasFamily={hasFamily}
+      />
+
+      {/* Stats Section */}
+      <View style={styles.statsSection}>
+        <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+          {t('thisWeek')}
+        </Text>
+        <View style={styles.statsGrid}>
+          <View style={styles.statCard}>
+            <Text style={[styles.statValue, isRTL && styles.rtlText]}>
+              {stats.totalSymptoms}
+            </Text>
+            <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
+              {selectedFilter.type === 'family'
+                ? isRTL
+                  ? 'أعراض العائلة'
+                  : 'Family Symptoms'
+                : selectedFilter.type === 'member'
+                ? isRTL
+                  ? `أعراض ${selectedFilter.memberName}`
+                  : `${selectedFilter.memberName}'s Symptoms`
+                : isRTL
+                ? 'إجمالي الأعراض'
+                : 'Total Symptoms'}
+            </Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={[styles.statValue, isRTL && styles.rtlText]}>
+              {stats.avgSeverity.toFixed(1)}
+            </Text>
+            <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
+              {isRTL ? 'متوسط الشدة' : 'Avg Severity'}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Symptoms list section title */}
+      <View style={styles.symptomsSection}>
+        <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+          {selectedFilter.type === 'family'
+            ? isRTL
+              ? 'أعراض العائلة الأخيرة'
+              : 'Recent Family Symptoms'
+            : selectedFilter.type === 'member'
+            ? isRTL
+              ? `أعراض ${selectedFilter.memberName} الأخيرة`
+              : `${selectedFilter.memberName}'s Recent Symptoms`
+            : isRTL
+            ? 'أعراضي الأخيرة'
+            : 'My Recent Symptoms'}
+        </Text>
+      </View>
+    </>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -476,203 +572,131 @@ export default function TrackScreen() {
         </TouchableOpacity>
       </View>
 
-      {isStale && (
-        <View style={styles.staleBanner}>
-          <Text style={styles.staleBannerText}>
-            {'⚠️ Health data hasn\'t synced in 48+ hours'}
-            {lastRecordedAt ? ` — last update ${formatRelativeTime(lastRecordedAt)}` : ''}
-            {'. Check your device connection.'}
-          </Text>
-        </View>
-      )}
+      <FlatList
+        data={symptoms}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item: symptom }) => (
+          <View style={styles.symptomCard}>
+            <View style={styles.symptomHeader}>
+              <View style={styles.symptomInfo}>
+                <Text style={[styles.symptomType, isRTL && styles.rtlText]}>
+                  {t(symptom.type)}
+                </Text>
+                <View style={styles.symptomMeta}>
+                  <Text
+                    style={[styles.symptomDate, isRTL && styles.rtlText]}
+                  >
+                    {formatDate(symptom.timestamp)}
+                  </Text>
+                  {/* Show member name for family/admin views */}
+                  {(selectedFilter.type === 'family' ||
+                    selectedFilter.type === 'member') && (
+                    <View style={styles.memberBadge}>
+                      <Text
+                        style={[
+                          styles.memberBadgeText,
+                          isRTL && styles.rtlText,
+                        ]}
+                      >
+                        {getMemberName(symptom.userId)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+              <View style={styles.symptomActions}>
+                <View
+                  style={[
+                    styles.severityBadge,
+                    { backgroundColor: getSeverityColor(symptom.severity) },
+                  ]}
+                >
+                  <Text style={styles.severityText}>
+                    {symptom.severity}
+                  </Text>
+                </View>
+                {/* Show action menu only for symptoms user can manage */}
+                {(symptom.userId === user.id ||
+                  (isAdmin &&
+                    (selectedFilter.type === 'family' ||
+                      selectedFilter.type === 'member'))) && (
+                  <TouchableOpacity
+                    style={styles.actionsButton}
+                    onPress={() =>
+                      setShowActionsMenu(
+                        showActionsMenu === symptom.id ? null : symptom.id
+                      )
+                    }
+                  >
+                    <MoreVertical size={16} color="#64748B" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
 
-      <ScrollView
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
+            {symptom.description && (
+              <Text
+                style={[styles.symptomDescription, isRTL && styles.rtlText]}
+              >
+                {symptom.description}
+              </Text>
+            )}
+
+            {/* Actions Menu */}
+            {showActionsMenu === symptom.id && (
+              <View style={styles.actionsMenu}>
+                <TouchableOpacity
+                  style={styles.actionItem}
+                  onPress={() => handleEditSymptom(symptom)}
+                >
+                  <Edit size={16} color="#64748B" />
+                  <Text
+                    style={[styles.actionText, isRTL && styles.rtlText]}
+                  >
+                    {isRTL ? 'تعديل' : 'Edit'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.actionItem}
+                  onPress={() => handleDeleteSymptom(symptom)}
+                >
+                  <Trash2 size={16} color="#EF4444" />
+                  <Text
+                    style={[
+                      styles.actionText,
+                      styles.deleteText,
+                      isRTL && styles.rtlText,
+                    ]}
+                  >
+                    {isRTL ? 'حذف' : 'Delete'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
+        ListHeaderComponent={SymptomsListHeader}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
+              {isRTL ? 'لا توجد أعراض مسجلة' : 'No symptoms recorded'}
+            </Text>
+          </View>
+        }
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => loadSymptoms(true)}
             tintColor="#2563EB"
           />
-        }>
-        {/* Enhanced Data Filter */}
-        <FamilyDataFilter
-          familyMembers={familyMembers}
-          currentUserId={user.id}
-          selectedFilter={selectedFilter}
-          onFilterChange={handleFilterChange}
-          isAdmin={isAdmin}
-          hasFamily={hasFamily}
-        />
-
-        {/* Stats Section */}
-        <View style={styles.statsSection}>
-          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-            {t('thisWeek')}
-          </Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <Text style={[styles.statValue, isRTL && styles.rtlText]}>
-                {stats.totalSymptoms}
-              </Text>
-              <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
-                {selectedFilter.type === 'family'
-                  ? isRTL
-                    ? 'أعراض العائلة'
-                    : 'Family Symptoms'
-                  : selectedFilter.type === 'member'
-                  ? isRTL
-                    ? `أعراض ${selectedFilter.memberName}`
-                    : `${selectedFilter.memberName}'s Symptoms`
-                  : isRTL
-                  ? 'إجمالي الأعراض'
-                  : 'Total Symptoms'}
-              </Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={[styles.statValue, isRTL && styles.rtlText]}>
-                {stats.avgSeverity.toFixed(1)}
-              </Text>
-              <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
-                {isRTL ? 'متوسط الشدة' : 'Avg Severity'}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Symptoms List */}
-        <View style={styles.symptomsSection}>
-          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-            {selectedFilter.type === 'family'
-              ? isRTL
-                ? 'أعراض العائلة الأخيرة'
-                : 'Recent Family Symptoms'
-              : selectedFilter.type === 'member'
-              ? isRTL
-                ? `أعراض ${selectedFilter.memberName} الأخيرة`
-                : `${selectedFilter.memberName}'s Recent Symptoms`
-              : isRTL
-              ? 'أعراضي الأخيرة'
-              : 'My Recent Symptoms'}
-          </Text>
-
-          {loading ? (
-            <View style={styles.centerContainer}>
-              <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
-                {isRTL ? 'جاري التحميل...' : 'Loading...'}
-              </Text>
-            </View>
-          ) : symptoms.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-                {isRTL ? 'لا توجد أعراض مسجلة' : 'No symptoms recorded'}
-              </Text>
-            </View>
-          ) : (
-            symptoms.map((symptom) => (
-              <View key={symptom.id} style={styles.symptomCard}>
-                <View style={styles.symptomHeader}>
-                  <View style={styles.symptomInfo}>
-                    <Text style={[styles.symptomType, isRTL && styles.rtlText]}>
-                      {t(symptom.type)}
-                    </Text>
-                    <View style={styles.symptomMeta}>
-                      <Text
-                        style={[styles.symptomDate, isRTL && styles.rtlText]}
-                      >
-                        {formatDate(symptom.timestamp)}
-                      </Text>
-                      {/* Show member name for family/admin views */}
-                      {(selectedFilter.type === 'family' ||
-                        selectedFilter.type === 'member') && (
-                        <View style={styles.memberBadge}>
-                          <Text
-                            style={[
-                              styles.memberBadgeText,
-                              isRTL && styles.rtlText,
-                            ]}
-                          >
-                            {getMemberName(symptom.userId)}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                  <View style={styles.symptomActions}>
-                    <View
-                      style={[
-                        styles.severityBadge,
-                        { backgroundColor: getSeverityColor(symptom.severity) },
-                      ]}
-                    >
-                      <Text style={styles.severityText}>
-                        {symptom.severity}
-                      </Text>
-                    </View>
-                    {/* Show action menu only for symptoms user can manage */}
-                    {(symptom.userId === user.id ||
-                      (isAdmin &&
-                        (selectedFilter.type === 'family' ||
-                          selectedFilter.type === 'member'))) && (
-                      <TouchableOpacity
-                        style={styles.actionsButton}
-                        onPress={() =>
-                          setShowActionsMenu(
-                            showActionsMenu === symptom.id ? null : symptom.id
-                          )
-                        }
-                      >
-                        <MoreVertical size={16} color="#64748B" />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-
-                {symptom.description && (
-                  <Text
-                    style={[styles.symptomDescription, isRTL && styles.rtlText]}
-                  >
-                    {symptom.description}
-                  </Text>
-                )}
-
-                {/* Actions Menu */}
-                {showActionsMenu === symptom.id && (
-                  <View style={styles.actionsMenu}>
-                    <TouchableOpacity
-                      style={styles.actionItem}
-                      onPress={() => handleEditSymptom(symptom)}
-                    >
-                      <Edit size={16} color="#64748B" />
-                      <Text
-                        style={[styles.actionText, isRTL && styles.rtlText]}
-                      >
-                        {isRTL ? 'تعديل' : 'Edit'}
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.actionItem}
-                      onPress={() => handleDeleteSymptom(symptom)}
-                    >
-                      <Trash2 size={16} color="#EF4444" />
-                      <Text
-                        style={[
-                          styles.actionText,
-                          styles.deleteText,
-                          isRTL && styles.rtlText,
-                        ]}
-                      >
-                        {isRTL ? 'حذف' : 'Delete'}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
-            ))
-          )}
-        </View>
-      </ScrollView>
+        }
+        showsVerticalScrollIndicator={false}
+        removeClippedSubviews
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        initialNumToRender={8}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100 }}
+      />
 
       {/* Add Symptom Modal */}
       <Modal

@@ -7,6 +7,8 @@ import {
   useEffect,
   useState,
 } from "react";
+import { Alert, I18nManager } from "react-native";
+import { router } from "expo-router";
 import { api, setUnauthorizedHandler } from "@/lib/apiClient";
 import { authClient } from "@/lib/authClient";
 import { fcmService } from "@/lib/services/fcmService";
@@ -233,15 +235,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   // Register a global 401 handler so that any API call that returns 401
-  // (expired session) automatically triggers logout + redirect to login screen.
+  // (expired session) automatically clears state, alerts the user, and redirects to login.
   useEffect(() => {
-    setUnauthorizedHandler(() => {
-      // Fire-and-forget — don't await, since this may be called inside a non-async context
-      logout().catch((err: unknown) => {
-        console.warn('[AuthContext] Auto-logout on 401 failed:', err instanceof Error ? err.message : String(err));
-        // Still clear the user from state even if the API call failed
-        setUser(null);
+    setUnauthorizedHandler(async () => {
+      // Clear user state immediately
+      setUser(null);
+
+      // Also sign out on the auth client side (best-effort)
+      authClient.signOut().catch((err: unknown) => {
+        console.warn('[AuthContext] signOut during 401 handler failed:', err instanceof Error ? err.message : String(err));
       });
+
+      const isRTL = I18nManager.isRTL;
+      Alert.alert(
+        isRTL ? 'انتهت الجلسة' : 'Session Expired',
+        isRTL
+          ? 'انتهت صلاحية جلستك. يرجى تسجيل الدخول مرة أخرى.'
+          : 'Your session has expired. Please sign in again.',
+        [
+          {
+            text: isRTL ? 'حسناً' : 'Sign In',
+            onPress: () => router.replace('/(auth)/login'),
+          },
+        ],
+        { cancelable: false }
+      );
     });
     // No cleanup needed — the handler is module-level and remains valid for the
     // lifetime of the AuthProvider (which wraps the entire app).

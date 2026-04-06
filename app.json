@@ -48,13 +48,14 @@
         "backgroundColor": "#F8FAFC"
       },
       "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION",
-        "RECEIVE_BOOT_COMPLETED",
-        "VIBRATE",
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.VIBRATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
         "com.google.android.c2dm.permission.RECEIVE",
         "android.permission.health.READ_HEART_RATE",
         "android.permission.health.READ_STEPS",
@@ -62,7 +63,7 @@
         "android.permission.health.READ_BODY_TEMPERATURE",
         "android.permission.health.READ_BLOOD_PRESSURE",
         "android.permission.health.READ_WEIGHT",
-        "android.permission.activity_recognition"
+        "android.permission.ACTIVITY_RECOGNITION"
       ]
     },
     "web": {
@@ -94,7 +95,15 @@
       ],
       "expo-localization",
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-background-fetch",
+      "expo-task-manager",
+      [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "This helps us provide personalized health insights and improve the app experience."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

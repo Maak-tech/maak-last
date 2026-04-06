@@ -44,6 +44,10 @@ const buildCsp = (allowCamera: boolean): string => [
 ].join('; ')
 
 const nextConfig: NextConfig = {
+  // Required for Docker deployment — generates .next/standalone directory
+  // containing a minimal Node.js server that can run without node_modules.
+  // Without this, the Dockerfile COPY --from=builder /app/.next/standalone fails.
+  output: 'standalone',
   async headers() {
     return [
       // ── Global headers (all routes) ──────────────────────────────────────────

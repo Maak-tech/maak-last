@@ -283,3 +283,43 @@ enrollRoutes.get('/enroll/:patientId/status', jwtAuth, requireRole('doctor', 'nu
   )
   return c.json({ enrolled: !!enrollment, enrolledAt: enrollment?.enrolled_at ?? null })
 })
+
+// GET /enroll/self/status — patient checks their OWN enrollment status.
+// Validates the patient's better-auth Bearer token against the main Nuralix API
+// (same identity-validation pattern as POST /enroll/self).
+// No staff JWT required — this endpoint is patient-facing.
+enrollRoutes.get('/enroll/self/status', async (c) => {
+  const authHeader = c.req.header('Authorization')
+  if (!authHeader?.startsWith('Bearer ')) {
+    return c.json({ error: 'Patient session token required' }, 401)
+  }
+
+  const mainApiUrl = process.env.MAIN_API_URL
+  if (!mainApiUrl) {
+    console.error('[enroll/self/status] MAIN_API_URL is not configured')
+    return c.json({ error: 'Self-enrollment status check is not configured on this server' }, 503)
+  }
+
+  let patientId: string
+  try {
+    const meRes = await fetch(`${mainApiUrl}/api/user/me`, {
+      headers: { Authorization: authHeader },
+      signal: AbortSignal.timeout(5_000),
+    })
+    if (!meRes.ok) return c.json({ error: 'Could not verify patient identity' }, 401)
+    const me = await meRes.json() as { id?: string }
+    if (!me?.id || typeof me.id !== 'string') {
+      return c.json({ error: 'Could not identify patient from session' }, 401)
+    }
+    patientId = me.id
+  } catch (err: unknown) {
+    console.error('[enroll/self/status] Failed to validate patient token:', err instanceof Error ? err.message : String(err))
+    return c.json({ error: 'Could not verify patient identity. Please try again.' }, 503)
+  }
+
+  const enrollment = await queryOne<{ enrolled_at: string }>(
+    'SELECT enrolled_at FROM biometric_enrollments WHERE patient_id = $1 AND is_active = true',
+    [patientId]
+  )
+  return c.json({ enrolled: !!enrollment, enrolledAt: enrollment?.enrolled_at ?? null })
+})

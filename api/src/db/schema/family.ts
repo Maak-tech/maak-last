@@ -3,8 +3,11 @@ import {
   text,
   timestamp,
   jsonb,
+  numeric,
+  integer,
   index,
   unique,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 // ── Families ───────────────────────────────────────────────────────────────────
@@ -35,6 +38,40 @@ export const familyMembers = pgTable(
     // Prevent a user from being added to the same family twice.
     // All auth queries use .limit(1); duplicate rows would make them non-deterministic.
     unique("family_members_unique_member").on(t.familyId, t.userId),
+  ]
+);
+
+// ── Family Health Summary ──────────────────────────────────────────────────────
+// Materialized denormalization updated on every health write.
+// Allows a caregiver to load all family members' health status in a single query
+// instead of N×8 queries (one per member per data type).
+
+export const familyHealthSummary = pgTable(
+  'family_health_summary',
+  {
+    id: text('id').primaryKey(),
+    familyId: text('family_id').notNull(),
+    userId: text('user_id').notNull(),
+    // Latest readings snapshot (updated on each health write)
+    lastVitalAt: timestamp('last_vital_at', { withTimezone: true }),
+    lastSymptomAt: timestamp('last_symptom_at', { withTimezone: true }),
+    lastMoodAt: timestamp('last_mood_at', { withTimezone: true }),
+    lastMedicationTakenAt: timestamp('last_medication_taken_at', { withTimezone: true }),
+    // VHI summary
+    vhiScore: numeric('vhi_score'),
+    vhiRisk: text('vhi_risk'),                        // 'low' | 'moderate' | 'high' | 'critical'
+    vhiUpdatedAt: timestamp('vhi_updated_at', { withTimezone: true }),
+    // Active alert counts
+    activeAlertCount: integer('active_alert_count').default(0),
+    criticalAlertCount: integer('critical_alert_count').default(0),
+    // Medication adherence (rolling 7 days)
+    medicationAdherenceRate: numeric('medication_adherence_rate'),
+    // Last update
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('family_health_summary_family_user_idx').on(t.familyId, t.userId),
+    index('family_health_summary_family_updated_idx').on(t.familyId, t.updatedAt.desc()),
   ]
 );
 

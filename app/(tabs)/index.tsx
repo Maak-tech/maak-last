@@ -53,6 +53,7 @@ import WavyBackground from '@/components/figma/WavyBackground';
 import { Heading } from '@/components/design-system/Typography';
 import AnomalyDashboardSection from '@/components/AnomalyDashboardSection';
 import ProactiveHealthSuggestions from '@/components/ProactiveHealthSuggestions';
+import { ScreenErrorBoundary } from '@/components/ScreenErrorBoundary';
 
 export default function DashboardScreen() {
   const { t, i18n } = useTranslation();
@@ -607,16 +608,26 @@ export default function DashboardScreen() {
       if (selectedFilter.type === 'family' && user.familyId) {
         // Load family data (both admins and members can view)
         const [
-          familySymptoms,
-          familyMedications,
-          alertsCountData,
-          familySymptomStats,
-        ] = await Promise.all([
+          rFamilySymptoms,
+          rFamilyMedications,
+          rAlertsCountData,
+          rFamilySymptomStats,
+        ] = await Promise.allSettled([
           symptomService.getFamilySymptoms(user.id, user.familyId, 5),
           medicationService.getFamilyTodaysMedications(user.id, user.familyId),
           alertService.getActiveAlertsCount(user.id), // Keep personal alerts for now
           symptomService.getMemberSymptomStats(user.familyId, 7),
         ]);
+
+        const familySymptoms = rFamilySymptoms.status === 'fulfilled' ? rFamilySymptoms.value : [];
+        const familyMedications = rFamilyMedications.status === 'fulfilled' ? rFamilyMedications.value : [];
+        const alertsCountData = rAlertsCountData.status === 'fulfilled' ? rAlertsCountData.value : 0;
+        const familySymptomStats = rFamilySymptomStats.status === 'fulfilled' ? rFamilySymptomStats.value : { totalSymptoms: 0, avgSeverity: 0 };
+
+        if (rFamilySymptoms.status === 'rejected') console.warn('[dashboard] getFamilySymptoms failed:', rFamilySymptoms.reason?.message ?? String(rFamilySymptoms.reason));
+        if (rFamilyMedications.status === 'rejected') console.warn('[dashboard] getFamilyTodaysMedications failed:', rFamilyMedications.reason?.message ?? String(rFamilyMedications.reason));
+        if (rAlertsCountData.status === 'rejected') console.warn('[dashboard] getActiveAlertsCount failed:', rAlertsCountData.reason?.message ?? String(rAlertsCountData.reason));
+        if (rFamilySymptomStats.status === 'rejected') console.warn('[dashboard] getMemberSymptomStats failed:', rFamilySymptomStats.reason?.message ?? String(rFamilySymptomStats.reason));
 
         setRecentSymptoms(familySymptoms);
         setTodaysMedications(familyMedications);
@@ -653,18 +664,30 @@ export default function DashboardScreen() {
       } else if (selectedFilter.type === 'member' && selectedFilter.memberId) {
         // Load specific member data (both admins and members can view)
         const [
-          memberSymptoms,
-          memberMedications,
-          alertsCountData,
-          memberSymptomStats,
-          memberMedicationStats,
-        ] = await Promise.all([
+          rMemberSymptoms,
+          rMemberMedications,
+          rAlertsCountData,
+          rMemberSymptomStats,
+          rMemberMedicationStats,
+        ] = await Promise.allSettled([
           symptomService.getMemberSymptoms(selectedFilter.memberId, 5),
           medicationService.getMemberTodaysMedications(selectedFilter.memberId),
           alertService.getActiveAlertsCount(user.id), // Keep personal alerts for now
           symptomService.getMemberSymptomStats(selectedFilter.memberId, 7),
           medicationService.getMemberMedicationStats(selectedFilter.memberId),
         ]);
+
+        const memberSymptoms = rMemberSymptoms.status === 'fulfilled' ? rMemberSymptoms.value : [];
+        const memberMedications = rMemberMedications.status === 'fulfilled' ? rMemberMedications.value : [];
+        const alertsCountData = rAlertsCountData.status === 'fulfilled' ? rAlertsCountData.value : 0;
+        const memberSymptomStats = rMemberSymptomStats.status === 'fulfilled' ? rMemberSymptomStats.value : { totalSymptoms: 0, avgSeverity: 0 };
+        const memberMedicationStats = rMemberMedicationStats.status === 'fulfilled' ? rMemberMedicationStats.value : { todaysCompliance: 0 };
+
+        if (rMemberSymptoms.status === 'rejected') console.warn('[dashboard] getMemberSymptoms failed:', rMemberSymptoms.reason?.message ?? String(rMemberSymptoms.reason));
+        if (rMemberMedications.status === 'rejected') console.warn('[dashboard] getMemberTodaysMedications failed:', rMemberMedications.reason?.message ?? String(rMemberMedications.reason));
+        if (rAlertsCountData.status === 'rejected') console.warn('[dashboard] getActiveAlertsCount failed:', rAlertsCountData.reason?.message ?? String(rAlertsCountData.reason));
+        if (rMemberSymptomStats.status === 'rejected') console.warn('[dashboard] getMemberSymptomStats failed:', rMemberSymptomStats.reason?.message ?? String(rMemberSymptomStats.reason));
+        if (rMemberMedicationStats.status === 'rejected') console.warn('[dashboard] getMemberMedicationStats failed:', rMemberMedicationStats.reason?.message ?? String(rMemberMedicationStats.reason));
 
         setRecentSymptoms(memberSymptoms);
         setTodaysMedications(memberMedications);
@@ -677,13 +700,27 @@ export default function DashboardScreen() {
         });
       } else {
         // Load personal data (default)
-        const [symptoms, medications, alertsCountData, symptomStats] =
-          await Promise.all([
-            symptomService.getUserSymptoms(user.id, 5),
-            medicationService.getTodaysMedications(user.id),
-            alertService.getActiveAlertsCount(user.id),
-            symptomService.getSymptomStats(user.id, 7),
-          ]);
+        const [
+          rSymptoms,
+          rMedications,
+          rAlertsCountData,
+          rSymptomStats,
+        ] = await Promise.allSettled([
+          symptomService.getUserSymptoms(user.id, 5),
+          medicationService.getTodaysMedications(user.id),
+          alertService.getActiveAlertsCount(user.id),
+          symptomService.getSymptomStats(user.id, 7),
+        ]);
+
+        const symptoms = rSymptoms.status === 'fulfilled' ? rSymptoms.value : [];
+        const medications = rMedications.status === 'fulfilled' ? rMedications.value : [];
+        const alertsCountData = rAlertsCountData.status === 'fulfilled' ? rAlertsCountData.value : 0;
+        const symptomStats = rSymptomStats.status === 'fulfilled' ? rSymptomStats.value : { totalSymptoms: 0, avgSeverity: 0 };
+
+        if (rSymptoms.status === 'rejected') console.warn('[dashboard] getUserSymptoms failed:', rSymptoms.reason?.message ?? String(rSymptoms.reason));
+        if (rMedications.status === 'rejected') console.warn('[dashboard] getTodaysMedications failed:', rMedications.reason?.message ?? String(rMedications.reason));
+        if (rAlertsCountData.status === 'rejected') console.warn('[dashboard] getActiveAlertsCount failed:', rAlertsCountData.reason?.message ?? String(rAlertsCountData.reason));
+        if (rSymptomStats.status === 'rejected') console.warn('[dashboard] getSymptomStats failed:', rSymptomStats.reason?.message ?? String(rSymptomStats.reason));
 
         setRecentSymptoms(symptoms);
         setTodaysMedications(medications);
@@ -846,6 +883,7 @@ export default function DashboardScreen() {
   }
 
   return (
+    <ScreenErrorBoundary screenName="Dashboard">
     <GradientScreen
       edges={["top"]}
       pointerEvents="box-none"
@@ -992,6 +1030,50 @@ export default function DashboardScreen() {
               <TouchableOpacity onPress={loadDashboardData} style={{ marginLeft: 12, backgroundColor: '#DC2626', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 }}>
                 <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>{isRTL ? 'إعادة' : 'Retry'}</Text>
               </TouchableOpacity>
+            </View>
+          )}
+
+          {/* First-run welcome card — shown only when no health data has been logged yet */}
+          {!loading && !loadError && recentSymptoms.length === 0 && todaysMedications.length === 0 && (
+            <View style={{
+              backgroundColor: '#EFF6FF',
+              borderRadius: 16,
+              padding: 20,
+              marginBottom: 16,
+              borderWidth: 1,
+              borderColor: '#BFDBFE',
+            }}>
+              <Text style={{ fontSize: 20, marginBottom: 8 }}>👋</Text>
+              <Text style={{ fontSize: 17, fontWeight: '700', color: '#1E40AF', marginBottom: 6 }}>
+                {isRTL ? 'مرحباً في Maak Health' : 'Welcome to Maak Health!'}
+              </Text>
+              <Text style={{ fontSize: 14, color: '#3B82F6', lineHeight: 20, marginBottom: 16 }}>
+                {isRTL
+                  ? 'ابدأ بتسجيل صحتك. كلما سجّلت أكثر، كان ذكاء توأمك الصحي أفضل.'
+                  : 'Start tracking your health. The more you log, the smarter your health twin gets.'}
+              </Text>
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10 }}>
+                <TouchableOpacity
+                  style={{ flex: 1, backgroundColor: '#2563EB', paddingVertical: 10, borderRadius: 10, alignItems: 'center' }}
+                  onPress={() => router.push('/(tabs)/symptoms')}
+                  accessibilityRole="button"
+                  accessibilityLabel={isRTL ? 'تسجيل عرض' : 'Log a symptom'}
+                >
+                  <Text style={{ color: '#fff', fontWeight: '600', fontSize: 13 }}>
+                    {isRTL ? '📋 تسجيل عرض' : '📋 Log Symptom'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{ flex: 1, backgroundColor: '#fff', paddingVertical: 10, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#2563EB' }}
+                  onPress={() => router.push('/(tabs)/medications')}
+                  accessibilityRole="button"
+                  accessibilityLabel={isRTL ? 'إضافة دواء' : 'Add a medication'}
+                >
+                  <Text style={{ color: '#2563EB', fontWeight: '600', fontSize: 13 }}>
+                    {isRTL ? '💊 إضافة دواء' : '💊 Add Medication'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
 
@@ -1768,5 +1850,6 @@ export default function DashboardScreen() {
       </ScrollView>
       </View>
     </GradientScreen>
+    </ScreenErrorBoundary>
   );
 }

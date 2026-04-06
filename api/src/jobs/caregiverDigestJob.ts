@@ -30,7 +30,7 @@ import {
   alerts,
   medicationReminders,
 } from "../db/schema";
-import { pushToUser } from "../lib/push";
+import { enqueueNotification } from "../lib/enqueueNotification.js";
 import { recordHeartbeat } from "../lib/heartbeat.js";
 
 // ── Entry point ───────────────────────────────────────────────────────────────
@@ -201,11 +201,14 @@ async function processDigests(): Promise<void> {
             }
           }
 
-          await pushToUser(adminId, {
+          await enqueueNotification({
+            userId: adminId,
             title: digest.title,
             body: digest.body,
             data: { screen: "family_dashboard", familyId },
-            priority: digest.hasUrgent ? "high" : "default",
+            // Deterministic key: one digest per admin per family per day.
+            // This prevents duplicate digests if the cron fires twice.
+            idempotencyKey: `digest:${adminId}:${familyId}:${new Date().toISOString().slice(0, 10)}`,
           });
           sentCount++;
         } catch (pushErr) {

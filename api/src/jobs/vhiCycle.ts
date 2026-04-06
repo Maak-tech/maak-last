@@ -35,9 +35,12 @@ import {
   genetics,
   healthTimeline,
   alerts,
+  escalations,
+  familyMembers,
 } from "../db/schema";
-import { eq, desc, gte, and, isNull, or, lt, sql } from "drizzle-orm";
+import { eq, desc, gte, and, isNull, or, lt, sql, gt, not } from "drizzle-orm";
 import crypto from "node:crypto";
+import { enqueueNotification } from "../lib/enqueueNotification.js";
 
 const WINDOW_DAYS = 21; // minimum days to establish baseline confidence
 const RISK_HIGH = 75;
@@ -487,6 +490,24 @@ export async function processUser(userId: string) {
     logger.warn({ err: snapshotErr }, '[vhiCycle] Failed to write vhi_snapshot');
   }
 
+  // Auto-escalate when VHI crosses into high or critical risk territory
+  const prevRiskLevel: string =
+    compositeRisk >= RISK_HIGH ? "high" : compositeRisk >= RISK_MODERATE ? "moderate" : "low";
+  const prevVhiRiskLevel =
+    prevVhiRow?.data?.currentState?.riskScores?.compositeRisk != null
+      ? (prevVhiRow.data.currentState.riskScores.compositeRisk as number) >= RISK_HIGH
+        ? "high"
+        : (prevVhiRow.data.currentState.riskScores.compositeRisk as number) >= RISK_MODERATE
+        ? "moderate"
+        : "low"
+      : null;
+  const newVhiForEscalation = {
+    riskLevel: prevRiskLevel,
+    riskScore: compositeRisk,
+    elevatingFactors: elevatingFactors.slice(0, 3).map((f) => ({ label: f.factor })),
+  };
+  await checkAndAutoEscalate(userId, prevVhiRiskLevel ? { riskLevel: prevVhiRiskLevel } : null, newVhiForEscalation);
+
   // Trigger forecast cycle asynchronously when risk is elevated
   if (compositeRisk >= 60) {
     runForecastCycle(userId).catch((err: unknown) =>
@@ -565,6 +586,98 @@ export async function processUser(userId: string) {
   // Clear the dirty flag now that recompute succeeded.
   // Done after all side effects so a failure mid-pipeline doesn't silently suppress a retry.
   await db.update(users).set({ vhiDirty: false }).where(eq(users.id, userId));
+}
+
+async function checkAndAutoEscalate(
+  userId: string,
+  prevVhi: { riskLevel: string } | null,
+  newVhi: { riskLevel: string; riskScore: number; elevatingFactors?: Array<{ label: string }> },
+): Promise<void> {
+  const justBecameCritical =
+    prevVhi?.riskLevel !== 'critical' && newVhi.riskLevel === 'critical'
+  const justBecameHigh =
+    !['high', 'critical'].includes(prevVhi?.riskLevel ?? '') && newVhi.riskLevel === 'high'
+
+  if (!justBecameCritical && !justBecameHigh) return
+
+  // Dedup: skip if an unresolved VHI escalation exists in last 24h
+  const recentEscalation = await db
+    .select({ id: escalations.id })
+    .from(escalations)
+    .where(
+      and(
+        eq(escalations.userId, userId),
+        eq(escalations.type, 'vhi_threshold_breach'),
+        isNull(escalations.resolvedAt),
+        gt(escalations.createdAt, new Date(Date.now() - 86_400_000)),
+      ),
+    )
+    .limit(1)
+
+  if (recentEscalation.length > 0) {
+    logger.info({ userId }, '[vhiCycle] Auto-escalation skipped — recent escalation exists')
+    return
+  }
+
+  const escalationId = crypto.randomUUID()
+  const severity = justBecameCritical ? 'critical' : 'high'
+
+  await db.insert(escalations).values({
+    id: escalationId,
+    userId,
+    type: 'vhi_threshold_breach',
+    severity,
+    metadata: {
+      riskLevel: newVhi.riskLevel,
+      riskScore: newVhi.riskScore,
+      topFactors: (newVhi.elevatingFactors ?? []).slice(0, 3).map((f) => f.label),
+      source: 'vhi_auto',
+    },
+  })
+
+  logger.info({ userId, severity, escalationId }, '[vhiCycle] Auto-escalation created')
+
+  await enqueueNotification({
+    userId,
+    title: justBecameCritical ? 'Health Alert' : 'Health Update',
+    body: justBecameCritical
+      ? 'Your health index has reached a critical level. Please contact your care team.'
+      : 'Your health index has entered a high-risk range. Consider reviewing your health data.',
+    idempotencyKey: `vhi-escalation:${userId}:${escalationId}`,
+  })
+
+  // Notify family admins
+  try {
+    const familyMember = await db
+      .select({ familyId: familyMembers.familyId })
+      .from(familyMembers)
+      .where(eq(familyMembers.userId, userId))
+      .limit(1)
+
+    if (familyMember.length > 0) {
+      const admins = await db
+        .select({ userId: familyMembers.userId })
+        .from(familyMembers)
+        .where(
+          and(
+            eq(familyMembers.familyId, familyMember[0].familyId),
+            eq(familyMembers.role, 'admin'),
+            not(eq(familyMembers.userId, userId)),
+          ),
+        )
+
+      for (const admin of admins) {
+        await enqueueNotification({
+          userId: admin.userId,
+          title: 'Family Member Health Alert',
+          body: `A family member's health index has reached ${newVhi.riskLevel} risk. Please check their status.`,
+          idempotencyKey: `family-vhi-escalation:${admin.userId}:${escalationId}`,
+        })
+      }
+    }
+  } catch (err) {
+    logger.warn({ err, userId }, '[vhiCycle] Failed to notify family admins — non-fatal')
+  }
 }
 
 /**

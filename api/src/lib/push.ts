@@ -8,7 +8,7 @@
  * notification bodies — send generic prompts only.
  */
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import crypto from "node:crypto";
 import { db } from "../db";
 import { familyMembers, pushDeliveryReceipts, pushTokens, users } from "../db/schema";
@@ -80,8 +80,35 @@ async function isInQuietHours(userId: string, priority?: string): Promise<boolea
  * Send a push notification to a single user.
  * Looks up all active Expo push tokens for the userId and sends to all of them
  * (the same user may have multiple devices).
+ *
+ * @param options.idempotencyKey  When provided, the call is a no-op if a receipt
+ *   with that key already exists.  Use a stable key derived from the triggering
+ *   event (e.g. `vhiCycle:${userId}:${cycleTimestamp}`) to prevent double-sends.
  */
-export async function pushToUser(userId: string, msg: PushMessage): Promise<void> {
+export async function pushToUser(
+  userId: string,
+  msg: PushMessage,
+  options?: { idempotencyKey?: string }
+): Promise<void> {
+  // Idempotency check: skip if a receipt with this key was already recorded.
+  if (options?.idempotencyKey) {
+    const existing = await db
+      .select({ id: pushDeliveryReceipts.id })
+      .from(pushDeliveryReceipts)
+      .where(
+        and(
+          eq(pushDeliveryReceipts.userId, userId),
+          eq(pushDeliveryReceipts.idempotencyKey, options.idempotencyKey),
+          isNotNull(pushDeliveryReceipts.idempotencyKey)
+        )
+      )
+      .limit(1);
+    if (existing.length > 0) {
+      console.info(`[push] Skipping duplicate notification for user ${userId} — idempotencyKey already used: ${options.idempotencyKey}`);
+      return;
+    }
+  }
+
   if (await isInQuietHours(userId, msg.priority)) {
     console.info(`[push] Suppressed notification for user ${userId} — quiet hours active`);
     return;
@@ -93,7 +120,11 @@ export async function pushToUser(userId: string, msg: PushMessage): Promise<void
     .where(and(eq(pushTokens.userId, userId), eq(pushTokens.isActive, true)));
 
   if (tokens.length === 0) return;
-  await deliverToTokens(tokens.map((t) => ({ userId, token: t.token })), msg);
+  await deliverToTokens(
+    tokens.map((t) => ({ userId, token: t.token })),
+    msg,
+    options?.idempotencyKey
+  );
 }
 
 /**
@@ -168,7 +199,7 @@ interface TokenEntry {
   token: string;
 }
 
-async function deliverToTokens(tokenEntries: TokenEntry[], msg: PushMessage): Promise<void> {
+async function deliverToTokens(tokenEntries: TokenEntry[], msg: PushMessage, idempotencyKey?: string): Promise<void> {
   const messages = tokenEntries.map(({ token }) => ({
     to: token,
     title: msg.title,
@@ -234,6 +265,7 @@ async function deliverToTokens(tokenEntries: TokenEntry[], msg: PushMessage): Pr
         status,
         errorCode,
         checkedAt: null,
+        idempotencyKey: idempotencyKey ?? null,
       };
     });
 

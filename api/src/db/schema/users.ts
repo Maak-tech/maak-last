@@ -8,6 +8,12 @@ import {
   integer,
   index,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+// NOTE: families is imported here solely to attach the FK reference on users.familyId.
+// Drizzle resolves table references lazily via the () => ... thunk, so this import does
+// NOT create a runtime circular dependency as long as family.ts does not import users.ts
+// at the top level (it doesn't — family.ts has no imports from this file).
+import { families } from "./family.js";
 
 // ── Users ──────────────────────────────────────────────────────────────────────
 
@@ -22,8 +28,13 @@ export const users = pgTable("users", {
   heightCm: numeric("height_cm"),
   weightKg: numeric("weight_kg"),
   language: text("language").default("en"),
-  familyId: text("family_id"),
-  guardianId: text("guardian_id"), // null for adults; references another users.id for minors
+  // FK → families.id; SET NULL when the family is deleted so the user record survives.
+  familyId: text("family_id").references(() => families.id, { onDelete: "set null" }),
+  // Self-referential FK for minor patients whose account is managed by a guardian.
+  // SET NULL rather than CASCADE so a minor's record is not deleted if the guardian
+  // account is removed — the clinical history must be retained.
+  // eslint-disable-next-line @typescript-eslint/no-use-before-define -- self-referential FK; Drizzle resolves lazily
+  guardianId: text("guardian_id").references((): any => users.id, { onDelete: "set null" }), // null for adults; references another users.id for minors
   avatarUrl: text("avatar_url"),
   // Legacy single-contact fields — kept for backward compatibility.
   // New code should use emergencyContacts (JSONB array) instead.
@@ -42,7 +53,13 @@ export const users = pgTable("users", {
   vhiDirty: boolean("vhi_dirty").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+},
+(t) => [
+  // Partial index: only indexes rows where vhi_dirty = true.
+  // vhiCycle scans this index to find users needing recompute — keeps the scan
+  // O(dirty_count) instead of O(total_users).
+  index('users_vhi_dirty_idx').on(t.vhiDirty).where(sql`vhi_dirty = true`),
+]);
 
 // ── Consent Policies ──────────────────────────────────────────────────────────
 // Defines the current required version for each policy type.

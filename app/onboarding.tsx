@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   SafeAreaView,
-  Dimensions,
   Image,
   Animated,
   Platform,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
+import * as Notifications from 'expo-notifications';
+import * as SecureStore from 'expo-secure-store';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,7 +20,8 @@ import { createThemedStyles, getTextStyle } from '@/utils/styles';
 import { Heart, Users, Bell, Shield } from 'lucide-react-native';
 import { appleHealthService } from '@/lib/services/appleHealthService';
 
-const { width: screenWidth } = Dimensions.get('window');
+const ONBOARDING_STEP_KEY = 'nuralix_onboarding_step';
+const ONBOARDING_COMPLETE_KEY = 'nuralix_onboarding_complete';
 
 const onboardingSteps = [
   {
@@ -68,12 +71,34 @@ export default function OnboardingScreen() {
   const { t, i18n } = useTranslation();
   const { updateUser } = useAuth();
   const { theme } = useTheme();
+  const { width: screenWidth } = useWindowDimensions();
   const [currentStep, setCurrentStep] = useState(0);
   const [isCompleting, setIsCompleting] = useState(false);
   const [healthConnecting, setHealthConnecting] = useState(false);
   const [healthConnected, setHealthConnected] = useState(false);
 
   const isRTL = i18n.language === 'ar';
+
+  // Restore persisted onboarding step on mount
+  useEffect(() => {
+    SecureStore.getItemAsync(ONBOARDING_STEP_KEY).then((stored) => {
+      if (stored) {
+        const savedStep = parseInt(stored, 10);
+        if (!isNaN(savedStep) && savedStep > 0) setCurrentStep(savedStep);
+      }
+    }).catch(() => { /* ignore SecureStore errors on first install */ });
+  }, []);
+
+  const advanceStep = (newStep: number) => {
+    setCurrentStep(newStep);
+    SecureStore.setItemAsync(ONBOARDING_STEP_KEY, String(newStep)).catch(() => {});
+  };
+
+  const completeOnboarding = async () => {
+    await SecureStore.setItemAsync(ONBOARDING_COMPLETE_KEY, 'true').catch(() => {});
+    await SecureStore.deleteItemAsync(ONBOARDING_STEP_KEY).catch(() => {});
+    router.replace('/(tabs)');
+  };
 
   const styles = createThemedStyles((theme) => ({
     container: {
@@ -225,6 +250,21 @@ export default function OnboardingScreen() {
     }
   };
 
+  const requestNotificationPermission = async () => {
+    try {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status === 'granted') {
+        Notifications.setNotificationHandler({
+          handleNotification: async () => ({
+            shouldShowAlert: true,
+            shouldPlaySound: true,
+            shouldSetBadge: true,
+          }),
+        });
+      }
+    } catch {}
+  };
+
   const handleComplete = async () => {
     if (isCompleting) return;
 
@@ -233,7 +273,7 @@ export default function OnboardingScreen() {
       await updateUser({ onboardingCompleted: true });
       // Small delay to ensure state is updated
       setTimeout(() => {
-        router.replace('/(tabs)');
+        completeOnboarding();
       }, 300);
     } catch (error: unknown) {
       console.error('Error completing onboarding:', error instanceof Error ? error.message : String(error));
@@ -241,21 +281,32 @@ export default function OnboardingScreen() {
     }
   };
 
-  const nextStep = () => {
+  const nextStep = async () => {
     if (currentStep < onboardingSteps.length - 1) {
-      setCurrentStep(currentStep + 1);
+      // Request notification permission on the second-to-last or last step
+      if (
+        currentStep === onboardingSteps.length - 1 ||
+        currentStep === onboardingSteps.length - 2
+      ) {
+        await requestNotificationPermission();
+      }
+      advanceStep(currentStep + 1);
     } else {
+      // Last step — request notification permission before completing
+      await requestNotificationPermission();
       handleComplete();
     }
   };
 
   const prevStep = () => {
     if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
+      advanceStep(currentStep - 1);
     }
   };
 
-  const skip = () => {
+  const skip = async () => {
+    // Request notification permission when skipping (user has seen enough context)
+    await requestNotificationPermission();
     handleComplete();
   };
 

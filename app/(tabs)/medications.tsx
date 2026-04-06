@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
@@ -11,7 +11,11 @@ import {
   Alert,
   RefreshControl,
   ActivityIndicator,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import { MedicationCardSkeleton } from '@/components/SkeletonLoader';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFocusEffect } from 'expo-router';
@@ -32,6 +36,7 @@ import FamilyDataFilter, {
   FilterOption,
 } from '@/app/components/FamilyDataFilter';
 import AnimatedCheckButton from '@/components/AnimatedCheckButton';
+import { ScreenErrorBoundary } from '@/components/ScreenErrorBoundary';
 
 const FREQUENCY_OPTIONS = [
   { key: 'once', labelEn: 'Once daily', labelAr: 'مرة واحدة يومياً' },
@@ -50,7 +55,7 @@ export default function MedicationsScreen() {
   const { user } = useAuth();
   const [showAddModal, setShowAddModal] = useState(false);
   const [medications, setMedications] = useState<Medication[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Start true — no data yet on first render
   const [refreshing, setRefreshing] = useState(false);
   const [newMedication, setNewMedication] = useState({
     name: '',
@@ -512,7 +517,91 @@ export default function MedicationsScreen() {
     );
   }
 
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={[styles.title, isRTL && styles.rtlText]}>
+            {t('medications')}
+          </Text>
+        </View>
+        <View style={{ padding: 16 }}>
+          <MedicationCardSkeleton />
+          <MedicationCardSkeleton />
+          <MedicationCardSkeleton />
+          <MedicationCardSkeleton />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const MedicationsListHeader = (
+    <>
+      {/* Enhanced Data Filter */}
+      <FamilyDataFilter
+        familyMembers={familyMembers}
+        currentUserId={user.id}
+        selectedFilter={selectedFilter}
+        onFilterChange={handleFilterChange}
+        isAdmin={isAdmin}
+        hasFamily={hasFamily}
+      />
+
+      {/* Today's Progress */}
+      <View style={styles.progressCard}>
+        <Text style={[styles.progressTitle, isRTL && styles.rtlText]}>
+          {selectedFilter.type === 'family'
+            ? isRTL
+              ? 'تقدم العائلة اليوم'
+              : "Family's Progress Today"
+            : selectedFilter.type === 'member'
+            ? isRTL
+              ? `تقدم ${selectedFilter.memberName} اليوم`
+              : `${selectedFilter.memberName}'s Progress Today`
+            : isRTL
+            ? 'تقدم اليوم'
+            : "Today's Progress"}
+        </Text>
+        <View style={styles.progressInfo}>
+          <Text style={[styles.progressText, isRTL && styles.rtlText]}>
+            {takenMeds}/{totalMeds} {isRTL ? 'مأخوذة' : 'taken'}
+          </Text>
+          <View style={styles.progressBar}>
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  width: `${
+                    totalMeds > 0 ? (takenMeds / totalMeds) * 100 : 0
+                  }%`,
+                },
+              ]}
+            />
+          </View>
+        </View>
+      </View>
+
+      {/* Section title */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+          {selectedFilter.type === 'family'
+            ? isRTL
+              ? 'أدوية العائلة'
+              : 'Family Medications'
+            : selectedFilter.type === 'member'
+            ? isRTL
+              ? `أدوية ${selectedFilter.memberName}`
+              : `${selectedFilter.memberName}'s Medications`
+            : isRTL
+            ? 'أدوية اليوم'
+            : "Today's Medications"}
+        </Text>
+      </View>
+    </>
+  );
+
   return (
+    <ScreenErrorBoundary screenName="Medications">
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={[styles.title, isRTL && styles.rtlText]}>
@@ -538,204 +627,153 @@ export default function MedicationsScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView 
-        style={styles.content} 
-        showsVerticalScrollIndicator={false}
+      <FlatList
+        data={medications}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item: medication }) => (
+          <View style={styles.medicationItem}>
+            <View style={styles.medicationLeft}>
+              <View style={styles.medicationIcon}>
+                <Pill size={20} color="#2563EB" />
+              </View>
+
+              <View style={styles.medicationInfo}>
+                <View style={styles.medicationHeader}>
+                  <Text
+                    style={[
+                      styles.medicationName,
+                      isRTL && styles.rtlText,
+                    ]}
+                  >
+                    {medication.name}
+                  </Text>
+                  {/* Show member name for family/admin views */}
+                  {(selectedFilter.type === 'family' ||
+                    selectedFilter.type === 'member') && (
+                    <View style={styles.memberBadge}>
+                      <Text
+                        style={[
+                          styles.memberBadgeText,
+                          isRTL && styles.rtlText,
+                        ]}
+                      >
+                        {getMemberName(medication.userId)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <Text
+                  style={[
+                    styles.medicationDosage,
+                    isRTL && styles.rtlText,
+                  ]}
+                >
+                  {medication.dosage} • {medication.frequency}
+                </Text>
+                <View style={styles.medicationTime}>
+                  <Clock size={12} color="#64748B" />
+                  <Text
+                    style={[
+                      styles.medicationTimeText,
+                      isRTL && styles.rtlText,
+                    ]}
+                  >
+                    {getNextDoseText(medication)}
+                  </Text>
+                </View>
+                {Array.isArray(medication.reminders) &&
+                  medication.reminders.length > 0 && (
+                    <View style={styles.medicationTime}>
+                      <Bell size={12} color="#6366F1" />
+                      <Text
+                        style={[
+                          styles.medicationReminderTimesText,
+                          isRTL && styles.rtlText,
+                        ]}
+                      >
+                        {medication.reminders
+                          .map((r) => r.time)
+                          .join(' · ')}
+                      </Text>
+                    </View>
+                  )}
+              </View>
+            </View>
+
+            <View style={styles.medicationActions}>
+              {/* Show all reminders with animated check buttons */}
+              <View style={styles.remindersDisplay}>
+                {medication.reminders.map((reminder) => {
+                  // Check if user can mark this medication as taken
+                  const canMarkTaken =
+                    medication.userId === user.id || // Owner can mark their own
+                    (isAdmin && user.familyId); // Admin can mark for family members
+
+                  return (
+                    <AnimatedCheckButton
+                      key={reminder.id}
+                      isChecked={reminder.taken}
+                      onPress={() =>
+                        toggleMedicationTaken(medication.id, reminder.id)
+                      }
+                      label={reminder.time}
+                      size="sm"
+                      disabled={!canMarkTaken}
+                      style={styles.reminderButton}
+                    />
+                  );
+                })}
+              </View>
+
+              {/* Show action buttons only for medications user can manage */}
+              {(medication.userId === user.id ||
+                (isAdmin &&
+                  (selectedFilter.type === 'family' ||
+                    selectedFilter.type === 'member'))) && (
+                <View style={styles.actionButtons}>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => handleEditMedication(medication)}
+                  >
+                    <Edit size={16} color="#64748B" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.deleteButton]}
+                    onPress={() => handleDeleteMedication(medication)}
+                  >
+                    <Trash2 size={16} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+        ListHeaderComponent={MedicationsListHeader}
+        ListEmptyComponent={
+          <View style={{ alignItems: 'center', padding: 48 }}>
+            <Text style={{ fontSize: 40 }}>💊</Text>
+            <Text style={{ fontSize: 18, fontWeight: '600', marginTop: 12, marginBottom: 8 }}>
+              {isRTL ? 'لا توجد أدوية' : 'No medications yet'}
+            </Text>
+            <Text style={{ fontSize: 14, color: '#6B7280', textAlign: 'center' }}>
+              {isRTL ? 'أضف دواءك الأول لتتبع الجرعات' : 'Add your first medication to track doses'}
+            </Text>
+          </View>
+        }
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => loadMedications(true)}
             tintColor="#2563EB"
           />
-        }>
-        {/* Enhanced Data Filter */}
-        <FamilyDataFilter
-          familyMembers={familyMembers}
-          currentUserId={user.id}
-          selectedFilter={selectedFilter}
-          onFilterChange={handleFilterChange}
-          isAdmin={isAdmin}
-          hasFamily={hasFamily}
-        />
-
-        {/* Today's Progress */}
-        <View style={styles.progressCard}>
-          <Text style={[styles.progressTitle, isRTL && styles.rtlText]}>
-            {selectedFilter.type === 'family'
-              ? isRTL
-                ? 'تقدم العائلة اليوم'
-                : "Family's Progress Today"
-              : selectedFilter.type === 'member'
-              ? isRTL
-                ? `تقدم ${selectedFilter.memberName} اليوم`
-                : `${selectedFilter.memberName}'s Progress Today`
-              : isRTL
-              ? 'تقدم اليوم'
-              : "Today's Progress"}
-          </Text>
-          <View style={styles.progressInfo}>
-            <Text style={[styles.progressText, isRTL && styles.rtlText]}>
-              {takenMeds}/{totalMeds} {isRTL ? 'مأخوذة' : 'taken'}
-            </Text>
-            <View style={styles.progressBar}>
-              <View
-                style={[
-                  styles.progressFill,
-                  {
-                    width: `${
-                      totalMeds > 0 ? (takenMeds / totalMeds) * 100 : 0
-                    }%`,
-                  },
-                ]}
-              />
-            </View>
-          </View>
-        </View>
-
-        {/* Today's Medications */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-            {selectedFilter.type === 'family'
-              ? isRTL
-                ? 'أدوية العائلة'
-                : 'Family Medications'
-              : selectedFilter.type === 'member'
-              ? isRTL
-                ? `أدوية ${selectedFilter.memberName}`
-                : `${selectedFilter.memberName}'s Medications`
-              : isRTL
-              ? 'أدوية اليوم'
-              : "Today's Medications"}
-          </Text>
-
-          {medications.length > 0 ? (
-            <View style={styles.medicationsList}>
-              {medications.map((medication) => (
-                <View key={medication.id} style={styles.medicationItem}>
-                  <View style={styles.medicationLeft}>
-                    <View style={styles.medicationIcon}>
-                      <Pill size={20} color="#2563EB" />
-                    </View>
-
-                    <View style={styles.medicationInfo}>
-                      <View style={styles.medicationHeader}>
-                        <Text
-                          style={[
-                            styles.medicationName,
-                            isRTL && styles.rtlText,
-                          ]}
-                        >
-                          {medication.name}
-                        </Text>
-                        {/* Show member name for family/admin views */}
-                        {(selectedFilter.type === 'family' ||
-                          selectedFilter.type === 'member') && (
-                          <View style={styles.memberBadge}>
-                            <Text
-                              style={[
-                                styles.memberBadgeText,
-                                isRTL && styles.rtlText,
-                              ]}
-                            >
-                              {getMemberName(medication.userId)}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text
-                        style={[
-                          styles.medicationDosage,
-                          isRTL && styles.rtlText,
-                        ]}
-                      >
-                        {medication.dosage} • {medication.frequency}
-                      </Text>
-                      <View style={styles.medicationTime}>
-                        <Clock size={12} color="#64748B" />
-                        <Text
-                          style={[
-                            styles.medicationTimeText,
-                            isRTL && styles.rtlText,
-                          ]}
-                        >
-                          {getNextDoseText(medication)}
-                        </Text>
-                      </View>
-                      {Array.isArray(medication.reminders) &&
-                        medication.reminders.length > 0 && (
-                          <View style={styles.medicationTime}>
-                            <Bell size={12} color="#6366F1" />
-                            <Text
-                              style={[
-                                styles.medicationReminderTimesText,
-                                isRTL && styles.rtlText,
-                              ]}
-                            >
-                              {medication.reminders
-                                .map((r) => r.time)
-                                .join(' · ')}
-                            </Text>
-                          </View>
-                        )}
-                    </View>
-                  </View>
-
-                  <View style={styles.medicationActions}>
-                    {/* Show all reminders with animated check buttons */}
-                    <View style={styles.remindersDisplay}>
-                      {medication.reminders.map((reminder) => {
-                        // Check if user can mark this medication as taken
-                        const canMarkTaken = 
-                          medication.userId === user.id || // Owner can mark their own
-                          (isAdmin && user.familyId); // Admin can mark for family members
-                        
-                        return (
-                          <AnimatedCheckButton
-                            key={reminder.id}
-                            isChecked={reminder.taken}
-                            onPress={() =>
-                              toggleMedicationTaken(medication.id, reminder.id)
-                            }
-                            label={reminder.time}
-                            size="sm"
-                            disabled={!canMarkTaken}
-                            style={styles.reminderButton}
-                          />
-                        );
-                      })}
-                    </View>
-
-                    {/* Show action buttons only for medications user can manage */}
-                    {(medication.userId === user.id ||
-                      (isAdmin &&
-                        (selectedFilter.type === 'family' ||
-                          selectedFilter.type === 'member'))) && (
-                      <View style={styles.actionButtons}>
-                        <TouchableOpacity
-                          style={styles.actionButton}
-                          onPress={() => handleEditMedication(medication)}
-                        >
-                          <Edit size={16} color="#64748B" />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[styles.actionButton, styles.deleteButton]}
-                          onPress={() => handleDeleteMedication(medication)}
-                        >
-                          <Trash2 size={16} color="#EF4444" />
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                  </View>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-              {isRTL ? 'لا توجد أدوية مضافة' : 'No medications added yet'}
-            </Text>
-          )}
-        </View>
-      </ScrollView>
+        }
+        showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={8}
+        windowSize={5}
+        initialNumToRender={6}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100 }}
+      />
 
       {/* Add Medication Modal */}
       <Modal
@@ -743,6 +781,10 @@ export default function MedicationsScreen() {
         animationType="slide"
         presentationStyle="pageSheet"
       >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
@@ -774,7 +816,7 @@ export default function MedicationsScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.modalContent}>
+          <ScrollView style={styles.modalContent} keyboardShouldPersistTaps="handled">
             {/* Target User Selector (for admins) */}
             {isAdmin && hasFamily && familyMembers.length > 0 && (
               <View style={styles.fieldContainer}>
@@ -1042,8 +1084,10 @@ export default function MedicationsScreen() {
             </TouchableOpacity>
           </ScrollView>
         </SafeAreaView>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
+    </ScreenErrorBoundary>
   );
 }
 
