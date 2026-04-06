@@ -435,6 +435,7 @@ class OfflineService {
         allergies: "/api/health/allergies",
         labResults: "/api/health/labs",
         cycleDailyEntries: "/api/health/cycle-daily",
+        vitals: "/api/health/vitals",
       };
 
       const basePath = apiPathMap[operation.collection];

@@ -62,6 +62,12 @@ patientRoutes.get('/patient/preview/:sessionToken', jwtAuth, async (c) => {
     [patient.id]
   )
 
+  // Check biometric enrollment status for consent revocation indicator
+  const enrollment = await queryOne<{ is_active: boolean }>(
+    'SELECT is_active FROM biometric_enrollments WHERE patient_id = $1 AND compreface_subject_id IS NOT NULL ORDER BY enrolled_at DESC LIMIT 1',
+    [patient.id]
+  )
+
   const dob = new Date(patient.date_of_birth)
   const maskedDob = `**/**/${dob.getFullYear()}`  // Only show year
 
@@ -79,6 +85,7 @@ patientRoutes.get('/patient/preview/:sessionToken', jwtAuth, async (c) => {
     riskLevel: twin?.risk_level ?? 'unknown',
     riskScore: twin?.risk_score ?? null,
     confirmed: session.confirmed,
+    enrollmentActive: enrollment?.is_active ?? null,
   })
 })
 

@@ -24,6 +24,7 @@
         "backgroundColor": "#F8FAFC"
       },
       "infoPlist": {
+        "UIBackgroundModes": ["fetch", "remote-notification"],
         "NSCameraUsageDescription": "Maak Health uses the camera to allow you to take profile photos and scan medication barcodes for easy tracking.",
         "NSPhotoLibraryUsageDescription": "Maak Health needs access to your photo library to select profile pictures and save health-related images.",
         "NSMotionUsageDescription": "Maak Health uses motion sensors to detect falls and automatically alert your emergency contacts for your safety.",

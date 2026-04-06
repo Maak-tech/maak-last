@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia";
-import { eq, desc, and, gte, lte } from "drizzle-orm";
+import { eq, desc, and, gte, lte, isNull } from "drizzle-orm";
 import crypto from "node:crypto";
 import { clinicalNotes } from "../db/schema";
 import { requireAuth } from "../middleware/requireAuth";
@@ -55,7 +55,7 @@ export const clinicalNotesRoutes = new Elysia({ prefix: "/api/notes" })
       let q = db
         .select()
         .from(clinicalNotes)
-        .where(eq(clinicalNotes.userId, userId))
+        .where(and(eq(clinicalNotes.userId, userId), isNull(clinicalNotes.deletedAt)))
         .orderBy(desc(clinicalNotes.noteDate))
         .$dynamic();
 
@@ -91,7 +91,7 @@ export const clinicalNotesRoutes = new Elysia({ prefix: "/api/notes" })
       const [note] = await db
         .select()
         .from(clinicalNotes)
-        .where(and(eq(clinicalNotes.id, params.id), eq(clinicalNotes.userId, userId)))
+        .where(and(eq(clinicalNotes.id, params.id), eq(clinicalNotes.userId, userId), isNull(clinicalNotes.deletedAt)))
         .limit(1);
 
       if (!note) { set.status = 404; return { error: "Note not found" }; }
@@ -175,7 +175,7 @@ export const clinicalNotesRoutes = new Elysia({ prefix: "/api/notes" })
       const [existing] = await db
         .select({ id: clinicalNotes.id })
         .from(clinicalNotes)
-        .where(and(eq(clinicalNotes.id, params.id), eq(clinicalNotes.userId, userId)))
+        .where(and(eq(clinicalNotes.id, params.id), eq(clinicalNotes.userId, userId), isNull(clinicalNotes.deletedAt)))
         .limit(1);
 
       if (!existing) { set.status = 404; return { error: "Note not found" }; }
@@ -232,7 +232,7 @@ export const clinicalNotesRoutes = new Elysia({ prefix: "/api/notes" })
       const [existing] = await db
         .select({ id: clinicalNotes.id, attachmentKey: clinicalNotes.attachmentKey })
         .from(clinicalNotes)
-        .where(and(eq(clinicalNotes.id, params.id), eq(clinicalNotes.userId, userId)))
+        .where(and(eq(clinicalNotes.id, params.id), eq(clinicalNotes.userId, userId), isNull(clinicalNotes.deletedAt)))
         .limit(1);
 
       if (!existing) { set.status = 404; return { error: "Note not found" }; }
@@ -254,8 +254,12 @@ export const clinicalNotesRoutes = new Elysia({ prefix: "/api/notes" })
         })).catch((err: unknown) => console.error(`[clinicalNotes] Tigris delete failed for key ${existing.attachmentKey}:`, err instanceof Error ? err.message : String(err)));
       }
 
-      // Include userId in the WHERE clause to prevent TOCTOU race conditions
-      await db.delete(clinicalNotes).where(and(eq(clinicalNotes.id, params.id), eq(clinicalNotes.userId, userId)));
+      // Soft-delete: stamp deleted_at instead of removing the row.
+      // Include userId in the WHERE clause to prevent TOCTOU race conditions.
+      await db
+        .update(clinicalNotes)
+        .set({ deletedAt: new Date() })
+        .where(and(eq(clinicalNotes.id, params.id), eq(clinicalNotes.userId, userId), isNull(clinicalNotes.deletedAt)));
       return { ok: true };
     },
     {
@@ -275,10 +279,10 @@ export const clinicalNotesRoutes = new Elysia({ prefix: "/api/notes" })
     async ({ db, userId, params, set }) => {
       // Rate limit: 20 parse requests / user / hour — each parse triggers a
       // 60-second background ML job (MedGemma PDF → SOAP extraction).
-      const rl = noteParseRateLimiter.check(userId);
+      const rl = await noteParseRateLimiter.check(userId);
       if (!rl.allowed) {
         set.status = 429;
-        const retryAfterSecs = Math.ceil((rl.resetAt - Date.now()) / 1000);
+        const retryAfterSecs = Math.ceil(rl.resetIn / 1000);
         set.headers = { "Retry-After": String(retryAfterSecs) };
         return { ok: false, error: "Too many parse requests. Please try again later." };
       }
@@ -286,7 +290,7 @@ export const clinicalNotesRoutes = new Elysia({ prefix: "/api/notes" })
       const [note] = await db
         .select()
         .from(clinicalNotes)
-        .where(and(eq(clinicalNotes.id, params.id), eq(clinicalNotes.userId, userId)))
+        .where(and(eq(clinicalNotes.id, params.id), eq(clinicalNotes.userId, userId), isNull(clinicalNotes.deletedAt)))
         .limit(1);
 
       if (!note) { set.status = 404; return { error: "Note not found" }; }
@@ -314,7 +318,7 @@ export const clinicalNotesRoutes = new Elysia({ prefix: "/api/notes" })
       const [existing] = await db
         .select({ id: clinicalNotes.id })
         .from(clinicalNotes)
-        .where(and(eq(clinicalNotes.id, params.id), eq(clinicalNotes.userId, userId)))
+        .where(and(eq(clinicalNotes.id, params.id), eq(clinicalNotes.userId, userId), isNull(clinicalNotes.deletedAt)))
         .limit(1);
 
       if (!existing) {

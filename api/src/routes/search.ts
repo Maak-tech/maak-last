@@ -8,7 +8,7 @@
  */
 
 import { Elysia, t } from "elysia";
-import { and, eq, ilike, or } from "drizzle-orm";
+import { and, eq, ilike, isNull, or } from "drizzle-orm";
 import { requireAuth } from "../middleware/requireAuth";
 import {
   medications,
@@ -52,6 +52,7 @@ export const searchRoutes = new Elysia({ prefix: "/api" })
           .where(
             and(
               eq(medications.userId, userId),
+              isNull(medications.deletedAt),
               or(
                 ilike(medications.name, pattern),
                 ilike(medications.dosage, pattern),
@@ -99,6 +100,7 @@ export const searchRoutes = new Elysia({ prefix: "/api" })
           .where(
             and(
               eq(clinicalNotes.userId, userId),
+              isNull(clinicalNotes.deletedAt),
               or(
                 ilike(clinicalNotes.providerName, pattern),
                 ilike(clinicalNotes.content, pattern)
@@ -114,6 +116,7 @@ export const searchRoutes = new Elysia({ prefix: "/api" })
           .where(
             and(
               eq(allergies.userId, userId),
+              isNull(allergies.deletedAt),
               or(
                 ilike(allergies.substance, pattern),
                 ilike(allergies.reaction, pattern)

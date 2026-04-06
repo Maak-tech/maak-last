@@ -35,9 +35,8 @@ import {
   pushTokens,
 } from "../db/schema";
 import { pushToUser } from "../lib/push";
-
-// ── Advisory lock key ─────────────────────────────────────────────────────────
-const ADVISORY_LOCK_KEY = 7_777_002;
+import { recordHeartbeat } from "../lib/heartbeat.js";
+import { acquireJobLock, releaseJobLock } from "../lib/jobLock.js";
 
 // ── Staleness thresholds by source (milliseconds) ────────────────────────────
 const STALENESS_MS: Record<string, number> = {
@@ -59,10 +58,10 @@ const LOOKBACK_MS = 72 * 60 * 60 * 1000;
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 async function runWearableStaleness(): Promise<void> {
-  const [lockRow] = await db.execute<{ acquired: boolean }>(
-    sql`SELECT pg_try_advisory_lock(${ADVISORY_LOCK_KEY}) AS acquired`
-  );
-  if (!lockRow?.acquired) {
+  // Distributed lock via job_locks table — works with Neon HTTP driver.
+  // (pg_try_advisory_lock is session-scoped and does not work with HTTP connections.)
+  const lockToken = await acquireJobLock('wearableStalenessJob', 1800)
+  if (!lockToken) {
     console.log("[wearableStaleness] Another instance is running — skipping.");
     return;
   }
@@ -70,7 +69,7 @@ async function runWearableStaleness(): Promise<void> {
   try {
     await processAll();
   } finally {
-    await db.execute(sql`SELECT pg_advisory_unlock(${ADVISORY_LOCK_KEY})`);
+    await releaseJobLock('wearableStalenessJob', lockToken);
   }
 }
 
@@ -227,7 +226,10 @@ function friendlyDeviceName(provider: string): string {
 // ── Run ───────────────────────────────────────────────────────────────────────
 
 runWearableStaleness()
-  .then(() => process.exit(0))
+  .then(async () => {
+    try { await recordHeartbeat('wearableStalenessJob', 14400) } catch (e) { console.warn('[wearableStaleness] heartbeat failed', e instanceof Error ? e.message : String(e)) }
+    process.exit(0);
+  })
   .catch((err) => {
     console.error("[wearableStaleness] Fatal error:", err);
     process.exit(1);

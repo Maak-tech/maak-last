@@ -61,6 +61,11 @@
       "schedule": "0 3 * * 0",
       "command": "bun run src/jobs/pushTokenCleanupJob.ts",
       "name": "Push token cleanup (weekly Sunday 03:00 UTC)"
+    },
+    {
+      "schedule": "0 2 * * *",
+      "command": "bun run src/jobs/phiRetentionJob.ts",
+      "name": "PHI data retention enforcement (daily 02:00 UTC)"
     }
   ]
 }

@@ -82,6 +82,7 @@ export type PreviewData = {
   riskLevel: string
   riskScore: number | null
   confirmed: boolean
+  enrollmentActive: boolean | null
 }
 export type TwinData = {
   patient: {
@@ -165,10 +166,13 @@ export const api = {
   getTwinBySession: (sessionToken: string) =>
     apiFetch<TwinData>(`/patient/by-session/${sessionToken}`),
 
-  getAuditLogs: (page = 1) =>
-    apiFetch<{ logs: AuditLog[]; page: number; limit: number }>(
-      `/audit?page=${page}`
-    ),
+  getAuditLogs: (page = 1, action?: string) => {
+    const params = new URLSearchParams({ page: String(page) })
+    if (action) params.set('action', action)
+    return apiFetch<{ logs: AuditLog[]; page: number; limit: number }>(
+      `/audit?${params.toString()}`
+    )
+  },
 }
 
 export interface AuditLog {

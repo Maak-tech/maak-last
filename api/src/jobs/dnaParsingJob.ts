@@ -13,12 +13,16 @@
  */
 
 import { S3Client, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
-import { eq } from "drizzle-orm";
+import { eq, lt, and, sql } from "drizzle-orm";
 import { db } from "../db";
-import { genetics, healthTimeline } from "../db/schema";
+import { genetics, healthTimeline, dnaParsingQueue } from "../db/schema";
 import crypto from "node:crypto";
 import { dispatchWebhookEvent } from "../lib/webhookDispatcher";
 import { processUser } from "./vhiCycle";
+import { recordHeartbeat } from "../lib/heartbeat.js";
+import { logger } from "../lib/logger.js";
+
+const MAX_ATTEMPTS = 3;
 
 // ── S3 / Tigris client ────────────────────────────────────────────────────────
 
@@ -117,36 +121,85 @@ async function callMLParser(
   return res.json() as Promise<MLParseResult>;
 }
 
-// ── Main job entry point ───────────────────────────────────────────────────────
+// ── Queue helpers ──────────────────────────────────────────────────────────────
 
-export async function runDnaParsingJob(
-  userId: string,
-  uploadKey: string
-): Promise<{ ok: boolean; error?: string }> {
+/**
+ * Reclaim stale 'processing' rows that started >30 minutes ago and still have
+ * attempts remaining. Resets them to 'pending' so the next run picks them up.
+ */
+async function reclaimStaleRows(): Promise<number> {
+  const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+  const result = await db
+    .update(dnaParsingQueue)
+    .set({
+      status: "pending",
+      processingStartedAt: null,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(dnaParsingQueue.status, "processing"),
+        lt(dnaParsingQueue.processingStartedAt, thirtyMinutesAgo),
+        sql`${dnaParsingQueue.attempts} < ${MAX_ATTEMPTS}`
+      )
+    )
+    .returning({ id: dnaParsingQueue.id });
+  return result.length;
+}
+
+/**
+ * Claim the oldest pending row with FOR UPDATE SKIP LOCKED to avoid
+ * concurrent job instances picking up the same row.
+ */
+async function claimNextPendingRow(): Promise<typeof dnaParsingQueue.$inferSelect | null> {
+  const rows = await db.execute<typeof dnaParsingQueue.$inferSelect>(
+    sql`
+      UPDATE dna_parsing_queue
+      SET
+        status = 'processing',
+        processing_started_at = now(),
+        last_attempt_at = now(),
+        attempts = attempts + 1,
+        updated_at = now()
+      WHERE id = (
+        SELECT id FROM dna_parsing_queue
+        WHERE status = 'pending'
+        ORDER BY created_at ASC
+        LIMIT 1
+        FOR UPDATE SKIP LOCKED
+      )
+      RETURNING *
+    `
+  );
+  return (rows.rows?.[0] ?? null) as typeof dnaParsingQueue.$inferSelect | null;
+}
+
+// ── Core parsing logic (operates on a queue row) ───────────────────────────────
+
+async function processDnaRow(
+  row: typeof dnaParsingQueue.$inferSelect
+): Promise<void> {
+  const { id: queueId, userId, fileKey } = row;
+
   // Log only an opaque prefix of the userId and never the S3 key (which encodes
   // the user's upload path) — both are linkable PHI in cloud log streams.
-  console.log(`[dnaParsingJob] Starting for user=${userId.slice(0, 8)}…`);
+  logger.info({ queueId, userPrefix: userId.slice(0, 8) }, "[dnaParsingJob] Processing queue row");
 
-  // Mark as processing
+  // Mark genetics table as processing
   await db
     .update(genetics)
     .set({ processingStatus: "processing", errorMessage: null })
     .where(eq(genetics.userId, userId));
 
   try {
-    // 1. Get the provider from the DB record
-    const [record] = await db
-      .select({ provider: genetics.provider })
-      .from(genetics)
-      .where(eq(genetics.userId, userId))
-      .limit(1);
-
-    const provider = record?.provider ?? "23andme";
+    // 1. Get the provider from the queue row (or fall back to DB record)
+    const provider = row.provider ?? (() => {
+      return "23andme";
+    })();
 
     // 2. Download raw file from Tigris
-    const fileBuffer = await downloadFromTigris(uploadKey);
-    // Log byte count without userId to avoid PHI in log streams.
-    console.log(`[dnaParsingJob] Downloaded ${fileBuffer.length} bytes`);
+    const fileBuffer = await downloadFromTigris(fileKey);
+    logger.info({ bytes: fileBuffer.length }, "[dnaParsingJob] Downloaded file from Tigris");
 
     // 3. Send to ML service
     const mlResult = await callMLParser(fileBuffer, provider);
@@ -155,11 +208,14 @@ export async function runDnaParsingJob(
       throw new Error(mlResult.error ?? "ML service returned failure");
     }
 
-    console.log(
-      `[dnaParsingJob] ML parsed ${mlResult.snp_count} SNPs, ` +
-        `${mlResult.prs_scores?.length ?? 0} PRS conditions, ` +
-        `${mlResult.clinvar_variants?.length ?? 0} ClinVar hits, ` +
-        `${mlResult.pharmacogenomics?.length ?? 0} PGx alerts`
+    logger.info(
+      {
+        snpCount: mlResult.snp_count,
+        prsConditions: mlResult.prs_scores?.length ?? 0,
+        clinvarHits: mlResult.clinvar_variants?.length ?? 0,
+        pgxAlerts: mlResult.pharmacogenomics?.length ?? 0,
+      },
+      "[dnaParsingJob] ML parse complete"
     );
 
     // 4. Write results to genetics table
@@ -193,33 +249,103 @@ export async function runDnaParsingJob(
     // 6. Delete raw DNA file from Tigris (HIPAA: minimise PHI retention)
     // The raw file contains full SNP data; only processed results are kept in DB.
     // Non-blocking — a deletion failure does not fail the job.
-    s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: uploadKey }))
-      .then(() => console.debug(`[dnaParsingJob] Deleted raw file ${uploadKey}`))
-      .catch((err: unknown) => console.warn(`[dnaParsingJob] Failed to delete raw file:`, err instanceof Error ? err.message : String(err)));
+    s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: fileKey }))
+      .then(() => logger.debug("[dnaParsingJob] Deleted raw file from Tigris"))
+      .catch((err: unknown) => logger.warn({ err }, "[dnaParsingJob] Failed to delete raw file from Tigris"));
 
-    // 7. Dispatch webhooks (non-blocking)
+    // 7. Mark queue row as processed
+    await db
+      .update(dnaParsingQueue)
+      .set({ status: "processed", completedAt: new Date(), updatedAt: new Date() })
+      .where(eq(dnaParsingQueue.id, queueId));
+
+    // 8. Dispatch webhooks (non-blocking)
     dispatchWebhookEvent("genetics.processed", userId, {
       snpCount: mlResult.snp_count,
       prsConditions: mlResult.prs_scores?.map((p) => p.condition) ?? [],
-    }).catch((err) => console.error(`[dnaParsingJob] Webhook dispatch failed for user ${userId}:`, err instanceof Error ? err.message : String(err)));
+    }).catch((err) => logger.error({ userId, err }, "[dnaParsingJob] Webhook dispatch failed"));
 
-    // 8. Trigger immediate VHI recompute so genetic baseline appears in the next cycle
+    // 9. Trigger immediate VHI recompute so genetic baseline appears in the next cycle
     // without waiting up to 15 minutes for the scheduled cron.
     processUser(userId).catch((err: unknown) =>
-      console.warn(`[dnaParsingJob] VHI recompute after genetics failed for ${userId}:`, err instanceof Error ? err.message : String(err))
+      logger.warn({ userId, err }, "[dnaParsingJob] VHI recompute after genetics failed")
     );
 
-    console.log(`[dnaParsingJob] Completed for user=${userId.slice(0, 8)}…`);
-    return { ok: true };
+    logger.info({ queueId, userPrefix: userId.slice(0, 8) }, "[dnaParsingJob] Completed queue row");
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error(`[dnaParsingJob] Failed for user=${userId}:`, message);
+    logger.error({ queueId, userPrefix: userId.slice(0, 8), err }, "[dnaParsingJob] Failed queue row");
 
     await db
       .update(genetics)
       .set({ processingStatus: "failed", errorMessage: message })
       .where(eq(genetics.userId, userId));
 
+    // Determine whether to retry or permanently fail
+    const currentAttempts = row.attempts + 1; // already incremented when row was claimed
+    if (currentAttempts >= MAX_ATTEMPTS) {
+      await db
+        .update(dnaParsingQueue)
+        .set({ status: "failed", errorMessage: message, updatedAt: new Date() })
+        .where(eq(dnaParsingQueue.id, queueId));
+    } else {
+      // Reset to pending so the next run retries
+      await db
+        .update(dnaParsingQueue)
+        .set({ status: "pending", processingStartedAt: null, updatedAt: new Date() })
+        .where(eq(dnaParsingQueue.id, queueId));
+    }
+
+    throw err; // propagate so the caller can surface { ok: false }
+  }
+}
+
+// ── Main job entry point ───────────────────────────────────────────────────────
+
+export async function runDnaParsingJob(
+  userId: string,
+  uploadKey: string
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    // 1. Reclaim any stale 'processing' rows from previous crashed runs
+    const reclaimed = await reclaimStaleRows();
+    if (reclaimed > 0) {
+      logger.info({ count: reclaimed }, "[dnaParsingJob] Reclaimed stale processing rows to pending");
+    }
+
+    // 2. Claim the next pending row (FOR UPDATE SKIP LOCKED prevents double-processing)
+    const row = await claimNextPendingRow();
+    if (!row) {
+      // No pending rows — nothing to do this cycle
+      logger.info("[dnaParsingJob] No pending rows found, exiting");
+      return { ok: true };
+    }
+
+    // 3. Process the claimed row
+    await processDnaRow(row);
+
+    try { await recordHeartbeat('dnaParsingJob', 3600) } catch (e) { logger.warn({ err: e }, '[dnaParsingJob] heartbeat failed') }
+    return { ok: true };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
     return { ok: false, error: message };
   }
+}
+
+// ── Legacy direct-call shim ────────────────────────────────────────────────────
+// Kept for backward compatibility: if called with explicit userId + uploadKey
+// (e.g. from the /me/process route before the queue row exists), inserts a
+// queue row and then delegates to the queue-based flow above.
+export async function enqueueAndRunDnaParsingJob(
+  userId: string,
+  uploadKey: string,
+  provider?: string
+): Promise<{ ok: boolean; error?: string }> {
+  // Insert queue row (idempotent on conflict — if it already exists, leave it)
+  await db
+    .insert(dnaParsingQueue)
+    .values({ userId, fileKey: uploadKey, provider: provider ?? null, status: "pending" })
+    .onConflictDoNothing();
+
+  return runDnaParsingJob(userId, uploadKey);
 }

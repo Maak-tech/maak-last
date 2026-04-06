@@ -89,7 +89,7 @@ export const notificationRoutes = new Elysia({ prefix: "/api/notifications" })
       if (!body.userIds.length) return { sent: 0 };
 
       // Rate limit: 30 push-send calls per user per minute
-      const rl = pushSendRateLimiter.check(userId);
+      const rl = await pushSendRateLimiter.check(userId);
       if (!rl.allowed) {
         set.status = 429;
         return { error: "Too many push notification requests. Please try again later.", sent: 0 };
@@ -226,7 +226,7 @@ export const notificationRoutes = new Elysia({ prefix: "/api/notifications" })
     "/email",
     async ({ body, userId, set }) => {
       // Rate limit: 20 emails per user per 10 minutes to prevent SendGrid quota abuse
-      const rl = emailRateLimiter.check(userId);
+      const rl = await emailRateLimiter.check(userId);
       if (!rl.allowed) {
         set.status = 429;
         return { error: "Too many email requests. Please try again later." };

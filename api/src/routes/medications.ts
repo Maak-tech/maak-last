@@ -12,7 +12,7 @@
  */
 
 import { Elysia, t } from "elysia";
-import { and, eq, gte, lte, or } from "drizzle-orm";
+import { and, eq, gte, isNull, lte, or } from "drizzle-orm";
 import crypto from "node:crypto";
 import { requireAuth } from "../middleware/requireAuth";
 import { medications, medicationReminders } from "../db/schema";
@@ -48,6 +48,7 @@ export const medicationRoutes = new Elysia({ prefix: "/api/medications" })
           and(
             eq(medications.userId, userId),
             eq(medications.isActive, true),
+            isNull(medications.deletedAt),
             or(
               // refillDate is in the past (overdue)
               lte(medications.refillDate, now),
@@ -92,7 +93,7 @@ export const medicationRoutes = new Elysia({ prefix: "/api/medications" })
       const [med] = await db
         .select({ id: medications.id, name: medications.name })
         .from(medications)
-        .where(and(eq(medications.id, body.medicationId), eq(medications.userId, userId)))
+        .where(and(eq(medications.id, body.medicationId), eq(medications.userId, userId), isNull(medications.deletedAt)))
         .limit(1);
 
       if (!med) {
@@ -143,6 +144,7 @@ export const medicationRoutes = new Elysia({ prefix: "/api/medications" })
           and(
             eq(medications.userId, userId),
             eq(medications.isActive, true),
+            isNull(medications.deletedAt),
             gte(medications.refillDate, now),
             lte(medications.refillDate, cutoff)
           )
@@ -200,7 +202,7 @@ export const medicationRoutes = new Elysia({ prefix: "/api/medications" })
       const [med] = await db
         .select({ id: medications.id, refillDate: medications.refillDate })
         .from(medications)
-        .where(and(eq(medications.id, params.id), eq(medications.userId, userId)))
+        .where(and(eq(medications.id, params.id), eq(medications.userId, userId), isNull(medications.deletedAt)))
         .limit(1);
 
       if (!med) {

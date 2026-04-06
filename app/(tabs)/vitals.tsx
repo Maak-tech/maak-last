@@ -34,7 +34,16 @@ import {
   CheckCircle,
 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
+import { api } from '@/lib/apiClient';
 import { healthDataService, VitalSigns, HealthDataSummary } from '@/lib/services/healthDataService';
+
+function formatRelativeTime(isoString: string): string {
+  const diff = Date.now() - new Date(isoString).getTime();
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
 
 interface VitalCard {
   key: string;
@@ -58,6 +67,8 @@ export default function VitalsScreen() {
   const [vitals, setVitals] = useState<VitalSigns | null>(null);
   const [summary, setSummary] = useState<HealthDataSummary | null>(null);
   const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [isStale, setIsStale] = useState(false);
+  const [lastRecordedAt, setLastRecordedAt] = useState<string | null>(null);
 
   const isRTL = i18n.language === 'ar';
 
@@ -246,6 +257,20 @@ export default function VitalsScreen() {
     rtlText: {
       textAlign: 'right' as const,
     },
+    staleBanner: {
+      backgroundColor: '#FFF3CD',
+      borderColor: '#FFC107',
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: 10,
+      marginHorizontal: 16,
+      marginBottom: 8,
+    },
+    staleBannerText: {
+      color: '#856404',
+      fontSize: 13,
+      lineHeight: 18,
+    },
   }))(theme);
 
   const loadVitalsData = async (isRefresh = false) => {
@@ -261,15 +286,26 @@ export default function VitalsScreen() {
       setHasPermissions(permissions);
 
       if (permissions) {
-        // Get latest vitals and summary
-        const [vitalsData, summaryData] = await Promise.all([
+        // Get latest vitals and summary; also fetch staleness info from the API
+        const [vitalsData, summaryData, apiResponse] = await Promise.all([
           healthDataService.getLatestVitals(),
           healthDataService.getHealthSummary(),
+          api.get<{ data?: unknown[]; isStale?: boolean; lastRecordedAt?: string | null } | unknown[]>('/api/health/vitals').catch(() => null),
         ]);
 
         setVitals(vitalsData);
         setSummary(summaryData);
         setLastSync(new Date());
+
+        // Handle both the old bare-array response and the new wrapped format
+        if (apiResponse && !Array.isArray(apiResponse)) {
+          const wrapped = apiResponse as { isStale?: boolean; lastRecordedAt?: string | null };
+          setIsStale(wrapped.isStale ?? false);
+          setLastRecordedAt(wrapped.lastRecordedAt ?? null);
+        } else {
+          setIsStale(false);
+          setLastRecordedAt(null);
+        }
       }
     } catch (error: unknown) {
       console.error('Error loading vitals:', error instanceof Error ? error.message : String(error));
@@ -533,8 +569,18 @@ export default function VitalsScreen() {
         </View>
       </View>
 
-      <ScrollView 
-        style={styles.content} 
+      {isStale && (
+        <View style={styles.staleBanner}>
+          <Text style={styles.staleBannerText}>
+            {'⚠️ Health data hasn\'t synced in 48+ hours'}
+            {lastRecordedAt ? ` — last update ${formatRelativeTime(lastRecordedAt)}` : ''}
+            {'. Check your device connection.'}
+          </Text>
+        </View>
+      )}
+
+      <ScrollView
+        style={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

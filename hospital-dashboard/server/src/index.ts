@@ -40,6 +40,20 @@ app.use('*', cors({
   credentials: true,
 }))
 
+// Reject oversized request bodies before they are buffered into memory.
+// @hono/node-server does not expose a native maxRequestBodySize option,
+// so we check Content-Length early and return 413 for anything over 10 MB.
+// Note: Content-Length can be absent for chunked transfers, so this is a
+// best-effort guard — the primary protection is the reverse-proxy / load balancer.
+const MAX_BODY_BYTES = 10 * 1024 * 1024 // 10 MB
+app.use('*', async (c, next) => {
+  const contentLength = Number(c.req.header('content-length') ?? 0)
+  if (contentLength > MAX_BODY_BYTES) {
+    return c.json({ error: 'Request body too large (max 10 MB)' }, 413)
+  }
+  return next()
+})
+
 // HTTPS redirect in production
 app.use('*', async (c, next) => {
   if (process.env.NODE_ENV === 'production' && c.req.header('x-forwarded-proto') === 'http') {

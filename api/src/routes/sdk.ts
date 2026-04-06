@@ -1,5 +1,5 @@
 import { Elysia, t, error } from "elysia";
-import { and, count, desc, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNull, lte } from "drizzle-orm";
 import crypto from "node:crypto";
 import { alerts, apiKeys, cohortMembers, cohorts, genetics, healthTimeline, medications, patientRosters, users, vhi, vitals, webhookEndpoints } from "../db/schema";
 import { db as dbInstance } from "../db";
@@ -491,7 +491,7 @@ export const sdkRoutes = new Elysia({ prefix: "/sdk/v1" })
           instructions: medications.instructions,
         })
         .from(medications)
-        .where(and(eq(medications.userId, params.patientId), eq(medications.isActive, true)));
+        .where(and(eq(medications.userId, params.patientId), eq(medications.isActive, true), isNull(medications.deletedAt)));
 
       // 4. Assemble FHIR R4 Bundle
       const baseUrl = new URL(request.url).origin;

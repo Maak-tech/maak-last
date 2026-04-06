@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/contexts/ThemeContext';
-import { Home, Activity, Pill, Users, User, BookOpen, Sparkles } from 'lucide-react-native';
+import { Home, Activity, Pill, Users, User, BookOpen, Sparkles, CalendarDays } from 'lucide-react-native';
 
 export default function TabLayout() {
   const { t } = useTranslation();
@@ -57,6 +57,15 @@ export default function TabLayout() {
           title: t('nora') || 'Nora',
           tabBarIcon: ({ size, color }) => (
             <Sparkles size={size || 24} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="calendar"
+        options={{
+          title: t('calendar') || 'Calendar',
+          tabBarIcon: ({ size, color }) => (
+            <CalendarDays size={size || 24} color={color} />
           ),
         }}
       />

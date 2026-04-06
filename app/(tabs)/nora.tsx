@@ -97,7 +97,7 @@ export default function NoraScreen() {
 
   // VHI — fetched once with a 5-min TTL; shared between the proactive-message
   // logic and VHIPanel so the panel never performs a duplicate network call.
-  const { vhi: hookVhi, loading: vhiLoading } = useVHI(user?.id);
+  const { vhi: hookVhi, loading: vhiLoading, refresh: refreshVHI } = useVHI(user?.id);
   // Keep a ref so async functions (initializeChat) can read the latest value
   // without being added to useEffect dependency arrays.
   const vhiRef = useRef<VHI | null>(null);
@@ -658,6 +658,7 @@ export default function NoraScreen() {
               loading={vhiLoading}
               isRTL={isRTL}
               onAskNora={(prompt) => handleSend(prompt)}
+              onRefresh={refreshVHI}
             />
           </View>
 

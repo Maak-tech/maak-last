@@ -2,7 +2,9 @@ import { Elysia, t } from "elysia";
 import { and, eq, inArray, lt, sql } from "drizzle-orm";
 import crypto from "node:crypto";
 import { requireAuth } from "../middleware/requireAuth";
-import { families, familyMembers, familyInvitations, vhi, genetics, alerts, users, caregiverNotes } from "../db/schema";
+import { logger } from "../lib/logger.js";
+import { buildUserObject } from "../services/userBuilder.js";
+import { families, familyMembers, familyInvitations, vhi, genetics, alerts, users, caregiverNotes, patientConsents } from "../db/schema";
 
 export const familyRoutes = new Elysia({ prefix: "/api/family" })
   .use(requireAuth)
@@ -91,13 +93,13 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
       ]);
 
       if (vhiResult.status === 'rejected') {
-        console.error('[family/members] VHI batch query failed:', vhiResult.reason instanceof Error ? vhiResult.reason.message : String(vhiResult.reason));
+        logger.error({ err: vhiResult.reason }, '[family/members] VHI batch query failed');
       }
       if (alertsResult.status === 'rejected') {
-        console.error('[family/members] Alerts batch query failed:', alertsResult.reason instanceof Error ? alertsResult.reason.message : String(alertsResult.reason));
+        logger.error({ err: alertsResult.reason }, '[family/members] Alerts batch query failed');
       }
       if (geneticsResult.status === 'rejected') {
-        console.error('[family/members] Genetics batch query failed:', geneticsResult.reason instanceof Error ? geneticsResult.reason.message : String(geneticsResult.reason));
+        logger.error({ err: geneticsResult.reason }, '[family/members] Genetics batch query failed');
       }
 
       const allVhi      = vhiResult.status      === 'fulfilled' ? vhiResult.value      : [];
@@ -113,8 +115,48 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
       }
       const geneticsByUserId = new Map(allGenetics.map((g) => [g.userId, g]));
 
+      // Minor protection: fetch guardianId for all members in a single query,
+      // then determine which minors (guardianId set) the caller may NOT access.
+      const guardianRows = await db
+        .select({ id: users.id, guardianId: users.guardianId })
+        .from(users)
+        .where(inArray(users.id, memberUserIds));
+
+      // Collect IDs of minors whose guardian is someone else AND no consent exists.
+      // Filter to only rows where caller is NOT the guardian — these are the only ones
+      // that require a consent check.
+      const uncheckedMinors = guardianRows.filter(
+        (row) => row.guardianId && row.guardianId !== userId
+      );
+
+      // Single batched query for all consents instead of one query per minor (avoids N+1).
+      const uncheckedMinorIds = uncheckedMinors.map((row) => row.id);
+      const consentRows = uncheckedMinorIds.length > 0
+        ? await db
+            .select({ userId: patientConsents.userId })
+            .from(patientConsents)
+            .where(
+              and(
+                inArray(patientConsents.userId, uncheckedMinorIds),
+                eq(patientConsents.isActive, true),
+                sql`${patientConsents.scope} @> ARRAY['family_data_sharing']`
+              )
+            )
+        : [];
+
+      const consentedMinorIds = new Set(consentRows.map((c) => c.userId));
+
+      const blockedMemberIds = new Set<string>();
+      for (const row of uncheckedMinors) {
+        if (!consentedMinorIds.has(row.id)) {
+          blockedMemberIds.add(row.id);
+        }
+      }
+
       // Assemble per-member dashboard objects from the pre-fetched data.
       const memberData = members.map((member) => {
+        // Skip minors whose guardian has not consented to family data sharing
+        if (blockedMemberIds.has(member.userId)) return null;
         const memberVhi = vhiByUserId.get(member.userId);
         const recentAlerts = (alertsByUserId.get(member.userId) ?? []).slice(0, 5);
         const memberGenetics = geneticsByUserId.get(member.userId);
@@ -143,7 +185,7 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
         };
       });
 
-      return memberData;
+      return memberData.filter(Boolean);
     },
     {
       params: t.Object({ familyId: t.String({ minLength: 1, maxLength: 36 }) }),
@@ -253,33 +295,11 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
           const user = userById.get(uid);
           if (!user) return null;
 
-          const prefs = (user.preferences ?? {}) as Record<string, unknown>;
-          const name = user.name ?? "";
-          const nameParts = name.split(" ");
-
-          return {
-            id: user.id,
-            email: user.email,
-            firstName: (prefs.firstName as string | undefined) ?? nameParts[0] ?? "User",
-            lastName: (prefs.lastName as string | undefined) ?? nameParts.slice(1).join(" ") ?? "",
-            gender: user.gender,
-            dateOfBirth: user.dateOfBirth,
-            bloodType: user.bloodType,
-            familyId: user.familyId,
-            avatarUrl: user.avatarUrl,
-            avatarType: prefs.avatarType,
-            role: roleByUserId.get(uid) ?? (prefs.role as string | undefined) ?? "member",
-            createdAt: user.createdAt,
-            onboardingCompleted: (prefs.onboardingCompleted as boolean | undefined) ?? false,
-            dashboardTourCompleted: (prefs.dashboardTourCompleted as boolean | undefined) ?? false,
-            isPremium: (prefs.isPremium as boolean | undefined) ?? false,
-            preferences: {
-              language: (user.language ?? (prefs.language as string | undefined) ?? "en") as "en" | "ar",
-              notifications: (prefs.notifications as boolean | undefined) ?? true,
-              emergencyContacts: (prefs.emergencyContacts as unknown[]) ?? [],
-              careTeam: (prefs.careTeam as unknown[]) ?? [],
-            },
-          };
+          const memberRole = roleByUserId.get(uid);
+          return buildUserObject({
+            userRow: user,
+            memberRow: memberRole != null ? { role: memberRole, sharingScope: members.find((m) => m.userId === uid)?.sharingScope ?? ['all'] } : null,
+          });
         })
         .filter(Boolean);
 
@@ -459,6 +479,22 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
         preferences: sql`COALESCE(${users.preferences}, '{}'::jsonb) || '{"role":"member"}'::jsonb`,
       }).where(eq(users.id, params.memberId));
 
+      // Invalidate all active sessions for the removed user so their existing
+      // tokens can no longer access this family's data.
+      // Better-auth stores sessions in the "session" table with a "user_id" column.
+      // We delete directly via Drizzle sql`` since Better-auth's internal adapter
+      // method is not exposed on auth.api for server-side use without the admin plugin.
+      try {
+        await db.execute(sql`DELETE FROM "session" WHERE "user_id" = ${params.memberId}`);
+      } catch (sessionErr: unknown) {
+        // Log but do not fail the removal — the member has been removed from the
+        // family even if session cleanup encounters a transient DB error.
+        logger.error(
+          { err: sessionErr },
+          "[family/remove] Failed to invalidate sessions for removed user"
+        );
+      }
+
       return { ok: true };
     },
     {
@@ -507,8 +543,9 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
         }
       }
 
+      const invitationId = crypto.randomUUID();
       await db.insert(familyInvitations).values({
-        id: crypto.randomUUID(),
+        id: invitationId,
         familyId: body.familyId,
         invitedBy: userId,
         inviteCode: code,
@@ -555,11 +592,20 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
               content: [{ type: "text/html", value: bodyHtml }],
             }),
             signal: AbortSignal.timeout(10_000),
+          }).then(async (res) => {
+            const sendgridOk = res.ok;
+            // After SendGrid succeeds:
+            if (sendgridOk) {
+              await db
+                .update(familyInvitations)
+                .set({ emailSentAt: new Date() })
+                .where(eq(familyInvitations.id, invitationId));
+            }
           }).catch((err) =>
-            console.error("[family/invite] SendGrid failed:", err instanceof Error ? err.message : String(err))
+            logger.error({ err }, "[family/invite] SendGrid failed")
           );
         } else {
-          console.warn("[family/invite] SENDGRID_API_KEY not set — invitation email skipped for:", body.email);
+          logger.warn({ email: body.email }, "[family/invite] SENDGRID_API_KEY not set — invitation email skipped");
         }
       }
 
@@ -845,6 +891,55 @@ export const familyRoutes = new Elysia({ prefix: "/api/family" })
         limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100 })),
       }),
       detail: { tags: ["family"], summary: "Get caregiver notes for a member" },
+    }
+  )
+
+  // Set sharing scope for a family member (admin only)
+  .patch(
+    "/:familyId/members/:memberId/scope",
+    async ({ db, userId, params, body, set }) => {
+      // Verify caller is admin of this family
+      const [callerMembership] = await db
+        .select({ role: familyMembers.role })
+        .from(familyMembers)
+        .where(
+          and(
+            eq(familyMembers.familyId, params.familyId),
+            eq(familyMembers.userId, userId)
+          )
+        )
+        .limit(1);
+
+      if (!callerMembership || callerMembership.role !== "admin") {
+        set.status = 403;
+        return { error: "Only family admins can change sharing scope" };
+      }
+
+      // Update scope for target member
+      await db
+        .update(familyMembers)
+        .set({ sharingScope: body.scope })
+        .where(
+          and(
+            eq(familyMembers.familyId, params.familyId),
+            eq(familyMembers.userId, params.memberId)
+          )
+        );
+
+      return { ok: true, scope: body.scope };
+    },
+    {
+      params: t.Object({
+        familyId: t.String({ minLength: 1, maxLength: 36 }),
+        memberId: t.String({ minLength: 1, maxLength: 36 }),
+      }),
+      body: t.Object({
+        scope: t.Array(
+          t.String({ maxLength: 50 }),
+          { minItems: 1, maxItems: 10 }
+        ),
+      }),
+      detail: { tags: ["family"], summary: "Set sharing scope for a family member" },
     }
   )
 

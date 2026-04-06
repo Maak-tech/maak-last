@@ -20,6 +20,7 @@ import path from "node:path";
 import { and, eq, lte, lt, inArray } from "drizzle-orm";
 import { db } from "../db";
 import { webhookDeliveries, webhookEndpoints } from "../db/schema";
+import { recordHeartbeat } from "../lib/heartbeat.js";
 
 const MAX_ATTEMPTS = 5;
 
@@ -110,6 +111,7 @@ async function runWebhookRetryWorker() {
   const failed = results.length - succeeded;
   console.log(`[webhookRetry] Done. Re-delivered: ${succeeded}, Still failing: ${failed}`);
   releaseLock();
+  try { await recordHeartbeat('webhookRetryWorker', 300) } catch (e) { console.warn('[webhookRetry] heartbeat failed', e instanceof Error ? e.message : String(e)) }
 }
 
 // ── Single delivery retry ─────────────────────────────────────────────────────

@@ -9,8 +9,9 @@
  */
 
 import { and, eq, inArray } from "drizzle-orm";
+import crypto from "node:crypto";
 import { db } from "../db";
-import { familyMembers, pushTokens, users } from "../db/schema";
+import { familyMembers, pushDeliveryReceipts, pushTokens, users } from "../db/schema";
 
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 
@@ -92,7 +93,7 @@ export async function pushToUser(userId: string, msg: PushMessage): Promise<void
     .where(and(eq(pushTokens.userId, userId), eq(pushTokens.isActive, true)));
 
   if (tokens.length === 0) return;
-  await deliverToTokens(tokens.map((t) => t.token), msg);
+  await deliverToTokens(tokens.map((t) => ({ userId, token: t.token })), msg);
 }
 
 /**
@@ -132,7 +133,7 @@ export async function pushToFamilyAdmins(memberUserId: string, msg: PushMessage)
 
   // 3. Fetch their active push tokens
   const tokens = await db
-    .select({ token: pushTokens.token })
+    .select({ userId: pushTokens.userId, token: pushTokens.token })
     .from(pushTokens)
     .where(
       and(
@@ -142,7 +143,7 @@ export async function pushToFamilyAdmins(memberUserId: string, msg: PushMessage)
     );
 
   if (tokens.length === 0) return;
-  await deliverToTokens(tokens.map((t) => t.token), msg);
+  await deliverToTokens(tokens.map((t) => ({ userId: t.userId, token: t.token })), msg);
 }
 
 /**
@@ -162,8 +163,13 @@ export async function pushToUserAndFamilyAdmins(
 
 // ── Internal delivery helper ──────────────────────────────────────────────────
 
-async function deliverToTokens(tokens: string[], msg: PushMessage): Promise<void> {
-  const messages = tokens.map((token) => ({
+interface TokenEntry {
+  userId: string;
+  token: string;
+}
+
+async function deliverToTokens(tokenEntries: TokenEntry[], msg: PushMessage): Promise<void> {
+  const messages = tokenEntries.map(({ token }) => ({
     to: token,
     title: msg.title,
     body: msg.body,
@@ -174,6 +180,13 @@ async function deliverToTokens(tokens: string[], msg: PushMessage): Promise<void
   }));
 
   const accessToken = process.env.EXPO_ACCESS_TOKEN;
+
+  // Shape: { data: Array<{ status: 'ok', id: string } | { status: 'error', message: string, details?: { error?: string } }> }
+  type ExpoTicket =
+    | { status: "ok"; id: string }
+    | { status: "error"; message: string; details?: { error?: string } };
+
+  let tickets: ExpoTicket[] = [];
 
   try {
     const res = await fetch(EXPO_PUSH_URL, {
@@ -189,9 +202,49 @@ async function deliverToTokens(tokens: string[], msg: PushMessage): Promise<void
 
     if (!res.ok) {
       console.error(`[push] Expo Push API responded ${res.status}:`, await res.text().catch(() => ""));
+    } else {
+      const json = await res.json().catch(() => null) as { data?: ExpoTicket[] } | null;
+      tickets = json?.data ?? [];
     }
   } catch (err: unknown) {
     console.error("[push] Failed to deliver notifications:", err instanceof Error ? err.message : String(err));
+  }
+
+  // Insert a receipt row for each token. Wrapped in try/catch so receipt
+  // tracking failures never surface as errors to callers.
+  try {
+    const now = new Date();
+    const receiptRows = tokenEntries.map(({ userId, token }, i) => {
+      const ticket = tickets[i];
+      const messageId = ticket?.status === "ok" ? ticket.id : undefined;
+      const status =
+        ticket?.status === "error"
+          ? (ticket.details?.error === "DeviceNotRegistered" ? "not_registered" : "failed")
+          : "sent";
+      const errorCode =
+        ticket?.status === "error" ? (ticket.details?.error ?? ticket.message ?? null) : null;
+
+      return {
+        id: crypto.randomUUID(),
+        userId,
+        token,
+        messageId: messageId ?? null,
+        title: msg.title ?? null,
+        sentAt: now,
+        status,
+        errorCode,
+        checkedAt: null,
+      };
+    });
+
+    if (receiptRows.length > 0) {
+      await db.insert(pushDeliveryReceipts).values(receiptRows);
+    }
+  } catch (receiptErr: unknown) {
+    console.error(
+      "[push] Receipt tracking failed (notification was sent):",
+      receiptErr instanceof Error ? receiptErr.message : String(receiptErr)
+    );
   }
 }
 

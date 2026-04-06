@@ -7,6 +7,8 @@ import {
   Dimensions,
   Image,
   Animated,
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -14,6 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { createThemedStyles, getTextStyle } from '@/utils/styles';
 import { Heart, Users, Bell, Shield } from 'lucide-react-native';
+import { appleHealthService } from '@/lib/services/appleHealthService';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -48,6 +51,16 @@ const onboardingSteps = [
     onelinerEn: '"Health starts at home"',
     onelinerAr: '"خليهم دايمًا معك"',
   },
+  {
+    key: 'connect-health',
+    image: require('@/assets/images/manage-family.png'),
+    titleEn: 'Connect Your Health Data',
+    titleAr: 'اربط بياناتك الصحية',
+    descEn: 'Sync with Apple Health or Android Health Connect to automatically import your vitals, steps, and sleep data.',
+    descAr: 'زامن مع Apple Health أو Android Health Connect لاستيراد مؤشراتك الحيوية وخطواتك وبيانات نومك تلقائيًا.',
+    onelinerEn: '"Your data, your health"',
+    onelinerAr: '"بياناتك، صحتك"',
+  },
 ];
 
 export default function OnboardingScreen() {
@@ -57,6 +70,8 @@ export default function OnboardingScreen() {
   const { theme } = useTheme();
   const [currentStep, setCurrentStep] = useState(0);
   const [isCompleting, setIsCompleting] = useState(false);
+  const [healthConnecting, setHealthConnecting] = useState(false);
+  const [healthConnected, setHealthConnected] = useState(false);
 
   const isRTL = i18n.language === 'ar';
 
@@ -184,6 +199,32 @@ export default function OnboardingScreen() {
     },
   }))(theme);
 
+  const requestHealthPermissions = async () => {
+    setHealthConnecting(true);
+    try {
+      if (Platform.OS === 'ios') {
+        await appleHealthService.requestPermissions([
+          'heart_rate',
+          'steps',
+          'sleep',
+          'blood_pressure',
+          'weight',
+          'blood_oxygen',
+        ]);
+        setHealthConnected(true);
+      } else if (Platform.OS === 'android') {
+        // Health Connect permissions are handled separately after onboarding.
+        // Navigate forward; the user can connect from Profile → Connected Devices.
+        setHealthConnected(true);
+      }
+    } catch {
+      // Silently fail — user can connect later from Profile → Connected Devices
+      setHealthConnected(false);
+    } finally {
+      setHealthConnecting(false);
+    }
+  };
+
   const handleComplete = async () => {
     if (isCompleting) return;
 
@@ -267,9 +308,76 @@ export default function OnboardingScreen() {
             {isRTL ? currentStepData.descAr : currentStepData.descEn}
           </Text>
 
-          <Text style={[styles.oneliner, isRTL && styles.rtlText]}>
-            {isRTL ? currentStepData.onelinerAr : currentStepData.onelinerEn}
-          </Text>
+          {currentStepData.key === 'connect-health' ? (
+            /* Health data connection buttons */
+            <View style={{ width: '100%', gap: 10, marginTop: 4 }}>
+              {Platform.OS === 'ios' && (
+                <TouchableOpacity
+                  onPress={requestHealthPermissions}
+                  disabled={healthConnecting || healthConnected}
+                  style={{
+                    backgroundColor: healthConnected ? '#10B981' : theme.colors.primary.main,
+                    borderRadius: theme.borderRadius.lg,
+                    paddingVertical: theme.spacing.base,
+                    alignItems: 'center' as const,
+                    flexDirection: 'row' as const,
+                    justifyContent: 'center' as const,
+                    gap: 8,
+                    opacity: healthConnecting ? 0.7 : 1,
+                  }}
+                >
+                  {healthConnecting ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : null}
+                  <Text style={{ color: '#fff', fontWeight: '600' as const, fontSize: 15 }}>
+                    {healthConnected
+                      ? (isRTL ? 'تم الربط بـ Apple Health' : 'Apple Health Connected')
+                      : (isRTL ? 'ربط Apple Health' : 'Connect Apple Health')}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              {Platform.OS === 'android' && (
+                <TouchableOpacity
+                  onPress={requestHealthPermissions}
+                  disabled={healthConnecting || healthConnected}
+                  style={{
+                    backgroundColor: healthConnected ? '#10B981' : theme.colors.primary.main,
+                    borderRadius: theme.borderRadius.lg,
+                    paddingVertical: theme.spacing.base,
+                    alignItems: 'center' as const,
+                    flexDirection: 'row' as const,
+                    justifyContent: 'center' as const,
+                    gap: 8,
+                    opacity: healthConnecting ? 0.7 : 1,
+                  }}
+                >
+                  {healthConnecting ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : null}
+                  <Text style={{ color: '#fff', fontWeight: '600' as const, fontSize: 15 }}>
+                    {healthConnected
+                      ? (isRTL ? 'تم الربط بـ Health Connect' : 'Health Connect Connected')
+                      : (isRTL ? 'ربط Health Connect' : 'Connect Android Health')}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                onPress={nextStep}
+                style={{
+                  paddingVertical: theme.spacing.base,
+                  alignItems: 'center' as const,
+                }}
+              >
+                <Text style={{ color: theme.colors.text.secondary, fontSize: 14 }}>
+                  {isRTL ? 'تخطي في الوقت الحالي' : 'Skip for now'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <Text style={[styles.oneliner, isRTL && styles.rtlText]}>
+              {isRTL ? currentStepData.onelinerAr : currentStepData.onelinerEn}
+            </Text>
+          )}
         </View>
       </View>
 

@@ -18,6 +18,9 @@ import { Elysia, t } from "elysia";
 import { eq, inArray } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { requireAuth } from "../middleware/requireAuth";
+import { logger } from "../lib/logger.js";
+import { auth } from "../lib/auth.js";
+import { buildUserObject } from "../services/userBuilder.js";
 import {
   users,
   familyMembers,
@@ -67,7 +70,7 @@ export const userRoutes = new Elysia({ prefix: "/api/user" })
     "/me",
     async ({ db, userId, set }) => {
       const [user] = await db
-        .select({ id: users.id })
+        .select({ id: users.id, guardianId: users.guardianId })
         .from(users)
         .where(eq(users.id, userId))
         .limit(1);
@@ -77,7 +80,7 @@ export const userRoutes = new Elysia({ prefix: "/api/user" })
         return { error: "User not found" };
       }
 
-      return { id: user.id };
+      return { id: user.id, guardianId: user.guardianId };
     },
     { detail: { tags: ["user"], summary: "Get current user id (lightweight session validation endpoint)" } }
   )
@@ -100,10 +103,10 @@ export const userRoutes = new Elysia({ prefix: "/api/user" })
           weightKg: users.weightKg,
           language: users.language,
           familyId: users.familyId,
+          guardianId: users.guardianId,
           avatarUrl: users.avatarUrl,
           emergencyContactName: users.emergencyContactName,
           emergencyContactPhone: users.emergencyContactPhone,
-          emergencyContacts: users.emergencyContacts,
           emergencyContacts: users.emergencyContacts,
         })
         .from(users)
@@ -149,6 +152,8 @@ export const userRoutes = new Elysia({ prefix: "/api/user" })
         updateData.emergencyContactPhone = body.emergencyContactPhone;
       if (body.emergencyContacts !== undefined)
         updateData.emergencyContacts = body.emergencyContacts;
+      if (body.guardianId !== undefined)
+        updateData.guardianId = body.guardianId ?? null;
 
       updateData.updatedAt = new Date();
 
@@ -190,6 +195,7 @@ export const userRoutes = new Elysia({ prefix: "/api/user" })
             { maxItems: 10 }
           )
         ),
+        guardianId: t.Optional(t.Nullable(t.String({ maxLength: 36 }))),
       }),
       detail: { tags: ["user"], summary: "Update current user profile" },
     }
@@ -343,7 +349,7 @@ export const userRoutes = new Elysia({ prefix: "/api/user" })
   // Deletes the user's profile, family memberships, and related data from Neon.
   .delete(
     "/me",
-    async ({ db, userId, set }) => {
+    async ({ db, userId, request, set }) => {
       // Verify the user exists before attempting deletion.
       const [existing] = await db
         .select({ id: users.id })
@@ -390,10 +396,19 @@ export const userRoutes = new Elysia({ prefix: "/api/user" })
         db.delete(patientConsents).where(eq(patientConsents.userId, userId)),
         db.delete(cohortMembers).where(eq(cohortMembers.userId, userId)),
         db.delete(connectedIntegrations).where(eq(connectedIntegrations.userId, userId)),
+        // Delete all Better-auth sessions so no stale token can be used after deletion.
+        // Uses raw SQL because Better-auth's session table is not in the drizzle schema.
+        db.execute(sql`DELETE FROM "session" WHERE "user_id" = ${userId}`),
       ]);
 
-      // Delete the user row last — all PHI has already been purged above.
+      // Delete the user row last — all PHI and sessions have already been purged above.
       await db.delete(users).where(eq(users.id, userId));
+
+      // Sign out the current session via Better-auth so the response clears auth cookies.
+      // Fire-and-forget: the user row is already gone so a failure here is non-critical.
+      auth.api.signOut({ headers: request.headers }).catch((err: unknown) => {
+        logger.warn({ err }, "[delete-account] Better-auth sign-out failed after account deletion");
+      });
 
       set.status = 200;
       return { ok: true };
@@ -535,7 +550,7 @@ export const userRoutes = new Elysia({ prefix: "/api/user" })
         action: "data_export",
         resourceType: "personal_health_record",
       }).catch((err: unknown) => {
-        console.error("[export] Failed to write audit log:", err instanceof Error ? err.message : String(err));
+        logger.error({ err }, "[export] Failed to write audit log");
       });
 
       const exportedAt = new Date().toISOString();
@@ -601,40 +616,6 @@ export const userRoutes = new Elysia({ prefix: "/api/user" })
 
 // ── Cross-user routes (/api/users/:userId) ────────────────────────────────────
 
-/** Reconstruct client User shape from Neon row + familyMember role + preferences JSONB */
-function buildUserObject(
-  user: typeof users.$inferSelect,
-  role?: string | null
-) {
-  const prefs = (user.preferences ?? {}) as Record<string, unknown>;
-  const name = user.name ?? "";
-  const nameParts = name.split(" ");
-
-  return {
-    id: user.id,
-    email: user.email,
-    firstName: (prefs.firstName as string | undefined) ?? nameParts[0] ?? "User",
-    lastName: (prefs.lastName as string | undefined) ?? nameParts.slice(1).join(" ") ?? "",
-    gender: user.gender,
-    dateOfBirth: user.dateOfBirth,
-    bloodType: user.bloodType,
-    familyId: user.familyId,
-    avatarUrl: user.avatarUrl,
-    avatarType: prefs.avatarType,
-    role: role ?? (prefs.role as string | undefined) ?? "member",
-    createdAt: user.createdAt,
-    onboardingCompleted: (prefs.onboardingCompleted as boolean | undefined) ?? false,
-    dashboardTourCompleted: (prefs.dashboardTourCompleted as boolean | undefined) ?? false,
-    isPremium: (prefs.isPremium as boolean | undefined) ?? false,
-    preferences: {
-      language: (user.language ?? (prefs.language as string | undefined) ?? "en") as "en" | "ar",
-      notifications: (prefs.notifications as boolean | undefined) ?? true,
-      emergencyContacts: (prefs.emergencyContacts as unknown[]) ?? [],
-      careTeam: (prefs.careTeam as unknown[]) ?? [],
-    },
-  };
-}
-
 export const usersRoutes = new Elysia({ prefix: "/api/users" })
   .use(requireAuth)
 
@@ -677,12 +658,12 @@ export const usersRoutes = new Elysia({ prefix: "/api/users" })
 
       // Get role from familyMembers table
       const [memberRow] = await db
-        .select({ role: familyMembers.role })
+        .select({ role: familyMembers.role, sharingScope: familyMembers.sharingScope })
         .from(familyMembers)
         .where(eq(familyMembers.userId, targetId))
         .limit(1);
 
-      return buildUserObject(user, memberRow?.role);
+      return buildUserObject({ userRow: user, memberRow: memberRow ?? null });
     },
     {
       params: t.Object({ userId: t.String({ minLength: 1, maxLength: 36 }) }),
@@ -766,8 +747,8 @@ export const usersRoutes = new Elysia({ prefix: "/api/users" })
       const [updated] = await db.select().from(users).where(eq(users.id, targetId)).limit(1);
       if (!updated) { set.status = 404; return { error: "User not found after update" }; }
 
-      const [memberRow] = await db.select({ role: familyMembers.role }).from(familyMembers).where(eq(familyMembers.userId, targetId)).limit(1);
-      return buildUserObject(updated, memberRow?.role);
+      const [memberRow] = await db.select({ role: familyMembers.role, sharingScope: familyMembers.sharingScope }).from(familyMembers).where(eq(familyMembers.userId, targetId)).limit(1);
+      return buildUserObject({ userRow: updated, memberRow: memberRow ?? null });
     },
     {
       params: t.Object({ userId: t.String({ minLength: 1, maxLength: 36 }) }),

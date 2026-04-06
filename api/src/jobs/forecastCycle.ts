@@ -24,6 +24,7 @@ import { eq, gte, desc, and, sql } from "drizzle-orm";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { logger } from "../lib/logger.js";
 
 const COMPOSITE_RISK_THRESHOLD = 60;
 const WORSENING_NOTIFICATION_THRESHOLD = 70;
@@ -38,15 +39,15 @@ function acquireLock(): boolean {
     if (fs.existsSync(LOCK_FILE)) {
       const stat = fs.statSync(LOCK_FILE);
       if (Date.now() - stat.mtimeMs < LOCK_STALE_MS) {
-        console.warn("[forecastCycle] Already running. Skipping.");
+        logger.warn("[forecastCycle] Already running. Skipping.");
         return false;
       }
-      console.warn("[forecastCycle] Stale lock detected. Overriding.");
+      logger.warn("[forecastCycle] Stale lock detected. Overriding.");
     }
     fs.writeFileSync(LOCK_FILE, String(process.pid));
     return true;
   } catch (err: unknown) {
-    console.warn("[forecastCycle] Failed to acquire lock — proceeding without guard:", err instanceof Error ? err.message : String(err));
+    logger.warn({ err }, "[forecastCycle] Failed to acquire lock — proceeding without guard");
     return true;
   }
 }
@@ -55,7 +56,7 @@ function releaseLock(): void {
   try {
     if (fs.existsSync(LOCK_FILE)) fs.unlinkSync(LOCK_FILE);
   } catch (err: unknown) {
-    console.warn("[forecastCycle] Failed to release lock:", err instanceof Error ? err.message : String(err));
+    logger.warn({ err }, "[forecastCycle] Failed to release lock");
   }
 }
 
@@ -94,7 +95,7 @@ async function runForecastCycle(targetUserId?: string) {
   // Only guard full sweeps — single-user calls from vhiCycle are fast and safe to overlap
   if (!targetUserId && !acquireLock()) return;
 
-  console.log(`[forecastCycle] Starting at ${new Date().toISOString()}`);
+  logger.info({ startedAt: new Date().toISOString() }, "[forecastCycle] Starting");
 
   try {
     // Select users who need forecasting.
@@ -113,8 +114,9 @@ async function runForecastCycle(targetUserId?: string) {
             sql`(${vhi.data}->'currentState'->'riskScores'->>'compositeRisk')::numeric >= ${COMPOSITE_RISK_THRESHOLD}`
           );
 
-    console.log(
-      `[forecastCycle] ${eligibleUsers.length} users above risk threshold (${COMPOSITE_RISK_THRESHOLD})`
+    logger.info(
+      { userCount: eligibleUsers.length, riskThreshold: COMPOSITE_RISK_THRESHOLD },
+      "[forecastCycle] users above risk threshold"
     );
 
     const results = await Promise.allSettled(
@@ -122,11 +124,12 @@ async function runForecastCycle(targetUserId?: string) {
     );
 
     const failed = results.filter((r) => r.status === "rejected");
-    console.log(
-      `[forecastCycle] Done. Success: ${results.length - failed.length}, Failed: ${failed.length}`
+    logger.info(
+      { success: results.length - failed.length, failed: failed.length },
+      "[forecastCycle] Done"
     );
     failed.forEach((r) => {
-      if (r.status === "rejected") console.error("[forecastCycle]", r.reason instanceof Error ? r.reason.message : String(r.reason));
+      if (r.status === "rejected") logger.error({ err: r.reason }, "[forecastCycle] user forecast failed");
     });
   } finally {
     // Always release the lock for full-sweep runs — a DB error must not hold the
@@ -240,8 +243,9 @@ async function processUserForecast(
     await sendWorseningNotification(userId, currentRisk, result.compositeRiskProjected7d);
   }
 
-  console.log(
-    `[forecastCycle] ${userId}: ${result.trajectory} (7d risk: ${result.compositeRiskProjected7d}, method: ${result.method})`
+  logger.info(
+    { userId, trajectory: result.trajectory, risk7d: result.compositeRiskProjected7d, method: result.method },
+    "[forecastCycle] user forecast complete"
   );
 }
 
@@ -416,7 +420,7 @@ async function tryMlServiceForecast(
     return (await res.json()) as ForecastResult;
   } catch (err: unknown) {
     // ML service unavailable or timed out — rule-based fallback will be used
-    console.warn('[forecastCycle] callForecastEndpoint failed (ML unavailable or timeout):', err instanceof Error ? err.message : err);
+    logger.warn({ err }, '[forecastCycle] callForecastEndpoint failed (ML unavailable or timeout)');
     return null;
   }
 }
@@ -488,7 +492,7 @@ async function sendWorseningNotification(
     body: JSON.stringify(messages),
     signal: AbortSignal.timeout(10_000), // 10-second delivery timeout
   }).catch((err: unknown) => {
-    console.error("[forecastCycle] Push network error:", err instanceof Error ? err.message : String(err));
+    logger.error({ err }, "[forecastCycle] Push network error");
     return null;
   });
 
@@ -496,7 +500,7 @@ async function sendWorseningNotification(
   // Check the status explicitly so Expo errors (429 rate limit, 400 bad token) are visible.
   if (pushRes && !pushRes.ok) {
     const body = await pushRes.text().catch(() => "");
-    console.error(`[forecastCycle] Expo push returned ${pushRes.status}: ${body.slice(0, 200)}`);
+    logger.error({ status: pushRes.status, body: body.slice(0, 200) }, "[forecastCycle] Expo push returned error");
   }
 }
 
@@ -517,7 +521,7 @@ if (import.meta.main) {
   runForecastCycle(targetUser)
     .then(() => process.exit(0))
     .catch((err: unknown) => {
-      console.error("[forecastCycle] Fatal error:", err instanceof Error ? err.message : String(err));
+      logger.error({ err }, "[forecastCycle] Fatal error");
       if (!targetUser) releaseLock();
       process.exit(1);
     });

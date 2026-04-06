@@ -108,10 +108,10 @@ export const vhiRoutes = new Elysia({ prefix: "/api/vhi" })
     "/me/recompute",
     async ({ userId, set }) => {
       // Rate limit: 3 recomputes per user per 10 minutes — pipeline is compute-intensive
-      const rl = vhiRecomputeRateLimiter.check(userId);
+      const rl = await vhiRecomputeRateLimiter.check(userId);
       if (!rl.allowed) {
         set.status = 429;
-        const retryAfterSecs = Math.ceil((rl.resetAt - Date.now()) / 1000);
+        const retryAfterSecs = Math.ceil(rl.resetIn / 1000);
         set.headers = { "Retry-After": String(retryAfterSecs) };
         return { error: "Too many recompute requests. Please try again later." };
       }

@@ -20,7 +20,6 @@ import { alerts } from "../db/schema";
 import { dispatchWebhookEvent } from "../lib/webhookDispatcher";
 import {
   pushToUserAndFamilyAdmins,
-  getUserDisplayName,
 } from "../lib/push";
 import { and, eq, inArray, isNull, lte } from "drizzle-orm";
 import fs from "node:fs";
@@ -207,22 +206,21 @@ async function sendEscalationNotification(
   maxCount: number,
   severity: "critical" | "high"
 ): Promise<void> {
-  const displayName = await getUserDisplayName(alert.userId);
   const remainingAttempts = maxCount - newCount;
 
-  // PHI rule: never include raw health values in push notification bodies.
+  // PHI rule: never include raw health values or patient names in push notification bodies.
   const userMsg = {
     title: `Unacknowledged ${severity} alert`,
     body: `You have an unacknowledged ${severity} alert that requires your attention. Please review it now.`,
-    data: { alertId: alert.id, type: alert.type, severity },
+    data: { screen: "vitals", alertId: alert.id, type: alert.type, severity },
     priority: "high" as const,
     sound: "default" as const,
   };
 
   const adminMsg = {
-    title: `${displayName} has an unacknowledged ${severity} alert`,
-    body: `A ${severity} alert for ${displayName} has not been acknowledged. Escalation ${newCount}/${maxCount}.`,
-    data: { alertId: alert.id, userId: alert.userId, type: alert.type, severity },
+    title: `Family member has an unacknowledged ${severity} alert`,
+    body: `A family member has an unacknowledged ${severity} alert. Escalation ${newCount}/${maxCount}.`,
+    data: { screen: "family_dashboard", alertId: alert.id, userId: alert.userId, type: alert.type, severity },
     priority: "high" as const,
     sound: "default" as const,
   };

@@ -21,35 +21,33 @@
 
 import { db } from "../db";
 import { and, eq, gte, lt, inArray, sql } from "drizzle-orm";
+import { logger } from "../lib/logger.js";
+import { acquireJobLock, releaseJobLock } from "../lib/jobLock.js";
 import {
   users,
   familyMembers,
   vhi,
   alerts,
   medicationReminders,
-  pushTokens,
 } from "../db/schema";
 import { pushToUser } from "../lib/push";
-
-// ── Advisory lock key (unique per job) ────────────────────────────────────────
-const ADVISORY_LOCK_KEY = 7_777_001; // arbitrary stable int
+import { recordHeartbeat } from "../lib/heartbeat.js";
 
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 async function runCaregiverDigest(): Promise<void> {
-  // Try to acquire advisory lock — bail out if another instance is running
-  const [lockRow] = await db.execute<{ acquired: boolean }>(
-    sql`SELECT pg_try_advisory_lock(${ADVISORY_LOCK_KEY}) AS acquired`
-  );
-  if (!lockRow?.acquired) {
-    console.log("[caregiverDigest] Another instance is running — skipping.");
+  // Distributed lock via job_locks table — works with Neon HTTP driver.
+  // (pg_try_advisory_lock is session-scoped and does not work with HTTP connections.)
+  const lockToken = await acquireJobLock('caregiverDigestJob', 3600)
+  if (!lockToken) {
+    logger.warn("[caregiverDigest] Another instance is running — skipping.");
     return;
   }
 
   try {
     await processDigests();
   } finally {
-    await db.execute(sql`SELECT pg_advisory_unlock(${ADVISORY_LOCK_KEY})`);
+    await releaseJobLock('caregiverDigestJob', lockToken);
   }
 }
 
@@ -71,7 +69,7 @@ async function processDigests(): Promise<void> {
     .limit(500);
 
   if (adminRows.length === 0) {
-    console.log("[caregiverDigest] No family admins found — nothing to do.");
+    logger.info("[caregiverDigest] No family admins found — nothing to do.");
     return;
   }
 
@@ -163,29 +161,46 @@ async function processDigests(): Promise<void> {
         }
       }
 
-      // 6. Fetch user names for member list
-      const memberUsers = await db
-        .select({ id: users.id, name: users.name })
-        .from(users)
-        .where(inArray(users.id, memberIds))
-        .limit(50);
-
-      const nameByUser = new Map(memberUsers.map((u) => [u.id, u.name ?? "Family member"]));
-
-      // 7. Build digest summary
+      // 6. Build digest summary
       const digest = buildDigest({
         memberIds,
         vhiByUser,
         alertsByUser,
         missedByUser,
         totalByUser,
-        nameByUser,
         twoDaysAgo,
       });
 
       // 8. Send to each admin in this family
       for (const adminId of adminIds) {
         try {
+          // Quiet hours check: suppress non-critical digest during user's quiet hours
+          const [adminUser] = await db
+            .select({ preferences: users.preferences })
+            .from(users)
+            .where(eq(users.id, adminId))
+            .limit(1);
+
+          const prefs = adminUser?.preferences as Record<string, unknown> | null;
+          const quietHours = prefs?.quietHours as { start?: string; end?: string } | null;
+          if (quietHours?.start && quietHours?.end && !digest.hasUrgent) {
+            const now = new Date();
+            const [startH, startM] = quietHours.start.split(':').map(Number);
+            const [endH, endM] = quietHours.end.split(':').map(Number);
+            const nowMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+            const startMinutes = startH * 60 + startM;
+            const endMinutes = endH * 60 + endM;
+
+            const isQuiet = startMinutes > endMinutes
+              ? nowMinutes >= startMinutes || nowMinutes < endMinutes  // overnight: e.g. 22:00-07:00
+              : nowMinutes >= startMinutes && nowMinutes < endMinutes; // same-day: e.g. 01:00-06:00
+
+            if (isQuiet) {
+              logger.info({ adminId, quietStart: quietHours.start, quietEnd: quietHours.end }, "[caregiverDigest] Suppressing non-urgent digest (quiet hours)");
+              continue; // skip this admin
+            }
+          }
+
           await pushToUser(adminId, {
             title: digest.title,
             body: digest.body,
@@ -194,24 +209,25 @@ async function processDigests(): Promise<void> {
           });
           sentCount++;
         } catch (pushErr) {
-          console.error(
-            `[caregiverDigest] Push failed for admin ${adminId}:`,
-            pushErr instanceof Error ? pushErr.message : pushErr
+          logger.error(
+            { adminId, err: pushErr },
+            "[caregiverDigest] Push failed for admin"
           );
           errorCount++;
         }
       }
     } catch (familyErr) {
-      console.error(
-        `[caregiverDigest] Error processing family ${familyId}:`,
-        familyErr instanceof Error ? familyErr.message : familyErr
+      logger.error(
+        { familyId, err: familyErr },
+        "[caregiverDigest] Error processing family"
       );
       errorCount++;
     }
   }
 
-  console.log(
-    `[caregiverDigest] Done. Sent: ${sentCount}, Errors: ${errorCount}, Families: ${adminsByFamily.size}`
+  logger.info(
+    { sent: sentCount, errors: errorCount, families: adminsByFamily.size },
+    "[caregiverDigest] Done"
   );
 }
 
@@ -223,7 +239,6 @@ interface DigestInput {
   alertsByUser: Map<string, number>;
   missedByUser: Map<string, number>;
   totalByUser: Map<string, number>;
-  nameByUser: Map<string, string>;
   twoDaysAgo: Date;
 }
 
@@ -240,7 +255,6 @@ function buildDigest(input: DigestInput): DigestResult {
     alertsByUser,
     missedByUser,
     totalByUser,
-    nameByUser,
     twoDaysAgo,
   } = input;
 
@@ -249,7 +263,6 @@ function buildDigest(input: DigestInput): DigestResult {
   let allHealthy = true;
 
   for (const memberId of memberIds) {
-    const firstName = (nameByUser.get(memberId) ?? "Family member").split(" ")[0];
     const vhiRow = vhiByUser.get(memberId);
     const vhiData = vhiRow?.data as Record<string, unknown> | null;
     const compositeRisk =
@@ -264,25 +277,25 @@ function buildDigest(input: DigestInput): DigestResult {
     // Stale data — no VHI update in 48 h
     const lastUpdate = vhiRow?.updatedAt;
     if (!lastUpdate || lastUpdate < twoDaysAgo) {
-      issues.push(`${firstName}: no data synced in 48 h`);
+      issues.push(`A family member hasn't synced health data in 48 hours`);
       allHealthy = false;
       continue;
     }
 
     // High/critical risk
     if (riskScore !== null && riskScore >= 75) {
-      issues.push(`${firstName}: health risk is elevated`);
+      issues.push(`A family member's health risk is elevated`);
       hasUrgent = true;
       allHealthy = false;
     } else if (riskScore !== null && riskScore >= 60) {
-      issues.push(`${firstName}: health needs attention`);
+      issues.push(`A family member's health needs attention`);
       allHealthy = false;
     }
 
     // Unacknowledged alerts
     const alertCount = alertsByUser.get(memberId) ?? 0;
     if (alertCount > 0) {
-      issues.push(`${firstName}: ${alertCount} unreviewed alert${alertCount > 1 ? "s" : ""}`);
+      issues.push(`A family member has ${alertCount} unreviewed alert${alertCount > 1 ? "s" : ""}`);
       allHealthy = false;
     }
 
@@ -290,7 +303,7 @@ function buildDigest(input: DigestInput): DigestResult {
     const missed = missedByUser.get(memberId) ?? 0;
     const total = totalByUser.get(memberId) ?? 0;
     if (total > 0 && missed > 0) {
-      issues.push(`${firstName}: missed ${missed} medication dose${missed > 1 ? "s" : ""} today`);
+      issues.push(`A family member missed ${missed} medication dose${missed !== 1 ? "s" : ""} today`);
       if (missed >= 2) allHealthy = false;
     }
   }
@@ -323,8 +336,11 @@ function buildDigest(input: DigestInput): DigestResult {
 // ── Run ───────────────────────────────────────────────────────────────────────
 
 runCaregiverDigest()
-  .then(() => process.exit(0))
+  .then(async () => {
+    try { await recordHeartbeat('caregiverDigestJob', 86400) } catch (e) { logger.warn({ err: e }, '[caregiverDigest] heartbeat failed') }
+    process.exit(0);
+  })
   .catch((err) => {
-    console.error("[caregiverDigest] Fatal error:", err);
+    logger.error({ err }, "[caregiverDigest] Fatal error");
     process.exit(1);
   });

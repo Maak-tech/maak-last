@@ -22,6 +22,7 @@
 import { db } from "../db";
 import { medicationReminders, medications } from "../db/schema";
 import { pushToUser } from "../lib/push";
+import { recordHeartbeat } from "../lib/heartbeat.js";
 import { and, eq, gte, lt, lte, sql } from "drizzle-orm";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -146,8 +147,7 @@ async function deliverReminder(reminder: {
     title: "💊 Medication Reminder",
     body: "Time to take your medication. Tap to confirm.",
     data: {
-      screen: "health",
-      tab: "medications",
+      screen: "medications",
       reminderId: reminder.id,
     },
     sound: "default",
@@ -168,7 +168,10 @@ async function deliverReminder(reminder: {
 
 if (import.meta.main) {
   runMedicationReminderJob()
-    .then(() => process.exit(0))
+    .then(async () => {
+      try { await recordHeartbeat('medicationReminderJob', 60) } catch (e) { console.warn('[medicationReminder] heartbeat failed', e instanceof Error ? e.message : String(e)) }
+      process.exit(0);
+    })
     .catch((err) => {
       console.error(
         "[medicationReminderJob] Fatal error:",

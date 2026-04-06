@@ -12,15 +12,17 @@ import { db } from "../db";
 import { runForecastCycle } from "./forecastCycle";
 import { dispatchWebhookEvent } from "../lib/webhookDispatcher";
 import { broadcastToUser } from "../routes/realtime";
+import { logger } from "../lib/logger.js";
+import { acquireJobLock, releaseJobLock } from "../lib/jobLock.js";
 import {
   pushToUser,
   pushToFamilyAdmins,
   pushToUserAndFamilyAdmins,
-  getUserDisplayName,
 } from "../lib/push";
 import {
   users,
   vhi,
+  vhiSnapshots,
   vitals,
   symptoms,
   moods,
@@ -34,58 +36,41 @@ import {
   healthTimeline,
   alerts,
 } from "../db/schema";
-import { eq, desc, gte, and, isNull } from "drizzle-orm";
+import { eq, desc, gte, and, isNull, or, lt, sql } from "drizzle-orm";
 import crypto from "node:crypto";
-import fs from "node:fs";
-import path from "node:path";
 
 const WINDOW_DAYS = 21; // minimum days to establish baseline confidence
 const RISK_HIGH = 75;
 const RISK_MODERATE = 50;
 
-// ── Concurrency guard ─────────────────────────────────────────────────────────
-// Railway cron runs each invocation as a fresh Bun process in the same container.
-// A lock file prevents a new run from starting if a previous one is still active.
-// If the lock is older than 20 minutes (a stuck run), it is treated as stale and removed.
-const LOCK_FILE = path.join("/tmp", "vhi_cycle.lock");
-const LOCK_STALE_MS = 20 * 60 * 1000; // 20 minutes
-
-function acquireLock(): boolean {
-  try {
-    if (fs.existsSync(LOCK_FILE)) {
-      const stat = fs.statSync(LOCK_FILE);
-      const ageMs = Date.now() - stat.mtimeMs;
-      if (ageMs < LOCK_STALE_MS) {
-        console.warn(`[vhiCycle] Already running (lock age: ${Math.round(ageMs / 1000)}s). Skipping.`);
-        return false;
-      }
-      console.warn(`[vhiCycle] Stale lock detected (age: ${Math.round(ageMs / 1000)}s). Overriding.`);
-    }
-    fs.writeFileSync(LOCK_FILE, String(process.pid));
-    return true;
-  } catch (err: unknown) {
-    console.warn("[vhiCycle] Failed to acquire lock file — proceeding without guard:", err instanceof Error ? err.message : String(err));
-    return true; // Non-fatal: proceed if file I/O fails
-  }
-}
-
-function releaseLock(): void {
-  try {
-    if (fs.existsSync(LOCK_FILE)) fs.unlinkSync(LOCK_FILE);
-  } catch (err: unknown) {
-    console.warn("[vhiCycle] Failed to release lock file:", err instanceof Error ? err.message : String(err));
-  }
-}
-
 export async function runVhiCycle() {
-  if (!acquireLock()) return;
+  // Distributed lock via job_locks table — works with Neon HTTP driver.
+  // (pg_try_advisory_lock is session-scoped and does not work with HTTP connections.)
+  const lockToken = await acquireJobLock('vhiCycle', 900)
+  if (!lockToken) {
+    logger.warn("[vhiCycle] Another instance is running — skipping.");
+    return;
+  }
 
-  console.log(`[vhiCycle] Starting at ${new Date().toISOString()}`);
+  logger.info({ startedAt: new Date().toISOString() }, "[vhiCycle] Starting");
 
   try {
-    // Fetch all users with enough data to compute VHI
-    const allUsers = await db.select({ id: users.id }).from(users);
-    console.log(`[vhiCycle] Processing ${allUsers.length} users`);
+    // Fetch only users that need a VHI recompute:
+    //   1. vhi_dirty = true  — data changed since last compute (set by health writes + realtime worker)
+    //   2. Never computed    — new users with no VHI row yet
+    //   3. Last compute > 24 hours ago — safety net for users who somehow missed the notify
+    const allUsers = await db
+      .select({ id: users.id })
+      .from(users)
+      .leftJoin(vhi, eq(vhi.userId, users.id))
+      .where(
+        or(
+          eq(users.vhiDirty, true),
+          isNull(vhi.userId),
+          lt(vhi.computedAt, sql`now() - interval '24 hours'`)
+        )
+      );
+    logger.info({ userCount: allUsers.length }, "[vhiCycle] Processing users");
 
     // Process users in batches to avoid saturating the DB connection pool.
     // Processing all users concurrently would open O(users) simultaneous Neon
@@ -93,33 +78,56 @@ export async function runVhiCycle() {
     const BATCH_SIZE = 50;
     let successCount = 0;
     let failCount = 0;
+    const failedUserIds: string[] = [];
     for (let i = 0; i < allUsers.length; i += BATCH_SIZE) {
       const batch = allUsers.slice(i, i + BATCH_SIZE);
       const batchResults = await Promise.allSettled(
         batch.map(({ id }) => processUser(id))
       );
-      for (const r of batchResults) {
+      for (let j = 0; j < batchResults.length; j++) {
+        const r = batchResults[j];
         if (r.status === "fulfilled") {
           successCount++;
         } else {
-          failCount++;
+          const userId = batch[j].id;
           const reason: unknown = r.reason;
-          console.error(
-            `[vhiCycle] User failed:`,
-            reason instanceof Error ? reason.message : String(reason)
+          logger.error(
+            { userId, err: reason },
+            "[vhiCycle] User failed (will retry)"
+          );
+          failedUserIds.push(userId);
+        }
+      }
+    }
+
+    // ── Retry pass ────────────────────────────────────────────────────────────
+    // Users that failed in the main pass get one additional attempt.  Transient
+    // errors (DB connection hiccups, short-lived Railway network blips) are the
+    // most common failure mode, so a single retry resolves the majority of them
+    // without requiring a new DB table.
+    if (failedUserIds.length > 0) {
+      logger.info({ count: failedUserIds.length }, "[vhiCycle] Retrying failed users…");
+      for (const retryUserId of failedUserIds) {
+        try {
+          await processUser(retryUserId);
+          successCount++;
+        } catch (retryErr) {
+          failCount++;
+          logger.error(
+            { userId: retryUserId, err: retryErr },
+            "[vhiCycle] Retry failed for user"
           );
         }
       }
     }
 
-    console.log(
-      `[vhiCycle] Done. Success: ${successCount}, Failed: ${failCount}`
+    logger.info(
+      { success: successCount, failed: failCount },
+      "[vhiCycle] Done"
     );
   } finally {
-    // Always release the lock — even if the DB query or Promise.allSettled throws.
-    // Without this, a single DB glitch would hold the lock for LOCK_STALE_MS (20 min)
-    // and cause the next two 15-minute cron invocations to be silently skipped.
-    releaseLock();
+    // Always release the lock — even if the job body throws.
+    await releaseJobLock('vhiCycle', lockToken);
   }
 }
 
@@ -205,7 +213,7 @@ export async function processUser(userId: string) {
     geneticsData != null;
 
   if (!hasSomeData) {
-    console.log(`[vhiCycle] Skipping user ${userId.slice(0, 8)}… — no health data yet`);
+    logger.info({ userId: userId.slice(0, 8) }, "[vhiCycle] Skipping user — no health data yet");
     return;
   }
 
@@ -464,10 +472,25 @@ export async function processUser(userId: string) {
     });
   });
 
+  // Archive this computation to vhi_snapshots for historical analysis
+  try {
+    await db.insert(vhiSnapshots).values({
+      id: crypto.randomUUID(),
+      userId,
+      version: 1,
+      computedAt,
+      data: vhiData as Record<string, unknown>,
+      triggeredBy: 'vhiCycle',
+    });
+  } catch (snapshotErr) {
+    // Never fail the main VHI write because snapshot archiving failed
+    logger.warn({ err: snapshotErr }, '[vhiCycle] Failed to write vhi_snapshot');
+  }
+
   // Trigger forecast cycle asynchronously when risk is elevated
   if (compositeRisk >= 60) {
     runForecastCycle(userId).catch((err: unknown) =>
-      console.error(`[vhiCycle] forecastCycle failed for ${userId}:`, err instanceof Error ? err.message : String(err))
+      logger.error({ userId, err }, "[vhiCycle] forecastCycle failed")
     );
   }
 
@@ -491,7 +514,7 @@ export async function processUser(userId: string) {
       riskLevel:
         compositeRisk >= RISK_HIGH ? "high" : compositeRisk >= RISK_MODERATE ? "moderate" : "low",
       trajectory: vhiData.currentState.riskScores.trajectory,
-    }).catch((err: unknown) => console.error(`[vhiCycle] Webhook dispatch failed for ${userId}:`, err instanceof Error ? err.message : String(err))),
+    }).catch((err: unknown) => logger.error({ userId, err }, "[vhiCycle] Webhook dispatch failed")),
 
     // Push notification cooldown: skip if a notification was sent within the last 4 hours.
     // Without this guard, an elevated-risk user would receive a push every 15 minutes (each cron cycle).
@@ -508,7 +531,7 @@ export async function processUser(userId: string) {
           // Update the stored timestamp so the next cycle sees the cooldown
           (vhiData as Record<string, unknown>).lastNotificationAt = new Date().toISOString();
         })
-        .catch((err: unknown) => console.error(`[vhiCycle] Push alert dispatch failed for ${userId}:`, err instanceof Error ? err.message : String(err)));
+        .catch((err: unknown) => logger.error({ userId, err }, "[vhiCycle] Push alert dispatch failed"));
     })(),
   ];
 
@@ -520,7 +543,7 @@ export async function processUser(userId: string) {
         riskLevel: "high",
         topDecliningFactor: vhiData.decliningFactors[0]?.factor ?? null,
       }).catch((err: unknown) =>
-        console.error(`[vhiCycle] Risk-elevated webhook failed for ${userId}:`, err instanceof Error ? err.message : String(err))
+        logger.error({ userId, err }, "[vhiCycle] Risk-elevated webhook failed")
       )
     );
   }
@@ -532,12 +555,16 @@ export async function processUser(userId: string) {
         consecutiveMissed,
         adherenceRate: Math.round(adherenceRate * 100),
       }).catch((err: unknown) =>
-        console.error(`[vhiCycle] medication.missed webhook failed for ${userId}:`, err instanceof Error ? err.message : String(err))
+        logger.error({ userId, err }, "[vhiCycle] medication.missed webhook failed")
       )
     );
   }
 
   await Promise.allSettled(sideEffects);
+
+  // Clear the dirty flag now that recompute succeeded.
+  // Done after all side effects so a failure mid-pipeline doesn't silently suppress a retry.
+  await db.update(users).set({ vhiDirty: false }).where(eq(users.id, userId));
 }
 
 /**
@@ -553,7 +580,6 @@ async function dispatchPushAlerts(
 
   if (compositeRisk >= 85) {
     // Urgent — patient + admins, high priority
-    const displayName = await getUserDisplayName(userId);
     await pushToUserAndFamilyAdmins(
       userId,
       {
@@ -563,15 +589,14 @@ async function dispatchPushAlerts(
         priority: "high",
       },
       {
-        title: `Health Alert — ${displayName}`,
-        body: `${displayName}'s health score needs attention. Tap to review their profile.`,
+        title: "Family Health Alert",
+        body: "A family member's health score needs attention. Tap to review their profile.",
         data: { screen: "family", userId, compositeRisk },
         priority: "high",
       }
     );
   } else if (compositeRisk >= 75) {
     // High — patient + admins, normal priority
-    const displayName = await getUserDisplayName(userId);
     await pushToUserAndFamilyAdmins(
       userId,
       {
@@ -580,8 +605,8 @@ async function dispatchPushAlerts(
         data: { screen: "nora", compositeRisk },
       },
       {
-        title: `Health Update — ${displayName}`,
-        body: `${displayName}'s health score has changed. Open the family dashboard to review.`,
+        title: "Family Health Update",
+        body: "A family member's health score has changed. Open the family dashboard to review.",
         data: { screen: "family", userId, compositeRisk },
       }
     );
@@ -940,6 +965,12 @@ type DecliningFactor = {
 };
 
 // ── Entry point ───────────────────────────────────────────────────────────────
+/**
+ * Public alias used by the realtime VHI worker (vhiRealtimeWorker.ts).
+ * The bulk cron continues to call processUser directly.
+ */
+export const computeVHIForUser = processUser;
+
 // Guard with import.meta.main so this file can be safely imported as a module
 // (e.g. from vhiRoutes to trigger a single-user recompute) without auto-running
 // the full cycle and calling process.exit().
@@ -952,8 +983,7 @@ if (import.meta.main) {
       process.exit(0);
     })
     .catch(async (err) => {
-      console.error("[vhiCycle] Fatal error:", err instanceof Error ? err.message : String(err));
-      releaseLock();
+      logger.error({ err }, "[vhiCycle] Fatal error");
       try {
         const { recordHeartbeatError } = await import("../lib/heartbeat");
         await recordHeartbeatError("vhi-cycle", 15 * 60, err instanceof Error ? err.message : String(err));

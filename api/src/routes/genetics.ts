@@ -3,7 +3,8 @@ import { eq } from "drizzle-orm";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { requireAuth } from "../middleware/requireAuth";
-import { genetics } from "../db/schema";
+import { requirePremium } from "../middleware/requirePremium.js";
+import { genetics, dnaParsingQueue } from "../db/schema";
 import { runDnaParsingJob } from "../jobs/dnaParsingJob";
 
 const TIGRIS_ACCESS_KEY = process.env.TIGRIS_ACCESS_KEY;
@@ -57,7 +58,14 @@ export const geneticsRoutes = new Elysia({ prefix: "/api/genetics" })
   // Initiate upload — returns a presigned Tigris URL for direct upload
   .post(
     "/me/upload",
-    async ({ db, userId, body }) => {
+    async ({ db, userId, body, set }) => {
+      // Premium gate — DNA upload and processing is a paid feature
+      const { allowed, reason } = await requirePremium(userId)
+      if (!allowed) {
+        set.status = 402  // Payment Required
+        return { error: reason ?? 'Premium subscription required', code: 'PREMIUM_REQUIRED' }
+      }
+
       // Mark as pending in DB
       await db
         .insert(genetics)
@@ -113,6 +121,13 @@ export const geneticsRoutes = new Elysia({ prefix: "/api/genetics" })
   .post(
     "/me/process",
     async ({ db, userId, body, set }) => {
+      // Premium gate — DNA processing is a paid feature
+      const { allowed, reason } = await requirePremium(userId)
+      if (!allowed) {
+        set.status = 402  // Payment Required
+        return { error: reason ?? 'Premium subscription required', code: 'PREMIUM_REQUIRED' }
+      }
+
       // Validate uploadKey belongs to this user.
       // The server generates keys as `genetics/${userId}/...` in /me/upload.
       // Rejecting keys that don't start with the caller's userId prefix prevents
@@ -144,6 +159,29 @@ export const geneticsRoutes = new Elysia({ prefix: "/api/genetics" })
         .update(genetics)
         .set({ processingStatus: "processing" })
         .where(eq(genetics.userId, userId));
+
+      // Record the job in the parsing queue for retry visibility.
+      // Errors here are non-fatal — processing still proceeds even if the queue
+      // insert fails (e.g. transient DB issue).
+      const [existingRecord] = await db
+        .select({ provider: genetics.provider })
+        .from(genetics)
+        .where(eq(genetics.userId, userId))
+        .limit(1);
+      await db
+        .insert(dnaParsingQueue)
+        .values({
+          userId,
+          fileKey: body.uploadKey,
+          provider: existingRecord?.provider ?? null,
+          status: "pending",
+        })
+        .catch((qErr: unknown) => {
+          console.warn(
+            `[genetics] Failed to insert dna_parsing_queue row for user ${userId.slice(0, 8)}…:`,
+            qErr instanceof Error ? qErr.message : String(qErr)
+          );
+        });
 
       // Run parsing job in the background (non-blocking)
       runDnaParsingJob(userId, body.uploadKey).catch(async (err: unknown) => {

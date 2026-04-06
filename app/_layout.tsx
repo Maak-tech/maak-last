@@ -205,6 +205,14 @@ function RootLayout() {
                         name="hospital"
                         options={{ headerShown: false }}
                       />
+                      <Stack.Screen
+                        name="emergency"
+                        options={{ headerShown: false }}
+                      />
+                      <Stack.Screen
+                        name="join"
+                        options={{ title: 'Join Family', headerShown: true }}
+                      />
                       <Stack.Screen name="+not-found" />
                     </Stack>
                   </FallDetectionProvider>

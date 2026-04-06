@@ -1,3 +1,5 @@
+// TODO(i18n): 189 inline RTL/language ternaries — migrate to t() keys
+// See: https://github.com/your-org/nuralix/issues/XXX
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,

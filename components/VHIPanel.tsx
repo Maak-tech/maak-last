@@ -19,7 +19,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { ActivityIndicator, View, type ViewStyle } from "react-native";
+import { ActivityIndicator, TouchableOpacity, View, type ViewStyle } from "react-native";
 import { Text } from "@/components/design-system/Typography";
 import { useTheme } from "@/contexts/ThemeContext";
 import { api, ApiError } from "@/lib/apiClient";
@@ -48,6 +48,11 @@ type Props = {
    * Shows the loading spinner while the parent is fetching.
    */
   loading?: boolean;
+  /**
+   * Optional callback to refresh VHI data after a recompute request.
+   * If provided, it is called after a 3-second delay following recompute.
+   */
+  onRefresh?: () => void;
 };
 
 export default function VHIPanel({
@@ -55,12 +60,14 @@ export default function VHIPanel({
   onAskNora,
   vhi: vhiProp,
   loading: loadingProp,
+  onRefresh,
 }: Props) {
   const { theme } = useTheme();
 
   // Internal state — only used when no `vhi` prop is supplied
   const [internalVhi, setInternalVhi] = useState<VirtualHealthIdentity | null>(null);
   const [internalLoading, setInternalLoading] = useState(vhiProp === undefined);
+  const [isRecomputing, setIsRecomputing] = useState(false);
 
   // Resolved values — prefer prop over internal state
   const vhi = vhiProp !== undefined ? vhiProp : internalVhi;
@@ -127,6 +134,25 @@ export default function VHIPanel({
         ? "improving"
         : "stable";
 
+  // Fix 3: baseline confidence gate
+  const baselineConfidence = vhi.currentState.baselineConfidence ?? 0;
+  const hasEnoughBaseline = baselineConfidence >= 0.3;
+
+  // Fix 4: recompute handler
+  const handleRecompute = async () => {
+    if (isRecomputing) return;
+    setIsRecomputing(true);
+    try {
+      await api.post("/api/vhi/me/recompute", {});
+      setTimeout(() => {
+        onRefresh?.();
+        setIsRecomputing(false);
+      }, 3000);
+    } catch {
+      setIsRecomputing(false);
+    }
+  };
+
   return (
     <View
       style={[
@@ -134,27 +160,55 @@ export default function VHIPanel({
         { backgroundColor: theme.colors.background.primary },
       ]}
     >
-      {/* Header */}
-      <Text
-        style={{
-          fontSize: 12,
-          fontWeight: "700",
-          color: theme.colors.text.secondary,
-          letterSpacing: 0.8,
-          marginBottom: 12,
-          textAlign: isRTL ? "right" : "left",
-        }}
-      >
-        {isRTL ? "هويتك الصحية الافتراضية" : "YOUR HEALTH IDENTITY"}
-      </Text>
+      {/* Header row with recompute button */}
+      <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <Text
+          style={{
+            fontSize: 12,
+            fontWeight: "700",
+            color: theme.colors.text.secondary,
+            letterSpacing: 0.8,
+          }}
+        >
+          {isRTL ? "هويتك الصحية الافتراضية" : "YOUR HEALTH IDENTITY"}
+        </Text>
+        <TouchableOpacity onPress={handleRecompute} disabled={isRecomputing} style={{ opacity: isRecomputing ? 0.5 : 1 }}>
+          <Text style={{ fontSize: 11, color: theme.colors.primary.main }}>
+            {isRTL ? "تحديث" : "Refresh"}
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-      {/* Overall Score */}
-      <VHIOverallScore
-        changeCount={vhi.decliningFactors.length + vhi.elevatingFactors.length}
-        isRTL={isRTL}
-        score={vhi.currentState.overallScore}
-        trajectory={trajectory}
-      />
+      {/* Fix 4: Updating indicator */}
+      {isRecomputing && (
+        <Text style={{ fontSize: 11, color: theme.colors.text.secondary, marginBottom: 4, textAlign: isRTL ? "right" : "left" }}>
+          {isRTL ? "جاري تحديث درجتك..." : "Updating your score..."}
+        </Text>
+      )}
+
+      {/* Fix 3: Overall Score with baseline confidence gate */}
+      {hasEnoughBaseline ? (
+        <VHIOverallScore
+          changeCount={vhi.decliningFactors.length + vhi.elevatingFactors.length}
+          isRTL={isRTL}
+          score={vhi.currentState.overallScore}
+          trajectory={trajectory}
+        />
+      ) : (
+        <View style={styles.baselineBuilding}>
+          <Text style={styles.baselineBuildingTitle}>
+            {isRTL ? "جاري بناء خط الأساس الصحي" : "Building your health baseline"}
+          </Text>
+          <Text style={styles.baselineBuildingSubtitle}>
+            {isRTL
+              ? "استمر في تسجيل بياناتك — ستظهر درجتك الصحية الشخصية خلال أيام قليلة."
+              : "Keep logging data — your personalized health score will appear in a few days."}
+          </Text>
+          <View style={styles.baselineProgress}>
+            <View style={[styles.baselineProgressFill, { width: `${Math.round(baselineConfidence * 100)}%` }]} />
+          </View>
+        </View>
+      )}
 
       {/* Risk sub-scores row */}
       {compositeRisk > 0 && (
@@ -270,5 +324,31 @@ const styles = {
     height: 1,
     backgroundColor: "rgba(0,0,0,0.06)",
     marginVertical: 12,
+  } as ViewStyle,
+  baselineBuilding: {
+    paddingVertical: 8,
+  } as ViewStyle,
+  baselineBuildingTitle: {
+    fontSize: 15,
+    fontWeight: "700" as const,
+    color: "#003543",
+    marginBottom: 4,
+  },
+  baselineBuildingSubtitle: {
+    fontSize: 13,
+    color: "#64748B",
+    lineHeight: 18,
+    marginBottom: 10,
+  },
+  baselineProgress: {
+    height: 6,
+    backgroundColor: "rgba(0,0,0,0.08)",
+    borderRadius: 3,
+    overflow: "hidden" as const,
+  } as ViewStyle,
+  baselineProgressFill: {
+    height: 6,
+    backgroundColor: "#003543",
+    borderRadius: 3,
   } as ViewStyle,
 };

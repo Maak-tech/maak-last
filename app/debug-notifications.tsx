@@ -8,12 +8,17 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
+import { Redirect } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { pushNotificationService } from '@/lib/services/pushNotificationService';
 import { fcmService } from '@/lib/services/fcmService';
 import { alertService } from '@/lib/services/alertService';
 
 export default function DebugNotificationsScreen() {
+  if (!__DEV__) {
+    return <Redirect href="/" />;
+  }
+
   const { user } = useAuth();
   const [lastTest, setLastTest] = useState<string>('');
 

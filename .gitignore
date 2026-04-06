@@ -59,8 +59,8 @@ xcuserdata/
 *.dylib
 
 # Firebase
-google-services.json
-# GoogleService-Info.plist
+google-services.json      # Firebase config — contains API keys, must not be committed
+GoogleService-Info.plist  # Firebase config — contains API keys, must not be committed
 
 # Logs
 *.log

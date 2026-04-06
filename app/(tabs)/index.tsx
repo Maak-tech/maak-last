@@ -1,3 +1,5 @@
+// TODO(i18n): 122 inline RTL/language ternaries — migrate to t() keys
+// See: https://github.com/your-org/nuralix/issues/XXX
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -38,6 +40,7 @@ import { symptomService } from '@/lib/services/symptomService';
 import { medicationService } from '@/lib/services/medicationService';
 import { alertService } from '@/lib/services/alertService';
 import { userService } from '@/lib/services/userService';
+import { emergencyCacheService } from '@/lib/services/emergencyCacheService';
 import { Symptom, Medication, User as UserType, EmergencyAlert } from '@/types';
 import FamilyDataFilter, {
   FilterOption,
@@ -730,6 +733,15 @@ export default function DashboardScreen() {
       loadDashboardData();
     }, [user, selectedFilter])
   );
+
+  // Keep emergency cache in sync so the /emergency screen always has fresh data
+  useEffect(() => {
+    if (!user?.id) return;
+    // Fire-and-forget — never block the UI
+    emergencyCacheService.syncEmergencyCache(user).catch(() => {
+      // Silently ignore — cache will be updated on the next successful sync
+    });
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onRefresh = () => {
     setRefreshing(true);

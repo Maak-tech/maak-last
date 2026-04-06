@@ -4,6 +4,18 @@ import { useRouter } from 'next/navigation'
 import { api, getToken, type AuditLog } from '@/lib/api'
 import { useAutoLogout } from '@/lib/useAutoLogout'
 
+type FilterOption = {
+  label: string
+  action: string | undefined
+}
+
+const FILTERS: FilterOption[] = [
+  { label: 'All',               action: undefined },
+  { label: 'Near-miss only',    action: 'near_miss_recognition' },
+  { label: 'Confirmed access',  action: 'identity_confirmed' },
+  { label: 'Failed attempts',   action: 'login_failed' },
+]
+
 export default function AuditPage() {
   const router = useRouter()
   useAutoLogout()
@@ -12,6 +24,7 @@ export default function AuditPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(true)
+  const [activeFilter, setActiveFilter] = useState<FilterOption>(FILTERS[0])
 
   useEffect(() => {
     if (!getToken()) { router.push('/login'); return }
@@ -28,11 +41,11 @@ export default function AuditPage() {
     }
   }, [router])
 
-  const fetchLogs = useCallback(async (p: number) => {
+  const fetchLogs = useCallback(async (p: number, filter: FilterOption) => {
     setLoading(true)
     setError(null)
     try {
-      const data = await api.getAuditLogs(p)
+      const data = await api.getAuditLogs(p, filter.action)
       setLogs(data.logs)
       setHasMore(data.logs.length === data.limit)
     } catch (err: unknown) {
@@ -42,7 +55,12 @@ export default function AuditPage() {
     }
   }, [])
 
-  useEffect(() => { fetchLogs(page) }, [page, fetchLogs])
+  useEffect(() => { fetchLogs(page, activeFilter) }, [page, activeFilter, fetchLogs])
+
+  function handleFilterChange(filter: FilterOption) {
+    setActiveFilter(filter)
+    setPage(1)
+  }
 
   function formatDate(iso: string) {
     return new Date(iso).toLocaleString()
@@ -50,14 +68,15 @@ export default function AuditPage() {
 
   function actionLabel(action: string) {
     const map: Record<string, string> = {
-      login_success: 'Login',
-      login_failed: 'Login Failed',
-      recognition_attempt: 'Recognition',
-      patient_preview_viewed: 'Preview',
-      identity_confirmed: 'Confirmed',
-      full_twin_accessed: 'Twin Access',
-      enrollment: 'Enrolled',
-      revocation: 'Revoked',
+      login_success:            'Login',
+      login_failed:             'Login Failed',
+      recognition_attempt:      'Recognition',
+      near_miss_recognition:    'Near-miss',
+      patient_preview_viewed:   'Preview',
+      identity_confirmed:       'Confirmed',
+      full_twin_accessed:       'Twin Access',
+      enrollment:               'Enrolled',
+      revocation:               'Revoked',
     }
     return map[action] ?? action.replace(/_/g, ' ')
   }
@@ -75,11 +94,34 @@ export default function AuditPage() {
       </header>
 
       <main className="flex-1 p-6">
+        {/* Filter buttons: All | Near-miss only | Confirmed access | Failed attempts */}
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          {FILTERS.map((filter) => {
+            const isActive = activeFilter.action === filter.action
+            return (
+              <button
+                key={filter.label}
+                onClick={() => handleFilterChange(filter)}
+                className={
+                  isActive
+                    ? 'px-3 py-1.5 rounded-full text-xs font-medium transition border ' +
+                      (filter.action === 'near_miss_recognition'
+                        ? 'bg-amber-500/20 border-amber-500/60 text-amber-300'
+                        : 'bg-indigo-600 border-indigo-500 text-white')
+                    : 'px-3 py-1.5 rounded-full text-xs font-medium transition border bg-gray-800 border-gray-700 text-gray-400 hover:text-white hover:border-gray-500'
+                }
+              >
+                {filter.label}
+              </button>
+            )
+          })}
+        </div>
+
         {error && (
           <div className="bg-red-900/40 border border-red-700 rounded-lg px-4 py-3 text-red-300 text-sm mb-4 flex items-center justify-between gap-4">
             <span>{error}</span>
             <button
-              onClick={() => fetchLogs(page)}
+              onClick={() => fetchLogs(page, activeFilter)}
               className="shrink-0 text-xs text-red-300 hover:text-white border border-red-600 hover:border-white rounded px-2 py-1 transition"
             >
               Retry
@@ -117,11 +159,20 @@ export default function AuditPage() {
                   </tr>
                 ) : (
                   logs.map((log) => (
-                    <tr key={log.id} className="hover:bg-gray-800/50 transition">
+                    <tr key={log.id} className={`hover:bg-gray-800/50 transition${log.action === 'near_miss_recognition' ? ' bg-amber-950/20' : ''}`}>
                       <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{formatDate(log.created_at)}</td>
                       <td className="px-4 py-3 text-xs text-white">{log.staff_name ?? <span className="text-gray-500">—</span>}</td>
                       <td className="px-4 py-3 text-xs text-white">{log.patient_name ?? <span className="text-gray-500">—</span>}</td>
-                      <td className="px-4 py-3 text-xs text-white font-medium">{actionLabel(log.action)}</td>
+                      <td className="px-4 py-3 text-xs font-medium">
+                        <span className={log.action === 'near_miss_recognition' ? 'text-amber-400' : 'text-white'}>
+                          {actionLabel(log.action)}
+                        </span>
+                        {log.action === 'near_miss_recognition' && log.confidence != null && (
+                          <span className="ml-2 inline-flex items-center gap-1 bg-amber-900/40 border border-amber-700/60 text-amber-300 text-xs px-1.5 py-0.5 rounded">
+                            conf: {log.confidence.toFixed(2)} ⚠️
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-xs text-gray-400 capitalize">{log.method ?? '—'}</td>
                       <td className="px-4 py-3">
                         {log.success === null ? (

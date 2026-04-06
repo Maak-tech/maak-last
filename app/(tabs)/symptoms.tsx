@@ -1,3 +1,5 @@
+// TODO(i18n): 81 inline RTL/language ternaries — migrate to t() keys
+// See: https://github.com/your-org/nuralix/issues/XXX
 import React, { useState, useCallback } from 'react';
 import {
   View,
@@ -27,7 +29,16 @@ import {
   Users,
   User,
 } from 'lucide-react-native';
+import { api } from '@/lib/apiClient';
 import { symptomService } from '@/lib/services/symptomService';
+
+function formatRelativeTime(isoString: string): string {
+  const diff = Date.now() - new Date(isoString).getTime();
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
 import { userService } from '@/lib/services/userService';
 import { Symptom, User as UserType } from '@/types';
 import FamilyDataFilter, {
@@ -65,6 +76,8 @@ export default function TrackScreen() {
   const [editingSymptom, setEditingSymptom] = useState<Symptom | null>(null);
   const [showActionsMenu, setShowActionsMenu] = useState<string | null>(null);
   const [familyMembers, setFamilyMembers] = useState<UserType[]>([]);
+  const [isStale, setIsStale] = useState(false);
+  const [lastRecordedAt, setLastRecordedAt] = useState<string | null>(null);
   const [selectedFilter, setSelectedFilter] = useState<FilterOption>({
     id: 'personal',
     type: 'personal',
@@ -127,14 +140,24 @@ export default function TrackScreen() {
         setSymptoms(memberSymptoms);
         setStats(memberStats);
       } else {
-        // Load personal symptoms and stats (default)
-        const [userSymptoms, symptomStats] = await Promise.all([
+        // Load personal symptoms and stats (default); also check staleness from API
+        const [userSymptoms, symptomStats, apiResponse] = await Promise.all([
           symptomService.getUserSymptoms(user.id, 50),
           symptomService.getSymptomStats(user.id, 7),
+          api.get<{ data?: unknown[]; isStale?: boolean; lastRecordedAt?: string | null } | unknown[]>('/api/health/symptoms').catch(() => null),
         ]);
 
         setSymptoms(userSymptoms);
         setStats(symptomStats);
+
+        if (apiResponse && !Array.isArray(apiResponse)) {
+          const wrapped = apiResponse as { isStale?: boolean; lastRecordedAt?: string | null };
+          setIsStale(wrapped.isStale ?? false);
+          setLastRecordedAt(wrapped.lastRecordedAt ?? null);
+        } else {
+          setIsStale(false);
+          setLastRecordedAt(null);
+        }
       }
     } catch (error: unknown) {
       console.error('Error loading symptoms:', error instanceof Error ? error.message : String(error));
@@ -453,8 +476,18 @@ export default function TrackScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView 
-        style={styles.content} 
+      {isStale && (
+        <View style={styles.staleBanner}>
+          <Text style={styles.staleBannerText}>
+            {'⚠️ Health data hasn\'t synced in 48+ hours'}
+            {lastRecordedAt ? ` — last update ${formatRelativeTime(lastRecordedAt)}` : ''}
+            {'. Check your device connection.'}
+          </Text>
+        </View>
+      )}
+
+      <ScrollView
+        style={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -1038,6 +1071,20 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Medium',
     color: '#EF4444',
     textAlign: 'center',
+  },
+  staleBanner: {
+    backgroundColor: '#FFF3CD',
+    borderColor: '#FFC107',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    marginHorizontal: 16,
+    marginBottom: 8,
+  },
+  staleBannerText: {
+    color: '#856404',
+    fontSize: 13,
+    lineHeight: 18,
   },
   // Modal styles - Figma design & Nuralix theme (#003543 primary, #EB9C0C accent)
   modalContainer: {

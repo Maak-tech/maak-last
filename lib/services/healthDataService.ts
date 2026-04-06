@@ -7,6 +7,25 @@ import { authClient } from "@/lib/authClient";
 import type { VitalSign } from "@/types";
 import { safeFormatNumber } from "@/utils/dateFormat";
 import { appleHealthService } from "./appleHealthService";
+import { offlineService } from "./offlineService";
+
+/** Returns true when the error is a network-connectivity failure rather than
+ *  a server-side rejection.  We use this to decide whether to fall back to the
+ *  offline queue instead of propagating the error to the caller. */
+function isNetworkError(err: unknown): boolean {
+  if (err instanceof Error) {
+    const msg = err.message.toLowerCase();
+    return (
+      msg.includes('network') ||
+      msg.includes('fetch') ||
+      msg.includes('econnrefused') ||
+      msg.includes('timeout') ||
+      msg.includes('aborted') ||
+      (err as { status?: number }).status === 0
+    );
+  }
+  return false;
+}
 
 // iOS HealthKit permissions - correct format for react-native-health
 const HealthKitPermissions = {
@@ -506,15 +525,56 @@ export const healthDataService = {
     }
   },
 
-  // Sync health data (store locally and/or send to server)
+  // Sync health data — stores locally then forwards to the REST API.
+  // If the device is offline (or the request times out) the vital is queued
+  // via offlineService so it will be uploaded automatically when connectivity
+  // is restored.
   async syncHealthData(): Promise<void> {
     try {
       const vitals = await this.getLatestVitals();
       if (!vitals) return;
 
-      // Store locally
+      // Always persist to AsyncStorage first so the UI can render offline
       await AsyncStorage.setItem(HEALTH_DATA_STORAGE_KEY, JSON.stringify(vitals));
-      
+
+      // Build the REST body for POST /api/health/vitals
+      const vitalData = {
+        type: 'heartRate',
+        value: vitals.heartRate ?? 0,
+        unit: 'bpm',
+        recordedAt: vitals.timestamp instanceof Date
+          ? vitals.timestamp.toISOString()
+          : new Date(vitals.timestamp).toISOString(),
+        source: 'healthkit',
+        metadata: {
+          steps: vitals.steps,
+          sleepHours: vitals.sleepHours,
+          weight: vitals.weight,
+          bloodPressure: vitals.bloodPressure,
+          oxygenSaturation: vitals.oxygenSaturation,
+          bodyTemperature: vitals.bodyTemperature,
+        },
+      };
+
+      try {
+        await api.post('/api/health/vitals', vitalData);
+      } catch (apiErr: unknown) {
+        if (isNetworkError(apiErr)) {
+          // Device is offline — queue for deferred upload
+          await offlineService.queueOperation({
+            type: 'create',
+            collection: 'vitals',
+            data: vitalData,
+          });
+          console.info('[healthDataService] Vital queued offline — will sync when connected');
+        } else {
+          // Server-side error (4xx / 5xx) — log but do not crash the sync flow
+          console.warn(
+            '[healthDataService] Vital upload failed (server error):',
+            apiErr instanceof Error ? apiErr.message : String(apiErr)
+          );
+        }
+      }
     } catch (error: unknown) {
       console.error('Error syncing health data:', error instanceof Error ? error.message : String(error));
     }

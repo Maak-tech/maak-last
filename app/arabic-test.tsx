@@ -1,9 +1,14 @@
 import { ScrollView, StyleSheet, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Redirect } from "expo-router";
 import { ArabicText } from "@/components/ArabicText";
 import { arabicText } from "@/lib/arabicText";
 
 export default function ArabicTestScreen() {
+  if (!__DEV__) {
+    return <Redirect href="/" />;
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.content}>

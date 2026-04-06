@@ -60,15 +60,15 @@ export const emergencyRoutes = new Elysia({ prefix: "/api/emergency" })
     "/sms",
     async ({ db, userId, body, set }) => {
       // ── Rate limit ────────────────────────────────────────────────────────────
-      const rl = emergencySmsRateLimiter.check(userId);
+      const rl = await emergencySmsRateLimiter.check(userId);
       if (!rl.allowed) {
-        const retryAfterSecs = Math.ceil((rl.resetAt - Date.now()) / 1000);
+        const retryAfterSecs = Math.ceil(rl.resetIn / 1000);
         set.status = 429;
         set.headers = {
           "Retry-After": String(retryAfterSecs),
           "X-RateLimit-Limit": "3",
           "X-RateLimit-Remaining": "0",
-          "X-RateLimit-Reset": String(rl.resetAt),
+          "X-RateLimit-Reset": String(Date.now() + rl.resetIn),
         };
         return {
           ok: false,
@@ -83,6 +83,7 @@ export const emergencyRoutes = new Elysia({ prefix: "/api/emergency" })
           name: users.name,
           emergencyContactName: users.emergencyContactName,
           emergencyContactPhone: users.emergencyContactPhone,
+          emergencyContacts: users.emergencyContacts,
         })
         .from(users)
         .where(eq(users.id, userId))
@@ -93,7 +94,15 @@ export const emergencyRoutes = new Elysia({ prefix: "/api/emergency" })
         return { ok: false, error: "User not found" };
       }
 
-      const contactPhone = user.emergencyContactPhone;
+      // Resolve contact phone: prefer legacy single-contact field, then fall back
+      // to the new emergencyContacts JSONB array (primary first, then first entry).
+      let contactPhone = user.emergencyContactPhone;
+      if (!contactPhone && user.emergencyContacts) {
+        const contacts = user.emergencyContacts as Array<{ phone: string; isPrimary?: boolean }>;
+        const primary = contacts.find((c) => c.isPrimary) ?? contacts[0];
+        contactPhone = primary?.phone ?? null;
+      }
+
       if (!contactPhone) {
         set.status = 422;
         return { ok: false, error: "No emergency contact phone configured" };

@@ -19,13 +19,12 @@ import {
   Plus,
   Clock,
   Bell,
-  Check,
   X,
   Pill,
   Edit,
   Trash2,
-  Minus,
 } from 'lucide-react-native';
+import { api } from '@/lib/apiClient';
 import { medicationService } from '@/lib/services/medicationService';
 import { userService } from '@/lib/services/userService';
 import { Medication, MedicationReminder, User as UserType } from '@/types';
@@ -41,6 +40,10 @@ const FREQUENCY_OPTIONS = [
   { key: 'meals', labelEn: 'With meals', labelAr: 'مع الوجبات' },
   { key: 'needed', labelEn: 'As needed', labelAr: 'عند الحاجة' },
 ];
+
+const PRESET_TIMES = ['07:00', '08:00', '09:00', '12:00', '14:00', '18:00', '21:00', '22:00'];
+const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+const MINUTE_OPTIONS = ['00', '15', '30', '45'];
 
 export default function MedicationsScreen() {
   const { t, i18n } = useTranslation();
@@ -66,6 +69,8 @@ export default function MedicationsScreen() {
     label: '',
   });
   const [selectedTargetUser, setSelectedTargetUser] = useState<string>('');
+  const [customHour, setCustomHour] = useState('08');
+  const [customMinute, setCustomMinute] = useState('00');
 
   const isRTL = i18n.language === 'ar';
   const isAdmin = user?.role === 'admin';
@@ -184,6 +189,24 @@ export default function MedicationsScreen() {
       return;
     }
 
+    const reminderTimes = newMedication.reminders
+      .map((r) => r.time)
+      .filter((tm) => tm && tm.match(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/));
+
+    const fireScheduleReminders = async (medicationId: string) => {
+      if (reminderTimes.length === 0) return;
+      try {
+        await import('@/lib/apiClient').then(({ api }) =>
+          api.post('/api/health/medications/schedule-reminders', {
+            medicationId,
+            reminderTimes,
+          })
+        );
+      } catch {
+        // Non-blocking — scheduling failures should not interrupt the UX
+      }
+    };
+
     try {
       setLoading(true);
 
@@ -207,6 +230,7 @@ export default function MedicationsScreen() {
           editingMedication.id,
           updateData
         );
+        fireScheduleReminders(editingMedication.id);
         setEditingMedication(null);
       } else {
         // Add new medication
@@ -228,15 +252,59 @@ export default function MedicationsScreen() {
           isActive: true,
         };
 
+        let newMedicationId: string;
+        let allergyWarning: string | null = null;
         if (isAdmin && targetUserId !== user.id) {
-          // Admin adding medication for another family member
-          await medicationService.addMedicationForUser(
-            medicationData,
-            targetUserId
-          );
+          // Admin adding medication for another family member — capture full API response
+          const result = await api.post<{ id: string; allergyWarning?: string | null }>('/api/health/medications', {
+            name: medicationData.name,
+            userId: targetUserId,
+            dosage: medicationData.dosage,
+            frequency: medicationData.frequency,
+            startDate: medicationData.startDate?.toISOString(),
+            reminders: medicationData.reminders,
+            notes: medicationData.notes,
+            isActive: true,
+          });
+          newMedicationId = result.id;
+          allergyWarning = result.allergyWarning ?? null;
         } else {
-          // User adding medication for themselves
-          await medicationService.addMedication(medicationData);
+          // User adding medication for themselves — capture full API response
+          const result = await api.post<{ id: string; allergyWarning?: string | null }>('/api/health/medications', {
+            name: medicationData.name,
+            userId: medicationData.userId,
+            dosage: medicationData.dosage,
+            frequency: medicationData.frequency,
+            startDate: medicationData.startDate?.toISOString(),
+            reminders: medicationData.reminders,
+            notes: medicationData.notes,
+            isActive: true,
+          });
+          newMedicationId = result.id;
+          allergyWarning = result.allergyWarning ?? null;
+        }
+        fireScheduleReminders(newMedicationId);
+
+        // Show allergy warning if the API flagged one
+        if (allergyWarning) {
+          const capturedId = newMedicationId;
+          Alert.alert(
+            '⚠️ Allergy Warning',
+            allergyWarning,
+            [
+              { text: 'I understand', style: 'default' },
+              {
+                text: 'Remove Medication',
+                style: 'destructive',
+                onPress: () => {
+                  medicationService.deleteMedication(capturedId).catch((err: unknown) => {
+                    console.error('[medications] Failed to remove medication after allergy warning:', err instanceof Error ? err.message : String(err));
+                  });
+                  loadMedications();
+                },
+              },
+            ]
+          );
         }
       }
 
@@ -245,9 +313,11 @@ export default function MedicationsScreen() {
         name: '',
         dosage: '',
         frequency: '',
-        reminders: [{ time: '' }],
+        reminders: [],
         notes: '',
       });
+      setCustomHour('08');
+      setCustomMinute('00');
       setSelectedTargetUser('');
       setShowAddModal(false);
 
@@ -455,9 +525,11 @@ export default function MedicationsScreen() {
               name: '',
               dosage: '',
               frequency: '',
-              reminders: [{ time: '' }], // Start with one empty reminder
+              reminders: [],
               notes: '',
             });
+            setCustomHour('08');
+            setCustomMinute('00');
             setSelectedTargetUser(user.id);
             setShowAddModal(true);
           }}
@@ -589,6 +661,22 @@ export default function MedicationsScreen() {
                           {getNextDoseText(medication)}
                         </Text>
                       </View>
+                      {Array.isArray(medication.reminders) &&
+                        medication.reminders.length > 0 && (
+                          <View style={styles.medicationTime}>
+                            <Bell size={12} color="#6366F1" />
+                            <Text
+                              style={[
+                                styles.medicationReminderTimesText,
+                                isRTL && styles.rtlText,
+                              ]}
+                            >
+                              {medication.reminders
+                                .map((r) => r.time)
+                                .join(' · ')}
+                            </Text>
+                          </View>
+                        )}
                     </View>
                   </View>
 
@@ -674,9 +762,11 @@ export default function MedicationsScreen() {
                   name: '',
                   dosage: '',
                   frequency: '',
-                  reminders: [{ time: '' }],
+                  reminders: [],
                   notes: '',
                 });
+                setCustomHour('08');
+                setCustomMinute('00');
               }}
               style={styles.closeButton}
             >
@@ -806,55 +896,117 @@ export default function MedicationsScreen() {
               </View>
             </View>
 
-            {/* Reminders */}
+            {/* Reminder Times */}
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {t('reminders')} *
+                {isRTL ? 'أوقات التذكير' : 'Reminder Times'} *
               </Text>
-              <View style={styles.remindersList}>
-                {newMedication.reminders.map((reminder, index) => (
-                  <View key={`reminder-${reminder.time || index}-${index}`} style={styles.reminderItem}>
-                    <TextInput
-                      style={[styles.reminderInput, isRTL && styles.rtlInput]}
-                      value={reminder.time}
-                      onChangeText={(text) =>
-                        setNewMedication({
-                          ...newMedication,
-                          reminders: newMedication.reminders.map((r, i) =>
-                            i === index ? { ...r, time: text } : r
-                          ),
-                        })
-                      }
-                      placeholder={isRTL ? 'مثال: 08:00' : 'e.g., 08:00'}
-                      textAlign={isRTL ? 'right' : 'left'}
-                    />
+
+              {/* Preset time buttons */}
+              <View style={styles.presetTimesGrid}>
+                {PRESET_TIMES.map((pt) => {
+                  const alreadyAdded = newMedication.reminders.some((r) => r.time === pt);
+                  return (
                     <TouchableOpacity
-                      style={styles.removeButton}
-                      onPress={() =>
-                        setNewMedication({
-                          ...newMedication,
-                          reminders: newMedication.reminders.filter(
-                            (_, i) => i !== index
-                          ),
-                        })
-                      }
+                      key={pt}
+                      style={[
+                        styles.presetTimeChip,
+                        alreadyAdded && styles.presetTimeChipSelected,
+                      ]}
+                      onPress={() => {
+                        if (alreadyAdded) {
+                          setNewMedication({
+                            ...newMedication,
+                            reminders: newMedication.reminders.filter((r) => r.time !== pt),
+                          });
+                        } else {
+                          setNewMedication({
+                            ...newMedication,
+                            reminders: [...newMedication.reminders, { time: pt }],
+                          });
+                        }
+                      }}
                     >
-                      <Minus size={16} color="#64748B" />
+                      <Text
+                        style={[
+                          styles.presetTimeChipText,
+                          alreadyAdded && styles.presetTimeChipTextSelected,
+                        ]}
+                      >
+                        {pt}
+                      </Text>
                     </TouchableOpacity>
-                  </View>
-                ))}
+                  );
+                })}
               </View>
-              <TouchableOpacity
-                style={styles.addButton}
-                onPress={() =>
-                  setNewMedication({
-                    ...newMedication,
-                    reminders: [...newMedication.reminders, { time: '' }],
-                  })
-                }
-              >
-                <Plus size={24} color="#64748B" />
-              </TouchableOpacity>
+
+              {/* Custom time row */}
+              <View style={styles.customTimeRow}>
+                {/* Hour selector */}
+                <TouchableOpacity
+                  style={styles.timeSegmentButton}
+                  onPress={() => {
+                    const idx = HOUR_OPTIONS.indexOf(customHour);
+                    setCustomHour(HOUR_OPTIONS[(idx + 1) % HOUR_OPTIONS.length]);
+                  }}
+                >
+                  <Text style={styles.timeSegmentText}>{customHour}</Text>
+                </TouchableOpacity>
+                <Text style={styles.timeColon}>:</Text>
+                {/* Minute selector */}
+                <TouchableOpacity
+                  style={styles.timeSegmentButton}
+                  onPress={() => {
+                    const idx = MINUTE_OPTIONS.indexOf(customMinute);
+                    setCustomMinute(MINUTE_OPTIONS[(idx + 1) % MINUTE_OPTIONS.length]);
+                  }}
+                >
+                  <Text style={styles.timeSegmentText}>{customMinute}</Text>
+                </TouchableOpacity>
+                {/* Add custom time */}
+                <TouchableOpacity
+                  style={styles.addTimeButton}
+                  onPress={() => {
+                    const timeStr = `${customHour}:${customMinute}`;
+                    if (!newMedication.reminders.some((r) => r.time === timeStr)) {
+                      setNewMedication({
+                        ...newMedication,
+                        reminders: [...newMedication.reminders, { time: timeStr }],
+                      });
+                    }
+                  }}
+                >
+                  <Plus size={14} color="#2563EB" />
+                  <Text style={styles.addTimeButtonText}>
+                    {isRTL ? '+ إضافة وقت' : '+ Add Time'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Selected time chips */}
+              {newMedication.reminders.length > 0 && (
+                <View style={styles.selectedTimesRow}>
+                  {newMedication.reminders.map((reminder, index) => (
+                    <View
+                      key={`chip-${reminder.time}-${index}`}
+                      style={styles.selectedTimeChip}
+                    >
+                      <Text style={styles.selectedTimeChipText}>{reminder.time}</Text>
+                      <TouchableOpacity
+                        onPress={() =>
+                          setNewMedication({
+                            ...newMedication,
+                            reminders: newMedication.reminders.filter((_, i) => i !== index),
+                          })
+                        }
+                        hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                      >
+                        <X size={12} color="#2563EB" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
 
             {/* Notes */}
@@ -1282,5 +1434,103 @@ const styles = StyleSheet.create({
   memberRoleSelected: {
     color: '#2563EB',
     backgroundColor: '#EBF4FF',
+  },
+  // Reminder times on card
+  medicationReminderTimesText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Regular',
+    color: '#6366F1',
+  },
+  // Preset time picker
+  presetTimesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  presetTimeChip: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#FFFFFF',
+  },
+  presetTimeChipSelected: {
+    backgroundColor: '#2563EB',
+    borderColor: '#2563EB',
+  },
+  presetTimeChipText: {
+    fontSize: 13,
+    fontFamily: 'Inter-Medium',
+    color: '#374151',
+  },
+  presetTimeChipTextSelected: {
+    color: '#FFFFFF',
+  },
+  // Custom time row
+  customTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  timeSegmentButton: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#FFFFFF',
+    minWidth: 52,
+    alignItems: 'center',
+  },
+  timeSegmentText: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: '#1E293B',
+  },
+  timeColon: {
+    fontSize: 18,
+    fontFamily: 'Inter-Bold',
+    color: '#374151',
+  },
+  addTimeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#2563EB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#EBF4FF',
+  },
+  addTimeButtonText: {
+    fontSize: 13,
+    fontFamily: 'Inter-Medium',
+    color: '#2563EB',
+  },
+  // Selected time chips
+  selectedTimesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  selectedTimeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: '#EBF4FF',
+  },
+  selectedTimeChipText: {
+    fontSize: 13,
+    fontFamily: 'Inter-Medium',
+    color: '#1D4ED8',
   },
 });

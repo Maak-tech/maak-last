@@ -1,3 +1,5 @@
+// TODO(i18n): 108 inline RTL/language ternaries — migrate to t() keys
+// See: https://github.com/your-org/nuralix/issues/XXX
 /* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: legacy profile screen with many sections and handlers. */
 /* biome-ignore-all lint/style/noNestedTernary: existing localized UI branches retained for this batch. */
 /* biome-ignore-all lint/nursery/noLeakedRender: incremental JSX cleanup in progress. */
@@ -531,6 +533,14 @@ export default function ProfileScreen() {
 
   const handlePrivacyPolicy = () => {
     router.push('/profile/privacy-policy');
+  };
+
+  const handleExportData = () => {
+    router.push('/profile/export-data');
+  };
+
+  const handleDeleteAccount = () => {
+    router.push('/profile/delete-account');
   };
 
   const handleLogout = () => {
@@ -1127,6 +1137,11 @@ export default function ProfileScreen() {
           label: isRTL ? 'سياسة الخصوصية' : 'Privacy Policy',
           onPress: handlePrivacyPolicy,
         },
+        {
+          icon: FileText,
+          label: isRTL ? 'تصدير بياناتي' : 'Export My Data',
+          onPress: handleExportData,
+        },
       ],
     },
   ];
@@ -1310,6 +1325,36 @@ export default function ProfileScreen() {
             </View>
           </View>
         ))}
+
+        {/* Danger Zone */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, isRTL && styles.rtlText, { color: '#EF4444' }]}>
+            {isRTL ? 'منطقة الخطر' : 'Danger Zone'}
+          </Text>
+          <View style={styles.sectionItems}>
+            <TouchableOpacity
+              style={[styles.sectionItem, styles.lastSectionItem]}
+              onPress={handleDeleteAccount}
+            >
+              <View style={styles.sectionItemLeft}>
+                <View style={styles.sectionItemIcon}>
+                  <Trash2 size={20} color="#EF4444" />
+                </View>
+                <Text
+                  style={[styles.sectionItemLabel, { color: '#EF4444' }, isRTL && styles.rtlText]}
+                  numberOfLines={1}
+                >
+                  {isRTL ? 'حذف الحساب' : 'Delete Account'}
+                </Text>
+              </View>
+              <ChevronRight
+                size={16}
+                color="#EF4444"
+                style={[isRTL && { transform: [{ rotate: '180deg' }] }]}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {/* Sign Out Button */}
         <TouchableOpacity style={styles.signOutButton} onPress={handleLogout}>

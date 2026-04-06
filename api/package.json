@@ -11,10 +11,13 @@
     "db:migrate": "bun run src/db/migrate.ts",
     "db:studio": "drizzle-kit studio",
     "migrate:firestore": "bun run src/scripts/migrate.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "bun test src/__tests__/",
+    "test:watch": "bun test --watch src/__tests__/"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.800.0",
+    "ioredis": "^5.0.0",
     "@aws-sdk/s3-request-presigner": "^3.800.0",
     "@better-auth/expo": "^1.2.0",
     "@better-auth/infra": "latest",
@@ -25,10 +28,15 @@
     "better-auth": "^1.2.0",
     "drizzle-orm": "^0.41.0",
     "elysia": "^1.2.25",
+    "pino": "^9.0.0",
+    "pino-pretty": "^11.0.0",
+    "@sentry/node": "^8.0.0",
+    "pg": "^8.13.3",
     "postgres": "^3.4.5"
   },
   "devDependencies": {
     "@types/bun": "^1.2.0",
+    "@types/pg": "^8.11.11",
     "drizzle-kit": "^0.30.0",
     "firebase-admin": "^13.0.0",
     "typescript": "^5.9.2"

@@ -1,7 +1,10 @@
 import { Elysia, t } from "elysia";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import crypto from "node:crypto";
 import { requireAuth } from "../middleware/requireAuth";
+import { requirePremium } from "../middleware/requirePremium.js";
+import { logger } from "../lib/logger.js";
+import { openAICircuitBreaker } from "../lib/circuitBreaker.js";
 import { vhi, noraConversations, vitals, symptoms, moods, medications } from "../db/schema";
 import { chatRateLimiter, completionRateLimiter, realtimeSessionRateLimiter, transcribeRateLimiter } from "../lib/rateLimiter";
 import type { Database } from "../db";
@@ -18,7 +21,7 @@ async function userHasHealthData(db: Database, userId: string): Promise<boolean>
     db.select({ id: vitals.id }).from(vitals).where(eq(vitals.userId, userId)).limit(1),
     db.select({ id: symptoms.id }).from(symptoms).where(eq(symptoms.userId, userId)).limit(1),
     db.select({ id: moods.id }).from(moods).where(eq(moods.userId, userId)).limit(1),
-    db.select({ id: medications.id }).from(medications).where(eq(medications.userId, userId)).limit(1),
+    db.select({ id: medications.id }).from(medications).where(and(eq(medications.userId, userId), isNull(medications.deletedAt))).limit(1),
   ]);
   return v.length > 0 || s.length > 0 || m.length > 0 || med.length > 0;
 }
@@ -38,15 +41,15 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
       }
 
       // Per-user rate limiting — 20 GPT-4o calls / user / minute
-      const rl = chatRateLimiter.check(userId);
+      const rl = await chatRateLimiter.check(userId);
       if (!rl.allowed) {
-        const retryAfterSecs = Math.ceil((rl.resetAt - Date.now()) / 1000);
+        const retryAfterSecs = Math.ceil(rl.resetIn / 1000);
         set.status = 429;
         set.headers = {
           "Retry-After": String(retryAfterSecs),
           "X-RateLimit-Limit": "20",
           "X-RateLimit-Remaining": "0",
-          "X-RateLimit-Reset": String(Math.ceil(rl.resetAt / 1000)),
+          "X-RateLimit-Reset": String(Math.ceil((Date.now() + rl.resetIn) / 1000)),
         };
         return { error: "Too many requests. Please wait before sending another message.", retryAfter: retryAfterSecs };
       }
@@ -98,59 +101,78 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
           : (!hasData ? "" : "No VHI data available yet. Ask the user to log some health data first."),
       ].join("\n");
 
-      // Call OpenAI
-      let openaiRes: Response;
-      try {
-        openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "gpt-4o",
-            messages: [
-              { role: "system", content: systemPrompt },
-              ...(body.history ?? []),
-              { role: "user", content: body.message },
-            ],
-            max_tokens: 600,
-            temperature: 0.7,
-          }),
-          signal: AbortSignal.timeout(30_000), // 30-second ceiling
-        });
-      } catch (fetchErr: unknown) {
-        const isTimeout = fetchErr instanceof Error && fetchErr.name === "TimeoutError";
-        console.error("[nora/chat] OpenAI fetch failed:", fetchErr instanceof Error ? fetchErr.message : String(fetchErr));
-        set.status = 504;
-        return { error: isTimeout ? "AI service timed out. Please try again." : "AI service unreachable. Please try again." };
-      }
+      // Call OpenAI — wrapped in a graceful fallback so network/service errors
+      // return a chat-shaped 200 instead of a 5xx crash visible to the mobile client.
+      const conversationIdEarly = body.conversationId ?? crypto.randomUUID();
+      let reply: string;
 
-      // Propagate OpenAI errors to the caller with the correct HTTP status
-      if (!openaiRes.ok) {
-        const errText = await openaiRes.text().catch(() => "(unreadable)");
-        if (openaiRes.status === 429) {
-          set.status = 429;
-          return { error: "AI quota exceeded. Please try again in a moment." };
-        }
-        if (openaiRes.status === 401) {
-          set.status = 503;
-          return { error: "AI service is not configured. Contact support." };
-        }
-        console.error("[nora/chat] OpenAI error:", openaiRes.status, errText);
-        set.status = 502;
-        return { error: "AI service temporarily unavailable. Please try again." };
-      }
+      // Circuit breaker: skip OpenAI entirely while the circuit is open
+      if (openAICircuitBreaker.isOpen) {
+        logger.warn({ requestId: conversationIdEarly }, '[Nora] OpenAI circuit open — returning fallback response')
+        reply = "I'm temporarily unavailable due to a service disruption. Please try again in a few minutes. If this is urgent, please contact your care team directly."
+      } else {
+        try {
+          const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "gpt-4o",
+              messages: [
+                { role: "system", content: systemPrompt },
+                ...(body.history ?? []),
+                { role: "user", content: body.message },
+              ],
+              max_tokens: 600,
+              temperature: 0.7,
+            }),
+            signal: AbortSignal.timeout(30_000), // 30-second ceiling
+          });
 
-      const data = (await openaiRes.json()) as {
-        choices: Array<{ message: { content: string } }>;
-      };
-      const reply =
-        data.choices[0]?.message?.content ??
-        "I'm unable to respond right now. Please try again.";
+          if (!openaiRes.ok) {
+            const errText = await openaiRes.text().catch(() => "(unreadable)");
+            const isRateLimit = openaiRes.status === 429;
+            const isServiceError = openaiRes.status === 503 || openaiRes.status === 502 || openaiRes.status === 401;
+            logger.error({ status: openaiRes.status, body: errText.slice(0, 300) }, "[nora/chat] OpenAI error");
+            if (isRateLimit || isServiceError) {
+              openAICircuitBreaker.recordFailure()
+            }
+            reply = isRateLimit || isServiceError
+              ? "I'm having a bit of trouble connecting right now. Your health data is safe — please try asking me again in a moment."
+              : "Something went wrong on my end. Please try again. If the problem persists, your care team is always available.";
+          } else {
+            const data = (await openaiRes.json()) as {
+              choices: Array<{ message: { content: string } }>;
+            };
+            reply =
+              data.choices[0]?.message?.content ??
+              "I'm unable to respond right now. Please try again.";
+            openAICircuitBreaker.recordSuccess()
+          }
+        } catch (err: unknown) {
+          const isServiceUnavailable =
+            err instanceof Error &&
+            (err.name === "TimeoutError" ||
+              err.message.includes("503") ||
+              err.message.includes("timeout") ||
+              err.message.includes("ECONNREFUSED") ||
+              err.message.includes("rate_limit") ||
+              (err as { status?: number }).status === 503 ||
+              (err as { status?: number }).status === 429);
+
+          logger.error({ err }, "[nora/chat] OpenAI call failed");
+          openAICircuitBreaker.recordFailure()
+
+          reply = isServiceUnavailable
+            ? "I'm having a bit of trouble connecting right now. Your health data is safe — please try asking me again in a moment."
+            : "Something went wrong on my end. Please try again. If the problem persists, your care team is always available.";
+        }
+      }
 
       // Persist conversation (async, non-blocking)
-      const conversationId = body.conversationId ?? crypto.randomUUID();
+      const conversationId = conversationIdEarly;
       const now = new Date().toISOString();
 
       const rawMessages = [
@@ -186,7 +208,7 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
         })
         .catch((err: unknown) => {
           // Log with context so errors are actionable in Railway logs
-          console.error(`[nora] Failed to persist conversation ${conversationId}:`, err instanceof Error ? err.message : String(err));
+          logger.error({ conversationId, err }, "[nora] Failed to persist conversation");
         });
 
       return { reply, conversationId };
@@ -299,15 +321,15 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
     "/complete",
     async ({ body, set, userId }) => {
       // Per-user rate limiting — 30 completions / user / minute
-      const rl = completionRateLimiter.check(userId);
+      const rl = await completionRateLimiter.check(userId);
       if (!rl.allowed) {
-        const retryAfterSecs = Math.ceil((rl.resetAt - Date.now()) / 1000);
+        const retryAfterSecs = Math.ceil(rl.resetIn / 1000);
         set.status = 429;
         set.headers = {
           "Retry-After": String(retryAfterSecs),
           "X-RateLimit-Limit": "30",
           "X-RateLimit-Remaining": "0",
-          "X-RateLimit-Reset": String(Math.ceil(rl.resetAt / 1000)),
+          "X-RateLimit-Reset": String(Math.ceil((Date.now() + rl.resetIn) / 1000)),
         };
         return { error: "Too many requests. Please wait before sending another completion.", retryAfter: retryAfterSecs };
       }
@@ -317,54 +339,78 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
         return { error: "AI service is not configured. Set OPENAI_API_KEY and redeploy." };
       }
 
-      let response: Response;
-      try {
-        response = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: body.model ?? "gpt-3.5-turbo",
-            messages: body.messages,
-            max_tokens: body.maxTokens ?? 1000,
-            temperature: body.temperature ?? 0.7,
-          }),
-          signal: AbortSignal.timeout(30_000), // 30-second ceiling — same as /chat
-        });
-      } catch (fetchErr: unknown) {
-        const isTimeout = fetchErr instanceof Error && fetchErr.name === "TimeoutError";
-        console.error("[nora/complete] OpenAI fetch failed:", fetchErr instanceof Error ? fetchErr.message : String(fetchErr));
-        set.status = 504;
-        return { error: isTimeout ? "AI service timed out." : "AI service unreachable." };
-      }
+      // Call OpenAI — graceful fallback returns a 200 with a safe content string
+      // so callers receive a usable response even when the service is degraded.
+      let completionContent: string;
 
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => "(unreadable)");
-        if (response.status === 429) {
-          set.status = 429;
-          return { error: "AI quota exceeded. Please try again later." };
+      // Circuit breaker: skip OpenAI entirely while the circuit is open
+      if (openAICircuitBreaker.isOpen) {
+        logger.warn({ userId }, '[Nora/complete] OpenAI circuit open — returning fallback response')
+        completionContent = "I'm temporarily unavailable due to a service disruption. Please try again in a few minutes. If this is urgent, please contact your care team directly."
+      } else {
+        try {
+          const response = await fetch("https://api.openai.com/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: body.model ?? "gpt-3.5-turbo",
+              messages: body.messages,
+              max_tokens: body.maxTokens ?? 1000,
+              temperature: body.temperature ?? 0.7,
+            }),
+            signal: AbortSignal.timeout(30_000), // 30-second ceiling — same as /chat
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text().catch(() => "(unreadable)");
+            const isRateLimit = response.status === 429;
+            const isServiceError = response.status === 503 || response.status === 502 || response.status === 401;
+            logger.error({ status: response.status, body: errorText.slice(0, 300) }, "[nora/complete] OpenAI error");
+            if (isRateLimit || isServiceError) {
+              openAICircuitBreaker.recordFailure()
+            }
+            completionContent = isRateLimit || isServiceError
+              ? "I'm having a bit of trouble connecting right now. Please try again in a moment."
+              : "Something went wrong on my end. Please try again. If the problem persists, your care team is always available.";
+          } else {
+            const data = (await response.json()) as {
+              choices: Array<{ message: { content: string } }>;
+            };
+            completionContent = data.choices[0]?.message?.content ?? "";
+            if (typeof completionContent !== "string") {
+              logger.error("[nora/complete] Unexpected response format from OpenAI");
+              completionContent = "I'm unable to respond right now. Please try again.";
+            } else {
+              openAICircuitBreaker.recordSuccess()
+            }
+          }
+        } catch (err: unknown) {
+          const isServiceUnavailable =
+            err instanceof Error &&
+            (err.name === "TimeoutError" ||
+              err.message.includes("503") ||
+              err.message.includes("timeout") ||
+              err.message.includes("ECONNREFUSED") ||
+              err.message.includes("rate_limit") ||
+              (err as { status?: number }).status === 503 ||
+              (err as { status?: number }).status === 429);
+
+          logger.error(
+            { err },
+            "[nora/complete] OpenAI call failed"
+          );
+          openAICircuitBreaker.recordFailure()
+
+          completionContent = isServiceUnavailable
+            ? "I'm having a bit of trouble connecting right now. Please try again in a moment."
+            : "Something went wrong on my end. Please try again. If the problem persists, your care team is always available.";
         }
-        if (response.status === 401) {
-          set.status = 503;
-          return { error: "AI service is not configured. Contact support." };
-        }
-        console.error("[nora/complete] OpenAI error:", errorText);
-        set.status = 502;
-        return { error: "AI service unavailable. Please try again." };
       }
 
-      const data = (await response.json()) as {
-        choices: Array<{ message: { content: string } }>;
-      };
-      const content = data.choices[0]?.message?.content;
-      if (typeof content !== "string") {
-        set.status = 502;
-        return { error: "Invalid response format from AI service" };
-      }
-
-      return { content };
+      return { content: completionContent };
     },
     {
       body: t.Object({
@@ -396,15 +442,15 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
     async ({ body, set, userId }) => {
       // Per-user rate limiting — 10 transcriptions / user / minute
       // Whisper is billed per second of audio; tighter limit prevents cost abuse.
-      const rl = transcribeRateLimiter.check(userId);
+      const rl = await transcribeRateLimiter.check(userId);
       if (!rl.allowed) {
-        const retryAfterSecs = Math.ceil((rl.resetAt - Date.now()) / 1000);
+        const retryAfterSecs = Math.ceil(rl.resetIn / 1000);
         set.status = 429;
         set.headers = {
           "Retry-After": String(retryAfterSecs),
           "X-RateLimit-Limit": "10",
           "X-RateLimit-Remaining": "0",
-          "X-RateLimit-Reset": String(Math.ceil(rl.resetAt / 1000)),
+          "X-RateLimit-Reset": String(Math.ceil((Date.now() + rl.resetIn) / 1000)),
         };
         return { error: "Too many transcription requests. Please wait before sending another.", retryAfter: retryAfterSecs };
       }
@@ -426,6 +472,13 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
         formData.append("language", body.language);
       }
 
+      // Circuit breaker: skip Whisper entirely while the circuit is open
+      if (openAICircuitBreaker.isOpen) {
+        logger.warn({ userId }, '[Nora/transcribe] OpenAI circuit open — rejecting transcription request')
+        set.status = 503;
+        return { error: "Transcription service temporarily unavailable. Please try again in a few minutes." };
+      }
+
       let response: Response;
       try {
         response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
@@ -439,17 +492,20 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
         });
       } catch (fetchErr: unknown) {
         const isTimeout = fetchErr instanceof Error && fetchErr.name === "TimeoutError";
-        console.error("[nora/transcribe] Whisper fetch failed:", fetchErr instanceof Error ? fetchErr.message : String(fetchErr));
+        logger.error({ err: fetchErr }, "[nora/transcribe] Whisper fetch failed");
+        openAICircuitBreaker.recordFailure()
         set.status = 504;
         return { error: isTimeout ? "Transcription timed out. Try a shorter clip." : "Transcription service unreachable." };
       }
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("[nora/transcribe] Whisper error:", errorText);
+        logger.error({ errorText }, "[nora/transcribe] Whisper error");
+        openAICircuitBreaker.recordFailure()
         set.status = 502;
         return { error: "Transcription service unavailable. Please try again." };
       }
+      openAICircuitBreaker.recordSuccess()
 
       const data = (await response.json()) as { text?: string };
       return { text: data.text ?? "" };
@@ -581,19 +637,33 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
   .post(
     "/realtime-session",
     async ({ body, userId, set }) => {
+      // Premium gate — Realtime voice sessions are a paid feature
+      const { allowed, reason } = await requirePremium(userId)
+      if (!allowed) {
+        set.status = 402  // Payment Required
+        return { error: reason ?? 'Premium subscription required', code: 'PREMIUM_REQUIRED' }
+      }
+
       // Per-user rate limiting — 5 Realtime session tokens / user / minute
       // (Realtime sessions are billed by the minute of audio)
-      const rl = realtimeSessionRateLimiter.check(userId);
+      const rl = await realtimeSessionRateLimiter.check(userId);
       if (!rl.allowed) {
-        const retryAfterSecs = Math.ceil((rl.resetAt - Date.now()) / 1000);
+        const retryAfterSecs = Math.ceil(rl.resetIn / 1000);
         set.status = 429;
         set.headers = {
           "Retry-After": String(retryAfterSecs),
           "X-RateLimit-Limit": "5",
           "X-RateLimit-Remaining": "0",
-          "X-RateLimit-Reset": String(Math.ceil(rl.resetAt / 1000)),
+          "X-RateLimit-Reset": String(Math.ceil((Date.now() + rl.resetIn) / 1000)),
         };
         return { error: "Too many session requests. Please wait before starting a new session.", retryAfter: retryAfterSecs };
+      }
+
+      // Circuit breaker: skip OpenAI entirely while the circuit is open
+      if (openAICircuitBreaker.isOpen) {
+        logger.warn({ userId }, '[Nora/realtime-session] OpenAI circuit open — rejecting realtime session request')
+        set.status = 503;
+        return { error: "Realtime AI service temporarily unavailable. Please try again in a few minutes." };
       }
 
       const model = body.model ?? "gpt-4o-realtime-preview-2024-12-17";
@@ -614,7 +684,8 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
         });
       } catch (fetchErr: unknown) {
         const isTimeout = fetchErr instanceof Error && fetchErr.name === "TimeoutError";
-        console.error("[nora/realtime-session] fetch failed:", fetchErr instanceof Error ? fetchErr.message : String(fetchErr));
+        logger.error({ err: fetchErr }, "[nora/realtime-session] fetch failed");
+        openAICircuitBreaker.recordFailure()
         set.status = 504;
         return { error: isTimeout ? "Realtime service timed out." : "Realtime service unreachable." };
       }
@@ -622,14 +693,17 @@ export const noraRoutes = new Elysia({ prefix: "/api/nora" })
       if (!response.ok) {
         const err = await response.text();
         if (response.status === 429) {
+          openAICircuitBreaker.recordFailure()
           set.status = 429;
           return { error: "AI quota exceeded. Please try again in a moment." };
         }
         // Truncate OpenAI error response — may echo back request context
-        console.error("[nora/realtime-session] OpenAI error:", response.status, String(err).slice(0, 200));
+        logger.error({ status: response.status, errorBody: String(err).slice(0, 200) }, "[nora/realtime-session] OpenAI error");
+        openAICircuitBreaker.recordFailure()
         set.status = 502;
         return { error: "Realtime service temporarily unavailable. Please try again." };
       }
+      openAICircuitBreaker.recordSuccess()
 
       const data = (await response.json()) as { client_secret?: { value: string; expires_at: number } };
       return {

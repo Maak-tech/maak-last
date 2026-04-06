@@ -1,3 +1,5 @@
+// TODO(i18n): 185 inline RTL/language ternaries — migrate to t() keys
+// See: https://github.com/your-org/nuralix/issues/XXX
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
