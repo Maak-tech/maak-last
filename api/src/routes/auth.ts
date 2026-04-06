@@ -40,6 +40,31 @@ export const authRoutes = new Elysia({ prefix: "/api/auth" })
       return { error: "Too many requests. Please try again later." };
     }
   })
+
+  // ── GET /api/auth/verify-session ─────────────────────────────────────────────
+  // Lightweight server-to-server token validation endpoint.
+  // Used exclusively by the hospital-dashboard server to confirm a patient's
+  // better-auth session before granting self-enrollment or QR token generation.
+  //
+  // Accepts both:
+  //   - Cookie-based sessions (browser / Expo @better-auth/expo cookie path)
+  //   - Bearer token sessions (Authorization: Bearer <session-token>)
+  //     The @better-auth/expo plugin enables Bearer token validation so the
+  //     mobile app's SecureStore token can be forwarded server-to-server.
+  //
+  // Returns: { id: string }  on success
+  //          { error: string } + 401 on invalid/expired session
+  //
+  // This route is registered BEFORE the wildcard /* so Elysia resolves it first.
+  .get("/verify-session", async ({ request, set }) => {
+    const session = await auth.api.getSession({ headers: request.headers });
+    if (!session) {
+      set.status = 401;
+      return { error: "Unauthorized" };
+    }
+    return { id: session.user.id };
+  })
+
   // Wildcard GET — handles session check, OAuth callbacks, and error pages
   .get("/*", async ({ request }) => {
     return auth.handler(request);

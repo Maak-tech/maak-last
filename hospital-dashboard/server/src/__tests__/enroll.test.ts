@@ -4,7 +4,7 @@
  * Covers plan verification items:
  *   #11 — POST /enroll with consentGiven: false → 400, no CompreFace call made
  *   #8  — DELETE /enroll/:patientId → is_active = false
- *   #4  — Patient self-enrollment (POST /enroll/self) requires a valid patient session
+ *   #4  — Patient self-enrollment (POST /enroll/self) validates via GET /api/auth/verify-session
  *
  * All external dependencies (DB, CompreFace, audit, main API) are stubbed.
  */

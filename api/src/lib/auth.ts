@@ -70,6 +70,17 @@ export const auth = betterAuth({
   trustedOrigins: [
     "https://app.nuralix.ai",
     "nuralix://", // Expo deep link scheme
+    // Local development origins — only active when NODE_ENV !== 'production'
+    ...(process.env.NODE_ENV !== "production"
+      ? [
+          "http://localhost:3000",
+          "http://localhost:3001",
+          "http://localhost:8081",
+          "http://localhost:19006",
+          "exp://localhost:8081",
+          "exp://127.0.0.1:8081",
+        ]
+      : []),
   ],
 });
 

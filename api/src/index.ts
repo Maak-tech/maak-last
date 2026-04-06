@@ -86,10 +86,23 @@ const app = new Elysia({
   .use(
     cors({
       origin: IS_PROD
-        ? ["https://app.nuralix.ai", "https://nuralix.ai"]
+        ? [
+            "https://app.nuralix.ai",
+            "https://nuralix.ai",
+            // Hospital web dashboard — needs to call the main API for staff-level patient lookups
+            "https://hospital.nuralix.ai",
+          ]
         // Explicit allowlist instead of `true` (reflect any origin) to prevent
         // credentialed cross-origin requests from arbitrary origins in dev/staging.
-        : ["http://localhost:3000", "http://localhost:8081", "http://localhost:19006", "exp://localhost:8081"],
+        : [
+            "http://localhost:3000",  // Next.js web / hospital dashboard
+            "http://localhost:3001",  // hospital server (server-to-server; listed for dev tools)
+            "http://localhost:3002",  // main API on alt port when running alongside web
+            "http://localhost:8081",  // Expo Metro bundler
+            "http://localhost:19006", // Expo web
+            "exp://localhost:8081",
+            "exp://127.0.0.1:8081",
+          ],
       credentials: true,
     })
   )

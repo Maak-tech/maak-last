@@ -68,7 +68,7 @@ qrRoutes.post('/patient/qr/generate', async (c) => {
   // Validate patient session and get their ID
   let patientId: string
   try {
-    const meRes = await fetch(`${mainApiUrl}/api/user/me`, {
+    const meRes = await fetch(`${mainApiUrl}/api/auth/verify-session`, {
       headers: { Authorization: authHeader },
       signal: AbortSignal.timeout(8_000),
     })

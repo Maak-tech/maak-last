@@ -168,9 +168,9 @@ enrollRoutes.delete('/enroll/:patientId', jwtAuth, requireRole('doctor', 'admin'
 
 // POST /enroll/self — patient self-enrollment via better-auth session token.
 // The patient's Bearer token is validated against the main Nuralix API
-// (MAIN_API_URL/api/user/me) to identify the patient without requiring a
-// hospital staff JWT. MAIN_API_URL must be configured in the hospital server's
-// environment variables.
+// (MAIN_API_URL/api/auth/verify-session) to identify the patient without
+// requiring a hospital staff JWT. MAIN_API_URL must be configured in the
+// hospital server's environment variables.
 enrollRoutes.post('/enroll/self', async (c) => {
   const authHeader = c.req.header('Authorization')
   if (!authHeader?.startsWith('Bearer ')) {
@@ -186,7 +186,7 @@ enrollRoutes.post('/enroll/self', async (c) => {
   // Validate the patient session by calling the main Nuralix API
   let patientId: string
   try {
-    const meRes = await fetch(`${mainApiUrl}/api/user/me`, {
+    const meRes = await fetch(`${mainApiUrl}/api/auth/verify-session`, {
       headers: { Authorization: authHeader },
       signal: AbortSignal.timeout(8_000),
     })
@@ -302,7 +302,7 @@ enrollRoutes.get('/enroll/self/status', async (c) => {
 
   let patientId: string
   try {
-    const meRes = await fetch(`${mainApiUrl}/api/user/me`, {
+    const meRes = await fetch(`${mainApiUrl}/api/auth/verify-session`, {
       headers: { Authorization: authHeader },
       signal: AbortSignal.timeout(5_000),
     })

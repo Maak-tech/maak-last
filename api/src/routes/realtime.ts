@@ -106,16 +106,45 @@ function unsubscribeFamily(familyId: string, send: (data: unknown) => void) {
   }
 }
 
+/**
+ * Build a Headers object that better-auth can validate, handling three auth paths:
+ *
+ *  1. Cookie (standard browser + Expo native networking with cookie jar)
+ *  2. Authorization: Bearer <token> (Expo SecureStore token forwarded explicitly)
+ *  3. ?token=<token> query param (web platform fallback — browsers can't set WS headers)
+ *
+ * The `createWebSocketWithHeaders` polyfill uses path 2 on React Native and path 3 on web.
+ * We merge whichever path is present into the headers before calling getSession().
+ */
+function buildAuthHeaders(
+  requestHeaders: Headers,
+  tokenQueryParam?: string
+): Headers {
+  const headers = new Headers(requestHeaders);
+
+  // Path 3 → promote ?token= to Authorization header so better-auth can read it
+  if (tokenQueryParam && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${tokenQueryParam}`);
+  }
+
+  return headers;
+}
+
 export const realtimeRoutes = new Elysia({ prefix: "/ws" })
   // VHI real-time updates for the patient's own state
   .ws("/vhi/:userId", {
     async open(ws) {
       const userId = ws.data.params.userId;
 
-      // Validate session before subscribing
+      // Extract ?token= query param (web platform fallback from createWebSocketWithHeaders)
+      const url = new URL(ws.data.request.url);
+      const tokenParam = url.searchParams.get("token") ?? undefined;
+
+      // Validate session — accepts cookie, Bearer header, or ?token= query param
       let session: Awaited<ReturnType<typeof auth.api.getSession>>;
       try {
-        session = await auth.api.getSession({ headers: ws.data.request.headers });
+        const headers = buildAuthHeaders(ws.data.request.headers, tokenParam);
+        session = await auth.api.getSession({ headers });
       } catch (err: unknown) {
         console.error("[realtime/vhi] getSession failed:", err instanceof Error ? err.message : String(err));
         ws.close(1011, "Internal error");
@@ -152,9 +181,13 @@ export const realtimeRoutes = new Elysia({ prefix: "/ws" })
     async open(ws) {
       const familyId = ws.data.params.familyId;
 
+      const url = new URL(ws.data.request.url);
+      const tokenParam = url.searchParams.get("token") ?? undefined;
+
       let session: Awaited<ReturnType<typeof auth.api.getSession>>;
       try {
-        session = await auth.api.getSession({ headers: ws.data.request.headers });
+        const headers = buildAuthHeaders(ws.data.request.headers, tokenParam);
+        session = await auth.api.getSession({ headers });
       } catch (err: unknown) {
         console.error("[realtime/family] getSession failed:", err instanceof Error ? err.message : String(err));
         ws.close(1011, "Internal error");
